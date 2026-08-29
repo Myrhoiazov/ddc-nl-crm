@@ -1,0 +1,69 @@
+.sectionTitle {
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 65%, transparent);
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+
+    @media (max-width: 700px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.table {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 14%, transparent);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.tableHeader,
+.tableRow {
+    display: grid;
+    grid-template-columns: 1fr 1.4fr 1.4fr 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+}
+
+.tableHeader {
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 55%, transparent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 4%, transparent);
+}
+
+.tableRow {
+    border-top: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
+    font-size: 13px;
+}
+
+.rowLabel {
+    font-weight: 700;
+}
+
+.rowHost,
+.rowMeta {
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 70%, transparent);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .tableHeader {
+        display: none;
+    }
+
+    .tableRow {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+}

@@ -1,0 +1,393 @@
+.modal {
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    padding: 32px;
+    width: 540px;
+    max-width: 95vw;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.title {
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    margin: 0 0 4px;
+    color: var(--sidebar-text-hover-redesigned);
+    letter-spacing: 0.04em;
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
+.avatarSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.avatarWrap {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid var(--card-border-redesigned);
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.avatarPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--sidebar-group-label-redesigned);
+    background: var(--sidebar-hover-bg-redesigned);
+    text-transform: uppercase;
+}
+
+.uploadHint {
+    font-size: 11px;
+    color: var(--sidebar-group-label-redesigned);
+}
+
+// ─── Main photo ───────────────────────────────────────────────────────────────
+.mainPhotoSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mainPhotoWrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+}
+
+.mainPhoto {
+    width: 160px;
+    height: 200px;
+    object-fit: cover;
+    border-radius: var(--radius-sm-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+}
+
+.removePhotoBtn {
+    font-size: 12px;
+    color: var(--danger-text-redesigned);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+// ─── Extra photos ─────────────────────────────────────────────────────────────
+.extraSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.extraGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.extraItem {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--card-border-redesigned);
+}
+
+.extraImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.removeExtraBtn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+}
+
+.addExtraBtn {
+    width: 72px;
+    height: 72px;
+    border-radius: 6px;
+    border: 1.5px dashed var(--card-border-redesigned);
+    background: transparent;
+    color: var(--sidebar-group-label-redesigned);
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: border-color 0.15s, color 0.15s;
+
+    &:hover {
+        border-color: var(--primary-redesigned);
+        color: var(--primary-redesigned);
+    }
+}
+
+.fileInput {
+    display: none;
+}
+
+// ─── Lang tabs ────────────────────────────────────────────────────────────────
+.langTabs {
+    display: flex;
+    gap: 6px;
+}
+
+.langTab {
+    padding: 5px 16px;
+    border-radius: var(--radius-pill-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-redesigned);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &.langActive {
+        background: var(--primary-soft-bg-redesigned);
+        color: var(--primary-redesigned);
+        border-color: var(--primary-redesigned);
+    }
+}
+
+// ─── Form fields ──────────────────────────────────────────────────────────────
+.row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--sidebar-text-redesigned);
+}
+
+.req {
+    color: var(--danger-text-redesigned);
+}
+
+.input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    font-size: 14px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+
+    &:focus { border-color: var(--primary-redesigned); }
+}
+
+.inputSmall {
+    width: 120px;
+    padding: 10px 14px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    font-size: 14px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+
+    &:focus { border-color: var(--primary-redesigned); }
+}
+
+.textarea {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    font-size: 14px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 90px;
+    font-family: inherit;
+
+    &:focus { border-color: var(--primary-redesigned); }
+}
+
+// ─── Category ─────────────────────────────────────────────────────────────────
+// Same Start/Fan/Pro palette as ChoreographerCard.module.scss
+.categoryGroup {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.categoryBtn {
+    padding: 6px 18px;
+    border-radius: var(--radius-pill-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-redesigned);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &.cat_start.categoryActive {
+        background: var(--success-bg-redesigned);
+        color: var(--success-text-redesigned);
+        border-color: var(--success-text-redesigned);
+    }
+    &.cat_fan.categoryActive {
+        background: var(--style-4-bg-redesigned);
+        color: var(--style-4-text-redesigned);
+        border-color: var(--style-4-text-redesigned);
+    }
+    &.cat_pro.categoryActive {
+        background: var(--danger-bg-redesigned);
+        color: var(--danger-text-redesigned);
+        border-color: var(--danger-text-redesigned);
+    }
+}
+
+.clearCat {
+    font-size: 11px;
+    color: var(--sidebar-group-label-redesigned);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+}
+
+// ─── Toggle ───────────────────────────────────────────────────────────────────
+.toggleRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.toggle {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
+
+    input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    input:checked + .toggleSlider {
+        background: var(--primary-redesigned);
+    }
+
+    input:checked + .toggleSlider::before {
+        transform: translateX(20px);
+    }
+}
+
+.toggleSlider {
+    position: absolute;
+    inset: 0;
+    background: var(--card-border-redesigned);
+    border-radius: 24px;
+    transition: background 0.2s;
+
+    &::before {
+        content: '';
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        left: 3px;
+        top: 3px;
+        background: var(--sidebar-bg-redesigned);
+        border-radius: 50%;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    }
+}
+
+// ─── Upload button ────────────────────────────────────────────────────────────
+.uploadBtn {
+    padding: 7px 16px;
+    border-radius: var(--radius-sm-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    width: fit-content;
+
+    &:hover:not(:disabled) {
+        border-color: var(--primary-redesigned);
+        color: var(--primary-redesigned);
+    }
+
+    &:disabled { opacity: 0.5; cursor: default; }
+}
+
+// ─── Submit ───────────────────────────────────────────────────────────────────
+.submitBtn {
+    margin-top: 8px;
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-sm-redesigned);
+    border: none;
+    background: var(--primary-redesigned);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--primary-contrast-redesigned);
+    cursor: pointer;
+    transition: opacity 0.15s;
+
+    &:hover:not(:disabled) { opacity: 0.85; }
+    &:disabled { opacity: 0.5; cursor: not-allowed; }
+}

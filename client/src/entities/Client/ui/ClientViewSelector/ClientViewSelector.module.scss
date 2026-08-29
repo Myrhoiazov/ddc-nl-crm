@@ -1,0 +1,30 @@
+.ClientViewSelector {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+}
+
+.viewButton {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    border-radius: var(--radius-sm-redesigned);
+}
+
+.selected {
+    background: var(--primary-soft-bg-redesigned);
+}
+
+.icon {
+    fill: var(--primary-redesigned) !important;
+}
+
+.notSelected {
+    opacity: 0.38;
+}

@@ -1,0 +1,65 @@
+services:
+  frontend:
+    container_name: ${FRONTEND_CONTAINER_NAME:?FRONTEND_CONTAINER_NAME не задан — см. .env.example}
+    image: ddc-nl-frontend:prod
+    build:
+      context: .
+      dockerfile: docker/client/Dockerfile.prod
+      args:
+        CLIENT_API_URL: ${CLIENT_API_URL_PROD:?CLIENT_API_URL_PROD не задан — см. .env.example}
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT_PROD:?FRONTEND_PORT_PROD не задан — см. .env.example}:80"
+    depends_on:
+      - backend
+    networks:
+      - ddc-nl-network
+
+  backend:
+    container_name: ${BACKEND_CONTAINER_NAME:?BACKEND_CONTAINER_NAME не задан — см. .env.example}
+    image: ddc-nl-backend:prod
+    build:
+      context: ./server
+      dockerfile: ../docker/server/Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      MODE: production
+      PORT: 8080
+      DATABASE_URL: mysql://${DB_USER:?DB_USER не задан — см. .env.example}:${DB_PASSWORD:?DB_PASSWORD не задан — см. .env.example}@db:3306/${DB_NAME:?DB_NAME не задан — см. .env.example}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD не задан — см. .env.example}@redis:6379
+      CLIENT_URL: ${CLIENT_URL_PROD}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL_PROD}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      SECRET_SALT: ${SECRET_SALT}
+      CSRF_SECRET: ${CSRF_SECRET}
+      VERIFY_MARKER_SECRET: ${VERIFY_MARKER_SECRET}
+      COOKIE_NAME: ${COOKIE_NAME:?COOKIE_NAME не задан — см. .env.example}
+      COOKIE_NAME_MOLLIE: ${COOKIE_NAME_MOLLIE:?COOKIE_NAME_MOLLIE не задан — см. .env.example}
+      ACCESS_TOKEN_EXPIRATION: ${ACCESS_TOKEN_EXPIRATION:?ACCESS_TOKEN_EXPIRATION не задан — см. .env.example}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION:?REFRESH_TOKEN_EXPIRATION не задан — см. .env.example}
+      TWO_FACTOR_SENDER_EMAIL: ${TWO_FACTOR_SENDER_EMAIL}
+      MOLLIE_API_KEY: ${MOLLIE_API_KEY}
+      MOLLIE_CLIENT_ID: ${MOLLIE_CLIENT_ID}
+      MOLLIE_CLIENT_SECRET: ${MOLLIE_CLIENT_SECRET}
+      MOLLIE_REDIRECT_URI: ${MOLLIE_REDIRECT_URI}
+      MOLLIE_URI: ${MOLLIE_URI}
+      MOLLIE_WEBHOOK_URL: ${MOLLIE_WEBHOOK_URL}
+      INSTAGRAM_ID: ${INSTAGRAM_ID}
+      INSTAGRAM_WEB_HOOK: ${INSTAGRAM_WEB_HOOK}
+      INSTGRAM_MARKER: ${INSTGRAM_MARKER}
+      INSTGRAM_SECRET: ${INSTGRAM_SECRET}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+    volumes:
+      - uploads_data:/app/public/upload
+      - private_uploads_data:/app/private-uploads
+    ports:
+      - "${BACKEND_PORT_PROD:?BACKEND_PORT_PROD не задан — см. .env.example}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ddc-nl-network

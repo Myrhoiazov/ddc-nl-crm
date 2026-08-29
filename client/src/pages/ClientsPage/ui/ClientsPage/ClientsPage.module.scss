@@ -1,0 +1,45 @@
+.ClientsPage {
+    min-height: 100%;
+
+    > * + * {
+        margin-top: 20px;
+    }
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.statCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+
+    span {
+        font-size: 13px;
+        color: var(--sidebar-text-redesigned);
+    }
+
+    strong {
+        font-size: 24px;
+    }
+}
+
+@media (max-width: 900px) {
+    .statsGrid {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .statsGrid {
+        grid-template-columns: 1fr;
+    }
+}

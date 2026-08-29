@@ -1,0 +1,72 @@
+.wrapper {
+    width: 100%;
+}
+
+.toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid color-mix(in srgb, var(--primary-color) 16%, transparent);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    background: color-mix(in srgb, var(--primary-color) 3%, transparent);
+}
+
+.toolbarBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--primary-color);
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover {
+        background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+    }
+}
+
+.toolbarBtnActive {
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+}
+
+.editor {
+    border: 1px solid color-mix(in srgb, var(--primary-color) 16%, transparent);
+    border-radius: 0 0 8px 8px;
+
+    :global(.ProseMirror) {
+        min-height: 160px;
+        padding: 10px 12px;
+        color: var(--primary-color);
+        font-family: var(--font-family-main);
+        font-size: 14px;
+        outline: none;
+
+        p {
+            margin: 0 0 8px;
+        }
+
+        ul,
+        ol {
+            padding-left: 20px;
+            margin: 0 0 8px;
+        }
+
+        a {
+            color: var(--accent-redesigned, #00c8ff);
+        }
+    }
+
+    :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        float: left;
+        height: 0;
+        color: color-mix(in srgb, var(--primary-color) 45%, transparent);
+        content: attr(data-placeholder);
+        pointer-events: none;
+    }
+}

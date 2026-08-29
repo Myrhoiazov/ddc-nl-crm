@@ -1,0 +1,124 @@
+.group {
+    margin: 0;
+}
+
+.collapsedGroup {
+    display: flex;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+}
+
+.trigger {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm-redesigned);
+    color: var(--sidebar-text-redesigned);
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+    text-align: left;
+
+    &:hover {
+        background: var(--sidebar-hover-bg-redesigned);
+        color: var(--sidebar-text-hover-redesigned);
+
+        .arrow {
+            opacity: 1;
+        }
+    }
+
+    &.active {
+        color: var(--primary-redesigned);
+        background: var(--primary-soft-bg-redesigned);
+
+        .icon {
+            color: var(--primary-redesigned);
+        }
+    }
+
+    &.open {
+        background: var(--sidebar-hover-bg-redesigned);
+        color: var(--sidebar-text-hover-redesigned);
+    }
+}
+
+.icon {
+    flex-shrink: 0;
+    color: currentcolor;
+
+    // See SidebarItem.module.scss for why this override (and the !important)
+    // is needed: the shared Icon component's fill/stroke modifier classes are
+    // tuned for the old dark sidebar and are otherwise invisible on the new one.
+    &:global(.src-shared-ui-Icon-Icon-module__fill) {
+        fill: currentcolor !important;
+    }
+
+    &:global(.src-shared-ui-Icon-Icon-module__stroke) {
+        stroke: currentcolor !important;
+    }
+}
+
+.label {
+    flex: 1;
+    margin-left: 12px;
+    font-size: 14px;
+    font-family: var(--font-family-main);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.arrow {
+    margin-left: 8px;
+    opacity: 0.4;
+    font-size: 12px;
+    color: currentcolor;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, opacity 0.15s ease;
+    display: inline-block;
+}
+
+.arrowOpen {
+    transform: rotate(90deg);
+    opacity: 1;
+}
+
+.childrenWrapper {
+    display: grid;
+    grid-template-rows: 0fr;
+    overflow: hidden;
+    transition: grid-template-rows 0.22s ease;
+}
+
+.childrenOpen {
+    grid-template-rows: 1fr;
+}
+
+.children {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    padding-left: 0;
+    margin-top: 4px;
+    overflow: hidden;
+}
+
+.collapsedGroup {
+    .trigger {
+        width: 44px;
+        height: 44px;
+        min-height: 44px;
+        justify-content: center;
+        padding: 0;
+        border-radius: var(--radius-md-redesigned);
+
+        &.active {
+            background: var(--primary-soft-bg-redesigned);
+        }
+    }
+}

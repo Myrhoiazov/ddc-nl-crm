@@ -1,0 +1,48 @@
+.container {
+    width: 100%;
+}
+
+.secondaryFilters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    align-items: flex-end;
+    justify-content: flex-start;
+    width: 100%;
+}
+
+.branchFilters {
+    justify-content: flex-start;
+}
+
+.paymentFilter {
+    flex: 0 0 auto;
+    width: 220px;
+    margin-left: auto;
+}
+
+@media (max-width: 1100px) {
+    .paymentFilter {
+        margin-left: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .container {
+        align-items: stretch !important;
+    }
+
+    .secondaryFilters {
+        align-items: stretch;
+        justify-content: flex-start;
+    }
+
+    .paymentFilter {
+        flex-basis: 100%;
+        width: 100%;
+    }
+
+    .branchFilters {
+        width: 100%;
+    }
+}

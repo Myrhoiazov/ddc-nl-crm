@@ -1,0 +1,150 @@
+.Navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    height: var(--navbar-height);
+    padding: 0 32px 0 38px;
+    background: var(--sidebar-bg-redesigned);
+    border-bottom: 1px solid var(--card-border-redesigned);
+
+    @media (max-width: 768px) {
+        height: 76px;
+        padding: 0 16px;
+    }
+}
+
+.left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logo {
+    display: block;
+    width: 92px;
+    max-height: 58px;
+    object-fit: contain;
+}
+
+.hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    background: var(--sidebar-hover-bg-redesigned);
+    border: none;
+    border-radius: var(--radius-sm-redesigned);
+    cursor: pointer;
+    flex-shrink: 0;
+
+    span {
+        display: block;
+        height: 2px;
+        background: var(--sidebar-text-hover-redesigned);
+        border-radius: 2px;
+        transition: 0.2s;
+    }
+
+    @media (max-width: 768px) {
+        display: flex;
+    }
+}
+
+.actions {
+    flex-shrink: 0;
+}
+
+.addClientBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    flex-shrink: 0;
+
+    @media (max-width: 900px) {
+        .addClientLabel {
+            display: none;
+        }
+    }
+}
+
+.addClientLabel {
+    white-space: nowrap;
+}
+
+.langGroup {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 40px;
+    padding: 4px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.langButton {
+    min-width: 34px;
+    height: 30px;
+    padding: 0 8px;
+    border: 0;
+    border-radius: var(--radius-sm-redesigned);
+    background: transparent;
+    color: var(--sidebar-text-hover-redesigned);
+    font: 700 12px/1 var(--font-family-main);
+    cursor: pointer;
+}
+
+.activeLang {
+    background: var(--primary-redesigned);
+    color: var(--primary-contrast-redesigned);
+}
+
+.notification {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+    cursor: pointer;
+}
+
+.bell {
+    font-size: 23px;
+    line-height: 1;
+}
+
+.themeSwitcher {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    flex-shrink: 0;
+}
+
+.badge {
+    position: absolute;
+    top: -8px;
+    right: -7px;
+    display: grid;
+    place-items: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 4px;
+    border-radius: var(--radius-pill-redesigned);
+    background: var(--danger-text-redesigned);
+    color: var(--primary-contrast-redesigned);
+    font: 700 11px/1 var(--font-family-main);
+    box-shadow: 0 0 0 2px var(--sidebar-bg-redesigned);
+}

@@ -1,0 +1,78 @@
+services:
+  frontend:
+    container_name: ddc-nl-client-dev
+    image: ddc-nl-frontend:dev
+    build:
+      context: .
+      dockerfile: docker/client/Dockerfile.dev
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      NODE_ENV: development
+      HOST: 0.0.0.0
+      CHOKIDAR_USEPOLLING: "true"
+      WATCHPACK_POLLING: "true"
+      CLIENT_API_URL: ${CLIENT_API_URL:?CLIENT_API_URL не задан — см. .env.example}
+    volumes:
+      - ./client:/app
+      - client_node_modules:/app/node_modules
+    ports:
+      - "${FRONTEND_PORT:?FRONTEND_PORT не задан — см. .env.example}:3000"
+    depends_on:
+      - backend
+    networks:
+      - ddc-nl-network
+
+  backend:
+    container_name: ddc-nl-backend-dev
+    image: ddc-nl-backend:dev
+    build:
+      context: ./server
+      dockerfile: ../docker/server/Dockerfile.dev
+    restart: unless-stopped
+    working_dir: /app
+    environment:
+      MODE: development
+      PORT: 8080
+      DATABASE_URL: mysql://${DB_USER:?DB_USER не задан — см. .env.example}:${DB_PASSWORD:?DB_PASSWORD не задан — см. .env.example}@db:3306/${DB_NAME:?DB_NAME не задан — см. .env.example}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CLIENT_URL: ${CLIENT_URL:?CLIENT_URL не задан — см. .env.example}
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:?PUBLIC_SITE_URL не задан — см. .env.example}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?JWT_ACCESS_SECRET не задан — см. .env.example}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?JWT_REFRESH_SECRET не задан — см. .env.example}
+      SECRET_SALT: ${SECRET_SALT:?SECRET_SALT не задан — см. .env.example}
+      CSRF_SECRET: ${CSRF_SECRET:?CSRF_SECRET не задан — см. .env.example}
+      VERIFY_MARKER_SECRET: ${VERIFY_MARKER_SECRET:?VERIFY_MARKER_SECRET не задан — см. .env.example}
+      COOKIE_NAME: ${COOKIE_NAME:?COOKIE_NAME не задан — см. .env.example}
+      COOKIE_NAME_MOLLIE: ${COOKIE_NAME_MOLLIE:?COOKIE_NAME_MOLLIE не задан — см. .env.example}
+      ACCESS_TOKEN_EXPIRATION: ${ACCESS_TOKEN_EXPIRATION:?ACCESS_TOKEN_EXPIRATION не задан — см. .env.example}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION:?REFRESH_TOKEN_EXPIRATION не задан — см. .env.example}
+      TWO_FACTOR_SENDER_EMAIL: ${TWO_FACTOR_SENDER_EMAIL}
+      MOLLIE_API_KEY: ${MOLLIE_API_KEY}
+      MOLLIE_CLIENT_ID: ${MOLLIE_CLIENT_ID}
+      MOLLIE_CLIENT_SECRET: ${MOLLIE_CLIENT_SECRET}
+      MOLLIE_REDIRECT_URI: ${MOLLIE_REDIRECT_URI}
+      MOLLIE_URI: ${MOLLIE_URI}
+      MOLLIE_WEBHOOK_URL: ${MOLLIE_WEBHOOK_URL}
+      INSTAGRAM_ID: ${INSTAGRAM_ID}
+      INSTAGRAM_WEB_HOOK: ${INSTAGRAM_WEB_HOOK}
+      INSTGRAM_MARKER: ${INSTGRAM_MARKER}
+      INSTGRAM_SECRET: ${INSTGRAM_SECRET}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+    volumes:
+      - ./server:/app
+      - server_node_modules:/app/node_modules
+    ports:
+      - "${BACKEND_PORT:?BACKEND_PORT не задан — см. .env.example}:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - ddc-nl-network
+
+volumes:
+  client_node_modules:
+  server_node_modules:

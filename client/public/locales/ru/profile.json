@@ -1,0 +1,20 @@
+{
+    "ProfileCard": "Карта пользователя",
+    "change": "редактировать",
+    "name": "Имя",
+    "secondname": "Ваша фамилия",
+    "age": "Возраст",
+    "city": "Город",
+    "country": "Страна",
+    "currency": "Валюта",
+    "incorrect_age": " Некорректный возраст",
+    "incorrect_user_data": "Некорректное имя или фамилия",
+    "incorrect_city": "Некорректный город",
+    "incorrect_country": "Некорректная страна",
+    "incorrect_currency": "Некорректная валюта",
+    "incorrect_username": "Некорректное имя пользователя",
+    "incorrect_password": "Некорректный пароль",
+    "email_already_exists": "Пользователь с таким email уже существует",
+    "incorrect_email": "Некорректный email",
+    "incorrect_phone": "Некорректный номер телефона"
+}

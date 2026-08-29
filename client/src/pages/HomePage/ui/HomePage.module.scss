@@ -1,0 +1,217 @@
+.HomePage {
+    padding: 24px 0;
+}
+
+.kpiCard {
+    min-width: 220px;
+    flex: 1 1 220px;
+    border: 1px solid var(--card-border-redesigned);
+    border-left: 4px solid var(--primary-redesigned);
+    border-radius: var(--radius-md-redesigned);
+}
+
+.kpiLabel {
+    color: var(--sidebar-group-label-redesigned);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.primary {
+    border-left-color: var(--primary-redesigned);
+}
+
+.success {
+    border-left-color: var(--success-text-redesigned);
+}
+
+.danger {
+    border-left-color: var(--danger-text-redesigned);
+}
+
+.sectionCard {
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+}
+
+.revenueCard {
+    overflow: hidden;
+    background: var(--sidebar-bg-redesigned);
+}
+
+.chartHeader {
+    gap: 16px;
+}
+
+.periodTabs {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.periodTab {
+    min-height: 34px;
+    padding: 0 16px;
+    color: var(--sidebar-text-redesigned);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    border: none;
+    border-radius: var(--radius-sm-redesigned);
+    background: transparent;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.activePeriodTab {
+    color: var(--primary-redesigned);
+    background: var(--primary-soft-bg-redesigned);
+}
+
+.chartMeta {
+    align-items: flex-end;
+    min-width: fit-content;
+}
+
+.chartTotals {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
+    color: var(--sidebar-text-hover-redesigned);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.legendDot,
+.updatedDot {
+    display: inline-flex;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.incomeDot {
+    background: var(--primary-redesigned);
+}
+
+.expenseDot {
+    background: #f59e0b;
+}
+
+.updatedDot {
+    background: var(--success-text-redesigned);
+    box-shadow: 0 0 0 4px var(--success-bg-redesigned);
+}
+
+.updatedText {
+    color: var(--sidebar-text-redesigned);
+}
+
+.chartArea {
+    display: grid;
+    grid-auto-columns: minmax(92px, 1fr);
+    grid-auto-flow: column;
+    gap: 18px;
+    align-items: end;
+    width: 100%;
+    min-height: 230px;
+    padding-top: 18px;
+    overflow-x: auto;
+}
+
+.chartColumn {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    min-width: 92px;
+}
+
+.bars {
+    display: flex;
+    gap: 4px;
+    align-items: end;
+    justify-content: center;
+    width: 100%;
+    height: 210px;
+}
+
+.barGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: flex-end;
+    width: min(46%, 74px);
+    min-width: 34px;
+    height: 100%;
+}
+
+.barValue {
+    color: var(--sidebar-text-redesigned);
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.bar {
+    width: 100%;
+    border-radius: 7px 7px 0 0;
+    transition: height 0.2s ease;
+}
+
+.incomeBar {
+    background: linear-gradient(180deg, var(--primary-redesigned) 0%, var(--primary-hover-redesigned) 100%);
+}
+
+.expenseBar {
+    background: linear-gradient(180deg, #ffbd23 0%, #f59e0b 100%);
+}
+
+.chartLabel {
+    color: var(--sidebar-text-redesigned);
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.failedPayment {
+    padding: 12px 0;
+    border-bottom: 1px solid var(--card-border-redesigned);
+}
+
+.failedPayment:last-child {
+    border-bottom: none;
+}
+
+.incidentsLink {
+    color: var(--primary-redesigned);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.incidentsLink:hover {
+    text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+    .chartHeader {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .chartMeta {
+        align-items: flex-start;
+    }
+
+    .chartTotals {
+        align-items: flex-start;
+    }
+
+    .chartArea {
+        gap: 12px;
+    }
+}

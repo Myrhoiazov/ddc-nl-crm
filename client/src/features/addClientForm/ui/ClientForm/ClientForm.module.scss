@@ -1,0 +1,86 @@
+.AddClientForm {
+    width: min(720px, calc(100vw - 32px));
+    max-width: 100%;
+    padding: 4px;
+    background-color: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+}
+
+.header {
+    width: 100%;
+}
+
+.titleBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    width: 100%;
+    text-align: center;
+}
+
+.submitButton {
+    min-height: 44px;
+    margin-top: 4px;
+}
+
+.paymentSection {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+}
+
+.groupSection {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+}
+
+.groupOptions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 8px;
+}
+
+.groupOption {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    cursor: pointer;
+
+    input { width: 17px; height: 17px; accent-color: var(--primary-redesigned); }
+    span { display: flex; flex-direction: column; gap: 2px; }
+    small { color: var(--sidebar-group-label-redesigned); }
+}
+
+.paymentGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    gap: 16px;
+    width: 100%;
+    margin-top: 4px;
+}
+
+.validationErrors {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+}
+
+@media (max-width: 720px) {
+    .paymentGrid, .groupOptions {
+        grid-template-columns: 1fr;
+    }
+}

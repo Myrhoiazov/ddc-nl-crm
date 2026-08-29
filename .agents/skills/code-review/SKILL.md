@@ -1,0 +1,81 @@
+---
+name: code-review
+description: Review DDC NL theme changes against repository standards and the requested spec. Use before PR publishing, when reviewing WIP changes, or when asked to review since a branch, commit, tag, or fixed point.
+---
+
+# DDC NL Code Review
+
+Review the diff along two axes:
+
+- **Standards:** whether the change follows DDC NL repository rules and local conventions.
+- **Spec:** whether the change matches the user request, issue, PRD, or `tasks/plan.md`.
+
+## 1. Pin the Diff
+
+Use the fixed point supplied by the user. If none is supplied, default to:
+
+```bash
+git diff origin/main...HEAD
+git log origin/main..HEAD --oneline
+```
+
+Confirm the fixed point resolves and the diff is non-empty. If the working tree has uncommitted changes, include them in the review by inspecting `git diff` and `git diff --staged` as well.
+
+Completion criterion: the reviewed change set is explicit.
+
+## 2. Gather Standards
+
+Read:
+
+- `AGENTS.md`
+- `README.md`
+- `CONTEXT.md` when public copy or domain terms changed
+- Any local coding standards or task files relevant to the diff
+
+Apply these standing DDC NL checks:
+
+- Public copy uses `Talent Center DDC` and `DDC NL` terminology.
+- Public slugs, template names, CSS/JS ids, and classes are changed only with usage checks.
+- Secrets and private customer data are not committed.
+- `images/`, `videos/`, `.env`, `.DS_Store`, and `node_modules/` are not staged.
+- Generated style files stay aligned with SCSS when styles change.
+- PHP and JS checks required by `AGENTS.md` are run or explicitly blocked.
+- No AI attribution trailers are added to commits.
+
+Completion criterion: every applicable standard source has been considered.
+
+## 3. Gather Spec
+
+Use the first available source:
+
+1. The user's request in the conversation.
+2. `tasks/plan.md` and `tasks/todo.md`.
+3. A supplied issue, PRD, or spec file.
+
+If no spec exists, report that the Spec axis is limited to the conversation request.
+
+Completion criterion: the behavior expected by the change is stated.
+
+## 4. Review
+
+Report findings under these exact headings:
+
+```markdown
+## Standards
+- [Severity] [file:line] Finding, why it matters, and suggested fix.
+
+## Spec
+- [Severity] [file:line] Finding, missing/incorrect behavior, and suggested fix.
+```
+
+Severity values:
+
+- `Blocking`: must fix before PR.
+- `Non-blocking`: worth addressing, but PR can proceed.
+- `Question`: needs product or user clarification.
+
+Focus on bugs, regressions, missing verification, security/privacy mistakes, and spec mismatches. Keep style-only feedback brief unless it violates a documented rule.
+
+## Completion
+
+Review is complete when both axes have either concrete findings or an explicit pass, and the final line states the count of blocking findings.

@@ -1,0 +1,123 @@
+.StateView {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    width: 100%;
+    color: var(--primary-color);
+}
+
+.card,
+.page {
+    padding: 20px;
+    border: 1px solid rgb(20 28 31 / 8%);
+    border-radius: 18px;
+    background:
+        linear-gradient(135deg, rgb(181 255 0 / 10%), transparent 42%),
+        var(--dark-bg-redesigned);
+    box-shadow: 0 10px 30px rgb(20 28 31 / 6%);
+}
+
+.page {
+    min-height: 220px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.inline {
+    padding: 12px 0;
+}
+
+.icon {
+    display: flex;
+    flex: 0 0 36px;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgb(181 255 0 / 20%);
+    color: #111;
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.content {
+    min-width: 0;
+}
+
+.title {
+    margin-top: 1px;
+    font-size: 16px;
+    font-weight: 800;
+    line-height: 1.25;
+}
+
+.text {
+    margin-top: 5px;
+    color: var(--hint-redesigned);
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.action {
+    margin-top: 14px;
+}
+
+.error {
+    .icon {
+        background: rgb(255 77 100 / 14%);
+        color: #ff4d64;
+    }
+}
+
+.success {
+    .icon {
+        background: rgb(57 181 74 / 14%);
+        color: #39b54a;
+    }
+}
+
+.loading {
+    .icon {
+        background: rgb(20 28 31 / 7%);
+    }
+}
+
+.dots {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+
+    i {
+        display: block;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: currentcolor;
+        animation: state-dot 1s ease-in-out infinite;
+    }
+
+    i:nth-child(2) {
+        animation-delay: 0.12s;
+    }
+
+    i:nth-child(3) {
+        animation-delay: 0.24s;
+    }
+}
+
+@keyframes state-dot {
+    0%,
+    80%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.45;
+    }
+
+    40% {
+        transform: translateY(-4px);
+        opacity: 1;
+    }
+}

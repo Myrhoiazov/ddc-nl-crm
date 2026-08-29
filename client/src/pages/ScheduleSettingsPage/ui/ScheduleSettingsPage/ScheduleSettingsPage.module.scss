@@ -1,0 +1,286 @@
+.pageTitle {
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 28px;
+    color: var(--sidebar-text-hover-redesigned);
+}
+
+.toolbar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 32px;
+    flex-wrap: wrap;
+}
+
+.summaryGrid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.summaryCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+
+    span {
+        font-size: 13px;
+        color: var(--sidebar-text-redesigned);
+    }
+
+    strong {
+        font-size: 24px;
+    }
+}
+
+.branchSection {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.branchGrid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(300px, 1fr));
+    gap: 10px;
+}
+
+.branchCard {
+    padding: 14px 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+
+    summary {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        cursor: pointer;
+    }
+
+    small {
+        display: block;
+        margin-top: 4px;
+        color: var(--sidebar-group-label-redesigned);
+    }
+}
+
+.branchNumbers {
+    font-size: 13px;
+    text-align: right;
+    color: var(--sidebar-text-redesigned);
+}
+
+.branchDetails {
+    display: flex;
+    gap: 18px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--card-border-redesigned);
+    font-size: 13px;
+}
+
+.branchStudents {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(150px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+    font-size: 13px;
+
+    ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
+    }
+
+    span {
+        display: block;
+        margin-top: 6px;
+        color: var(--sidebar-group-label-redesigned);
+    }
+}
+
+.studentLink {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: transparent;
+    transition: text-decoration-color 0.15s, opacity 0.15s;
+
+    &:hover {
+        text-decoration-color: currentColor;
+        opacity: 0.8;
+    }
+}
+
+.viewToggle {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+
+    button {
+        padding: 5px 12px;
+        border-radius: var(--radius-sm-redesigned);
+        border: 1px solid var(--card-border-redesigned);
+        background: transparent;
+        color: var(--sidebar-text-redesigned);
+        font-size: 12px;
+        cursor: pointer;
+
+        &:hover { color: var(--sidebar-text-hover-redesigned); }
+    }
+}
+
+.viewToggleActive {
+    background: var(--primary-redesigned) !important;
+    border-color: var(--primary-redesigned) !important;
+    color: var(--primary-contrast-redesigned) !important;
+}
+
+.branchGroups {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.groupCard {
+    padding: 10px 12px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    background: var(--sidebar-hover-bg-redesigned);
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.groupCardHighlighted {
+    border-color: var(--primary-redesigned);
+    box-shadow: 0 0 0 3px var(--primary-soft-bg-redesigned);
+}
+
+.groupCardHeader {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 13px;
+
+    span {
+        opacity: 0.6;
+    }
+}
+
+.primaryBtn,
+.secondaryBtn {
+    padding: 10px 20px;
+    border-radius: var(--radius-sm-redesigned);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s, background 0.15s;
+}
+
+.primaryBtn {
+    border: none;
+    background: var(--primary-redesigned);
+    color: var(--primary-contrast-redesigned);
+
+    &:hover { opacity: 0.85; }
+}
+
+.secondaryBtn {
+    border: 1px solid var(--card-border-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+
+    &:hover { background: var(--sidebar-hover-bg-redesigned); }
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.sectionTitle {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--sidebar-text-hover-redesigned);
+}
+
+.filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.filterSelect {
+    padding: 8px 14px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    font-size: 14px;
+    background: var(--sidebar-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+    outline: none;
+    min-width: 160px;
+    cursor: pointer;
+
+    &:focus { border-color: var(--primary-redesigned); }
+}
+
+.resetBtn {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    background: transparent;
+    font-size: 14px;
+    color: var(--sidebar-text-hover-redesigned);
+    cursor: pointer;
+
+    &:hover { background: var(--sidebar-hover-bg-redesigned); }
+}
+
+.list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.loading,
+.empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--sidebar-text-redesigned);
+    font-size: 15px;
+}
+
+@media (max-width: 1100px) {
+    .summaryGrid {
+        grid-template-columns: repeat(2, minmax(140px, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .summaryGrid,
+    .branchGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .branchCard summary {
+        flex-direction: column;
+    }
+
+    .branchNumbers {
+        text-align: left;
+    }
+
+    .branchStudents {
+        grid-template-columns: 1fr;
+    }
+}

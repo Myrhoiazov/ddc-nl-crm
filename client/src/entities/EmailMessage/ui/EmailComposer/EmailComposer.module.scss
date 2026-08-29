@@ -1,0 +1,118 @@
+.composer {
+    width: 100%;
+}
+
+.toolbar {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    border: 1px solid var(--card-border-redesigned);
+    border-bottom: none;
+    border-radius: var(--radius-sm-redesigned) var(--radius-sm-redesigned) 0 0;
+    background: var(--sidebar-hover-bg-redesigned);
+}
+
+.toolbarBtn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 30px;
+    padding: 0 6px;
+    border: none;
+    border-radius: var(--radius-sm-redesigned);
+    background: transparent;
+    color: var(--sidebar-text-hover-redesigned);
+    font-size: 13px;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--sidebar-hover-bg-redesigned);
+    }
+}
+
+.toolbarBtnActive {
+    background: var(--primary-soft-bg-redesigned);
+    color: var(--primary-redesigned);
+}
+
+.editor {
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: 0 0 var(--radius-sm-redesigned) var(--radius-sm-redesigned);
+
+    :global(.ProseMirror) {
+        min-height: 140px;
+        padding: 10px 12px;
+        color: var(--sidebar-text-hover-redesigned);
+        font-family: var(--font-family-main);
+        font-size: 14px;
+        outline: none;
+
+        p {
+            margin: 0 0 8px;
+        }
+
+        ul,
+        ol {
+            padding-left: 20px;
+            margin: 0 0 8px;
+        }
+
+        a {
+            color: var(--primary-redesigned);
+        }
+    }
+
+    :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        float: left;
+        height: 0;
+        color: var(--sidebar-group-label-redesigned);
+        content: attr(data-placeholder);
+        pointer-events: none;
+    }
+}
+
+.hiddenInput {
+    display: none;
+}
+
+.fileChip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    font-size: 12px;
+}
+
+.fileName {
+    max-width: 160px;
+    overflow: hidden;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.fileSize {
+    color: var(--sidebar-text-redesigned);
+}
+
+.fileRemove {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border: none;
+    border-radius: 50%;
+    background: var(--sidebar-hover-bg-redesigned);
+    color: var(--sidebar-text-hover-redesigned);
+    font-size: 9px;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--danger-bg-redesigned);
+        color: var(--danger-text-redesigned);
+    }
+}

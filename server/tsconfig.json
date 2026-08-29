@@ -1,0 +1,16 @@
+{
+    "compilerOptions": {
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "baseUrl": "./src",
+        "outDir": "./build",
+        "sourceMap": true,
+        "noImplicitAny": true,
+        "esModuleInterop": true
+    },
+    "ts-node": {
+        "files": true
+    },
+    "include": ["src/**/*", "src/types/**/*.d.ts", "prisma/**/*"],
+    "exclude": ["node_modules", "build"]
+}

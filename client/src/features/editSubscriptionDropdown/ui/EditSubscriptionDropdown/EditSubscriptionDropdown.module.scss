@@ -1,0 +1,26 @@
+.confirm {
+    width: 100%;
+}
+
+.actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    width: 100%;
+}
+
+.cancelButton,
+.confirmButton {
+    min-width: 140px;
+}
+
+@media (max-width: 576px) {
+    .actions {
+        flex-direction: column;
+    }
+
+    .cancelButton,
+    .confirmButton {
+        width: 100%;
+    }
+}

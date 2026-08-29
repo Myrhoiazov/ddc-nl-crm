@@ -1,0 +1,216 @@
+.MollieCustomerDetails {
+    width: 100%;
+}
+
+.header {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.editButton {
+    min-width: 150px;
+}
+
+.history {
+    margin-top: 8px;
+}
+
+.subtitle {
+    margin-top: 4px;
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 62%, transparent);
+}
+
+.historyCard {
+    border: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
+    border-radius: 16px;
+    background: var(--sidebar-bg-redesigned);
+}
+
+.studentLinksCard {
+    border: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
+    border-radius: 16px;
+    background: var(--sidebar-bg-redesigned);
+}
+
+.linkedStudents {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+}
+
+.studentLinkRow {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--sidebar-bg-redesigned) 72%, transparent);
+}
+
+.studentInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.studentName {
+    overflow: hidden;
+    color: var(--sidebar-text-hover-redesigned);
+    font-weight: 700;
+    text-overflow: ellipsis;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.studentName:hover {
+    text-decoration: underline;
+}
+
+.studentMeta {
+    overflow: hidden;
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 58%, transparent);
+    font-size: 13px;
+    line-height: 18px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.addStudentForm {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) minmax(180px, 0.45fr) auto;
+    gap: 12px;
+    align-items: end;
+    width: 100%;
+}
+
+.addStudentButton {
+    min-width: 130px;
+}
+
+.historyDate {
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 62%, transparent);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
+}
+
+.paymentRow {
+    display: grid;
+    grid-template-columns: minmax(260px, 1fr) 120px auto auto;
+    gap: 16px;
+    align-items: center;
+    padding-top: 12px;
+    border-top: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
+}
+
+.paymentActions {
+    display: flex;
+    gap: 8px;
+    justify-self: end;
+}
+
+.paymentActions button {
+    padding: 7px 12px;
+    color: var(--sidebar-text-hover-redesigned);
+    font: inherit;
+    border: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 16%, transparent);
+    border-radius: 9px;
+    background: transparent;
+    cursor: pointer;
+}
+
+.paymentActions button:hover {
+    background: color-mix(in srgb, var(--success-text-redesigned) 12%, transparent);
+    border-color: color-mix(in srgb, var(--success-text-redesigned) 42%, transparent);
+}
+
+.paymentMain {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.paymentDescription {
+    overflow: hidden;
+    color: var(--sidebar-text-hover-redesigned);
+    font-weight: 600;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.paymentMeta {
+    overflow: hidden;
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 58%, transparent);
+    font-size: 13px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.paymentAmount {
+    justify-self: end;
+    color: var(--sidebar-text-hover-redesigned);
+    font-weight: 600;
+}
+
+.paymentStatus {
+    justify-self: end;
+    padding: 4px 10px;
+    color: var(--sidebar-text-hover-redesigned);
+    font-size: 13px;
+    border: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 14%, transparent);
+    border-radius: 999px;
+}
+
+.paid {
+    color: color-mix(in srgb, var(--success-text-redesigned) 72%, var(--sidebar-text-hover-redesigned));
+    border-color: color-mix(in srgb, var(--success-text-redesigned) 44%, transparent);
+}
+
+.canceled {
+    color: color-mix(in srgb, var(--danger-text-redesigned) 70%, var(--sidebar-text-hover-redesigned));
+    border-color: color-mix(in srgb, var(--danger-text-redesigned) 36%, transparent);
+}
+
+@media (max-width: 768px) {
+    .header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .editButton {
+        width: 100%;
+    }
+
+    .paymentRow {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .studentLinkRow,
+    .addStudentForm {
+        grid-template-columns: 1fr;
+    }
+
+    .addStudentButton {
+        width: 100%;
+    }
+
+    .paymentAmount,
+    .paymentStatus,
+    .paymentActions {
+        justify-self: start;
+    }
+
+    .paymentActions {
+        flex-wrap: wrap;
+    }
+}

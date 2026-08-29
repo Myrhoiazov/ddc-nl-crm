@@ -1,0 +1,30 @@
+.Summary {
+    width: 100%;
+    background-color: transparent;
+
+    .card {
+        min-height: 5.25rem;
+        border: 1px solid var(--card-border-redesigned);
+        border-left: 4px solid transparent;
+        background-color: var(--sidebar-bg-redesigned);
+        border-radius: var(--radius-md-redesigned);
+        flex-grow: 1;
+        box-shadow: none;
+
+        .title {
+            color: var(--sidebar-text-hover-redesigned);
+        }
+    }
+
+    .incomeCard {
+        border-left-color: var(--success-text-redesigned);
+    }
+
+    .expenseCard {
+        border-left-color: var(--danger-text-redesigned);
+    }
+
+    .balanceCard {
+        border-left-color: var(--primary-redesigned);
+    }
+}

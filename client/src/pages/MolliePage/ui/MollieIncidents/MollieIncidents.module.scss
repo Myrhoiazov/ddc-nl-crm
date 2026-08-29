@@ -1,0 +1,266 @@
+.MollieIncidents {
+    width: 100%;
+}
+
+.subtitle {
+    margin-top: 4px;
+    color: var(--sidebar-text-redesigned);
+}
+
+.summaryCard {
+    flex: 1 1 220px;
+    min-width: 200px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.danger {
+    border-color: var(--danger-text-redesigned);
+}
+
+.warning {
+    border-color: var(--style-4-text-redesigned);
+}
+
+.info {
+    border-color: var(--style-1-text-redesigned);
+}
+
+.success {
+    border-color: var(--success-text-redesigned);
+}
+
+.neutral {
+    border-color: var(--card-border-redesigned);
+}
+
+.filters {
+    display: grid;
+    grid-template-columns: minmax(280px, 1fr) minmax(190px, 0.35fr) auto;
+    gap: 16px;
+    align-items: end;
+    width: 100%;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.filterInput {
+    border-color: var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.filterSelect {
+    span {
+        color: var(--sidebar-text-hover-redesigned);
+    }
+
+    select {
+        min-height: 46px;
+        color: var(--sidebar-text-hover-redesigned);
+        border-color: var(--card-border-redesigned);
+        border-radius: var(--radius-md-redesigned);
+        background: var(--sidebar-bg-redesigned);
+    }
+}
+
+.filterActions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.resetButton {
+    color: var(--sidebar-text-hover-redesigned);
+    border-color: var(--card-border-redesigned);
+}
+
+.pagination {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 4px;
+    color: var(--sidebar-text-redesigned);
+    font-size: 14px;
+}
+
+.paginationActions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pageButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: var(--sidebar-text-hover-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: 50%;
+    background: var(--sidebar-hover-bg-redesigned);
+}
+
+.stateCard,
+.incidentCard {
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.incidentCard.critical {
+    border-color: var(--danger-text-redesigned);
+}
+
+.incidentCard.warning {
+    border-color: var(--style-4-text-redesigned);
+}
+
+.incidentCard.info {
+    border-color: var(--card-border-redesigned);
+}
+
+.incidentGrid {
+    display: grid;
+    grid-template-columns: minmax(260px, 1.5fr) minmax(220px, 1fr) 120px 120px auto;
+    gap: 16px;
+    align-items: center;
+}
+
+.mainInfo,
+.clientInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.badge,
+.status {
+    display: inline-flex;
+    width: fit-content;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    background: var(--sidebar-hover-bg-redesigned);
+    border-radius: var(--radius-pill-redesigned);
+    text-transform: uppercase;
+}
+
+.payment {
+    color: var(--danger-text-redesigned);
+    background: var(--danger-bg-redesigned);
+}
+
+.subscription {
+    color: var(--style-1-text-redesigned);
+    background: var(--style-1-bg-redesigned);
+}
+
+.customer {
+    color: var(--sidebar-text-redesigned);
+}
+
+.status.critical {
+    color: var(--danger-text-redesigned);
+    background: var(--danger-bg-redesigned);
+}
+
+.status.warning {
+    color: var(--style-4-text-redesigned);
+    background: var(--style-4-bg-redesigned);
+}
+
+.status.info {
+    color: var(--style-1-text-redesigned);
+    background: var(--style-1-bg-redesigned);
+}
+
+.label,
+.mutedText {
+    color: var(--sidebar-text-redesigned);
+}
+
+.mutedText,
+.link,
+.crmLink,
+.actionLink {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.link,
+.crmLink,
+.actionLink {
+    color: var(--sidebar-text-hover-redesigned);
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.link:hover,
+.crmLink:hover,
+.actionLink:hover {
+    text-decoration: underline;
+}
+
+.crmLink {
+    font-size: 13px;
+    line-height: 18px;
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-end;
+}
+
+.resolveButton {
+    padding: 7px 12px;
+    color: var(--success-text-redesigned);
+    font-size: 13px;
+    border-color: var(--success-text-redesigned);
+}
+
+.studentLinks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+@media (max-width: 1200px) {
+    .incidentGrid {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+    }
+
+    .actions {
+        align-items: flex-start;
+    }
+}
+
+@media (max-width: 768px) {
+    .filters,
+    .incidentGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .filterActions,
+    .pagination {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .paginationActions {
+        justify-content: space-between;
+    }
+}

@@ -1,0 +1,36 @@
+.Wrapper {
+    width: 100%;
+
+    .label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: var(--font-size-s);
+        color: var(--sidebar-text-redesigned);
+        font-family: var(--font-family-main);
+    }
+
+    .select {
+        width: 100%;
+        height: 46px;
+        padding: 8px 16px;
+        color: var(--sidebar-text-hover-redesigned);
+        background: transparent;
+        border: 1px solid var(--card-border-redesigned);
+        border-radius: var(--radius-sm-redesigned);
+        outline: none;
+        font-family: var(--font-family-main);
+        font-size: var(--font-size-m);
+        cursor: pointer;
+        transition: border-color 0.3s ease;
+        appearance: auto;
+
+        &:focus {
+            border-color: var(--primary-redesigned);
+        }
+    }
+
+    .option {
+        color: var(--inverted-primary-color);
+        background: var(--inverted-bg-color);
+    }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "ddc-nl",
+  "private": true,
+  "scripts": {
+    "start": "node scripts/start-development.js",
+    "deploy": "bash scripts/deploy-docker.sh",
+    "deploy:docker": "bash scripts/deploy-docker.sh",
+    "graphify:specs": "bash scripts/graphify-update-docs.sh",
+    "graph:update": "graphify extract . --code-only --no-cluster --out . && graphify tree --graph graphify-out/graph.json --output docs/spec/PROJECT_TREE.html --label \"DDC CRM\" && graphify extract server/src --code-only --no-cluster --out graphify-out/server-src && graphify tree --graph graphify-out/server-src/graphify-out/graph.json --output docs/spec/SERVER_SRC_TREE.html --label \"DDC CRM Server src\" && graphify extract client/src --code-only --no-cluster --out graphify-out/client-src && graphify tree --graph graphify-out/client-src/graphify-out/graph.json --output docs/spec/CLIENT_SRC_TREE.html --label \"DDC CRM Client src\""
+  },
+  "scriptDescriptions": {
+    "graph:update": "Обновляет Graphify HTML-деревья проекта: общий граф, server/src и client/src. Запускай после изменений структуры файлов, импортов или крупных рефакторингов."
+  }
+}

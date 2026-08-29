@@ -1,0 +1,17 @@
+.Page {
+    height: calc(100vh - var(--navbar-height));
+    padding: 40px;
+    flex-grow: 1;
+    flex-shrink: 100;
+    overflow-y: auto;
+
+    @media (max-width: 768px) {
+        padding: 20px 16px;
+        width: 100%;
+    }
+}
+
+.trigger {
+    height: 40px;
+    margin-top: 20px;
+}

@@ -1,0 +1,106 @@
+.item {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm-redesigned);
+    color: var(--sidebar-text-redesigned);
+    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+    margin: 0;
+
+    &:hover {
+        background: var(--sidebar-hover-bg-redesigned);
+        color: var(--sidebar-text-hover-redesigned);
+
+        .chevron {
+            opacity: 1;
+        }
+    }
+
+    &.active {
+        background: var(--primary-redesigned);
+        color: var(--primary-contrast-redesigned);
+
+        .chevron {
+            opacity: 1;
+        }
+    }
+}
+
+.icon {
+    flex-shrink: 0;
+    color: currentcolor;
+
+    // The shared Icon component hard-codes fill/stroke via its "fill"/"stroke"
+    // modifier class, tuned for icons on the old dark sidebar (near-white fill,
+    // dark-gray stroke) — invisible or wrong-toned on the new light sidebar.
+    // Re-point each to the item's own currentColor so icons always match their
+    // label text (muted / hover / active). !important is needed since these
+    // modifier classes live in a different CSS module with no reliable load
+    // order relative to this one.
+    &:global(.src-shared-ui-Icon-Icon-module__fill) {
+        fill: currentcolor !important;
+    }
+
+    &:global(.src-shared-ui-Icon-Icon-module__stroke) {
+        stroke: currentcolor !important;
+    }
+}
+
+.link {
+    flex: 1;
+    margin-left: 12px;
+    font-size: 14px;
+    font-family: var(--font-family-main);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity 0.2s ease, width 0.2s ease;
+}
+
+.chevron {
+    margin-left: 8px;
+    opacity: 0.4;
+    font-size: 12px;
+    transition: opacity 0.15s ease;
+    color: currentcolor;
+    flex-shrink: 0;
+}
+
+.nested {
+    min-height: 36px;
+    padding: 8px 12px 8px 38px;
+    font-size: 13px;
+    color: var(--sidebar-text-redesigned);
+
+    .link {
+        font-size: 13px;
+    }
+}
+
+.collapsed {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    justify-content: center;
+    border-radius: var(--radius-md-redesigned);
+
+    .link {
+        display: none;
+        flex: 0 0 0;
+        width: 0;
+        opacity: 0;
+        margin-left: 0;
+    }
+
+    .chevron {
+        display: none;
+    }
+
+    &.active {
+        background: var(--primary-redesigned);
+        color: var(--primary-contrast-redesigned);
+    }
+}

@@ -1,0 +1,89 @@
+.page {
+    padding-bottom: 40px;
+}
+
+.subtitle {
+    opacity: 0.7;
+}
+
+.card {
+    border-radius: 16px;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+}
+
+.saveTemplateBtn {
+    align-self: flex-start;
+}
+
+.testSendBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    border: 1px dashed var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+}
+
+.tableWrapper {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+
+    th,
+    td {
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--card-border-redesigned);
+        white-space: nowrap;
+    }
+
+    th {
+        color: var(--sidebar-group-label-redesigned);
+        font-weight: 600;
+    }
+}
+
+.errorCell {
+    max-width: 260px;
+    overflow: hidden;
+    white-space: normal !important;
+    text-overflow: ellipsis;
+}
+
+.badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status_SENT {
+    background: var(--success-bg-redesigned);
+    color: var(--success-text-redesigned);
+}
+
+.status_PENDING {
+    background: color-mix(in srgb, #ffb020 20%, transparent);
+    color: #8a5a00;
+}
+
+.status_FAILED {
+    background: var(--danger-bg-redesigned);
+    color: var(--danger-text-redesigned);
+}
+
+.status_SKIPPED {
+    background: var(--sidebar-hover-bg-redesigned);
+    color: var(--sidebar-text-redesigned);
+}

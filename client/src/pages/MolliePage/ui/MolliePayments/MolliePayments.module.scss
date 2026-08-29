@@ -1,0 +1,258 @@
+.MolliePayments {
+    width: 100%;
+}
+
+.subtitle {
+    margin-top: 4px;
+    color: var(--sidebar-text-redesigned);
+}
+
+.header {
+    min-width: 0;
+}
+
+.headerActions {
+    justify-content: flex-end;
+}
+
+.compactButton {
+    min-height: 38px;
+    padding: 7px 13px;
+    font-size: 13px;
+}
+
+.filters {
+    display: grid;
+    grid-template-columns:
+        minmax(180px, 1.4fr)
+        repeat(2, minmax(120px, 0.75fr))
+        repeat(2, minmax(130px, 0.8fr))
+        minmax(300px, auto);
+    gap: 10px;
+    align-items: end;
+    width: 100%;
+    padding: 12px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.filterInput {
+    height: 40px;
+    padding: 6px 12px;
+    border-color: var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.filterSelect {
+    span {
+        color: var(--sidebar-text-hover-redesigned);
+        font-size: 11px;
+    }
+
+    select {
+        height: 40px;
+        min-height: 40px;
+        padding: 6px 10px;
+        color: var(--sidebar-text-hover-redesigned);
+        font-size: 13px;
+        border-color: var(--card-border-redesigned);
+        border-radius: var(--radius-sm-redesigned);
+        background: var(--sidebar-bg-redesigned);
+    }
+}
+
+.filterActions {
+    display: flex;
+    gap: 6px;
+    justify-content: flex-end;
+    min-width: 0;
+}
+
+.resetButton {
+    color: var(--sidebar-text-hover-redesigned);
+    border-color: var(--card-border-redesigned);
+}
+
+.pagination {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 4px;
+    color: var(--sidebar-text-redesigned);
+    font-size: 14px;
+}
+
+.paginationActions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.pageButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: var(--sidebar-text-hover-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: 50%;
+    background: var(--sidebar-hover-bg-redesigned);
+}
+
+.stateCard {
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.table {
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    background: var(--sidebar-bg-redesigned);
+}
+
+.tableHeader,
+.tableRow {
+    display: grid;
+    grid-template-columns: minmax(240px, 1.3fr) minmax(220px, 1.1fr) 120px 120px 120px minmax(140px, 0.8fr);
+    gap: 16px;
+    align-items: center;
+    padding: 14px 16px;
+}
+
+.tableHeader {
+    color: var(--sidebar-group-label-redesigned);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    border-bottom: 1px solid var(--card-border-redesigned);
+}
+
+.tableRow + .tableRow {
+    border-top: 1px solid var(--card-border-redesigned);
+}
+
+.paymentCell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.primaryText,
+.mutedText,
+.link {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.primaryText,
+.link,
+.amount {
+    color: var(--sidebar-text-hover-redesigned);
+    font-weight: 600;
+}
+
+.link {
+    text-decoration: none;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+
+.mutedText {
+    color: var(--sidebar-text-redesigned);
+    font-size: 13px;
+}
+
+.amount {
+    justify-self: end;
+}
+
+.statusWrapper {
+    justify-self: start;
+}
+
+.status {
+    display: inline-flex;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    border-radius: var(--radius-pill-redesigned);
+}
+
+.paid {
+    color: var(--success-text-redesigned);
+    background: var(--success-bg-redesigned);
+}
+
+.issue {
+    color: var(--danger-text-redesigned);
+    background: var(--danger-bg-redesigned);
+}
+
+.pending,
+.open {
+    color: var(--style-1-text-redesigned);
+    background: var(--style-1-bg-redesigned);
+}
+
+@media (max-width: 1280px) {
+    .filters {
+        grid-template-columns: repeat(5, minmax(130px, 1fr));
+    }
+
+    .filterActions {
+        grid-column: 1 / -1;
+        justify-content: flex-start;
+    }
+
+    .table {
+        overflow-x: auto;
+    }
+
+    .tableHeader,
+    .tableRow {
+        min-width: 1050px;
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .headerActions {
+        justify-content: flex-start;
+    }
+
+    .filters {
+        grid-template-columns: 1fr;
+    }
+
+    .filterActions {
+        grid-column: auto;
+        flex-wrap: wrap;
+    }
+
+    .pagination {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .paginationActions {
+        justify-content: space-between;
+    }
+}
