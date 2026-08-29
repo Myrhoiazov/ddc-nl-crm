@@ -311,7 +311,7 @@ const HomePage = () => {
 
                             <VStack gap="16" className={cls.chartMeta}>
                                 <Button theme={ButtonTheme.OUTLINE} onClick={onExportMonthlyRevenue}>
-                                    CSV по месяцам
+                                    {t('CSV по месяцам')}
                                 </Button>
                                 <HStack gap="8" align="center">
                                     <span className={`${cls.legendDot} ${cls.incomeDot}`} />
@@ -320,8 +320,8 @@ const HomePage = () => {
                                     <Text text="Расход" size="s" />
                                 </HStack>
                                 <div className={cls.chartTotals}>
-                                    <span>Доход: {formatMoney(chartData?.incomeTotal ?? 0, 'EUR')}</span>
-                                    <span>Расход: {formatMoney(chartData?.expenseTotal ?? 0, 'EUR')}</span>
+                                    <span>{t('Доход: {{amount}}', { amount: formatMoney(chartData?.incomeTotal ?? 0, 'EUR') })}</span>
+                                    <span>{t('Расход: {{amount}}', { amount: formatMoney(chartData?.expenseTotal ?? 0, 'EUR') })}</span>
                                 </div>
                                 <HStack gap="8" align="center">
                                     <span className={cls.updatedDot} />
@@ -367,7 +367,7 @@ const HomePage = () => {
                             <HStack gap="16" align="center">
                                 <Text text={`${summary?.failedPayments ?? 0} total`} />
                                 <Link className={cls.incidentsLink} to="/mollie/incidents">
-                                    Открыть все проблемы
+                                    {t('Открыть все проблемы')}
                                 </Link>
                             </HStack>
                         </HStack>

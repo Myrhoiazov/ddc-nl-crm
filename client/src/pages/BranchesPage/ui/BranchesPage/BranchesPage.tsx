@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Page } from '@/widgets/Page/Page';
 import { $apiPrivate } from '@/shared/api/api';
@@ -8,6 +9,7 @@ import { BranchModal } from '../BranchModal/BranchModal';
 import s from './BranchesPage.module.scss';
 
 const BranchesPage = memo(() => {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const [branches, setBranches] = useState<Branch[]>([]);
     const [loading, setLoading] = useState(false);
@@ -54,9 +56,9 @@ const BranchesPage = memo(() => {
     return (
         <Page>
             <div className={s.header}>
-                <h1 className={s.title}>Филиалы</h1>
+                <h1 className={s.title}>{t('Филиалы')}</h1>
                 <button className={s.addBtn} onClick={() => setModalOpen(true)}>
-                    + Добавить филиал
+                    {t('+ Добавить филиал')}
                 </button>
             </div>
 
@@ -65,10 +67,10 @@ const BranchesPage = memo(() => {
             ) : filteredBranches.length === 0 ? (
                 <div className={s.emptyState}>
                     <div className={s.emptyIcon}>🏢</div>
-                    <div className={s.emptyTitle}>Филиалов пока нет</div>
-                    <div className={s.emptyText}>Добавьте первый филиал вашей студии</div>
+                    <div className={s.emptyTitle}>{t('Филиалов пока нет')}</div>
+                    <div className={s.emptyText}>{t('Добавьте первый филиал вашей студии')}</div>
                     <button className={s.addBtn} onClick={() => setModalOpen(true)}>
-                        + Добавить филиал
+                        {t('+ Добавить филиал')}
                     </button>
                 </div>
             ) : (

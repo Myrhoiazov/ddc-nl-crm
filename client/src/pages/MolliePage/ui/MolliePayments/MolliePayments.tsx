@@ -274,7 +274,7 @@ export const MolliePayments = memo(() => {
 
     const pagination = total > 0 ? (
         <div className={s.pagination}>
-            <span>{firstItemNumber}-{lastItemNumber} из {total}</span>
+            <span>{firstItemNumber}-{lastItemNumber}{t(' из ')}{total}</span>
             <div className={s.paginationActions}>
                 <Button theme={ButtonTheme.CLEAR} className={s.pageButton} onClick={onPreviousPage} disabled={isLoading || page <= 1}>
                     ←
@@ -295,8 +295,8 @@ export const MolliePayments = memo(() => {
                     <Text text={`Проблем на этой странице: ${problemCount}`} size="s" className={s.subtitle} />
                 </div>
                 <HStack gap="8" wrap="wrap" className={s.headerActions}>
-                    <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(false)}>Платежи CSV</Button>
-                    <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(true)}>Проблемы CSV</Button>
+                    <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(false)}>{t('Платежи CSV')}</Button>
+                    <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(true)}>{t('Проблемы CSV')}</Button>
                     <Button className={s.compactButton} theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSyncPayments} disabled={isSyncing}>
                         {isSyncing ? 'Sync...' : 'Sync'}
                     </Button>
@@ -349,13 +349,13 @@ export const MolliePayments = memo(() => {
                         theme={filters.issueOnly ? ButtonTheme.BACKGROUND_INVERTED : ButtonTheme.OUTLINE}
                         onClick={() => setFilters((prev) => ({ ...prev, issueOnly: !prev.issueOnly, status: 'all' }))}
                     >
-                        Проблемные
+                        {t('Проблемные')}
                     </Button>
                     <Button className={s.compactButton} theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onApplyFilters} disabled={isLoading}>
-                        Применить
+                        {t('Применить')}
                     </Button>
                     <Button className={`${s.compactButton} ${s.resetButton}`} theme={ButtonTheme.OUTLINE} onClick={onResetFilters} disabled={isLoading}>
-                        Сбросить
+                        {t('Сбросить')}
                     </Button>
                 </div>
             </div>
@@ -385,12 +385,12 @@ export const MolliePayments = memo(() => {
             {!!payments.length && (
                 <div className={s.table}>
                     <div className={s.tableHeader}>
-                        <span>Платёж</span>
-                        <span>Плательщик / ученик</span>
-                        <span>Сумма</span>
-                        <span>Статус</span>
-                        <span>Дата</span>
-                        <span>Подписка</span>
+                        <span>{t('Платёж')}</span>
+                        <span>{t('Плательщик / ученик')}</span>
+                        <span>{t('Сумма')}</span>
+                        <span>{t('Статус')}</span>
+                        <span>{t('Дата')}</span>
+                        <span>{t('Подписка')}</span>
                     </div>
                     {payments.map((payment) => (
                         <div className={s.tableRow} key={payment.id}>
@@ -410,7 +410,7 @@ export const MolliePayments = memo(() => {
                                 {getStudentLinks(payment.customer).map((link) => (
                                     link.client?.id ? (
                                         <Link className={s.link} to={`/clients/${link.client.id}`} key={link.id}>
-                                            Ученик: {[link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email || `#${link.client.id}`}
+                                            {t('Ученик: {{name}}', { name: [link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email || `#${link.client.id}` })}
                                         </Link>
                                     ) : null
                                 ))}

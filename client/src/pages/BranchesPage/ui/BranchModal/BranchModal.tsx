@@ -1,4 +1,5 @@
 import { memo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '@/shared/ui/Modal/Modal';
 import { $apiPrivate } from '@/shared/api/api';
 import { toast } from 'react-toastify';
@@ -13,6 +14,7 @@ interface BranchModalProps {
 }
 
 export const BranchModal = memo(({ isOpen, onClose, onSaved, editBranch }: BranchModalProps) => {
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [city, setCity] = useState('');
     const [address, setAddress] = useState('');
@@ -65,34 +67,34 @@ export const BranchModal = memo(({ isOpen, onClose, onSaved, editBranch }: Branc
 
                 <div className={s.form}>
                     <div className={s.field}>
-                        <label className={s.label}>Название <span className={s.req}>*</span></label>
+                        <label className={s.label}>{t('Название')} <span className={s.req}>*</span></label>
                         <input className={s.input} placeholder="DDC Центральный" value={name} onChange={(e) => setName(e.target.value)} />
                     </div>
 
                     <div className={s.row}>
                         <div className={s.field}>
-                            <label className={s.label}>Город</label>
+                            <label className={s.label}>{t('Город')}</label>
                             <input className={s.input} placeholder="Киев" value={city} onChange={(e) => setCity(e.target.value)} />
                         </div>
                         <div className={s.field}>
-                            <label className={s.label}>Адрес</label>
+                            <label className={s.label}>{t('Адрес')}</label>
                             <input className={s.input} placeholder="ул. Хрещатик, 1" value={address} onChange={(e) => setAddress(e.target.value)} />
                         </div>
                     </div>
 
                     <div className={s.row}>
                         <div className={s.field}>
-                            <label className={s.label}>Телефон</label>
+                            <label className={s.label}>{t('Телефон')}</label>
                             <input className={s.input} placeholder="+38 (050) 000-00-00" value={phone} onChange={(e) => setPhone(e.target.value)} />
                         </div>
                         <div className={s.field}>
-                            <label className={s.label}>Email</label>
+                            <label className={s.label}>{t('Email')}</label>
                             <input className={s.input} placeholder="branch@ddc.com" value={email} onChange={(e) => setEmail(e.target.value)} />
                         </div>
                     </div>
 
                     <div className={s.field}>
-                        <label className={s.label}>Описание</label>
+                        <label className={s.label}>{t('Описание')}</label>
                         <textarea
                             className={s.textarea}
                             placeholder="Основной филиал в центре города..."
@@ -110,7 +112,7 @@ export const BranchModal = memo(({ isOpen, onClose, onSaved, editBranch }: Branc
                                 onChange={(e) => setIsActive(e.target.checked)}
                                 className={s.checkbox}
                             />
-                            Филиал активен
+                            {t('Филиал активен')}
                         </label>
                     </div>
                 </div>

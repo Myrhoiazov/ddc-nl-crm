@@ -1,4 +1,5 @@
 import { memo, useState, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { Page } from '@/widgets/Page/Page';
 import { $apiPrivate } from '@/shared/api/api';
@@ -8,6 +9,7 @@ import { ChoreographerModal } from '../ChoreographerModal/ChoreographerModal';
 import s from './ChoreographersPage.module.scss';
 
 const ChoreographersPage = memo(() => {
+    const { t } = useTranslation();
     const [searchParams] = useSearchParams();
     const [choreographers, setChoreographers] = useState<Choreographer[]>([]);
     const [loading, setLoading] = useState(false);
@@ -47,9 +49,9 @@ const ChoreographersPage = memo(() => {
     return (
         <Page>
             <div className={s.header}>
-                <h1 className={s.title}>Хореографы</h1>
+                <h1 className={s.title}>{t('Хореографы')}</h1>
                 <button className={s.addBtn} onClick={() => setModalOpen(true)}>
-                    + Добавить хореографа
+                    {t('+ Добавить хореографа')}
                 </button>
             </div>
 
@@ -57,10 +59,10 @@ const ChoreographersPage = memo(() => {
                 <div className={s.empty}>Загрузка...</div>
             ) : filteredChoreographers.length === 0 ? (
                 <div className={s.emptyState}>
-                    <div className={s.emptyTitle}>Хореографов пока нет</div>
-                    <div className={s.emptyText}>Добавьте первого преподавателя студии</div>
+                    <div className={s.emptyTitle}>{t('Хореографов пока нет')}</div>
+                    <div className={s.emptyText}>{t('Добавьте первого преподавателя студии')}</div>
                     <button className={s.addBtn} onClick={() => setModalOpen(true)}>
-                        + Добавить хореографа
+                        {t('+ Добавить хореографа')}
                     </button>
                 </div>
             ) : (

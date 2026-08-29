@@ -1,4 +1,5 @@
 import { Fragment, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Page } from '@/widgets/Page/Page';
 import { $apiPrivate } from '@/shared/api/api';
@@ -43,6 +44,7 @@ const levelLabel: Record<DanceGroup['level'], string> = {
 const searchLink = (path: string, value: string) => `${path}?_q=${encodeURIComponent(value)}`;
 
 const SchedulePage = memo(() => {
+    const { t } = useTranslation();
     const [groups, setGroups] = useState<DanceGroup[]>([]);
     const [loading, setLoading] = useState(false);
     const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
@@ -99,46 +101,46 @@ const SchedulePage = memo(() => {
     return (
         <Page>
             <div className={s.header}>
-                <h1>Расписание</h1>
+                <h1>{t('Расписание')}</h1>
             </div>
 
             <section className={s.controls}>
                 <div className={s.topControls}>
                     <div className={s.tabs}>
-                        <button className={s.activeTab}>Все расписание</button>
-                        <button>Группы</button>
+                        <button className={s.activeTab}>{t('Все расписание')}</button>
+                        <button>{t('Группы')}</button>
                     </div>
                     <button className={s.navButton} onClick={() => setWeekStart(addDays(weekStart, -7))}>‹</button>
-                    <button className={s.todayButton} onClick={() => setWeekStart(startOfWeek(new Date()))}>Сегодня</button>
+                    <button className={s.todayButton} onClick={() => setWeekStart(startOfWeek(new Date()))}>{t('Сегодня')}</button>
                     <button className={s.navButton} onClick={() => setWeekStart(addDays(weekStart, 7))}>›</button>
-                    <span className={s.viewMode}>Неделя</span>
-                    <Link className={s.addButton} to={RoutePath.schedule_settings}>+ Добавить группу</Link>
+                    <span className={s.viewMode}>{t('Неделя')}</span>
+                    <Link className={s.addButton} to={RoutePath.schedule_settings}>{t('+ Добавить группу')}</Link>
                 </div>
                 <div className={s.filters}>
-                    <label>Дата<input type="date" value={weekStart.toISOString().slice(0, 10)} onChange={(event) => setWeekStart(startOfWeek(new Date(`${event.target.value}T00:00:00`)))} /></label>
-                    <label>Хореограф<select value={choreographer} onChange={(event) => setChoreographer(event.target.value)}><option value="">Все</option>{options.choreographers.map((item) => <option key={item}>{item}</option>)}</select></label>
-                    <label>Стиль<select value={style} onChange={(event) => setStyle(event.target.value)}><option value="">Все</option>{options.styles.map((item) => <option key={item}>{item}</option>)}</select></label>
-                    <label>Филиал<select value={branch} onChange={(event) => setBranch(event.target.value)}><option value="">Все</option>{options.branches.map((item) => <option key={item}>{item}</option>)}</select></label>
-                    <label>День недели<select value={day} onChange={(event) => setDay(event.target.value)}><option value="">Все дни</option>{DAYS.map((item) => <option key={item.key} value={item.key}>{item.key}</option>)}</select></label>
+                    <label>{t('Дата')}<input type="date" value={weekStart.toISOString().slice(0, 10)} onChange={(event) => setWeekStart(startOfWeek(new Date(`${event.target.value}T00:00:00`)))} /></label>
+                    <label>{t('Хореограф')}<select value={choreographer} onChange={(event) => setChoreographer(event.target.value)}><option value="">{t('Все')}</option>{options.choreographers.map((item) => <option key={item}>{item}</option>)}</select></label>
+                    <label>{t('Стиль')}<select value={style} onChange={(event) => setStyle(event.target.value)}><option value="">{t('Все')}</option>{options.styles.map((item) => <option key={item}>{item}</option>)}</select></label>
+                    <label>{t('Филиал')}<select value={branch} onChange={(event) => setBranch(event.target.value)}><option value="">{t('Все')}</option>{options.branches.map((item) => <option key={item}>{item}</option>)}</select></label>
+                    <label>{t('День недели')}<select value={day} onChange={(event) => setDay(event.target.value)}><option value="">{t('Все дни')}</option>{DAYS.map((item) => <option key={item.key} value={item.key}>{item.key}</option>)}</select></label>
                 </div>
             </section>
 
             <div className={s.summary}>
-                <span>Период: {formatDate(weekStart)} — {formatDate(weekEnd)}</span>
-                <span>Группы: {filteredGroups.length}</span>
-                <span>Занятий: {filteredGroups.reduce((total, group) => total + group.slots.length, 0)}</span>
+                <span>{t('Период: {{start}} — {{end}}', { start: formatDate(weekStart), end: formatDate(weekEnd) })}</span>
+                <span>{t('Группы: {{count}}', { count: filteredGroups.length })}</span>
+                <span>{t('Занятий: {{count}}', { count: filteredGroups.reduce((total, group) => total + group.slots.length, 0) })}</span>
             </div>
 
             <div className={s.tableWrap}>
                 <div className={s.grid}>
-                    <div className={`${s.cell} ${s.timeHeader}`}>Время</div>
+                    <div className={`${s.cell} ${s.timeHeader}`}>{t('Время')}</div>
                     {DAYS.map((item, index) => (
                         <div className={`${s.cell} ${s.dayHeader}`} key={item.key}>
                             <strong>{item.short}</strong>
                             <span>{formatShortDate(weekDates[index])}</span>
                         </div>
                     ))}
-                    {loading ? <div className={s.loading}>Загружаем расписание...</div> : !times.length ? <div className={s.loading}>В расписании пока нет доступных занятий.</div> : times.map((time) => (
+                    {loading ? <div className={s.loading}>Загружаем расписание...</div> : !times.length ? <div className={s.loading}>{t('В расписании пока нет доступных занятий.')}</div> : times.map((time) => (
                         <Fragment key={time}>
                             <div className={`${s.cell} ${s.timeCell}`} key={`${time}-time`}>{time}</div>
                             {DAYS.map((item) => (
@@ -148,12 +150,12 @@ const SchedulePage = memo(() => {
                                             className={`${s.lesson} ${s[`style${getStyleColorSlot(group.style)}`]}`}
                                             key={`${group.id}-${startTime}-${item.key}`}
                                         >
-                                            <div className={s.lessonTitle}><strong>{group.name}</strong><span>Группа</span></div>
+                                            <div className={s.lessonTitle}><strong>{group.name}</strong><span>{t('Группа')}</span></div>
                                             <b>{startTime}–{endTime}</b>
-                                            <p>Стиль: <Link className={s.relationLink} to={searchLink(RoutePath.dance_styles, group.style)}>{group.style}</Link></p>
-                                            <p>Хореограф: <Link className={s.relationLink} to={searchLink(RoutePath.choreographers, personName(group))}>{personName(group)}</Link></p>
-                                            <p>Уровень: {levelLabel[group.level] ?? group.level}</p>
-                                            <p>Филиал: {group.branch ? (
+                                            <p>{t('Стиль: ')}<Link className={s.relationLink} to={searchLink(RoutePath.dance_styles, group.style)}>{group.style}</Link></p>
+                                            <p>{t('Хореограф: ')}<Link className={s.relationLink} to={searchLink(RoutePath.choreographers, personName(group))}>{personName(group)}</Link></p>
+                                            <p>{t('Уровень: {{level}}', { level: levelLabel[group.level] ?? group.level })}</p>
+                                            <p>{t('Филиал: ')}{group.branch ? (
                                                 <Link className={s.relationLink} to={searchLink(RoutePath.branches, group.branch.name)}>{group.branch.name}</Link>
                                             ) : 'Не указан'}</p>
                                         </article>

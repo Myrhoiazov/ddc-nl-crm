@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { DanceGroup, GroupStatistics, GroupStudent } from '@/entities/DanceGroup';
 import { GroupLevel } from '@/entities/DanceGroup';
 
@@ -38,6 +39,7 @@ const studentName = (student: GroupStudent) => (
 );
 
 export const GroupCard = memo(({ group, statistics, onEdit, onDelete }: GroupCardProps) => {
+    const { t } = useTranslation();
     const slotsText = group.slots
         .map((s) => `${DAY_SHORT[s.dayOfWeek] ?? s.dayOfWeek} ${s.startTime}–${s.endTime}`)
         .join(', ');
@@ -65,9 +67,9 @@ export const GroupCard = memo(({ group, statistics, onEdit, onDelete }: GroupCar
                 </div>
                 {slotsText && <div className={s.slots}>{slotsText}</div>}
                 <div className={s.hall}>
-                    Филиал: {group.branch?.name || 'Не указан'} · {statistics?.activeCount ?? 0}/{group.maxParticipants} активных
+                    {t('Филиал: ')}{group.branch?.name || 'Не указан'} · {statistics?.activeCount ?? 0}/{group.maxParticipants}{t(' активных')}
                     {statistics?.inactiveCount ? ` · ${statistics.inactiveCount} неактивных` : ''}
-                    {' '}· Занятие: {formatLessonPrice(group.lessonPriceCents ?? 0)}
+                    {' '}{t('· Занятие: ')}{formatLessonPrice(group.lessonPriceCents ?? 0)}
                     {group.branch && (
                         <>
                             {' '}
@@ -78,35 +80,35 @@ export const GroupCard = memo(({ group, statistics, onEdit, onDelete }: GroupCar
                 </div>
                 <details className={s.students}>
                     <summary>
-                        Ученики ({statistics?.totalCount ?? 0})
+                        {t('Ученики ({{count}})', { count: statistics?.totalCount ?? 0 })}
                     </summary>
                     <div className={s.studentColumns}>
                         <div>
-                            <strong>Активные ({statistics?.activeCount ?? 0})</strong>
+                            <strong>{t('Активные ({{count}})', { count: statistics?.activeCount ?? 0 })}</strong>
                             {statistics?.activeStudents.length ? (
                                 <ul>
                                     {statistics.activeStudents.map((student) => (
                                         <li key={student.id}>{studentName(student)}</li>
                                     ))}
                                 </ul>
-                            ) : <span className={s.noStudents}>Нет учеников</span>}
+                            ) : <span className={s.noStudents}>{t('Нет учеников')}</span>}
                         </div>
                         <div>
-                            <strong>Неактивные ({statistics?.inactiveCount ?? 0})</strong>
+                            <strong>{t('Неактивные ({{count}})', { count: statistics?.inactiveCount ?? 0 })}</strong>
                             {statistics?.inactiveStudents.length ? (
                                 <ul>
                                     {statistics.inactiveStudents.map((student) => (
                                         <li key={student.id}>{studentName(student)}</li>
                                     ))}
                                 </ul>
-                            ) : <span className={s.noStudents}>Нет учеников</span>}
+                            ) : <span className={s.noStudents}>{t('Нет учеников')}</span>}
                         </div>
                     </div>
                 </details>
             </div>
             <div className={s.actions}>
                 <button className={s.editBtn} onClick={() => onEdit(group)} title="Редактировать">
-                    ✎
+                    {t('✎')}
                 </button>
                 <button className={s.deleteBtn} onClick={() => onDelete(group.id)} title="Удалить">
                     🗑

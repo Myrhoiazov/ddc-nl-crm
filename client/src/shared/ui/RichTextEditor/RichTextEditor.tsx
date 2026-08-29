@@ -1,4 +1,5 @@
 import { memo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
@@ -16,6 +17,7 @@ interface RichTextEditorProps {
 
 export const RichTextEditor = memo((props: RichTextEditorProps) => {
     const { className, value, onChange, placeholder, readonly } = props;
+    const { t } = useTranslation();
 
     const editor = useEditor({
         extensions: [
@@ -89,7 +91,7 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
                     onClick={() => editor?.chain().focus().toggleOrderedList().run()}
                     aria-label="Нумерованный список"
                 >
-                    1≡
+                    {t('1≡')}
                 </button>
                 <button
                     type="button"

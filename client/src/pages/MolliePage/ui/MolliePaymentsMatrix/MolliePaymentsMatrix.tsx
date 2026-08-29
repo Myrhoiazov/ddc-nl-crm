@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { $apiPrivate } from '@/shared/api/api';
@@ -101,6 +102,7 @@ const formatCurrency = (value: string | number, currency = 'EUR') => new Intl.Nu
 const currentMonthKey = now.toISOString().slice(0, 7);
 
 export const MolliePaymentsMatrix = memo(() => {
+    const { t } = useTranslation();
     const [data, setData] = useState<PaymentsMatrixResponse>();
     const [upcoming, setUpcoming] = useState<UpcomingSubscriptionsResponse>();
     const [startYear, setStartYear] = useState(String(defaultStartYear));
@@ -296,10 +298,10 @@ export const MolliePaymentsMatrix = memo(() => {
                     fullWidth
                 />
                 <div className={s.summary}>
-                    <span><b>{visibleMonths.length}</b> мес.</span>
-                    <span><b>{rows.length}</b> строк</span>
-                    <span><b>{paidStudents}</b> с оплатами</span>
-                    <span><b>{totalPaidMonths}</b> оплаченных месяцев</span>
+                    <span><b>{visibleMonths.length}</b>{t(' мес.')}</span>
+                    <span><b>{rows.length}</b>{t(' строк')}</span>
+                    <span><b>{paidStudents}</b>{t(' с оплатами')}</span>
+                    <span><b>{totalPaidMonths}</b>{t(' оплаченных месяцев')}</span>
                 </div>
             </div>
 
@@ -319,8 +321,8 @@ export const MolliePaymentsMatrix = memo(() => {
                     </HStack>
 
                     <div className={s.upcomingSummary}>
-                        <span><b>{upcoming?.total ?? 0}</b> списаний</span>
-                        <span><b>{formatCurrency(upcoming?.amount ?? 0, upcoming?.currency)}</b> ожидается</span>
+                        <span><b>{upcoming?.total ?? 0}</b>{t(' списаний')}</span>
+                        <span><b>{formatCurrency(upcoming?.amount ?? 0, upcoming?.currency)}</b>{t(' ожидается')}</span>
                     </div>
 
                     {isUpcomingLoading ? (
@@ -343,7 +345,7 @@ export const MolliePaymentsMatrix = memo(() => {
                                                 </Link>
                                             )}
                                             <Link className={s.personMetaLink} to={`/mollie/customers/${subscription.customer.id}`}>
-                                                Плательщик: {getPayerName(subscription)}
+                                                {t('Плательщик: {{name}}', { name: getPayerName(subscription) })}
                                             </Link>
                                         </div>
                                         <span>{new Date(subscription.nextPaymentDate).toLocaleDateString('nl-NL')}</span>
@@ -357,7 +359,7 @@ export const MolliePaymentsMatrix = memo(() => {
                             })}
                         </div>
                     ) : (
-                        <div className={s.empty}>В выбранном месяце предстоящих списаний нет.</div>
+                        <div className={s.empty}>{t('В выбранном месяце предстоящих списаний нет.')}</div>
                     )}
                 </VStack>
             </Card>
@@ -374,14 +376,14 @@ export const MolliePaymentsMatrix = memo(() => {
                 <div className={s.tableViewport}>
                     <div className={s.table} style={{ minWidth: tableMinWidth }}>
                         <div className={`${s.row} ${s.tableHeader}`} style={tableStyle}>
-                            <div className={`${s.personCell} ${s.stickyCell}`}>Ученик / плательщик</div>
+                            <div className={`${s.personCell} ${s.stickyCell}`}>{t('Ученик / плательщик')}</div>
                             {visibleMonths.map((month) => (
                                 <div className={s.monthHeader} key={month.key}>
                                     <span>{month.label}</span>
                                     <small>{month.year}</small>
                                 </div>
                             ))}
-                            <div className={s.totalHeader}>Оплачено</div>
+                            <div className={s.totalHeader}>{t('Оплачено')}</div>
                         </div>
 
                         {rows.map((row) => (
@@ -416,7 +418,7 @@ export const MolliePaymentsMatrix = memo(() => {
                                         >
                                             {cell?.paid ? (
                                                 <>
-                                                    <b>✓</b>
+                                                    <b>{t('✓')}</b>
                                                     <small>{formatAmount(cell)}</small>
                                                 </>
                                             ) : cell?.issueCount ? (
@@ -433,7 +435,7 @@ export const MolliePaymentsMatrix = memo(() => {
                         ))}
 
                         {!rows.length && (
-                            <div className={s.empty}>По выбранному фильтру ничего не найдено.</div>
+                            <div className={s.empty}>{t('По выбранному фильтру ничего не найдено.')}</div>
                         )}
                     </div>
                 </div>

@@ -107,7 +107,7 @@ export const Navbar = memo(({ className, onMobileMenuToggle }: NavbarProps) => {
                 </div>
                 {isAdmin && (
                     <button className={cls.notification} type="button" aria-label="Непрочитанные письма">
-                        <span className={cls.bell}>⌾</span>
+                        <span className={cls.bell}>{t('⌾')}</span>
                         {unreadEmailCount > 0 && (
                             <span className={cls.badge}>{unreadEmailCount > 99 ? '99+' : unreadEmailCount}</span>
                         )}

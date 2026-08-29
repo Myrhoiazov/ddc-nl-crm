@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { $apiPrivate } from '@/shared/api/api';
 import { Button, ButtonTheme } from '@/shared/ui/Button';
@@ -31,6 +32,7 @@ interface PaymentLinkResponse {
 
 export const PaymentLinkModal = memo((props: PaymentLinkModalProps) => {
     const { clientId, payers, isOpen, onClose, onCreated } = props;
+    const { t } = useTranslation();
     const [payerId, setPayerId] = useState('');
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('Оплата занятий');
@@ -145,15 +147,15 @@ export const PaymentLinkModal = memo((props: PaymentLinkModalProps) => {
 
                 <HStack className={s.actions} gap="16" justify="end" wrap="wrap">
                     <Button theme={ButtonTheme.OUTLINE} onClick={onClose} disabled={isLoading}>
-                        Закрыть
+                        {t('Закрыть')}
                     </Button>
                     {checkoutUrl ? (
                         <>
                             <Button theme={ButtonTheme.OUTLINE} onClick={onCopy}>
-                                Скопировать
+                                {t('Скопировать')}
                             </Button>
                             <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onOpen}>
-                                Открыть
+                                {t('Открыть')}
                             </Button>
                         </>
                     ) : (

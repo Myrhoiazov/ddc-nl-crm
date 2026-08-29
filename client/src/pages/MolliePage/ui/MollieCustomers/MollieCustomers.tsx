@@ -154,7 +154,7 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
     const pagination = !error && total > 0 ? (
         <div className={s.pagination}>
             <span className={s.paginationMeta}>
-                {firstItemNumber}-{lastItemNumber} из {total}
+                {firstItemNumber}-{lastItemNumber}{t(' из ')}{total}
             </span>
             <div className={s.paginationActions}>
                 <Button
@@ -185,7 +185,7 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
                     <Text title={t('Mollie Customers')} bold />
                     <HStack gap="8" wrap="wrap">
                         <Button theme={ButtonTheme.OUTLINE} onClick={onExportActiveSubscriptions}>
-                            CSV активные подписки
+                            {t('CSV активные подписки')}
                         </Button>
                         <MollieClientAction reloadPage={fetchAllClients} />
                     </HStack>
@@ -227,7 +227,7 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
                             onClick={onApplyFilters}
                             disabled={isLoading}
                         >
-                            Применить
+                            {t('Применить')}
                         </Button>
                         <Button
                             className={s.resetButton}
@@ -235,7 +235,7 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
                             onClick={onResetFilters}
                             disabled={isLoading}
                         >
-                            Сбросить
+                            {t('Сбросить')}
                         </Button>
                     </div>
                 </div>

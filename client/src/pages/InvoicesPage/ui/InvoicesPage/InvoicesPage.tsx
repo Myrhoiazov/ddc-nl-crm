@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Page } from '@/widgets/Page/Page';
 import { $apiPrivate } from '@/shared/api/api';
 import { toast } from 'react-toastify';
@@ -54,6 +55,7 @@ const errorMessage = (error: any, fallback: string) => error?.response?.data?.me
 const PAGE_SIZE = 15;
 
 const InvoicesPage = memo(() => {
+    const { t } = useTranslation();
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [loading, setLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
@@ -213,7 +215,7 @@ const InvoicesPage = memo(() => {
     };
     const pagination = total > 0 ? (
         <div className={s.pagination}>
-            <span>{firstItemNumber}–{lastItemNumber} из {total}</span>
+            <span>{firstItemNumber}–{lastItemNumber}{t(' из ')}{total}</span>
             <div className={s.paginationActions}>
                 <button
                     className={s.pageButton}
@@ -236,15 +238,15 @@ const InvoicesPage = memo(() => {
         <Page>
             <div className={s.header}>
                 <div>
-                    <h1>Инвойсы</h1>
-                    <p>Надёжный учёт оплат, задолженности и корректировок</p>
+                    <h1>{t('Инвойсы')}</h1>
+                    <p>{t('Надёжный учёт оплат, задолженности и корректировок')}</p>
                 </div>
                 <div className={s.headerActions}>
                     <button className={s.paidCreate} onClick={() => { setPaidMode(true); setModalOpen(true); }}>
-                        + Черновик оплаченного
+                        {t('+ Черновик оплаченного')}
                     </button>
                     <button className={s.create} onClick={() => { setPaidMode(false); setModalOpen(true); }}>
-                        + Создать инвойс
+                        {t('+ Создать инвойс')}
                     </button>
                 </div>
             </div>
@@ -257,8 +259,8 @@ const InvoicesPage = memo(() => {
                     onKeyDown={(event) => { if (event.key === 'Enter') applySearch(); }}
                     aria-label="Поиск инвойсов"
                 />
-                <button onClick={applySearch}>Найти</button>
-                {(query || appliedQuery) && <button onClick={resetSearch}>Сбросить</button>}
+                <button onClick={applySearch}>{t('Найти')}</button>
+                {(query || appliedQuery) && <button onClick={resetSearch}>{t('Сбросить')}</button>}
             </div>
 
             <div className={s.filters} role="group" aria-label="Фильтр по статусу">
@@ -297,7 +299,7 @@ const InvoicesPage = memo(() => {
                                     </div>
                                     <div className={s.client}>{invoice.billToName}</div>
                                     <div className={s.meta}>
-                                        {new Date(invoice.issueDate).toLocaleDateString('ru-RU')} · {invoice.items.length} строк
+                                        {new Date(invoice.issueDate).toLocaleDateString('ru-RU')} · {t('{{count}} строк', { count: invoice.items.length })}
                                     </div>
                                 </div>
 
@@ -309,23 +311,23 @@ const InvoicesPage = memo(() => {
                                     <strong>{money(invoice.totalCents)}</strong>
                                     {invoice.documentType !== 'CREDIT_NOTE' && (
                                         <span>
-                                            Оплачено {money(invoice.paidAmountCents)}
+                                            {t('Оплачено {{amount}}', { amount: money(invoice.paidAmountCents) })}
                                             {invoice.creditedAmountCents > 0 && ` · Зачтено ${money(invoice.creditedAmountCents)}`}
-                                            {' · '}Долг {money(invoice.balanceDueCents)}
+                                            {' · '}{t('Долг {{amount}}', { amount: money(invoice.balanceDueCents) })}
                                         </span>
                                     )}
                                     {invoice.paymentReference && (
-                                        <span>Ref: {invoice.paymentReference}</span>
+                                        <span>{t('Ref: {{reference}}', { reference: invoice.paymentReference })}</span>
                                     )}
                                 </div>
 
                                 <div className={s.actions}>
                                     {canEdit(invoice) && (
                                         <button onClick={() => { setEditInvoice(invoice); setModalOpen(true); }}>
-                                            Редактировать
+                                            {t('Редактировать')}
                                         </button>
                                     )}
-                                    <button onClick={() => previewPdf(invoice)}>Предпросмотр</button>
+                                    <button onClick={() => previewPdf(invoice)}>{t('Предпросмотр')}</button>
                                     <button onClick={() => downloadPdf(invoice)}>PDF</button>
 
                                     {invoice.billToEmail && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
@@ -342,7 +344,7 @@ const InvoicesPage = memo(() => {
                                                     : 'Mollie link'}
                                             </button>
                                             <button onClick={() => setActiveAction({ type: 'record-payment', invoice })}>
-                                                Добавить оплату
+                                                {t('Добавить оплату')}
                                             </button>
                                         </>
                                     )}
@@ -350,23 +352,23 @@ const InvoicesPage = memo(() => {
                                     {invoice.documentType === 'INVOICE' && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
                                         <>
                                             <button onClick={() => setActiveAction({ type: 'create-credit', invoice })}>
-                                                Кредит-нота
+                                                {t('Кредит-нота')}
                                             </button>
                                             <button onClick={() => setActiveAction({ type: 'create-debit', invoice })}>
-                                                Корректировка
+                                                {t('Корректировка')}
                                             </button>
                                         </>
                                     )}
 
                                     {canEdit(invoice) && invoice.status === 'DRAFT' && (
-                                        <button onClick={() => updateStatus(invoice, 'ISSUED')}>Выдать</button>
+                                        <button onClick={() => updateStatus(invoice, 'ISSUED')}>{t('Выдать')}</button>
                                     )}
                                     {canEdit(invoice) && invoice.status === 'DRAFT' && (
                                         <button
                                             className={s.confirmPaid}
                                             onClick={() => setActiveAction({ type: 'confirm-paid', invoice })}
                                         >
-                                            Подтвердить как оплаченный
+                                            {t('Подтвердить как оплаченный')}
                                         </button>
                                     )}
                                     {canEdit(invoice) && (
@@ -374,14 +376,14 @@ const InvoicesPage = memo(() => {
                                             className={s.cancel}
                                             onClick={() => setActiveAction({ type: 'cancel', invoice })}
                                         >
-                                            Отменить
+                                            {t('Отменить')}
                                         </button>
                                     )}
                                 </div>
 
                                 {invoice.molliePayments.length > 0 && (
                                     <div className={s.mollie}>
-                                        <strong>Mollie:</strong>
+                                        <strong>{t('Mollie:')}</strong>
                                         {invoice.molliePayments.map((payment) => (
                                             <span key={payment.id}>
                                                 {payment.mollieId ?? `#${payment.id}`} · {payment.status}
@@ -394,7 +396,7 @@ const InvoicesPage = memo(() => {
 
                                 {invoice.molliePaymentLinks.length > 0 && (
                                     <div className={s.mollie}>
-                                        <strong>Mollie links:</strong>
+                                        <strong>{t('Mollie links:')}</strong>
                                         {invoice.molliePaymentLinks.map((link) => (
                                             <span key={link.id}>
                                                 {link.mollieId} · {link.archived ? 'archived' : 'active'}
@@ -406,7 +408,7 @@ const InvoicesPage = memo(() => {
 
                                 {invoice.payments.length > 0 && (
                                     <div className={s.mollie}>
-                                        <strong>Оплаты:</strong>
+                                        <strong>{t('Оплаты:')}</strong>
                                         {invoice.payments.map((payment) => (
                                             <span key={payment.id}>
                                                 {money(payment.amountCents)} · {payment.method} · {new Date(payment.paidAt).toLocaleDateString('ru-RU')}
@@ -418,7 +420,7 @@ const InvoicesPage = memo(() => {
 
                                 {invoice.deliveries.length > 0 && (
                                     <details className={s.history}>
-                                        <summary>Отправки ({invoice.deliveries.length})</summary>
+                                        <summary>{t('Отправки ({{count}})', { count: invoice.deliveries.length })}</summary>
                                         {invoice.deliveries.map((delivery) => (
                                             <div key={delivery.id}>
                                                 <span>
@@ -435,7 +437,7 @@ const InvoicesPage = memo(() => {
                                 )}
 
                                 <details className={s.history}>
-                                    <summary>История ({invoice.auditLogs.length})</summary>
+                                    <summary>{t('История ({{count}})', { count: invoice.auditLogs.length })}</summary>
                                     {invoice.auditLogs.map((log) => (
                                         <div key={log.id}>
                                             <span>{actionLabel[log.action] ?? log.action}</span>
@@ -468,7 +470,7 @@ const InvoicesPage = memo(() => {
                 <div className={s.previewModal}>
                     <div>
                         <strong>{previewNumber}</strong>
-                        <button onClick={closePreview}>Закрыть</button>
+                        <button onClick={closePreview}>{t('Закрыть')}</button>
                     </div>
                     {previewUrl && <iframe title={`PDF ${previewNumber}`} src={previewUrl} />}
                 </div>

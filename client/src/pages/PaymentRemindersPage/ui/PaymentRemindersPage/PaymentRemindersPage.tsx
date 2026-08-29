@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import { Page } from '@/widgets/Page/Page';
@@ -92,6 +93,7 @@ const formatDateTime = (value?: string | null) => (
 );
 
 const PaymentRemindersPage = memo(() => {
+    const { t } = useTranslation();
     const [settings, setSettings] = useState<ReminderSettings>();
     const [emailAccounts, setEmailAccounts] = useState<EmailAccountOption[]>([]);
     const [isSettingsLoading, setIsSettingsLoading] = useState(true);
@@ -386,12 +388,12 @@ const PaymentRemindersPage = memo(() => {
                                 <table className={s.table}>
                                     <thead>
                                         <tr>
-                                            <th>Клиент</th>
-                                            <th>Дата платежа</th>
-                                            <th>Язык</th>
-                                            <th>Статус</th>
-                                            <th>Создано</th>
-                                            <th>Ошибка</th>
+                                            <th>{t('Клиент')}</th>
+                                            <th>{t('Дата платежа')}</th>
+                                            <th>{t('Язык')}</th>
+                                            <th>{t('Статус')}</th>
+                                            <th>{t('Создано')}</th>
+                                            <th>{t('Ошибка')}</th>
                                         </tr>
                                     </thead>
                                     <tbody>

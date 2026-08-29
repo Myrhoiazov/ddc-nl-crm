@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { $apiPrivate } from '@/shared/api/api';
 import { HStack, VStack } from '@/shared/ui/Stack';
@@ -188,6 +189,7 @@ const getIncidentHint = (incident: MollieIncident) => {
 };
 
 export const MollieIncidents = memo(() => {
+    const { t } = useTranslation();
     const [filters, setFilters] = useState<IncidentFilters>(defaultFilters);
     const [incidents, setIncidents] = useState<MollieIncident[]>([]);
     const [totals, setTotals] = useState<MollieIncidentsResponse['totals']>({
@@ -294,7 +296,7 @@ export const MollieIncidents = memo(() => {
 
     const pagination = total > 0 ? (
         <div className={s.pagination}>
-            <span>{firstItemNumber}-{lastItemNumber} из {total}</span>
+            <span>{firstItemNumber}-{lastItemNumber}{t(' из ')}{total}</span>
             <div className={s.paginationActions}>
                 <Button theme={ButtonTheme.CLEAR} className={s.pageButton} onClick={onPreviousPage} disabled={isLoading || page <= 1}>
                     ←
@@ -351,10 +353,10 @@ export const MollieIncidents = memo(() => {
                 />
                 <div className={s.filterActions}>
                     <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onApplyFilters} disabled={isLoading}>
-                        Применить
+                        {t('Применить')}
                     </Button>
                     <Button className={s.resetButton} theme={ButtonTheme.OUTLINE} onClick={onResetFilters} disabled={isLoading}>
-                        Сбросить
+                        {t('Сбросить')}
                     </Button>
                 </div>
             </div>
@@ -410,7 +412,7 @@ export const MollieIncidents = memo(() => {
                                             {getStudentLinks(incident.customer).map((link) => (
                                                 link.client?.id ? (
                                                     <Link className={s.crmLink} to={`/clients/${link.client.id}`} key={link.id}>
-                                                        Ученик: {[link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email || `#${link.client.id}`}
+                                                        {t('Ученик: {{name}}', { name: [link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email || `#${link.client.id}` })}
                                                     </Link>
                                                 ) : null
                                             ))}
@@ -441,17 +443,17 @@ export const MollieIncidents = memo(() => {
                                     </Button>
                                     {incident.customer?.id && (
                                         <Link className={s.actionLink} to={`/mollie/customers/${incident.customer.id}`}>
-                                            Открыть клиента
+                                            {t('Открыть клиента')}
                                         </Link>
                                     )}
                                     {incident.type === 'payment' && (
                                         <Link className={s.actionLink} to="/mollie/payments">
-                                            Все платежи
+                                            {t('Все платежи')}
                                         </Link>
                                     )}
                                     {getStudentLinks(incident.customer)[0]?.client?.id && (
                                         <Link className={s.actionLink} to={`/clients/${getStudentLinks(incident.customer)[0].client?.id}`}>
-                                            Открыть ученика
+                                            {t('Открыть ученика')}
                                         </Link>
                                     )}
                                 </div>

@@ -1,6 +1,7 @@
 import {
     memo, useState, useEffect, useCallback, useRef, SyntheticEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Page } from '@/widgets/Page/Page';
 import { $apiPrivate } from '@/shared/api/api';
@@ -31,6 +32,7 @@ const StudentLink = ({ student }: { student: GroupStudent }) => (
 );
 
 const ScheduleSettingsPage = memo(() => {
+    const { t } = useTranslation();
     const [groups, setGroups] = useState<DanceGroup[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -158,26 +160,26 @@ const ScheduleSettingsPage = memo(() => {
 
     return (
         <Page>
-            <h1 className={s.pageTitle}>Управление группами</h1>
+            <h1 className={s.pageTitle}>{t('Управление группами')}</h1>
 
             <div className={s.toolbar}>
                 <button className={s.primaryBtn} onClick={() => setCreateOpen(true)}>
-                    + Создать группу
+                    {t('+ Создать группу')}
                 </button>
             </div>
 
             {statistics && (
                 <>
                     <div className={s.summaryGrid}>
-                        <div className={s.summaryCard}><span>Филиалы</span><strong>{statistics.totals.branchCount}</strong></div>
-                        <div className={s.summaryCard}><span>Группы</span><strong>{statistics.totals.groupCount}</strong></div>
-                        <div className={s.summaryCard}><span>Активные ученики</span><strong>{statistics.totals.activeCount}</strong></div>
-                        <div className={s.summaryCard}><span>Неактивные ученики</span><strong>{statistics.totals.inactiveCount}</strong></div>
-                        <div className={s.summaryCard}><span>Общая вместимость</span><strong>{statistics.totals.capacity}</strong></div>
+                        <div className={s.summaryCard}><span>{t('Филиалы')}</span><strong>{statistics.totals.branchCount}</strong></div>
+                        <div className={s.summaryCard}><span>{t('Группы')}</span><strong>{statistics.totals.groupCount}</strong></div>
+                        <div className={s.summaryCard}><span>{t('Активные ученики')}</span><strong>{statistics.totals.activeCount}</strong></div>
+                        <div className={s.summaryCard}><span>{t('Неактивные ученики')}</span><strong>{statistics.totals.inactiveCount}</strong></div>
+                        <div className={s.summaryCard}><span>{t('Общая вместимость')}</span><strong>{statistics.totals.capacity}</strong></div>
                     </div>
 
                     <div className={s.branchSection}>
-                        <div className={s.sectionTitle}>Статистика по филиалам</div>
+                        <div className={s.sectionTitle}>{t('Статистика по филиалам')}</div>
                         <div className={s.branchGrid}>
                             {statistics.branches.map((branch) => (
                                 <details
@@ -192,12 +194,12 @@ const ScheduleSettingsPage = memo(() => {
                                             <small>{[branch.city, branch.address].filter(Boolean).join(' · ')}</small>
                                         </span>
                                         <span className={s.branchNumbers}>
-                                            {branch.groupCount} гр. · {branch.activeCount} активных · {branch.inactiveCount} неактивных
+                                            {branch.groupCount}{t(' гр. · ')}{branch.activeCount}{t(' активных · ')}{branch.inactiveCount}{t(' неактивных')}
                                         </span>
                                     </summary>
                                     <div className={s.branchDetails}>
-                                        <span>Вместимость групп: {branch.capacity}</span>
-                                        <span>Без группы: {branch.unassignedCount}</span>
+                                        <span>{t('Вместимость групп: {{capacity}}', { capacity: branch.capacity })}</span>
+                                        <span>{t('Без группы: {{count}}', { count: branch.unassignedCount })}</span>
                                     </div>
 
                                     <div className={s.viewToggle}>
@@ -206,44 +208,44 @@ const ScheduleSettingsPage = memo(() => {
                                             className={getBranchView(branch.id) === 'flat' ? s.viewToggleActive : ''}
                                             onClick={() => setBranchViewMode(branch.id, 'flat')}
                                         >
-                                            Общий список
+                                            {t('Общий список')}
                                         </button>
                                         <button
                                             type="button"
                                             className={getBranchView(branch.id) === 'groups' ? s.viewToggleActive : ''}
                                             onClick={() => setBranchViewMode(branch.id, 'groups')}
                                         >
-                                            По группам
+                                            {t('По группам')}
                                         </button>
                                     </div>
 
                                     {getBranchView(branch.id) === 'flat' ? (
                                         <div className={s.branchStudents}>
                                             <div>
-                                                <strong>Активные ({branch.activeCount})</strong>
+                                                <strong>{t('Активные ({{count}})', { count: branch.activeCount })}</strong>
                                                 {branch.activeStudents.length ? (
                                                     <ul>
                                                         {branch.activeStudents.map((student) => (
                                                             <li key={student.id}><StudentLink student={student} /></li>
                                                         ))}
                                                     </ul>
-                                                ) : <span>Нет учеников</span>}
+                                                ) : <span>{t('Нет учеников')}</span>}
                                             </div>
                                             <div>
-                                                <strong>Неактивные ({branch.inactiveCount})</strong>
+                                                <strong>{t('Неактивные ({{count}})', { count: branch.inactiveCount })}</strong>
                                                 {branch.inactiveStudents.length ? (
                                                     <ul>
                                                         {branch.inactiveStudents.map((student) => (
                                                             <li key={student.id}><StudentLink student={student} /></li>
                                                         ))}
                                                     </ul>
-                                                ) : <span>Нет учеников</span>}
+                                                ) : <span>{t('Нет учеников')}</span>}
                                             </div>
                                         </div>
                                     ) : (
                                         <div className={s.branchGroups}>
                                             {statistics.groups.filter((group) => group.branchId === branch.id).length === 0 ? (
-                                                <span>В этом филиале нет групп</span>
+                                                <span>{t('В этом филиале нет групп')}</span>
                                             ) : (
                                                 statistics.groups
                                                     .filter((group) => group.branchId === branch.id)
@@ -257,28 +259,28 @@ const ScheduleSettingsPage = memo(() => {
                                                         >
                                                             <div className={s.groupCardHeader}>
                                                                 <strong>{group.name}</strong>
-                                                                <span>{group.activeCount} активных · {group.inactiveCount} неактивных</span>
+                                                                <span>{group.activeCount}{t(' активных · ')}{group.inactiveCount}{t(' неактивных')}</span>
                                                             </div>
                                                             <div className={s.branchStudents}>
                                                                 <div>
-                                                                    <strong>Активные ({group.activeCount})</strong>
+                                                                    <strong>{t('Активные ({{count}})', { count: group.activeCount })}</strong>
                                                                     {group.activeStudents.length ? (
                                                                         <ul>
                                                                             {group.activeStudents.map((student) => (
                                                                                 <li key={student.id}><StudentLink student={student} /></li>
                                                                             ))}
                                                                         </ul>
-                                                                    ) : <span>Нет учеников</span>}
+                                                                    ) : <span>{t('Нет учеников')}</span>}
                                                                 </div>
                                                                 <div>
-                                                                    <strong>Неактивные ({group.inactiveCount})</strong>
+                                                                    <strong>{t('Неактивные ({{count}})', { count: group.inactiveCount })}</strong>
                                                                     {group.inactiveStudents.length ? (
                                                                         <ul>
                                                                             {group.inactiveStudents.map((student) => (
                                                                                 <li key={student.id}><StudentLink student={student} /></li>
                                                                             ))}
                                                                         </ul>
-                                                                    ) : <span>Нет учеников</span>}
+                                                                    ) : <span>{t('Нет учеников')}</span>}
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -295,30 +297,30 @@ const ScheduleSettingsPage = memo(() => {
 
             <div className={s.section}>
                 <div className={s.sectionTitle}>
-                    Группы ({allTotal}/{total})
+                    {t('Группы ({{allTotal}}/{{total}})', { allTotal, total })}
                 </div>
 
                 <div className={s.filters}>
                     <select className={s.filterSelect} value={filterStyle} onChange={(e) => setFilterStyle(e.target.value)}>
-                        <option value="">Все стили</option>
+                        <option value="">{t('Все стили')}</option>
                         {styles.map((st) => <option key={st} value={st}>{st}</option>)}
                     </select>
 
                     <select className={s.filterSelect} value={filterLevel} onChange={(e) => setFilterLevel(e.target.value)}>
-                        <option value="">Все уровни</option>
-                        <option value="START">Start</option>
-                        <option value="FAN">Fan</option>
-                        <option value="PRO">Pro</option>
+                        <option value="">{t('Все уровни')}</option>
+                        <option value="START">{t('Start')}</option>
+                        <option value="FAN">{t('Fan')}</option>
+                        <option value="PRO">{t('Pro')}</option>
                     </select>
 
                     <select className={s.filterSelect} value={filterChoreographer} onChange={(e) => setFilterChoreographer(e.target.value)}>
-                        <option value="">Все хореографы</option>
+                        <option value="">{t('Все хореографы')}</option>
                         {choreographers.map((c) => (
                             <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
                         ))}
                     </select>
 
-                    <button className={s.resetBtn} onClick={onReset}>Сбросить</button>
+                    <button className={s.resetBtn} onClick={onReset}>{t('Сбросить')}</button>
                 </div>
 
                 {loading ? (

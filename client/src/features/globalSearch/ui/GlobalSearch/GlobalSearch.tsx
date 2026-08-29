@@ -233,13 +233,13 @@ export const GlobalSearch = memo(() => {
                     onClick={openSearch}
                     aria-label={t('Поиск') as string}
                 >
-                    <span className={cls.icon}>⌕</span>
+                    <span className={cls.icon}>{t('⌕')}</span>
                 </button>
             )}
             {isExpanded && (
                 <div className={cls.panel}>
                     <div className={cls.inputRow}>
-                        <span className={cls.icon}>⌕</span>
+                        <span className={cls.icon}>{t('⌕')}</span>
                         <input
                             ref={inputRef}
                             type="text"

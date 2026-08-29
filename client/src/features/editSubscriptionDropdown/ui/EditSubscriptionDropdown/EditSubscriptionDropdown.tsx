@@ -1,5 +1,6 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { memo, useCallback, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dropdown } from '@/shared/ui/Popups';
 import { Icon } from '@/shared/ui/Icon/Icon';
 import Edit from '@/shared/assets/icons/edit-icon.svg';
@@ -28,6 +29,7 @@ const today = new Date().toISOString().slice(0, 10);
 
 export const EditSubscriptionDropdown = memo((props: EditSubscriptionDropdownProps) => {
     const { className, customerId, subscription, mandates, reloadPage } = props;
+    const { t } = useTranslation();
     const [modal, setModal] = useState<'cancel' | 'edit' | 'restart'>();
     const [isSaving, setIsSaving] = useState(false);
     const validMandateOptions = useMemo(() => mandates
@@ -134,7 +136,7 @@ export const EditSubscriptionDropdown = memo((props: EditSubscriptionDropdownPro
                 <VStack max gap="16" className={s.confirm}>
                     <Text title="Остановить подписку?" text="Она останется в истории CRM со статусом canceled." size="m" bold />
                     <div className={s.actions}>
-                        <Button theme={ButtonTheme.OUTLINE} onClick={closeModal} disabled={isSaving}>Закрыть</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={closeModal} disabled={isSaving}>{t('Закрыть')}</Button>
                         <Button theme={ButtonTheme.OUTLINE_RED} onClick={onCancel} disabled={isSaving}>{isSaving ? 'Отмена...' : 'Остановить'}</Button>
                     </div>
                 </VStack>
@@ -149,8 +151,8 @@ export const EditSubscriptionDropdown = memo((props: EditSubscriptionDropdownPro
                     <Input fullWidth label="Количество списаний" type="number" value={form.times} onChange={(times) => setForm((prev) => ({ ...prev, times }))} />
                     <Input fullWidth label="Описание" value={form.description} onChange={(description) => setForm((prev) => ({ ...prev, description }))} />
                     <HStack max gap="8" justify="end">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={closeModal}>Закрыть</Button>
-                        <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onUpdate} disabled={isSaving}>Сохранить</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={closeModal}>{t('Закрыть')}</Button>
+                        <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onUpdate} disabled={isSaving}>{t('Сохранить')}</Button>
                     </HStack>
                 </VStack>
             </Modal>
@@ -160,8 +162,8 @@ export const EditSubscriptionDropdown = memo((props: EditSubscriptionDropdownPro
                     <Select label="Valid mandate" options={validMandateOptions} value={form.mandateId} onChange={(mandateId) => setForm((prev) => ({ ...prev, mandateId }))} />
                     <Input fullWidth label="Дата первого списания" type="date" min={today} value={restartDate} onChange={setRestartDate} />
                     <HStack max gap="8" justify="end">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={closeModal}>Закрыть</Button>
-                        <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onRestart} disabled={isSaving}>Запустить снова</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={closeModal}>{t('Закрыть')}</Button>
+                        <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onRestart} disabled={isSaving}>{t('Запустить снова')}</Button>
                     </HStack>
                 </VStack>
             </Modal>

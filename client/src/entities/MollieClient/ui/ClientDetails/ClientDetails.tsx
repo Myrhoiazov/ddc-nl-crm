@@ -1,4 +1,5 @@
 import React, { memo, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     DynamicModuleLoader,
     ReducersList,
@@ -48,6 +49,7 @@ const ClientElementSkeleton = () => {
 };
 
 const ClientElement = () => {
+    const { t } = useTranslation();
     const client = useSelector(getClientDetailsData);
     const fullName = [client?.givenName, client?.familyName].filter(Boolean).join(' ') || 'Без имени';
     const payerName = client?.payerName || fullName;
@@ -93,7 +95,7 @@ const ClientElement = () => {
                         <Text text="Платёжный профиль Mollie" size="s" className={s.subtitle} />
                     </div>
                     <div className={s.crmBlock}>
-                        <span className={s.detailLabel}>Ученики</span>
+                        <span className={s.detailLabel}>{t('Ученики')}</span>
                         {studentLinks.length ? (
                             <div className={s.studentLinks}>
                                 {studentLinks.map((link) => {
@@ -109,7 +111,7 @@ const ClientElement = () => {
                                 })}
                             </div>
                         ) : (
-                            <span className={s.detailValue}>Не привязан</span>
+                            <span className={s.detailValue}>{t('Не привязан')}</span>
                         )}
                     </div>
                     <div className={s.detailsGrid}>
@@ -140,7 +142,7 @@ const ClientElement = () => {
                                     <div className={s.timelineContent}>
                                         <div className={s.timelineHeader}>
                                             <span className={s.timelineTitle}>
-                                                Платёж {event.paymentStatus || 'получен'}
+                                                {t('Платёж {{status}}', { status: event.paymentStatus || 'получен' })}
                                             </span>
                                             <span className={s.timelineDate}>{formatEventDate(event.receivedAt)}</span>
                                         </div>

@@ -147,7 +147,7 @@ export const ActiveSessions = memo(() => {
                                 {session.isCurrent && <span className={cls.badge}>{t('Текущая')}</span>}
                             </div>
                             <div className={cls.meta}>
-                                <span>IP: {session.ipAddress || '—'}</span>
+                                <span>{t('IP: {{ip}}', { ip: session.ipAddress || '—' })}</span>
                                 <span>{t('Последняя активность')}: {formatDate(session.lastUsedAt)}</span>
                                 <span>{t('Создана')}: {formatDate(session.createdAt)}</span>
                                 <span>{t('Истекает')}: {formatDate(session.expiresAt)}</span>

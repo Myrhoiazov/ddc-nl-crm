@@ -1,4 +1,5 @@
 import { memo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '@/shared/ui/Modal/Modal';
 import { $apiPrivate } from '@/shared/api/api';
 import { toast } from 'react-toastify';
@@ -11,6 +12,7 @@ interface AddHallModalProps {
 }
 
 export const AddHallModal = memo(({ isOpen, onClose, onSaved }: AddHallModalProps) => {
+    const { t } = useTranslation();
     const [name, setName] = useState('');
     const [capacity, setCapacity] = useState('');
     const [saving, setSaving] = useState(false);
@@ -34,13 +36,13 @@ export const AddHallModal = memo(({ isOpen, onClose, onSaved }: AddHallModalProp
     return (
         <Modal isOpen={isOpen} onClose={onClose} lazy>
             <div className={s.modal}>
-                <h2 className={s.title}>ДОБАВИТЬ ЗАЛ</h2>
+                <h2 className={s.title}>{t('ДОБАВИТЬ ЗАЛ')}</h2>
                 <div className={s.field}>
-                    <label className={s.label}>Название зала *</label>
+                    <label className={s.label}>{t('Название зала *')}</label>
                     <input className={s.input} placeholder="White" value={name} onChange={(e) => setName(e.target.value)} />
                 </div>
                 <div className={s.field}>
-                    <label className={s.label}>Вместимость</label>
+                    <label className={s.label}>{t('Вместимость')}</label>
                     <input className={s.input} type="number" placeholder="20" value={capacity} onChange={(e) => setCapacity(e.target.value)} />
                 </div>
                 <button className={s.submitBtn} onClick={onSubmit} disabled={saving}>

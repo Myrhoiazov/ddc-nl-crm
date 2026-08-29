@@ -1,4 +1,5 @@
 import { memo, useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { Button, ButtonSize, ButtonTheme } from '@/shared/ui/Button';
 import { SidebarItem } from '../SidebarItem/SidebarItem';
@@ -19,6 +20,7 @@ interface SidebarProps {
 const TABLET_COLLAPSE_QUERY = '(min-width: 769px) and (max-width: 1024px)';
 
 export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarProps) => {
+    const { t } = useTranslation();
     const [collapsed, setCollapsed] = useState(false);
     const [openGroup, setOpenGroup] = useState<string | null>(null);
     const userToggledRef = useRef(false);
@@ -107,7 +109,7 @@ export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarPr
             >
                 {/* Mobile close button */}
                 <button className={cls.mobileClose} onClick={onMobileClose} aria-label="Закрыть">
-                    ✕
+                    {t('✕')}
                 </button>
 
                 <Button
@@ -122,9 +124,9 @@ export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarPr
                 </Button>
 
                 <div className={cls.items}>
-                    {!collapsed && <div className={cls.sectionTitle}>Навигация</div>}
+                    {!collapsed && <div className={cls.sectionTitle}>{t('Навигация')}</div>}
                     {renderItems(mainItems)}
-                    {!collapsed && <div className={cls.sectionTitle}>CRM разделы</div>}
+                    {!collapsed && <div className={cls.sectionTitle}>{t('CRM разделы')}</div>}
                     {renderItems(crmItems)}
                 </div>
             </div>

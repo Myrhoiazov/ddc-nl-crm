@@ -1,4 +1,5 @@
 import React, { memo, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './MollieClientListItem.module.scss';
 import { MollieClient } from '../../model/types/mollieClient';
@@ -14,6 +15,7 @@ interface MollieClientListItemProps {
 
 const MollieClientListItem = (props: MollieClientListItemProps) => {
     const { className, client, renderAction } = props;
+    const { t } = useTranslation();
     const navigate = useNavigate();
     const subscriptionsCount = client.subscriptions?.length ?? 0;
     const activeSubscriptionsCount = client.subscriptions?.filter((subscription) => subscription.status === 'active').length ?? 0;
@@ -54,11 +56,11 @@ const MollieClientListItem = (props: MollieClientListItemProps) => {
                     <p className={s.email}>{client.email}</p>
                     <div className={s.badges}>
                         <span className={classNames(s.badge, { [s.active]: activeSubscriptionsCount > 0 }, [])}>
-                            Активные: {activeSubscriptionsCount}
+                            {t('Активные: {{count}}', { count: activeSubscriptionsCount })}
                         </span>
-                        <span className={s.badge}>Подписки: {subscriptionsCount}</span>
+                        <span className={s.badge}>{t('Подписки: {{count}}', { count: subscriptionsCount })}</span>
                         <span className={classNames(s.badge, { [s.active]: validMandatesCount > 0 }, [])}>
-                            Мандаты: {mandatesCount}
+                            {t('Мандаты: {{count}}', { count: mandatesCount })}
                         </span>
                         {studentLinks.length ? (
                             studentLinks.map((link) => {
@@ -68,14 +70,14 @@ const MollieClientListItem = (props: MollieClientListItemProps) => {
 
                                 return link.client?.id ? (
                                     <Link className={`${s.badge} ${s.studentLink}`} to={`/clients/${link.client.id}`} key={link.id}>
-                                        Ученик: {studentName}
+                                        {t('Ученик: {{studentName}}', { studentName })}
                                     </Link>
                                 ) : null;
                             })
                         ) : (
-                            <span className={`${s.badge} ${s.warning}`}>Нет ученика</span>
+                            <span className={`${s.badge} ${s.warning}`}>{t('Нет ученика')}</span>
                         )}
-                        <span className={s.badge}>Роль: {client.payerRelation || 'unknown'}</span>
+                        <span className={s.badge}>{t('Роль: {{role}}', { role: client.payerRelation || 'unknown' })}</span>
                     </div>
                 </div>
                 {renderAction?.(client)}

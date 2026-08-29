@@ -1,4 +1,5 @@
 import { memo, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Page } from '@/widgets/Page/Page';
 import { $apiPrivate } from '@/shared/api/api';
 import { Card } from '@/shared/ui/Card/Card';
@@ -18,6 +19,7 @@ interface MollieConnectionStatus {
 }
 
 const CrmSettingsPage = memo(() => {
+    const { t } = useTranslation();
     const [connection, setConnection] = useState<MollieConnectionStatus>();
     const [isLoading, setIsLoading] = useState(true);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
@@ -99,24 +101,21 @@ const CrmSettingsPage = memo(() => {
                             <div className={s.explanation}>
                                 <Text title="Для чего это нужно" size="s" bold />
                                 <p>
-                                    OAuth нужен, если CRM будет подключать Mollie-аккаунты разных компаний или если доступ
-                                    необходимо выдавать и отзывать из Mollie без ручной замены API key. CRM сохраняет
-                                    зашифрованные токены и автоматически обновляет их.
+                                    {t('OAuth нужен, если CRM будет подключать Mollie-аккаунты разных компаний или если доступ необходимо выдавать и отзывать из Mollie без ручной замены API key. CRM сохраняет зашифрованные токены и автоматически обновляет их.')}
                                 </p>
                                 <p>
-                                    Для текущей CRM с одной организацией OAuth необязателен: система продолжает работать
-                                    через настроенный серверный API key. Подключайте OAuth только при необходимости.
+                                    {t('Для текущей CRM с одной организацией OAuth необязателен: система продолжает работать через настроенный серверный API key. Подключайте OAuth только при необходимости.')}
                                 </p>
                             </div>
 
                             {connection.source === 'oauth' && (
                                 <div className={s.detailsGrid}>
                                     <div className={s.detailItem}>
-                                        <span className={s.label}>Токен истекает</span>
+                                        <span className={s.label}>{t('Токен истекает')}</span>
                                         <span>{formatDate(connection.expiresAt)}</span>
                                     </div>
                                     <div className={s.detailItem}>
-                                        <span className={s.label}>Последнее обновление</span>
+                                        <span className={s.label}>{t('Последнее обновление')}</span>
                                         <span>{formatDate(connection.lastRefreshedAt || connection.updatedAt)}</span>
                                     </div>
                                 </div>

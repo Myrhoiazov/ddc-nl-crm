@@ -1,5 +1,6 @@
 import { Outlet, NavLink } from 'react-router-dom';
 import { Suspense } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Page } from '@/widgets/Page/Page';
 import { Text } from '@/shared/ui/Text/Text';
 import { HStack } from '@/shared/ui/Stack';
@@ -8,6 +9,8 @@ import cls from './CompanyPage.module.scss';
 import { classNames } from '@/shared/lib/classNames/classNames';
 
 const CompanyPage = () => {
+    const { t } = useTranslation();
+
     return (
         <Page>
             <Text title="Компания" bold size="l" />
@@ -17,31 +20,31 @@ const CompanyPage = () => {
                     end
                     className={({ isActive }) => classNames(cls.navLink, { [cls.active]: isActive })}
                 >
-                    Главная
+                    {t('Главная')}
                 </NavLink>
                 <NavLink
                     to="/company/customers"
                     className={({ isActive }) => classNames(cls.navLink, { [cls.active]: isActive })}
                 >
-                    Клиенты
+                    {t('Клиенты')}
                 </NavLink>
                 <NavLink
                     to="/company/payments"
                     className={({ isActive }) => classNames(cls.navLink, { [cls.active]: isActive })}
                 >
-                    Платежи
+                    {t('Платежи')}
                 </NavLink>
                 <NavLink
                     to="/company/payments-matrix"
                     className={({ isActive }) => classNames(cls.navLink, { [cls.active]: isActive })}
                 >
-                    Матрица оплат
+                    {t('Матрица оплат')}
                 </NavLink>
                 <NavLink
                     to="/company/incidents"
                     className={({ isActive }) => classNames(cls.navLink, { [cls.active]: isActive })}
                 >
-                    Инциденты
+                    {t('Инциденты')}
                 </NavLink>
             </HStack>
             <Suspense fallback={<ListSkeleton rows={5} height={68} />}>

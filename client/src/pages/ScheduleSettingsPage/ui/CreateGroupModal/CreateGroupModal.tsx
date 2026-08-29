@@ -1,4 +1,5 @@
 import { memo, useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '@/shared/ui/Modal/Modal';
 import { $apiPrivate } from '@/shared/api/api';
 import type { DanceGroup } from '@/entities/DanceGroup';
@@ -23,6 +24,7 @@ const emptySlot = (): ScheduleSlot => ({ dayOfWeek: 'Понедельник', st
 
 export const CreateGroupModal = memo(
     ({ isOpen, onClose, onSaved, editGroup }: CreateGroupModalProps) => {
+        const { t } = useTranslation();
         const [name, setName] = useState('');
         const [style, setStyle] = useState('');
         const [level, setLevel] = useState<GroupLevel>('START');
@@ -133,7 +135,7 @@ export const CreateGroupModal = memo(
                         {/* Name */}
                         <div className={s.field}>
                             <label className={s.label}>
-                                Название группы <span className={s.req}>*</span>
+                                {t('Название группы')} <span className={s.req}>*</span>
                             </label>
                             <input
                                 className={s.input}
@@ -146,14 +148,14 @@ export const CreateGroupModal = memo(
                         {/* Choreographer */}
                         <div className={s.field}>
                             <label className={s.label}>
-                                Хореограф <span className={s.req}>*</span>
+                                {t('Хореограф')} <span className={s.req}>*</span>
                             </label>
                             <select
                                 className={s.select}
                                 value={choreographerId}
                                 onChange={(e) => setChoreographerId(e.target.value)}
                             >
-                                <option value="">Выберите хореографа</option>
+                                <option value="">{t('Выберите хореографа')}</option>
                                 {choreographers.map((c) => (
                                     <option key={c.id} value={c.id}>
                                         {c.firstName} {c.lastName}
@@ -165,14 +167,14 @@ export const CreateGroupModal = memo(
                         {/* Style */}
                         <div className={s.field}>
                             <label className={s.label}>
-                                Стиль <span className={s.req}>*</span>
+                                {t('Стиль')} <span className={s.req}>*</span>
                             </label>
                             <select
                                 className={s.select}
                                 value={style}
                                 onChange={(e) => setStyle(e.target.value)}
                             >
-                                <option value="">Выберите стиль</option>
+                                <option value="">{t('Выберите стиль')}</option>
                                 {styles.map((styleName) => (
                                     <option key={styleName} value={styleName}>
                                         {styleName}
@@ -184,14 +186,14 @@ export const CreateGroupModal = memo(
                         {/* Branch */}
                         <div className={s.field}>
                             <label className={s.label}>
-                                Филиал <span className={s.req}>*</span>
+                                {t('Филиал')} <span className={s.req}>*</span>
                             </label>
                             <select
                                 className={s.select}
                                 value={branchId}
                                 onChange={(e) => setBranchId(e.target.value)}
                             >
-                                <option value="">Выберите филиал</option>
+                                <option value="">{t('Выберите филиал')}</option>
                                 {branches.map((b) => (
                                     <option key={b.id} value={b.id}>
                                         {b.name}
@@ -205,7 +207,7 @@ export const CreateGroupModal = memo(
                         <div className={s.row}>
                             <div className={s.field}>
                                 <label className={s.label}>
-                                    Уровень группы <span className={s.req}>*</span>
+                                    {t('Уровень группы')} <span className={s.req}>*</span>
                                 </label>
                                 <div className={s.levelGroup}>
                                     {LEVELS.map((l) => (
@@ -223,7 +225,7 @@ export const CreateGroupModal = memo(
                                 </div>
                             </div>
                             <div className={s.field}>
-                                <label className={s.label}>Макс. участников</label>
+                                <label className={s.label}>{t('Макс. участников')}</label>
                                 <input
                                     className={s.inputSmall}
                                     type="number"
@@ -233,7 +235,7 @@ export const CreateGroupModal = memo(
                                 />
                             </div>
                             <div className={s.field}>
-                                <label className={s.label}>Стоимость занятия, EUR</label>
+                                <label className={s.label}>{t('Стоимость занятия, EUR')}</label>
                                 <input
                                     className={s.inputSmall}
                                     type="number"
@@ -249,10 +251,10 @@ export const CreateGroupModal = memo(
                         <div className={s.slotsBox}>
                             <div className={s.slotsHeader}>
                                 <label className={s.label}>
-                                    Слоты расписания <span className={s.req}>*</span>
+                                    {t('Слоты расписания')} <span className={s.req}>*</span>
                                 </label>
                                 <button type="button" className={s.addSlotBtn} onClick={addSlot}>
-                                    + Добавить слот
+                                    {t('+ Добавить слот')}
                                 </button>
                             </div>
                             {slots.map((slot, idx) => (

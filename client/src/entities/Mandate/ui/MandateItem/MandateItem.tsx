@@ -1,4 +1,5 @@
 import React, { memo, ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './MandateItem.module.scss';
 import { Mandate } from '../../model/types/mandate';
@@ -11,6 +12,7 @@ interface MandateItemProps {
 }
 
 const MandateItem = ({ className, item, renderAction }: MandateItemProps) => {
+    const { t } = useTranslation();
     const signatureDate = item.signatureDate
         ? new Date(item.signatureDate).toLocaleDateString('nl-NL')
         : '—';
@@ -27,7 +29,7 @@ const MandateItem = ({ className, item, renderAction }: MandateItemProps) => {
                     <span className={s.id}>{item.id}</span>
                     <span className={s.meta}>{item.method || '—'} · {item.mode || '—'}</span>
                 </div>
-                <span className={s.date}>Подписан: {signatureDate} · изменён: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('nl-NL') : '—'}</span>
+                <span className={s.date}>{t('Подписан: {{signatureDate}} · изменён: {{updatedDate}}', { signatureDate, updatedDate: item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('nl-NL') : '—' })}</span>
                 <span className={classNames(s.status, { [s.valid]: item.status === 'valid' }, [])}>
                     {item.status || 'unknown'}
                 </span>

@@ -469,13 +469,13 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                             theme={ButtonTheme.BACKGROUND_INVERTED}
                             onClick={() => setIsPaymentLinkOpen(true)}
                         >
-                            Payment link
+                            {t('Payment link')}
                         </Button>
                         <Button theme={ButtonTheme.OUTLINE} onClick={() => setIsMandateOpen(true)}>
-                            Создать mandate
+                            {t('Создать mandate')}
                         </Button>
                         <Button theme={ButtonTheme.OUTLINE} onClick={() => setIsSubscriptionOpen(true)}>
-                            Создать подписку
+                            {t('Создать подписку')}
                         </Button>
                     </div>
                 </div>
@@ -521,18 +521,18 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                         <div className={s.row} key={subscription.id}>
                             <div className={s.rowMain}>
                                 <span className={s.primaryText}>{subscription.description || subscription.mollieId || `Subscription #${subscription.id}`}</span>
-                                <span>{getPayerName(subscription.customer)} · {subscription.status} · mandate {subscription.mandate?.mollieId || '—'}</span>
-                                <span>Создана: {formatDate(subscription.createdAt)} · старт: {formatDate(subscription.startDate)} · следующая: {formatDate(subscription.nextPaymentDate)} · изменена: {formatDate(subscription.updatedAt)}</span>
+                                <span>{getPayerName(subscription.customer)} · {subscription.status} {t('· mandate {{mandateId}}', { mandateId: subscription.mandate?.mollieId || '—' })}</span>
+                                <span>{t('Создана: {{createdAt}} · старт: {{startDate}} · следующая: {{nextPaymentDate}} · изменена: {{updatedAt}}', { createdAt: formatDate(subscription.createdAt), startDate: formatDate(subscription.startDate), nextPaymentDate: formatDate(subscription.nextPaymentDate), updatedAt: formatDate(subscription.updatedAt) })}</span>
                             </div>
                             <div className={s.subscriptionActions}>
                                 <span>{formatAmount(subscription.amountValue, subscription.amountCurrency)} · {subscription.interval || '—'}</span>
                                 {subscription.status === 'active' ? (
                                     <>
-                                        <Button theme={ButtonTheme.OUTLINE} onClick={() => onOpenEditSubscription(subscription)}>Изменить</Button>
-                                        <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onCancelSubscription(subscription)}>Остановить</Button>
+                                        <Button theme={ButtonTheme.OUTLINE} onClick={() => onOpenEditSubscription(subscription)}>{t('Изменить')}</Button>
+                                        <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onCancelSubscription(subscription)}>{t('Остановить')}</Button>
                                     </>
                                 ) : restartableSubscriptionStatuses.includes(subscription.status) ? (
-                                    <Button theme={ButtonTheme.OUTLINE} onClick={() => onOpenRestartSubscription(subscription)}>Запустить снова</Button>
+                                    <Button theme={ButtonTheme.OUTLINE} onClick={() => onOpenRestartSubscription(subscription)}>{t('Запустить снова')}</Button>
                                 ) : null}
                             </div>
                         </div>
@@ -548,10 +548,10 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                             <div className={s.rowMain}>
                                 <span className={s.primaryText}>{mandate.mollieId || `Mandate #${mandate.id}`}</span>
                                 <span>{getPayerName(mandate.customer)} · {mandate.method} · {mandate.status}</span>
-                                <span>Подписан: {formatDate(mandate.signatureDate)} · создан: {formatDate(mandate.createdAt)} · изменён: {formatDate(mandate.updatedAt)}</span>
+                                <span>{t('Подписан: {{signatureDate}} · создан: {{createdAt}} · изменён: {{updatedAt}}', { signatureDate: formatDate(mandate.signatureDate), createdAt: formatDate(mandate.createdAt), updatedAt: formatDate(mandate.updatedAt) })}</span>
                             </div>
                             {mandate.status === 'valid' && (
-                                <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onRevokeMandate(mandate)}>Отозвать</Button>
+                                <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onRevokeMandate(mandate)}>{t('Отозвать')}</Button>
                             )}
                         </div>
                     )) : (
@@ -576,13 +576,13 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                                             theme={ButtonTheme.OUTLINE}
                                             onClick={() => onCopyPaymentLink(payment.checkoutUrl)}
                                         >
-                                            Копировать
+                                            {t('Копировать')}
                                         </Button>
                                         <Button
                                             theme={ButtonTheme.OUTLINE}
                                             onClick={() => window.open(payment.checkoutUrl, '_blank', 'noopener,noreferrer')}
                                         >
-                                            Открыть
+                                            {t('Открыть')}
                                         </Button>
                                     </>
                                 )}
@@ -591,7 +591,7 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                                         theme={ButtonTheme.OUTLINE_RED}
                                         onClick={() => onCancelPaymentLink(payment)}
                                     >
-                                        Отменить
+                                        {t('Отменить')}
                                     </Button>
                                 )}
                             </div>
@@ -640,7 +640,7 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                     <Input fullWidth label="BIC, необязательно" value={mandateForm.consumerBic} onChange={(consumerBic) => setMandateForm((prev) => ({ ...prev, consumerBic }))} />
                     <Input fullWidth label="Дата подписи" type="date" value={mandateForm.signatureDate} onChange={(signatureDate) => setMandateForm((prev) => ({ ...prev, signatureDate }))} />
                     <HStack gap="8" max justify="end">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setIsMandateOpen(false)} disabled={isSaving}>Закрыть</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setIsMandateOpen(false)} disabled={isSaving}>{t('Закрыть')}</Button>
                         <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onCreateMandate} disabled={isSaving}>{isSaving ? 'Создание...' : 'Создать mandate'}</Button>
                     </HStack>
                 </VStack>
@@ -667,7 +667,7 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                     <Input fullWidth label="Дата начала" type="date" value={subscriptionForm.startDate} onChange={(startDate) => setSubscriptionForm((prev) => ({ ...prev, startDate }))} />
                     <Input fullWidth label="Описание" value={subscriptionForm.description} onChange={(description) => setSubscriptionForm((prev) => ({ ...prev, description }))} />
                     <HStack gap="8" max justify="end">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setIsSubscriptionOpen(false)} disabled={isSaving}>Закрыть</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setIsSubscriptionOpen(false)} disabled={isSaving}>{t('Закрыть')}</Button>
                         <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onCreateSubscription} disabled={isSaving}>{isSaving ? 'Создание...' : 'Создать подписку'}</Button>
                     </HStack>
                 </VStack>
@@ -682,7 +682,7 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                     <Input fullWidth label="Количество списаний, необязательно" type="number" min="1" value={editSubscriptionForm.times} onChange={(times) => setEditSubscriptionForm((prev) => ({ ...prev, times }))} />
                     <Input fullWidth label="Описание" value={editSubscriptionForm.description} onChange={(description) => setEditSubscriptionForm((prev) => ({ ...prev, description }))} />
                     <HStack gap="8" max justify="end">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setEditingSubscription(null)} disabled={isSaving}>Закрыть</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setEditingSubscription(null)} disabled={isSaving}>{t('Закрыть')}</Button>
                         <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onUpdateSubscription} disabled={isSaving}>{isSaving ? 'Сохранение...' : 'Сохранить'}</Button>
                     </HStack>
                 </VStack>
@@ -693,7 +693,7 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
                     <Select label="Valid mandate" options={getMandateOptionsForCustomer(restartingSubscription?.customer)} value={restartForm.mandateId} onChange={(mandateId) => setRestartForm((prev) => ({ ...prev, mandateId }))} />
                     <Input fullWidth label="Дата первого списания" type="date" min={today} value={restartForm.startDate} onChange={(startDate) => setRestartForm((prev) => ({ ...prev, startDate }))} />
                     <HStack gap="8" max justify="end">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setRestartingSubscription(null)} disabled={isSaving}>Закрыть</Button>
+                        <Button theme={ButtonTheme.OUTLINE} onClick={() => setRestartingSubscription(null)} disabled={isSaving}>{t('Закрыть')}</Button>
                         <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onRestartSubscription} disabled={isSaving}>{isSaving ? 'Запуск...' : 'Запустить снова'}</Button>
                     </HStack>
                 </VStack>

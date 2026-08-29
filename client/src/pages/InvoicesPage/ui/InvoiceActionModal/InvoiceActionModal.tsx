@@ -1,4 +1,5 @@
 import { FormEvent, memo, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '@/shared/ui/Modal/Modal';
 import { Invoice } from '../../model/types';
 import s from './InvoiceActionModal.module.scss';
@@ -64,6 +65,7 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
     onSubmit: (data: RecordPaymentResult) => void;
     onCancel: () => void;
 }) => {
+    const { t } = useTranslation();
     const id = useId();
     const defaultAmount = (invoice.balanceDueCents / 100).toFixed(2);
     const [amount, setAmount] = useState(defaultAmount);
@@ -82,7 +84,7 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
         <form className={s.form} onSubmit={handleSubmit}>
             <div className={s.row}>
                 <div className={s.field}>
-                    <label htmlFor={`${id}-amount`}>Сумма, EUR</label>
+                    <label htmlFor={`${id}-amount`}>{t('Сумма, EUR')}</label>
                     <input
                         id={`${id}-amount`}
                         type="number"
@@ -96,7 +98,7 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
                     />
                 </div>
                 <div className={s.field}>
-                    <label htmlFor={`${id}-date`}>Дата оплаты</label>
+                    <label htmlFor={`${id}-date`}>{t('Дата оплаты')}</label>
                     <input
                         id={`${id}-date`}
                         type="date"
@@ -108,7 +110,7 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
             </div>
             <div className={s.row}>
                 <div className={s.field}>
-                    <label htmlFor={`${id}-method`}>Метод</label>
+                    <label htmlFor={`${id}-method`}>{t('Метод')}</label>
                     <select id={`${id}-method`} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
                         {PAYMENT_METHODS.map((m) => (
                             <option key={m.value} value={m.value}>{m.label}</option>
@@ -116,7 +118,7 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
                     </select>
                 </div>
                 <div className={s.field}>
-                    <label htmlFor={`${id}-ref`}>Reference (необязательно)</label>
+                    <label htmlFor={`${id}-ref`}>{t('Reference (необязательно)')}</label>
                     <input
                         id={`${id}-ref`}
                         type="text"
@@ -127,8 +129,8 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
                 </div>
             </div>
             <div className={s.footer}>
-                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>Отмена</button>
-                <button type="submit" className={`${s.btn} ${s.btnPrimary}`}>Зарегистрировать</button>
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>{t('Отмена')}</button>
+                <button type="submit" className={`${s.btn} ${s.btnPrimary}`}>{t('Зарегистрировать')}</button>
             </div>
         </form>
     );
@@ -139,6 +141,7 @@ const ConfirmPaidForm = memo(({ invoice, onSubmit, onCancel }: {
     onSubmit: (data: ConfirmPaidResult) => void;
     onCancel: () => void;
 }) => {
+    const { t } = useTranslation();
     const id = useId();
     const [paidAt, setPaidAt] = useState(today());
     const [method, setMethod] = useState<PaymentMethod>('BANK_TRANSFER');
@@ -152,12 +155,12 @@ const ConfirmPaidForm = memo(({ invoice, onSubmit, onCancel }: {
     return (
         <form className={s.form} onSubmit={handleSubmit}>
             <div className={s.warning}>
-                <span>⚠️</span>
-                <span>После подтверждения инвойс на {money(invoice.totalCents)} будет заблокирован для редактирования.</span>
+                <span>{t('⚠️')}</span>
+                <span>{t('После подтверждения инвойс на {{amount}} будет заблокирован для редактирования.', { amount: money(invoice.totalCents) })}</span>
             </div>
             <div className={s.row}>
                 <div className={s.field}>
-                    <label htmlFor={`${id}-date`}>Дата оплаты</label>
+                    <label htmlFor={`${id}-date`}>{t('Дата оплаты')}</label>
                     <input
                         id={`${id}-date`}
                         type="date"
@@ -168,7 +171,7 @@ const ConfirmPaidForm = memo(({ invoice, onSubmit, onCancel }: {
                     />
                 </div>
                 <div className={s.field}>
-                    <label htmlFor={`${id}-method`}>Метод</label>
+                    <label htmlFor={`${id}-method`}>{t('Метод')}</label>
                     <select id={`${id}-method`} value={method} onChange={(e) => setMethod(e.target.value as PaymentMethod)}>
                         {PAYMENT_METHODS.map((m) => (
                             <option key={m.value} value={m.value}>{m.label}</option>
@@ -177,7 +180,7 @@ const ConfirmPaidForm = memo(({ invoice, onSubmit, onCancel }: {
                 </div>
             </div>
             <div className={s.field}>
-                <label htmlFor={`${id}-ref`}>Reference (необязательно)</label>
+                <label htmlFor={`${id}-ref`}>{t('Reference (необязательно)')}</label>
                 <input
                     id={`${id}-ref`}
                     type="text"
@@ -187,8 +190,8 @@ const ConfirmPaidForm = memo(({ invoice, onSubmit, onCancel }: {
                 />
             </div>
             <div className={s.footer}>
-                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>Отмена</button>
-                <button type="submit" className={`${s.btn} ${s.btnPrimary}`}>Подтвердить оплату</button>
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>{t('Отмена')}</button>
+                <button type="submit" className={`${s.btn} ${s.btnPrimary}`}>{t('Подтвердить оплату')}</button>
             </div>
         </form>
     );
@@ -200,6 +203,7 @@ const AdjustmentForm = memo(({ kind, invoice, onSubmit, onCancel }: {
     onSubmit: (data: AdjustmentResult) => void;
     onCancel: () => void;
 }) => {
+    const { t } = useTranslation();
     const id = useId();
     const [amount, setAmount] = useState('');
     const [reason, setReason] = useState('');
@@ -219,12 +223,12 @@ const AdjustmentForm = memo(({ kind, invoice, onSubmit, onCancel }: {
         <form className={s.form} onSubmit={handleSubmit}>
             {isCredit && maxCents !== undefined && (
                 <div className={s.warning}>
-                    <span>ℹ️</span>
-                    <span>Максимальная сумма кредит-ноты: {money(maxCents)}</span>
+                    <span>{t('ℹ️')}</span>
+                    <span>{t('Максимальная сумма кредит-ноты: {{amount}}', { amount: money(maxCents) })}</span>
                 </div>
             )}
             <div className={s.field}>
-                <label htmlFor={`${id}-amount`}>Сумма, EUR</label>
+                <label htmlFor={`${id}-amount`}>{t('Сумма, EUR')}</label>
                 <input
                     id={`${id}-amount`}
                     type="number"
@@ -239,7 +243,7 @@ const AdjustmentForm = memo(({ kind, invoice, onSubmit, onCancel }: {
                 />
             </div>
             <div className={s.field}>
-                <label htmlFor={`${id}-reason`}>Причина</label>
+                <label htmlFor={`${id}-reason`}>{t('Причина')}</label>
                 <input
                     id={`${id}-reason`}
                     type="text"
@@ -250,7 +254,7 @@ const AdjustmentForm = memo(({ kind, invoice, onSubmit, onCancel }: {
                 />
             </div>
             <div className={s.footer}>
-                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>Отмена</button>
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>{t('Отмена')}</button>
                 <button type="submit" className={`${s.btn} ${s.btnPrimary}`}>
                     {isCredit ? 'Создать кредит-ноту' : 'Создать корректировку'}
                 </button>
@@ -262,18 +266,22 @@ const AdjustmentForm = memo(({ kind, invoice, onSubmit, onCancel }: {
 const CancelConfirm = memo(({ onConfirm, onCancel }: {
     onConfirm: () => void;
     onCancel: () => void;
-}) => (
-    <div className={s.form}>
-        <div className={`${s.warning} ${s.danger}`}>
-            <span>⛔</span>
-            <span>Инвойс будет отменён. Связанные активные платежи Mollie также будут отменены. Это действие нельзя отменить.</span>
+}) => {
+    const { t } = useTranslation();
+
+    return (
+        <div className={s.form}>
+            <div className={`${s.warning} ${s.danger}`}>
+                <span>⛔</span>
+                <span>{t('Инвойс будет отменён. Связанные активные платежи Mollie также будут отменены. Это действие нельзя отменить.')}</span>
+            </div>
+            <div className={s.footer}>
+                <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>{t('Не отменять')}</button>
+                <button type="button" className={`${s.btn} ${s.btnDanger}`} onClick={onConfirm}>{t('Да, отменить инвойс')}</button>
+            </div>
         </div>
-        <div className={s.footer}>
-            <button type="button" className={`${s.btn} ${s.btnSecondary}`} onClick={onCancel}>Не отменять</button>
-            <button type="button" className={`${s.btn} ${s.btnDanger}`} onClick={onConfirm}>Да, отменить инвойс</button>
-        </div>
-    </div>
-));
+    );
+});
 
 // --- Titles ---
 

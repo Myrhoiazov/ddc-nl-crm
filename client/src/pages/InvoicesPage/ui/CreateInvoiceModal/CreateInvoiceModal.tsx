@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '@/shared/ui/Modal/Modal';
 import { $apiPrivate } from '@/shared/api/api';
 import { toast } from 'react-toastify';
@@ -41,6 +42,7 @@ const brandAddress = (brand?: InvoiceBusinessBrand) => brand?.address ?? [
 ].filter(Boolean).join(', ');
 
 export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice, paidMode = false }: Props) => {
+    const { t } = useTranslation();
     const [clients, setClients] = useState<InvoiceClient[]>([]);
     const [groups, setGroups] = useState<InvoiceGroup[]>([]);
     const [brands, setBrands] = useState<InvoiceBusinessBrand[]>([]);
@@ -251,9 +253,9 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
             <div className={s.modal}>
                 <h2>{editInvoice ? `РЕДАКТИРОВАТЬ ${editInvoice.number}` : paidMode ? 'ЧЕРНОВИК ОПЛАЧЕННОГО ИНВОЙСА' : 'НОВЫЙ ИНВОЙС'}</h2>
                 <div className={s.grid}>
-                    <label>Бренд / проект
+                    <label>{t('Бренд / проект')}
                         <select value={businessBrandId} onChange={(event) => selectBusinessBrand(event.target.value)}>
-                            <option value="">Реквизиты вручную</option>
+                            <option value="">{t('Реквизиты вручную')}</option>
                             {brands.map((brand) => (
                                 <option key={brand.id} value={brand.id}>
                                     {brand.name}{brand.isDefault ? ' · по умолчанию' : ''}
@@ -261,9 +263,9 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
                             ))}
                         </select>
                     </label>
-                    <label>Ученик
+                    <label>{t('Ученик')}
                         <select value={clientId} onChange={(event) => selectClient(event.target.value)}>
-                            <option value="">Без привязки</option>
+                            <option value="">{t('Без привязки')}</option>
                             {clients.map((client) => (
                                 <option key={client.id} value={client.id}>
                                     {[client.firstName, client.lastName].filter(Boolean).join(' ') || `#${client.id}`}
@@ -271,35 +273,35 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
                             ))}
                         </select>
                     </label>
-                    {!paidMode && <label>Статус
+                    {!paidMode && <label>{t('Статус')}
                         <select value={status} onChange={(event) => setStatus(event.target.value as Extract<InvoiceStatus, 'DRAFT' | 'ISSUED'>)}>
-                            <option value="DRAFT">Черновик</option>
-                            <option value="ISSUED">Выдан</option>
+                            <option value="DRAFT">{t('Черновик')}</option>
+                            <option value="ISSUED">{t('Выдан')}</option>
                         </select>
                     </label>}
-                    <label>Получатель *
+                    <label>{t('Получатель *')}
                         <input value={billToName} onChange={(event) => setBillToName(event.target.value)} />
                     </label>
-                    <label>Email получателя
+                    <label>{t('Email получателя')}
                         <input type="email" value={billToEmail} onChange={(event) => setBillToEmail(event.target.value)} />
                     </label>
-                    <label>Дата
+                    <label>{t('Дата')}
                         <input type="date" value={issueDate} onChange={(event) => setIssueDate(event.target.value)} />
                     </label>
-                    {!paidMode && <label>Оплатить до
+                    {!paidMode && <label>{t('Оплатить до')}
                         <input type="date" value={dueDate} onChange={(event) => setDueDate(event.target.value)} />
                     </label>}
                 </div>
 
                 <div className={s.itemsHeader}>
-                    <strong>Занятия и услуги</strong>
-                    <button onClick={() => setItems((current) => [...current, emptyItem()])}>+ Добавить строку</button>
+                    <strong>{t('Занятия и услуги')}</strong>
+                    <button onClick={() => setItems((current) => [...current, emptyItem()])}>{t('+ Добавить строку')}</button>
                 </div>
                 <div className={s.items}>
                     {items.map((item, index) => (
                         <div className={s.item} key={index}>
                             <select value={item.groupId} onChange={(event) => selectGroup(index, event.target.value)}>
-                                <option value="">Вручную</option>
+                                <option value="">{t('Вручную')}</option>
                                 {groups.map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
                             </select>
                             <input
@@ -335,30 +337,30 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
 
                 {paidMode ? (
                     <div className={s.paidOptions}>
-                        <strong>Сначала будет создан черновик</strong>
-                        <small>Проверьте данные и PDF. После проверки нажмите «Подтвердить как оплаченный» в списке инвойсов и укажите данные оплаты.</small>
+                        <strong>{t('Сначала будет создан черновик')}</strong>
+                        <small>{t('Проверьте данные и PDF. После проверки нажмите «Подтвердить как оплаченный» в списке инвойсов и укажите данные оплаты.')}</small>
                     </div>
                 ) : <div className={s.paymentOptions}>
-                    <strong>Оплата Mollie в инвойсе</strong>
+                    <strong>{t('Оплата Mollie в инвойсе')}</strong>
                     <label>
                         <input type="checkbox" checked={showPaymentButton} onChange={(event) => setShowPaymentButton(event.target.checked)} />
-                        Показывать кнопку «Оплатить»
+                        {t('Показывать кнопку «Оплатить»')}
                     </label>
                     <label>
                         <input type="checkbox" checked={showPaymentQr} onChange={(event) => setShowPaymentQr(event.target.checked)} />
-                        Показывать QR-код оплаты
+                        {t('Показывать QR-код оплаты')}
                     </label>
                 </div>}
 
                 <details className={s.details}>
-                    <summary>Реквизиты и примечание</summary>
+                    <summary>{t('Реквизиты и примечание')}</summary>
                     <div className={s.grid}>
-                        <label>Компания<input value={issuerName} onChange={(event) => setIssuerName(event.target.value)} /></label>
-                        <label>Email<input value={issuerEmail} onChange={(event) => setIssuerEmail(event.target.value)} /></label>
-                        <label>Источник адреса
+                        <label>{t('Компания')}<input value={issuerName} onChange={(event) => setIssuerName(event.target.value)} /></label>
+                        <label>{t('Email')}<input value={issuerEmail} onChange={(event) => setIssuerEmail(event.target.value)} /></label>
+                        <label>{t('Источник адреса')}
                             <select value={addressSource} onChange={(event) => selectAddressSource(event.target.value)}>
-                                <option value="manual">Другой адрес / адрес ивента</option>
-                                {businessBrandId && <option value="brand">Адрес бренда / организации</option>}
+                                <option value="manual">{t('Другой адрес / адрес ивента')}</option>
+                                {businessBrandId && <option value="brand">{t('Адрес бренда / организации')}</option>}
                                 {branches.map((branch) => (
                                     <option key={branch.id} value={`branch:${branch.id}`}>
                                         {branch.name}{branchAddress(branch) ? ` · ${branchAddress(branch)}` : ''}
@@ -366,7 +368,7 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
                                 ))}
                             </select>
                         </label>
-                        <label>Адрес в инвойсе
+                        <label>{t('Адрес в инвойсе')}
                             <input
                                 value={issuerAddress}
                                 placeholder="Введите адрес филиала или ивента"
@@ -376,14 +378,14 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
                                 }}
                             />
                         </label>
-                        <label>Банк<input value={bankName} onChange={(event) => setBankName(event.target.value)} /></label>
+                        <label>{t('Банк')}<input value={bankName} onChange={(event) => setBankName(event.target.value)} /></label>
                         <label>IBAN<input value={iban} onChange={(event) => setIban(event.target.value)} /></label>
-                        <label>Примечание<input value={note} onChange={(event) => setNote(event.target.value)} /></label>
+                        <label>{t('Примечание')}<input value={note} onChange={(event) => setNote(event.target.value)} /></label>
                     </div>
                 </details>
 
                 <div className={s.footer}>
-                    <strong>Итого: {(totalCents / 100).toFixed(2)} EUR</strong>
+                    <strong>{t('Итого: {{total}} EUR', { total: (totalCents / 100).toFixed(2) })}</strong>
                     <button className={s.submit} disabled={saving} onClick={submit}>
                         {saving ? 'Сохранение...' : editInvoice ? 'Сохранить изменения' : paidMode ? 'Сохранить черновик' : 'Создать инвойс'}
                     </button>

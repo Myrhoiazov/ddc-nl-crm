@@ -111,6 +111,7 @@ const MollieStudentLinksManager = memo(({
     version: number;
     onChanged: () => void;
 }) => {
+    const { t } = useTranslation();
     const [customer, setCustomer] = useState<MollieClient | null>(null);
     const [clients, setClients] = useState<Client[]>([]);
     const [selectedClientId, setSelectedClientId] = useState('');
@@ -241,7 +242,7 @@ const MollieStudentLinksManager = memo(({
                                                 {getStudentName(link.client)}
                                             </Link>
                                         ) : (
-                                            <span className={s.studentName}>Ученик</span>
+                                            <span className={s.studentName}>{t('Ученик')}</span>
                                         )}
                                         <span className={s.studentMeta}>
                                             {link.payerRelation || 'unknown'} · {link.linkSource || 'manual'}{link.isPrimary ? ' · primary' : ''}
@@ -252,7 +253,7 @@ const MollieStudentLinksManager = memo(({
                                         onClick={() => onDeleteLink(link.id)}
                                         disabled={isSaving}
                                     >
-                                        Удалить
+                                        {t('Удалить')}
                                     </Button>
                                 </div>
                             )) : (
@@ -280,7 +281,7 @@ const MollieStudentLinksManager = memo(({
                                 onClick={onAddStudent}
                                 disabled={isSaving || !availableClientOptions.length}
                             >
-                                Привязать
+                                {t('Привязать')}
                             </Button>
                         </div>
                     </>
@@ -291,6 +292,7 @@ const MollieStudentLinksManager = memo(({
 });
 
 const MolliePaymentHistory = memo(({ customerId }: { customerId: string }) => {
+    const { t } = useTranslation();
     const [payments, setPayments] = useState<MolliePayment[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(false);
@@ -430,8 +432,8 @@ const MolliePaymentHistory = memo(({ customerId }: { customerId: string }) => {
                                 </span>
                                 {payment.id && (
                                     <div className={s.paymentActions}>
-                                        <button type="button" onClick={() => previewPaymentInvoice(payment)}>Просмотр</button>
-                                        <button type="button" onClick={() => downloadPaymentInvoice(payment)}>Скачать</button>
+                                        <button type="button" onClick={() => previewPaymentInvoice(payment)}>{t('Просмотр')}</button>
+                                        <button type="button" onClick={() => downloadPaymentInvoice(payment)}>{t('Скачать')}</button>
                                     </div>
                                 )}
                             </div>
@@ -505,7 +507,7 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
                         theme={ButtonTheme.BACKGROUND_INVERTED}
                         onClick={onOpenEditModal}
                     >
-                        Редактировать
+                        {t('Редактировать')}
                     </Button>
                 </div>
                 <MollieClientDetails id={customerId} key={`${customerId}-${detailsVersion}`} />
@@ -519,7 +521,7 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
                     isLoading={isLoading}
                     renderAction={(mandate) => mandate.status === 'valid' ? (
                         <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onRevokeMandate(mandate)}>
-                            Отозвать
+                            {t('Отозвать')}
                         </Button>
                     ) : null}
                 />

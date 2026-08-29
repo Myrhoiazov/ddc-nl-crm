@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { Client, ClientLanguage, CLIENT_LANGUAGE_OPTIONS } from '@/entities/Client';
 import { $apiPrivate } from '@/shared/api/api';
@@ -47,6 +48,7 @@ const toFormState = (client?: Client): Client => ({
 
 export const EditClientModal = memo((props: EditClientModalProps) => {
     const { className, clientId, isOpen, onClose, onSuccess } = props;
+    const { t } = useTranslation();
     const [form, setForm] = useState<Client>(toFormState());
     const [file, setFile] = useState<File | null>(null);
     const [branches, setBranches] = useState<Branch[]>([]);
@@ -248,10 +250,10 @@ export const EditClientModal = memo((props: EditClientModalProps) => {
                 )}
                 <HStack className={s.actions} gap="16" justify="end">
                     <Button theme={ButtonTheme.OUTLINE} onClick={onClose} disabled={isLoading}>
-                        Отмена
+                        {t('Отмена')}
                     </Button>
                     <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSave} disabled={isLoading}>
-                        Сохранить
+                        {t('Сохранить')}
                     </Button>
                 </HStack>
             </VStack>
