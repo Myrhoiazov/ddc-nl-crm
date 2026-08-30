@@ -1,35 +1,6 @@
-.item {
-    display: flex;
-    align-items: center;
-    min-height: 40px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm-redesigned);
-    color: var(--sidebar-text-redesigned);
-    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
-    margin: 0;
-
-    &:hover {
-        background: var(--sidebar-hover-bg-redesigned);
-        color: var(--sidebar-text-hover-redesigned);
-
-        .chevron {
-            opacity: 1;
-        }
-    }
-
-    &.active {
-        background: var(--primary-redesigned);
-        color: var(--primary-contrast-redesigned);
-
-        .chevron {
-            opacity: 1;
-        }
-    }
-}
-
 .icon {
-    flex-shrink: 0;
     color: currentcolor;
+    flex-shrink: 0;
 
     // The shared Icon component hard-codes fill/stroke via its "fill"/"stroke"
     // modifier class, tuned for icons on the old dark sidebar (near-white fill,
@@ -48,24 +19,24 @@
 }
 
 .link {
-    flex: 1;
-    margin-left: 12px;
     font-size: 14px;
-    font-family: var(--font-family-main);
     font-weight: 500;
-    white-space: nowrap;
-    overflow: hidden;
     opacity: 1;
     transition: opacity 0.2s ease, width 0.2s ease;
+    flex: 1;
+    font-family: var(--font-family-main);
+    margin-left: 12px;
+    overflow: hidden;
+    white-space: nowrap;
 }
 
 .chevron {
-    margin-left: 8px;
-    opacity: 0.4;
     font-size: 12px;
-    transition: opacity 0.15s ease;
     color: currentcolor;
+    opacity: 0.4;
+    transition: opacity 0.15s ease;
     flex-shrink: 0;
+    margin-left: 8px;
 }
 
 .nested {
@@ -80,18 +51,18 @@
 }
 
 .collapsed {
+    justify-content: center;
     width: 44px;
     height: 44px;
     min-height: 44px;
     padding: 0;
-    justify-content: center;
     border-radius: var(--radius-md-redesigned);
 
     .link {
         display: none;
-        flex: 0 0 0;
         width: 0;
         opacity: 0;
+        flex: 0 0 0;
         margin-left: 0;
     }
 
@@ -100,7 +71,36 @@
     }
 
     &.active {
-        background: var(--primary-redesigned);
         color: var(--primary-contrast-redesigned);
+        background: var(--primary-redesigned);
+    }
+}
+
+.item {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    margin: 0;
+    padding: 10px 12px;
+    color: var(--sidebar-text-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    transition: background 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+
+    &:hover {
+        color: var(--sidebar-text-hover-redesigned);
+        background: var(--sidebar-hover-bg-redesigned);
+
+        .chevron {
+            opacity: 1;
+        }
+    }
+
+    &.active {
+        color: var(--primary-contrast-redesigned);
+        background: var(--primary-redesigned);
+
+        .chevron {
+            opacity: 1;
+        }
     }
 }

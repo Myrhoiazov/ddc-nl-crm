@@ -52,6 +52,7 @@ docs/*.jpeg
 # Internal planning and security-review docs (not published)
 docs/roadmap/
 docs/security/
+docs/adr/
 
 # OS and editor files
 .DS_Store

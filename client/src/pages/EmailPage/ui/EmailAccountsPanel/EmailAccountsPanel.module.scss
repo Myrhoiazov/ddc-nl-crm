@@ -1,15 +1,15 @@
 .sectionTitle {
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 65%, transparent);
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 65%, transparent);
 }
 
 .formGrid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 
-    @media (max-width: 700px) {
+    @media (width <= 700px) {
         grid-template-columns: 1fr;
     }
 }
@@ -25,24 +25,24 @@
 .tableHeader,
 .tableRow {
     display: grid;
-    grid-template-columns: 1fr 1.4fr 1.4fr 1fr auto;
     align-items: center;
-    gap: 12px;
     padding: 10px 14px;
+    gap: 12px;
+    grid-template-columns: 1fr 1.4fr 1.4fr 1fr auto;
 }
 
 .tableHeader {
-    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 55%, transparent);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.04em;
+    color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 55%, transparent);
     text-transform: uppercase;
     background: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 4%, transparent);
+    letter-spacing: 0.04em;
 }
 
 .tableRow {
-    border-top: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
     font-size: 13px;
+    border-top: 1px solid color-mix(in srgb, var(--sidebar-text-hover-redesigned) 10%, transparent);
 }
 
 .rowLabel {
@@ -57,13 +57,13 @@
     white-space: nowrap;
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
     .tableHeader {
         display: none;
     }
 
     .tableRow {
-        grid-template-columns: 1fr;
         gap: 4px;
+        grid-template-columns: 1fr;
     }
 }

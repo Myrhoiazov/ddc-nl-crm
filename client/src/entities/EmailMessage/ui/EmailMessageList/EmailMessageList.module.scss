@@ -7,14 +7,14 @@
 .item {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     width: 100%;
     padding: 10px 12px;
+    text-align: left;
+    background: transparent;
     border: none;
     border-bottom: 1px solid var(--card-border-redesigned);
-    background: transparent;
-    text-align: left;
     cursor: pointer;
+    gap: 4px;
 
     &:hover {
         background: var(--sidebar-hover-bg-redesigned);
@@ -25,13 +25,6 @@
     background: var(--primary-soft-bg-redesigned);
 }
 
-.unread {
-    .from,
-    .subject {
-        font-weight: 700;
-    }
-}
-
 .row {
     display: flex;
     justify-content: space-between;
@@ -39,32 +32,39 @@
 }
 
 .from {
-    color: var(--sidebar-text-hover-redesigned);
     font-size: 13px;
+    color: var(--sidebar-text-hover-redesigned);
 }
 
 .date {
-    color: var(--sidebar-group-label-redesigned);
     font-size: 11px;
+    color: var(--sidebar-group-label-redesigned);
     white-space: nowrap;
 }
 
 .subject {
-    color: var(--sidebar-text-redesigned);
     font-size: 13px;
+    color: var(--sidebar-text-redesigned);
+}
+
+.unread {
+    .from,
+    .subject {
+        font-weight: 700;
+    }
 }
 
 .attachmentIcon {
-    margin-left: 4px;
     font-size: 11px;
     opacity: 0.7;
+    margin-left: 4px;
 }
 
 .clientBadge {
-    align-self: flex-start;
     padding: 2px 8px;
-    border-radius: var(--radius-pill-redesigned);
-    background: var(--primary-soft-bg-redesigned);
-    color: var(--primary-redesigned);
     font-size: 11px;
+    color: var(--primary-redesigned);
+    background: var(--primary-soft-bg-redesigned);
+    border-radius: var(--radius-pill-redesigned);
+    align-self: flex-start;
 }

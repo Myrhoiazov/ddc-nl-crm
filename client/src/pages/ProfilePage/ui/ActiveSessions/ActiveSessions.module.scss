@@ -1,18 +1,18 @@
 .ActiveSessions {
+    padding: 24px 28px 28px;
     background: var(--dark-bg-redesigned);
     border-radius: 16px;
-    padding: 24px 28px 28px;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
 }
 
 .header {
     display: flex;
     justify-content: space-between;
-    gap: 16px;
     align-items: flex-start;
+    gap: 16px;
     margin-bottom: 18px;
 
-    @media (max-width: 640px) {
+    @media (width <= 640px) {
         flex-direction: column;
     }
 }
@@ -25,8 +25,8 @@
 
 .hint {
     margin: 0;
-    color: var(--hint-redesigned);
     font-size: 13px;
+    color: var(--hint-redesigned);
 }
 
 .list {
@@ -37,41 +37,41 @@
 
 .session {
     display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 14px;
     align-items: center;
     padding: 14px;
     border: 1px solid var(--bg-redesigned);
     border-radius: 12px;
+    gap: 14px;
+    grid-template-columns: 1fr auto;
 
-    @media (max-width: 640px) {
+    @media (width <= 640px) {
         grid-template-columns: 1fr;
     }
 }
 
 .sessionTitle {
     display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
     align-items: center;
-    margin-bottom: 8px;
+    flex-wrap: wrap;
     font-weight: 700;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
 .badge {
     padding: 3px 8px;
-    border-radius: 999px;
-    background: var(--primary-redesigned);
-    color: var(--primary-contrast-redesigned);
     font-size: 11px;
     font-weight: 700;
+    color: var(--primary-contrast-redesigned);
+    background: var(--primary-redesigned);
+    border-radius: 999px;
 }
 
 .meta {
     display: grid;
-    gap: 4px;
-    color: var(--hint-redesigned);
     font-size: 13px;
+    color: var(--hint-redesigned);
+    gap: 4px;
 }
 
 .state {

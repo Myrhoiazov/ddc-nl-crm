@@ -8,32 +8,32 @@
 }
 
 .subtitle {
-    margin-top: 4px;
     color: var(--sidebar-text-redesigned);
+    margin-top: 4px;
 }
 
 .toolbar {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 12px;
     align-items: end;
     width: 100%;
     padding: 12px;
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
 }
 
 .summary {
     display: flex;
-    gap: 14px;
     align-items: center;
     min-height: 40px;
     padding: 0 8px;
-    color: var(--sidebar-text-redesigned);
     font-size: 13px;
-    white-space: nowrap;
+    color: var(--sidebar-text-redesigned);
+    gap: 14px;
     grid-column: 1 / -1;
+    white-space: nowrap;
 }
 
 .summary b {
@@ -41,15 +41,15 @@
 }
 
 .stateCard {
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
 }
 
 .upcomingCard {
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
 }
 
 .upcomingHeader {
@@ -58,29 +58,29 @@
 
 .upcomingSummary {
     display: flex;
-    gap: 16px;
-    color: var(--sidebar-text-redesigned);
     font-size: 13px;
+    color: var(--sidebar-text-redesigned);
+    gap: 16px;
 }
 
 .upcomingSummary b,
 .upcomingAmount {
-    color: var(--sidebar-text-hover-redesigned);
     font-weight: 800;
+    color: var(--sidebar-text-hover-redesigned);
 }
 
 .upcomingList {
-    overflow: hidden;
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-md-redesigned);
+    overflow: hidden;
 }
 
 .upcomingRow {
     display: grid;
-    grid-template-columns: minmax(210px, 1.2fr) 110px 110px minmax(180px, 1fr) 100px;
-    gap: 12px;
     align-items: center;
     padding: 11px 12px;
+    gap: 12px;
+    grid-template-columns: minmax(210px, 1.2fr) 110px 110px minmax(180px, 1fr) 100px;
 }
 
 .upcomingRow + .upcomingRow {
@@ -90,16 +90,16 @@
 .upcomingIdentity {
     display: flex;
     flex-direction: column;
-    gap: 2px;
     min-width: 0;
+    gap: 2px;
 }
 
 .mandateStatus {
-    justify-self: start;
     padding: 3px 8px;
     font-size: 12px;
     font-weight: 700;
     border-radius: var(--radius-pill-redesigned);
+    justify-self: start;
 }
 
 .valid {
@@ -114,10 +114,10 @@
 
 .tableViewport {
     width: 100%;
-    overflow-x: auto;
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
+    overflow-x: auto;
 }
 
 .table {
@@ -137,12 +137,12 @@
     position: sticky;
     top: 0;
     z-index: 3;
-    color: var(--sidebar-group-label-redesigned);
     font-size: 12px;
     font-weight: 700;
+    color: var(--sidebar-group-label-redesigned);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
     background: var(--sidebar-bg-redesigned);
+    letter-spacing: 0.03em;
 }
 
 .personCell,
@@ -174,9 +174,9 @@
 }
 
 .personLink {
-    overflow: hidden;
-    color: var(--sidebar-text-hover-redesigned);
     font-weight: 700;
+    color: var(--sidebar-text-hover-redesigned);
+    overflow: hidden;
     text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -187,17 +187,17 @@
 }
 
 .personMeta {
-    overflow: hidden;
-    color: var(--sidebar-text-redesigned);
     font-size: 12px;
+    color: var(--sidebar-text-redesigned);
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .personMetaLink {
-    overflow: hidden;
-    color: var(--sidebar-text-redesigned);
     font-size: 12px;
+    color: var(--sidebar-text-redesigned);
+    overflow: hidden;
     text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -213,8 +213,8 @@
 .monthCell,
 .totalCell {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     text-align: center;
 }
 
@@ -230,9 +230,9 @@
 
 .monthCell {
     flex-direction: column;
-    gap: 3px;
     min-height: 62px;
     color: var(--sidebar-group-label-redesigned);
+    gap: 3px;
 }
 
 .monthCell small {
@@ -256,8 +256,8 @@
 
 .totalCell,
 .totalHeader {
-    border-right: 0;
     font-weight: 800;
+    border-right: 0;
 }
 
 .empty {
@@ -266,7 +266,7 @@
     text-align: center;
 }
 
-@media (max-width: 1100px) {
+@media (width <= 1100px) {
     .summary {
         flex-wrap: wrap;
     }
@@ -280,15 +280,15 @@
     }
 }
 
-@media (max-width: 700px) {
+@media (width <= 700px) {
     .header {
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .upcomingHeader {
-        align-items: stretch;
         flex-direction: column;
+        align-items: stretch;
     }
 
     .upcomingRow {

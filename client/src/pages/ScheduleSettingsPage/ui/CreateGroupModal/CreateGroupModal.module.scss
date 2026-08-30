@@ -4,9 +4,9 @@
     width: min(560px, calc(100vw - 56px));
     max-width: 95vw;
     max-height: 90vh;
-    gap: 0;
-    background: var(--sidebar-bg-redesigned);
     color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    gap: 0;
 }
 
 .title {
@@ -36,7 +36,9 @@
     color: var(--sidebar-text-redesigned);
 }
 
-.req { color: var(--danger-text-redesigned); }
+.req {
+    color: var(--danger-text-redesigned);
+}
 
 .input,
 .select,
@@ -50,12 +52,16 @@
     border-radius: var(--radius-sm-redesigned);
     transition: border-color 0.15s;
     outline: none;
-
-    &:focus { border-color: var(--primary-redesigned); }
 }
 
 .inputSmall {
     width: 120px;
+}
+
+.input:focus,
+.select:focus,
+.inputSmall:focus {
+    border-color: var(--primary-redesigned);
 }
 
 .row {
@@ -81,7 +87,10 @@
     transition: all 0.15s;
     cursor: pointer;
 
-    &:hover { color: var(--primary-redesigned); border-color: var(--primary-redesigned); }
+    &:hover {
+        color: var(--primary-redesigned);
+        border-color: var(--primary-redesigned);
+    }
 }
 
 .levelActive {
@@ -118,7 +127,9 @@
     transition: background 0.15s;
     cursor: pointer;
 
-    &:hover { background: var(--primary-soft-bg-redesigned); }
+    &:hover {
+        background: var(--primary-soft-bg-redesigned);
+    }
 }
 
 .slotRow {
@@ -136,7 +147,10 @@
     border-radius: var(--radius-sm-redesigned);
     flex: 1;
     outline: none;
-    &:focus { border-color: var(--primary-redesigned); }
+
+    &:focus {
+        border-color: var(--primary-redesigned);
+    }
 }
 
 .timeInput {
@@ -148,7 +162,10 @@
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-sm-redesigned);
     outline: none;
-    &:focus { border-color: var(--primary-redesigned); }
+
+    &:focus {
+        border-color: var(--primary-redesigned);
+    }
 }
 
 .removeSlot {
@@ -164,7 +181,10 @@
     border: none;
     border-radius: var(--radius-sm-redesigned);
     cursor: pointer;
-    &:hover { opacity: 0.8; }
+
+    &:hover {
+        opacity: 0.8;
+    }
 }
 
 .submitBtn {
@@ -180,6 +200,12 @@
     cursor: pointer;
     margin-top: 24px;
 
-    &:hover { opacity: 0.85; }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:hover {
+        opacity: 0.85;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 }

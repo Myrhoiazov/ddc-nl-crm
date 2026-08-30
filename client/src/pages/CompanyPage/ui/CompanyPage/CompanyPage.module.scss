@@ -1,16 +1,16 @@
 .nav {
+    flex-wrap: wrap;
     margin: 16px 0 24px;
     border-bottom: 1px solid var(--card-border-redesigned);
     padding-bottom: 12px;
-    flex-wrap: wrap;
 }
 
 .navLink {
     padding: 6px 16px;
-    border-radius: var(--radius-sm-redesigned);
     font-size: 14px;
     font-weight: 500;
     color: var(--sidebar-text-redesigned);
+    border-radius: var(--radius-sm-redesigned);
     transition: color 0.15s ease, background 0.15s ease;
     text-decoration: none;
 
@@ -20,7 +20,7 @@
     }
 
     &.active {
-        background: var(--primary-soft-bg-redesigned);
         color: var(--primary-redesigned);
+        background: var(--primary-soft-bg-redesigned);
     }
 }
