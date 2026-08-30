@@ -4,9 +4,9 @@
 
 .tiles {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 16px;
     width: 100%;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
 }
 
 .card {
@@ -16,9 +16,9 @@
 .tableWrapper {
     width: 100%;
 
-    @media (max-width: 768px) {
-        overflow-x: auto;
+    @media (width <= 768px) {
         -webkit-overflow-scrolling: touch;
+        overflow-x: auto;
         padding-bottom: 8px;
     }
 }

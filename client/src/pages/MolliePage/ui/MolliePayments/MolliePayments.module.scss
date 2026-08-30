@@ -3,8 +3,8 @@
 }
 
 .subtitle {
-    margin-top: 4px;
     color: var(--sidebar-text-redesigned);
+    margin-top: 4px;
 }
 
 .header {
@@ -23,51 +23,51 @@
 
 .filters {
     display: grid;
+    align-items: end;
+    width: 100%;
+    padding: 12px;
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    gap: 10px;
     grid-template-columns:
         minmax(180px, 1.4fr)
         repeat(2, minmax(120px, 0.75fr))
         repeat(2, minmax(130px, 0.8fr))
         minmax(300px, auto);
-    gap: 10px;
-    align-items: end;
-    width: 100%;
-    padding: 12px;
-    border: 1px solid var(--card-border-redesigned);
-    border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
 }
 
 .filterInput {
     height: 40px;
     padding: 6px 12px;
-    border-color: var(--card-border-redesigned);
-    border-radius: var(--radius-sm-redesigned);
     background: var(--sidebar-bg-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    border-color: var(--card-border-redesigned);
 }
 
 .filterSelect {
     span {
-        color: var(--sidebar-text-hover-redesigned);
         font-size: 11px;
+        color: var(--sidebar-text-hover-redesigned);
     }
 
     select {
         height: 40px;
         min-height: 40px;
         padding: 6px 10px;
-        color: var(--sidebar-text-hover-redesigned);
         font-size: 13px;
-        border-color: var(--card-border-redesigned);
-        border-radius: var(--radius-sm-redesigned);
+        color: var(--sidebar-text-hover-redesigned);
         background: var(--sidebar-bg-redesigned);
+        border-radius: var(--radius-sm-redesigned);
+        border-color: var(--card-border-redesigned);
     }
 }
 
 .filterActions {
     display: flex;
-    gap: 6px;
     justify-content: flex-end;
     min-width: 0;
+    gap: 6px;
 }
 
 .resetButton {
@@ -77,64 +77,64 @@
 
 .pagination {
     display: flex;
-    gap: 12px;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     width: 100%;
     padding: 0 4px;
-    color: var(--sidebar-text-redesigned);
     font-size: 14px;
+    color: var(--sidebar-text-redesigned);
+    gap: 12px;
 }
 
 .paginationActions {
     display: flex;
-    gap: 8px;
     align-items: center;
+    gap: 8px;
 }
 
 .pageButton {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     width: 32px;
     height: 32px;
     padding: 0;
     color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-hover-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: 50%;
-    background: var(--sidebar-hover-bg-redesigned);
 }
 
 .stateCard {
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
 }
 
 .table {
     width: 100%;
-    overflow: hidden;
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
+    overflow: hidden;
 }
 
 .tableHeader,
 .tableRow {
     display: grid;
-    grid-template-columns: minmax(240px, 1.3fr) minmax(220px, 1.1fr) 120px 120px 120px minmax(140px, 0.8fr);
-    gap: 16px;
     align-items: center;
     padding: 14px 16px;
+    gap: 16px;
+    grid-template-columns: minmax(240px, 1.3fr) minmax(220px, 1.1fr) 120px 120px 120px minmax(140px, 0.8fr);
 }
 
 .tableHeader {
-    color: var(--sidebar-group-label-redesigned);
     font-size: 12px;
     font-weight: 700;
+    color: var(--sidebar-group-label-redesigned);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
     border-bottom: 1px solid var(--card-border-redesigned);
+    letter-spacing: 0.03em;
 }
 
 .tableRow + .tableRow {
@@ -144,8 +144,8 @@
 .paymentCell {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     min-width: 0;
+    gap: 4px;
 }
 
 .primaryText,
@@ -159,8 +159,8 @@
 .primaryText,
 .link,
 .amount {
-    color: var(--sidebar-text-hover-redesigned);
     font-weight: 600;
+    color: var(--sidebar-text-hover-redesigned);
 }
 
 .link {
@@ -172,8 +172,8 @@
 }
 
 .mutedText {
-    color: var(--sidebar-text-redesigned);
     font-size: 13px;
+    color: var(--sidebar-text-redesigned);
 }
 
 .amount {
@@ -208,14 +208,14 @@
     background: var(--style-1-bg-redesigned);
 }
 
-@media (max-width: 1280px) {
+@media (width <= 1280px) {
     .filters {
         grid-template-columns: repeat(5, minmax(130px, 1fr));
     }
 
     .filterActions {
-        grid-column: 1 / -1;
         justify-content: flex-start;
+        grid-column: 1 / -1;
     }
 
     .table {
@@ -228,10 +228,10 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .header {
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .headerActions {
@@ -243,13 +243,13 @@
     }
 
     .filterActions {
-        grid-column: auto;
         flex-wrap: wrap;
+        grid-column: auto;
     }
 
     .pagination {
-        align-items: stretch;
         flex-direction: column;
+        align-items: stretch;
     }
 
     .paginationActions {

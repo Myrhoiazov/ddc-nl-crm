@@ -3,13 +3,19 @@ name: CI
 on:
     pull_request:
         branches:
+            - develop
             - main
     push:
-        branches-ignore:
+        branches:
+            - develop
             - main
 
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
-    test:
+    client-checks:
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -35,11 +41,50 @@ jobs:
             - name: Lint SCSS
               run: npm run lint:scss
 
-            # - name: Run unit tests
-            #   run: npm run test:unit
+            - name: Run unit tests
+              run: npm test
 
-            # - name: Build Storybook
-            #   run: npm run storybook:build
+            - name: Production build
+              run: npm run build:prod
+              env:
+                  CLIENT_API_URL: https://ci-placeholder.invalid
 
-            # - name: Run screenshot tests
-            #   run: npm run test:ui:ci
+    server-checks:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: server
+        strategy:
+            matrix:
+                node-version: [20.x]
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+              with:
+                  node-version: ${{ matrix.node-version }}
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Build (prisma generate + tsc)
+              run: npm run build
+
+            - name: Run tests
+              run: npm run test:ci
+
+    docs-links:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+            - name: Use Node.js 20.x
+              uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+              with:
+                  node-version: 20.x
+
+            - name: Check markdown links
+              run: bash scripts/check-markdown-links.sh
