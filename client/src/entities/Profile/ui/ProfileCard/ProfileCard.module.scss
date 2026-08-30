@@ -1,9 +1,9 @@
 .ProfileCard {
     background: var(--dark-bg-redesigned);
     border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
     transition: box-shadow 0.25s ease;
+    overflow: hidden;
 }
 
 .loading,
@@ -30,23 +30,23 @@
 .sectionTitle {
     font-size: 11px;
     font-weight: 700;
+    color: var(--hint-redesigned);
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: var(--hint-redesigned);
 }
 
 .sectionLine {
-    flex: 1;
     height: 1px;
     background: var(--bg-redesigned);
+    flex: 1;
 }
 
 .fieldsGrid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 16px;
+    grid-template-columns: 1fr 1fr;
 
-    @media (max-width: 580px) {
+    @media (width <= 580px) {
         grid-template-columns: 1fr;
     }
 }
@@ -56,5 +56,5 @@
 }
 
 .editing {
-    box-shadow: 0 0 0 2px rgba(4, 73, 224, 0.2), 0 4px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 0 0 2px rgb(4 73 224 / 20%), 0 4px 20px rgb(0 0 0 / 8%);
 }

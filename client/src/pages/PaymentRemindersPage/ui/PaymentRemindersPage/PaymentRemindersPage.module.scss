@@ -12,8 +12,8 @@
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 
 .saveTemplateBtn {
@@ -23,10 +23,10 @@
 .testSendBlock {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     padding: 16px;
     border: 1px dashed var(--card-border-redesigned);
     border-radius: var(--radius-md-redesigned);
+    gap: 8px;
 }
 
 .tableWrapper {
@@ -36,8 +36,8 @@
 
 .table {
     width: 100%;
-    border-collapse: collapse;
     font-size: 13px;
+    border-collapse: collapse;
 
     th,
     td {
@@ -48,42 +48,42 @@
     }
 
     th {
-        color: var(--sidebar-group-label-redesigned);
         font-weight: 600;
+        color: var(--sidebar-group-label-redesigned);
     }
 }
 
 .errorCell {
     max-width: 260px;
     overflow: hidden;
-    white-space: normal !important;
     text-overflow: ellipsis;
+    white-space: normal !important;
 }
 
 .badge {
     display: inline-block;
     padding: 2px 10px;
-    border-radius: 999px;
     font-size: 12px;
     font-weight: 600;
+    border-radius: 999px;
 }
 
 .status_SENT {
-    background: var(--success-bg-redesigned);
     color: var(--success-text-redesigned);
+    background: var(--success-bg-redesigned);
 }
 
 .status_PENDING {
-    background: color-mix(in srgb, #ffb020 20%, transparent);
     color: #8a5a00;
+    background: color-mix(in srgb, #ffb020 20%, transparent);
 }
 
 .status_FAILED {
-    background: var(--danger-bg-redesigned);
     color: var(--danger-text-redesigned);
+    background: var(--danger-bg-redesigned);
 }
 
 .status_SKIPPED {
-    background: var(--sidebar-hover-bg-redesigned);
     color: var(--sidebar-text-redesigned);
+    background: var(--sidebar-hover-bg-redesigned);
 }

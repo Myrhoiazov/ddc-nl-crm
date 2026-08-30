@@ -1,42 +1,38 @@
-// import { TestAsyncThunk } from '@/shared/lib/tests/TestAsyncThunk/TestAsyncThunk';
-// import { fetchNextArticlesPage } from './fetchNextArticlesPage';
-// import { fetchArticlesList } from '../fetchArticlesList/fetchArticlesList';
+import { StateSchema } from '@/app/providers/StoreProvider';
+import { fetchNextArticlesPage } from './fetchNextArticlesPage';
+import { fetchArticlesList } from '../fetchArticlesList/fetchArticlesList';
+import { articlesPageActions } from '../../slices/ArticlesPageSlice';
 
-// jest.mock('../fetchArticlesList/fetchArticlesList');
+jest.mock('../fetchArticlesList/fetchArticlesList');
 
-// describe('fetchNextArticlesPage.test', () => {
-//     test('success', async () => {
-//         const thunk = new TestAsyncThunk(fetchNextArticlesPage, {
-//             articlesPage: {
-//                 page: 2,
-//                 ids: [],
-//                 entities: {},
-//                 limit: 5,
-//                 isLoading: false,
-//                 hasMore: true,
-//             },
-//         });
+const dispatch = jest.fn();
+const extra = {};
 
-//         await thunk.callThunk();
+describe('fetchNextArticlesPage', () => {
+    test('advances the page and fetches the next batch when more articles are available', async () => {
+        const state = { articlesPage: { page: 2, hasMore: true, isLoading: false } } as unknown as StateSchema;
 
-//         expect(thunk.dispatch).toBeCalledTimes(4);
-//         expect(fetchArticlesList).toHaveBeenCalled();
-//     });
-//     test('fetchAritcleList not called', async () => {
-//         const thunk = new TestAsyncThunk(fetchNextArticlesPage, {
-//             articlesPage: {
-//                 page: 2,
-//                 ids: [],
-//                 entities: {},
-//                 limit: 5,
-//                 isLoading: false,
-//                 hasMore: false,
-//             },
-//         });
+        await fetchNextArticlesPage()(dispatch, () => state, extra as never);
 
-//         await thunk.callThunk();
+        expect(dispatch).toHaveBeenCalledWith(articlesPageActions.setPage(3));
+        expect(fetchArticlesList).toHaveBeenCalledWith({ page: 3 });
+    });
 
-//         expect(thunk.dispatch).toBeCalledTimes(2);
-//         expect(fetchArticlesList).not.toHaveBeenCalled();
-//     });
-// });
+    test('does nothing when there are no more articles to load', async () => {
+        const state = { articlesPage: { page: 2, hasMore: false, isLoading: false } } as unknown as StateSchema;
+
+        await fetchNextArticlesPage()(dispatch, () => state, extra as never);
+
+        expect(dispatch).not.toHaveBeenCalledWith(articlesPageActions.setPage(expect.anything()));
+        expect(fetchArticlesList).not.toHaveBeenCalled();
+    });
+
+    test('does nothing while a page is already loading', async () => {
+        const state = { articlesPage: { page: 2, hasMore: true, isLoading: true } } as unknown as StateSchema;
+
+        await fetchNextArticlesPage()(dispatch, () => state, extra as never);
+
+        expect(dispatch).not.toHaveBeenCalledWith(articlesPageActions.setPage(expect.anything()));
+        expect(fetchArticlesList).not.toHaveBeenCalled();
+    });
+});

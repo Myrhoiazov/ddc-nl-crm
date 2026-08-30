@@ -1,44 +1,44 @@
 .MandateItem {
+    background: var(--card-bg);
     border: 1px solid color-mix(in srgb, var(--primary-color) 10%, transparent);
     border-radius: 14px;
-    background: var(--card-bg);
 }
 
 .row {
     display: grid;
-    grid-template-columns: minmax(240px, 1fr) minmax(240px, auto) auto auto;
-    gap: 16px;
     align-items: center;
+    gap: 16px;
+    grid-template-columns: minmax(240px, 1fr) minmax(240px, auto) auto auto;
 }
 
 .main {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     min-width: 0;
+    gap: 4px;
 }
 
 .id {
-    overflow: hidden;
-    color: var(--primary-color);
     font-weight: 600;
+    color: var(--primary-color);
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .meta,
 .date {
-    color: color-mix(in srgb, var(--primary-color) 62%, transparent);
     font-size: 14px;
+    color: color-mix(in srgb, var(--primary-color) 62%, transparent);
 }
 
 .status {
-    justify-self: end;
     padding: 4px 10px;
-    color: var(--primary-color);
     font-size: 13px;
+    color: var(--primary-color);
     border: 1px solid color-mix(in srgb, var(--primary-color) 14%, transparent);
     border-radius: 999px;
+    justify-self: end;
 }
 
 .valid {
@@ -46,10 +46,10 @@
     border-color: color-mix(in srgb, var(--save-redesigned) 44%, transparent);
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .row {
-        grid-template-columns: 1fr;
         gap: 8px;
+        grid-template-columns: 1fr;
     }
 
     .status {

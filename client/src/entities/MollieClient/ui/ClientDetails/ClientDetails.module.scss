@@ -22,58 +22,58 @@
 }
 
 .detailsCard {
+    background: var(--card-bg);
     border: 1px solid color-mix(in srgb, var(--primary-color) 12%, transparent);
     border-radius: 16px;
-    background: var(--card-bg);
 }
 
 .subtitle {
-    margin-top: 4px;
     color: color-mix(in srgb, var(--primary-color) 62%, transparent);
+    margin-top: 4px;
 }
 
 .detailsGrid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
-    gap: 12px;
     width: 100%;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
 }
 
 .detailItem {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     padding: 12px 14px;
+    background: color-mix(in srgb, var(--bg-color) 72%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary-color) 10%, transparent);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-color) 72%, transparent);
+    gap: 4px;
 }
 
 .crmBlock {
     display: flex;
-    gap: 10px;
     align-items: flex-start;
     width: fit-content;
     max-width: 100%;
     padding: 10px 12px;
+    background: color-mix(in srgb, var(--bg-color) 72%, transparent);
     border: 1px solid color-mix(in srgb, var(--primary-color) 12%, transparent);
     border-radius: 12px;
-    background: color-mix(in srgb, var(--bg-color) 72%, transparent);
+    gap: 10px;
 }
 
 .studentLinks {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
     min-width: 0;
+    gap: 8px;
 }
 
 .crmLink {
-    overflow: hidden;
-    color: var(--primary-color);
     font-weight: 700;
-    text-overflow: ellipsis;
+    color: var(--primary-color);
+    overflow: hidden;
     text-decoration: none;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
@@ -82,18 +82,18 @@
 }
 
 .detailLabel {
-    color: color-mix(in srgb, var(--primary-color) 58%, transparent);
     font-size: 12px;
     line-height: 16px;
+    color: color-mix(in srgb, var(--primary-color) 58%, transparent);
     text-transform: uppercase;
     letter-spacing: 0.02em;
 }
 
 .detailValue {
-    overflow-wrap: anywhere;
-    color: var(--primary-color);
     font-size: 15px;
     line-height: 20px;
+    color: var(--primary-color);
+    overflow-wrap: anywhere;
 }
 
 .title {
@@ -112,9 +112,9 @@
 .timelineItem {
     position: relative;
     display: grid;
-    grid-template-columns: 14px minmax(0, 1fr);
-    gap: 12px;
     padding: 0 0 18px;
+    gap: 12px;
+    grid-template-columns: 14px minmax(0, 1fr);
 }
 
 .timelineItem:not(:last-child)::before {
@@ -131,9 +131,9 @@
     z-index: 1;
     width: 13px;
     height: 13px;
-    margin-top: 4px;
     border: 3px solid var(--card-bg);
     border-radius: 50%;
+    margin-top: 4px;
 }
 
 .timelineMarkerProcessed {
@@ -147,27 +147,27 @@
 .timelineContent {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     min-width: 0;
+    gap: 4px;
 }
 
 .timelineHeader {
     display: flex;
-    gap: 12px;
-    align-items: baseline;
     justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
 }
 
 .timelineTitle {
-    color: var(--primary-color);
     font-weight: 700;
+    color: var(--primary-color);
 }
 
 .timelineDate,
 .timelineMeta {
-    color: color-mix(in srgb, var(--primary-color) 58%, transparent);
     font-size: 13px;
     line-height: 18px;
+    color: color-mix(in srgb, var(--primary-color) 58%, transparent);
 }
 
 .timelineMeta {
@@ -178,20 +178,20 @@
 
 .timelineError {
     padding: 8px 10px;
-    color: color-mix(in srgb, var(--cancel-redesigned) 75%, var(--primary-color));
     font-size: 13px;
-    border-radius: 8px;
+    color: color-mix(in srgb, var(--cancel-redesigned) 75%, var(--primary-color));
     background: color-mix(in srgb, var(--cancel-redesigned) 8%, transparent);
+    border-radius: 8px;
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .detailsGrid {
         grid-template-columns: 1fr;
     }
 
     .timelineHeader {
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
         gap: 2px;
     }
 }

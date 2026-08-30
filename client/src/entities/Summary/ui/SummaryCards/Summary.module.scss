@@ -5,11 +5,11 @@
     .card {
         min-height: 5.25rem;
         border: 1px solid var(--card-border-redesigned);
-        border-left: 4px solid transparent;
-        background-color: var(--sidebar-bg-redesigned);
         border-radius: var(--radius-md-redesigned);
-        flex-grow: 1;
         box-shadow: none;
+        background-color: var(--sidebar-bg-redesigned);
+        border-left: 4px solid transparent;
+        flex-grow: 1;
 
         .title {
             color: var(--sidebar-text-hover-redesigned);

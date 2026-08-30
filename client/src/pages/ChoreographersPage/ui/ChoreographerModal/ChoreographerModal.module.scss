@@ -1,25 +1,26 @@
 .modal {
-    background: var(--sidebar-bg-redesigned);
-    color: var(--sidebar-text-hover-redesigned);
-    border-radius: var(--radius-lg-redesigned);
-    padding: 32px;
-    width: 540px;
-    max-width: 95vw;
     display: flex;
     flex-direction: column;
+    width: 540px;
+    max-width: 95vw;
+    padding: 32px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border-radius: var(--radius-lg-redesigned);
     gap: 16px;
 }
 
 .title {
+    margin: 0 0 4px;
     font-size: 18px;
     font-weight: 700;
-    text-align: center;
-    margin: 0 0 4px;
     color: var(--sidebar-text-hover-redesigned);
+    text-align: center;
     letter-spacing: 0.04em;
 }
 
-// ─── Avatar ───────────────────────────────────────────────────────────────────
+/* ─── Avatar ─────────────────────────────────────────────────────────────────── */
+
 .avatarSection {
     display: flex;
     flex-direction: column;
@@ -30,9 +31,9 @@
 .avatarWrap {
     width: 80px;
     height: 80px;
+    border: 2px solid var(--card-border-redesigned);
     border-radius: 50%;
     overflow: hidden;
-    border: 2px solid var(--card-border-redesigned);
 }
 
 .avatar {
@@ -42,16 +43,16 @@
 }
 
 .avatarPlaceholder {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 100%;
     height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     font-size: 24px;
     font-weight: 700;
     color: var(--sidebar-group-label-redesigned);
-    background: var(--sidebar-hover-bg-redesigned);
     text-transform: uppercase;
+    background: var(--sidebar-hover-bg-redesigned);
 }
 
 .uploadHint {
@@ -59,7 +60,8 @@
     color: var(--sidebar-group-label-redesigned);
 }
 
-// ─── Main photo ───────────────────────────────────────────────────────────────
+/* ─── Main photo ─────────────────────────────────────────────────────────────── */
+
 .mainPhotoSection {
     display: flex;
     flex-direction: column;
@@ -76,22 +78,23 @@
 .mainPhoto {
     width: 160px;
     height: 200px;
-    object-fit: cover;
-    border-radius: var(--radius-sm-redesigned);
     border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    object-fit: cover;
 }
 
 .removePhotoBtn {
+    padding: 0;
     font-size: 12px;
     color: var(--danger-text-redesigned);
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
     text-decoration: underline;
 }
 
-// ─── Extra photos ─────────────────────────────────────────────────────────────
+/* ─── Extra photos ───────────────────────────────────────────────────────────── */
+
 .extraSection {
     display: flex;
     flex-direction: column;
@@ -100,18 +103,18 @@
 
 .extraGrid {
     display: flex;
+    align-items: flex-start;
     flex-wrap: wrap;
     gap: 8px;
-    align-items: flex-start;
 }
 
 .extraItem {
     position: relative;
     width: 72px;
     height: 72px;
+    border: 1px solid var(--card-border-redesigned);
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid var(--card-border-redesigned);
 }
 
 .extraImg {
@@ -124,38 +127,38 @@
     position: absolute;
     top: 2px;
     right: 2px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 18px;
     height: 18px;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.5);
-    color: #fff;
-    border: none;
-    cursor: pointer;
     font-size: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     line-height: 1;
+    color: #fff;
+    background: rgb(0 0 0 / 50%);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
 }
 
 .addExtraBtn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
     width: 72px;
     height: 72px;
-    border-radius: 6px;
-    border: 1.5px dashed var(--card-border-redesigned);
-    background: transparent;
-    color: var(--sidebar-group-label-redesigned);
     font-size: 11px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    color: var(--sidebar-group-label-redesigned);
     text-align: center;
+    background: transparent;
+    border: 1.5px dashed var(--card-border-redesigned);
+    border-radius: 6px;
     transition: border-color 0.15s, color 0.15s;
+    cursor: pointer;
 
     &:hover {
-        border-color: var(--primary-redesigned);
         color: var(--primary-redesigned);
+        border-color: var(--primary-redesigned);
     }
 }
 
@@ -163,7 +166,8 @@
     display: none;
 }
 
-// ─── Lang tabs ────────────────────────────────────────────────────────────────
+/* ─── Lang tabs ──────────────────────────────────────────────────────────────── */
+
 .langTabs {
     display: flex;
     gap: 6px;
@@ -171,27 +175,28 @@
 
 .langTab {
     padding: 5px 16px;
-    border-radius: var(--radius-pill-redesigned);
-    border: 1px solid var(--card-border-redesigned);
-    background: var(--sidebar-bg-redesigned);
-    color: var(--sidebar-text-redesigned);
     font-size: 12px;
     font-weight: 600;
-    cursor: pointer;
+    color: var(--sidebar-text-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-pill-redesigned);
     transition: all 0.15s;
+    cursor: pointer;
 
     &.langActive {
-        background: var(--primary-soft-bg-redesigned);
         color: var(--primary-redesigned);
+        background: var(--primary-soft-bg-redesigned);
         border-color: var(--primary-redesigned);
     }
 }
 
-// ─── Form fields ──────────────────────────────────────────────────────────────
+/* ─── Form fields ────────────────────────────────────────────────────────────── */
+
 .row {
     display: grid;
-    grid-template-columns: 1fr 1fr;
     gap: 12px;
+    grid-template-columns: 1fr 1fr;
 }
 
 .field {
@@ -213,103 +218,135 @@
 .input {
     width: 100%;
     padding: 10px 14px;
-    border: 1px solid var(--card-border-redesigned);
-    border-radius: var(--radius-sm-redesigned);
     font-size: 14px;
     color: var(--sidebar-text-hover-redesigned);
     background: var(--sidebar-bg-redesigned);
-    outline: none;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
     transition: border-color 0.15s;
     box-sizing: border-box;
+    outline: none;
 
-    &:focus { border-color: var(--primary-redesigned); }
+    &:focus {
+        border-color: var(--primary-redesigned);
+    }
 }
 
 .inputSmall {
     width: 120px;
     padding: 10px 14px;
-    border: 1px solid var(--card-border-redesigned);
-    border-radius: var(--radius-sm-redesigned);
     font-size: 14px;
     color: var(--sidebar-text-hover-redesigned);
     background: var(--sidebar-bg-redesigned);
-    outline: none;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
     transition: border-color 0.15s;
     box-sizing: border-box;
+    outline: none;
 
-    &:focus { border-color: var(--primary-redesigned); }
+    &:focus {
+        border-color: var(--primary-redesigned);
+    }
 }
 
 .textarea {
     width: 100%;
+    min-height: 90px;
     padding: 10px 14px;
-    border: 1px solid var(--card-border-redesigned);
-    border-radius: var(--radius-sm-redesigned);
     font-size: 14px;
     color: var(--sidebar-text-hover-redesigned);
     background: var(--sidebar-bg-redesigned);
-    outline: none;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
     transition: border-color 0.15s;
     box-sizing: border-box;
-    resize: vertical;
-    min-height: 90px;
     font-family: inherit;
+    outline: none;
+    resize: vertical;
 
-    &:focus { border-color: var(--primary-redesigned); }
+    &:focus {
+        border-color: var(--primary-redesigned);
+    }
 }
 
-// ─── Category ─────────────────────────────────────────────────────────────────
-// Same Start/Fan/Pro palette as ChoreographerCard.module.scss
+/* ─── Category ───────────────────────────────────────────────────────────────── */
+
+/* Same Start/Fan/Pro palette as ChoreographerCard.module.scss */
+
 .categoryGroup {
     display: flex;
-    gap: 8px;
     align-items: center;
     flex-wrap: wrap;
+    gap: 8px;
 }
 
 .categoryBtn {
     padding: 6px 18px;
-    border-radius: var(--radius-pill-redesigned);
-    border: 1px solid var(--card-border-redesigned);
-    background: var(--sidebar-bg-redesigned);
-    color: var(--sidebar-text-redesigned);
     font-size: 13px;
     font-weight: 600;
-    cursor: pointer;
+    color: var(--sidebar-text-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-pill-redesigned);
     transition: all 0.15s;
+    cursor: pointer;
 
     &.cat_start.categoryActive {
-        background: var(--success-bg-redesigned);
         color: var(--success-text-redesigned);
+        background: var(--success-bg-redesigned);
         border-color: var(--success-text-redesigned);
     }
+
     &.cat_fan.categoryActive {
-        background: var(--style-4-bg-redesigned);
         color: var(--style-4-text-redesigned);
+        background: var(--style-4-bg-redesigned);
         border-color: var(--style-4-text-redesigned);
     }
+
     &.cat_pro.categoryActive {
-        background: var(--danger-bg-redesigned);
         color: var(--danger-text-redesigned);
+        background: var(--danger-bg-redesigned);
         border-color: var(--danger-text-redesigned);
     }
 }
 
 .clearCat {
+    padding: 0;
     font-size: 11px;
     color: var(--sidebar-group-label-redesigned);
     background: none;
     border: none;
     cursor: pointer;
-    padding: 0;
     text-decoration: underline;
 }
 
-// ─── Toggle ───────────────────────────────────────────────────────────────────
+/* ─── Toggle ─────────────────────────────────────────────────────────────────── */
+
 .toggleRow {
     display: flex;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
+}
+
+.toggleSlider {
+    position: absolute;
+    background: var(--card-border-redesigned);
+    border-radius: 24px;
+    transition: background 0.2s;
+    inset: 0;
+
+    &::before {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        background: var(--sidebar-bg-redesigned);
+        border-radius: 50%;
+        box-shadow: 0 1px 3px rgb(0 0 0 / 15%);
+        transition: transform 0.2s;
+        content: '';
+    }
 }
 
 .toggle {
@@ -319,9 +356,9 @@
     cursor: pointer;
 
     input {
-        opacity: 0;
         width: 0;
         height: 0;
+        opacity: 0;
     }
 
     input:checked + .toggleSlider {
@@ -333,61 +370,51 @@
     }
 }
 
-.toggleSlider {
-    position: absolute;
-    inset: 0;
-    background: var(--card-border-redesigned);
-    border-radius: 24px;
-    transition: background 0.2s;
+/* ─── Upload button ──────────────────────────────────────────────────────────── */
 
-    &::before {
-        content: '';
-        position: absolute;
-        width: 18px;
-        height: 18px;
-        left: 3px;
-        top: 3px;
-        background: var(--sidebar-bg-redesigned);
-        border-radius: 50%;
-        transition: transform 0.2s;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.15);
-    }
-}
-
-// ─── Upload button ────────────────────────────────────────────────────────────
 .uploadBtn {
-    padding: 7px 16px;
-    border-radius: var(--radius-sm-redesigned);
-    border: 1px solid var(--card-border-redesigned);
-    background: var(--sidebar-bg-redesigned);
-    color: var(--sidebar-text-hover-redesigned);
-    font-size: 13px;
-    cursor: pointer;
-    transition: all 0.15s;
     width: fit-content;
+    padding: 7px 16px;
+    font-size: 13px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    transition: all 0.15s;
+    cursor: pointer;
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
 
     &:hover:not(:disabled) {
-        border-color: var(--primary-redesigned);
         color: var(--primary-redesigned);
+        border-color: var(--primary-redesigned);
     }
-
-    &:disabled { opacity: 0.5; cursor: default; }
 }
 
-// ─── Submit ───────────────────────────────────────────────────────────────────
+/* ─── Submit ─────────────────────────────────────────────────────────────────── */
+
 .submitBtn {
-    margin-top: 8px;
     width: 100%;
     padding: 14px;
-    border-radius: var(--radius-sm-redesigned);
-    border: none;
-    background: var(--primary-redesigned);
     font-size: 15px;
     font-weight: 600;
     color: var(--primary-contrast-redesigned);
-    cursor: pointer;
+    background: var(--primary-redesigned);
+    border: none;
+    border-radius: var(--radius-sm-redesigned);
     transition: opacity 0.15s;
+    cursor: pointer;
+    margin-top: 8px;
 
-    &:hover:not(:disabled) { opacity: 0.85; }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+        opacity: 0.85;
+    }
 }

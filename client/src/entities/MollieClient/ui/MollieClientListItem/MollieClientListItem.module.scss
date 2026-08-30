@@ -8,18 +8,18 @@
 
 .info {
     display: grid;
-    grid-template-columns: 52px minmax(200px, 1fr) minmax(220px, 1.3fr) minmax(300px, 1.4fr);
-    gap: 24px;
     align-items: center;
     width: 100%;
+    gap: 24px;
+    grid-template-columns: 52px minmax(200px, 1fr) minmax(220px, 1.3fr) minmax(300px, 1.4fr);
 }
 
 .clickable {
-    cursor: pointer;
+    margin: -4px -8px;
+    padding: 4px 8px;
     border-radius: var(--radius-sm-redesigned);
     transition: background 0.15s ease;
-    padding: 4px 8px;
-    margin: -4px -8px;
+    cursor: pointer;
 
     &:hover {
         background: var(--sidebar-hover-bg-redesigned);
@@ -27,8 +27,8 @@
 }
 
 .id {
-    overflow: hidden;
     color: var(--sidebar-group-label-redesigned);
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -36,22 +36,22 @@
 .identity {
     display: flex;
     align-items: center;
-    gap: 10px;
     min-width: 0;
+    gap: 10px;
 }
 
 .avatar {
     display: flex;
-    flex-shrink: 0;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     width: 28px;
     height: 28px;
-    color: var(--primary-redesigned);
     font-size: 11px;
     font-weight: 700;
+    color: var(--primary-redesigned);
     background: var(--primary-soft-bg-redesigned);
     border-radius: 50%;
+    flex-shrink: 0;
 }
 
 .name,
@@ -62,8 +62,8 @@
 }
 
 .name {
-    color: var(--sidebar-text-hover-redesigned);
     font-weight: 600;
+    color: var(--sidebar-text-hover-redesigned);
 }
 
 .email {
@@ -79,12 +79,12 @@
 .badge {
     padding: 4px 9px;
     font-size: 12px;
-    line-height: 16px;
     font-weight: 600;
+    line-height: 16px;
     color: var(--sidebar-text-redesigned);
-    white-space: nowrap;
     background: var(--sidebar-hover-bg-redesigned);
     border-radius: var(--radius-pill-redesigned);
+    white-space: nowrap;
 }
 
 .active {
@@ -107,10 +107,10 @@
     background: var(--danger-bg-redesigned);
 }
 
-@media (max-width: 1100px) {
+@media (width <= 1100px) {
     .info {
-        grid-template-columns: 44px 1fr;
         gap: 12px;
+        grid-template-columns: 44px 1fr;
     }
 
     .email,

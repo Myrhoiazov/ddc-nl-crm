@@ -197,8 +197,12 @@ documented in full:
 - [Deploy endpoint usage](scripts/deploy-docker.sh)
 
 GitHub Actions:
-- [`ci.yml`](.github/workflows/ci.yml) — lint and type checks on Node 20
-- [`deploy.yml`](.github/workflows/deploy.yml) — production deploy over SSH
+- [`ci.yml`](.github/workflows/ci.yml) — `client-checks`/`server-checks`/`docs-links` on Node 20,
+  required on PRs into `develop` and `main`
+
+Production deploy is manual (`npm run deploy`, run by the repo owner), not GitHub-Actions-triggered —
+see `docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md` (gitignored, local only)
+for why.
 
 ## Documentation
 

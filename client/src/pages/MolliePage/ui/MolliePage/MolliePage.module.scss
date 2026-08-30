@@ -5,17 +5,17 @@
 .tabs {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
     margin: 12px 0 20px;
+    gap: 8px;
 }
 
 .tab {
     padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--sidebar-text-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-pill-redesigned);
-    color: var(--sidebar-text-redesigned);
-    font-weight: 700;
-    font-size: 13px;
     text-decoration: none;
 
     &:hover {

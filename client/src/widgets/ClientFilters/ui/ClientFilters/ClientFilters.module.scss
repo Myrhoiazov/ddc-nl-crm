@@ -5,11 +5,10 @@
     .btn {
         display: flex;
         align-items: center;
-        gap: 10px;
         min-height: 48px;
         padding: 12px 22px;
-        color: var(--primary-contrast-redesigned);
         font-weight: 700;
+        color: var(--primary-contrast-redesigned);
         background: var(--primary-redesigned);
         border: 1px solid var(--primary-redesigned);
         box-shadow: 0 8px 20px color-mix(in srgb, var(--primary-redesigned) 22%, transparent);
@@ -17,20 +16,21 @@
             transform 0.2s ease,
             box-shadow 0.2s ease,
             opacity 0.2s ease;
+        gap: 10px;
 
         svg {
             fill: var(--primary-contrast-redesigned);
         }
 
         &:hover {
+            box-shadow: 0 12px 26px color-mix(in srgb, var(--primary-redesigned) 30%, transparent);
             opacity: 1;
             transform: translateY(-2px);
-            box-shadow: 0 12px 26px color-mix(in srgb, var(--primary-redesigned) 30%, transparent);
         }
 
         &:active {
-            transform: translateY(0);
             box-shadow: 0 5px 12px color-mix(in srgb, var(--primary-redesigned) 20%, transparent);
+            transform: translateY(0);
         }
     }
 }
@@ -39,15 +39,15 @@
     flex-wrap: wrap !important;
     row-gap: 12px !important;
 
-    @media (max-width: 768px) {
+    @media (width <= 768px) {
         justify-content: flex-start !important;
         gap: 12px !important;
     }
 }
 
-@media (max-width: 480px) {
+@media (width <= 480px) {
     .ClientFilters .btn {
-        width: 100%;
         justify-content: center;
+        width: 100%;
     }
 }
