@@ -13,6 +13,7 @@ Primary structure:
 - `docker/` - production and development Dockerfiles.
 - `deploy/` - host nginx templates and deployment support.
 - `docs/` - active product, infrastructure, security, roadmap, and Graphify documentation.
+- `docs/adr/` - architecture decision records (gitignored, local only — not published to the repo).
 - `.agents/` - local agent profiles and skills for this repository.
 - `graphify-out/`, `client/src/graphify-out/`, `server/src/graphify-out/` - generated local Graphify cache/output; do not commit.
 
@@ -41,6 +42,8 @@ npm start
 npm run deploy
 npm run deploy:docker
 npm run graphify:specs
+npm run ci             # mirrors CI: client lint/test/build + server build/test + docs-links
+npm run docs:links     # just the markdown link check
 ```
 
 Client, from `client/`:
@@ -121,7 +124,7 @@ Also keep `docs/schema.md` and Graphify outputs in sync when schema or architect
 
 ## Infrastructure And Deploy
 
-Production has one supported deploy path: Docker Compose via `npm run deploy` from the repository root. `npm run deploy:docker` is an alias.
+Production has one supported deploy path: Docker Compose via `npm run deploy` from the repository root. `npm run deploy:docker` is an alias. Deploy is manual, run by the repo owner from their own machine — GitHub Actions only runs CI (`ci.yml`: `client-checks`/`server-checks`/`docs-links`), it does not deploy.
 
 Do not add parallel production deploy paths. Do not wire Graphify or documentation generation into production deploy. Keep container names and ports driven by env values rather than hardcoded compose values.
 
@@ -129,7 +132,7 @@ Secrets stay in `.env` files or production host configuration. Never commit cred
 
 ## Documentation And Graphify
 
-Update documentation when behavior, architecture, deployment, schema, or public workflow changes. Prefer existing docs under `docs/spec/`, `docs/roadmap/`, and `docs/security/`.
+Update documentation when behavior, architecture, deployment, schema, or public workflow changes. Prefer existing docs under `docs/spec/`, `docs/roadmap/`, and `docs/security/`. Record hard-to-reverse architectural or process decisions (branching model, deploy strategy, tooling choices with real trade-offs) as ADRs in `docs/adr/` — gitignored, local only, numbered sequentially (`0001-slug.md`, ...).
 
 Run `npm run graphify:specs` after significant structural changes such as new modules, import graph changes, Prisma domain changes, or major feature moves. The command refreshes the tracked HTML trees under `docs/spec/` and regenerates local ignored Graphify output.
 
@@ -152,7 +155,9 @@ Use the Dev Loop profile when the user asks for autonomous end-to-end work. The 
 
 ## Git And Pull Requests
 
-Branching model: `feature/*`/`fix/*` branch off `develop`, PR into `develop`; a Release PR then merges `develop → main`. `hotfix/*` branches off `main` for production emergencies, still via PR, then gets back-merged into `develop`. Direct pushes to `main` are blocked by a GitHub ruleset with **no bypass** — not for the repo owner, not for hotfixes — and this applies to every change regardless of size, including one-line `chore:` edits. PR merge requires a green CI run; 0 approvals are required (solo project, self-merge is expected). Squash-merge `feature/*`/`fix/*` into `develop`; use a merge commit for the Release PR into `main`. Rationale and the branch-protection specifics are in `docs/adr/0001-develop-main-branch-protection-no-bypass.md` (gitignored — local only, not published; see git history/PRs if the file isn't present).
+Branching model: `feature/*`/`fix/*` branch off `develop`, PR into `develop`; a Release PR then merges `develop → main`. `hotfix/*` branches off `main` for production emergencies, still via PR, then gets back-merged into `develop`. Direct pushes to `main` are meant to be blocked by a GitHub ruleset with **no bypass** — not for the repo owner, not for hotfixes — applying to every change regardless of size, including one-line `chore:` edits. PR merge requires a green CI run; 0 approvals are required (solo project, self-merge is expected). Squash-merge `feature/*`/`fix/*` into `develop`; use a merge commit for the Release PR into `main`. Rationale and the branch-protection specifics are in `docs/adr/0001-develop-main-branch-protection-no-bypass.md` (gitignored — local only, not published; see git history/PRs if the file isn't present).
+
+**Ruleset status:** as of the CI/CD rebuild (`ci.yml` now implements `client-checks`/`server-checks`/`docs-links` and is green), the GitHub ruleset itself has not been created yet — nothing at the GitHub level currently blocks a direct push to `main`. Follow the branching model above regardless; enabling the ruleset is the next planned step, not yet done. Don't assume it's enforced until this note is removed/updated.
 
 Run `npm run ci` from the repo root before pushing — it mirrors the GitHub Actions `client-checks`/`server-checks`/`docs-links` jobs so failures surface locally instead of after push.
 

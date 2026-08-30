@@ -16,7 +16,7 @@ integrations, users, roles and settings.
 | Server  | Express 5, Prisma 6, MySQL 8, Redis (rate limiting), Zod, Node test runner |
 | Auth    | Cookie sessions, CSRF double-submit, Argon2id, 2FA email, endpoint rate limiting |
 | Payments| Mollie (payments, subscriptions, mandates, reconciliation) |
-| Infra   | Docker Compose (dev + prod), nginx, GitHub Actions (CI + deploy) |
+| Infra   | Docker Compose (dev + prod), nginx, GitHub Actions (CI only — deploy is manual) |
 
 ## Repository Layout
 
@@ -96,6 +96,8 @@ Repository root:
 npm start             # dev server + client (non-Docker)
 npm run deploy        # production Docker deploy
 npm run deploy:docker # alias for the same production deploy
+npm run ci            # mirrors CI locally: client lint/test/build + server build/test + docs-links
+npm run docs:links    # just the markdown link check
 ```
 
 Client (`cd client`):
@@ -198,11 +200,20 @@ documented in full:
 
 GitHub Actions:
 - [`ci.yml`](.github/workflows/ci.yml) — `client-checks`/`server-checks`/`docs-links` on Node 20,
-  required on PRs into `develop` and `main`
+  runs on PRs and pushes to `develop` and `main`
 
 Production deploy is manual (`npm run deploy`, run by the repo owner), not GitHub-Actions-triggered —
 see `docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md` (gitignored, local only)
 for why.
+
+## Development Workflow
+
+`feature/*`/`fix/*` branches off `develop`, PR into `develop`; a Release PR then merges
+`develop → main` (merge commit, so release boundaries stay visible). `hotfix/*` branches off `main`
+for production emergencies, still via PR, then gets back-merged into `develop`. Direct pushes to
+`main` are not part of the normal workflow. Run `npm run ci` before pushing — it mirrors what CI
+checks. See `docs/adr/0001-develop-main-branch-protection-no-bypass.md` (gitignored, local only)
+for the full rationale.
 
 ## Documentation
 
