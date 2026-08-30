@@ -16,9 +16,13 @@ CRM/админ-платформа для школы танцев («DDC»/«Tale
 
 ## Команды
 
-### Запуск всего проекта (dev)
+### Корень
 ```bash
-npm start                      # корень: запускает вместе server (nodemon) + client (webpack-dev-server :3000)
+npm start                      # запускает вместе server (nodemon) + client (webpack-dev-server :3000)
+npm run deploy                 # production Docker deploy (= deploy:docker)
+npm run ci                     # зеркалит CI: client lint/test/build + server build/test + docs-links
+npm run docs:links             # только проверка markdown-ссылок
+npm run graphify:specs         # обновить Graphify HTML-деревья в docs/spec/
 ```
 
 ### Client (`cd client`)
@@ -58,6 +62,12 @@ node --test -r ts-node/register src/services/service.Password.test.ts
 `docker-compose.prod.yml`) в `/var/www/project/ddc_nl_docker_prod`.
 `npm run deploy` и `npm run deploy:docker` запускают один и тот же production Docker deploy.
 Других production deploy path в репозитории нет. Не дублируй детали здесь.
+
+Деплой **ручной** — его запускает владелец репозитория со своей машины. GitHub Actions (`ci.yml`)
+только гоняет проверки (`client-checks`/`server-checks`/`docs-links`) на PR и push в `develop`/`main`
+и ничего не деплоит; старый `deploy.yml` (PM2, только frontend, был нерабочим — не совпадал с
+Docker-стеком и не имел нужных secrets) удалён. Подробности и почему это осознанное решение —
+`docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md` (в .gitignore, только локально).
 
 ## Архитектура клиента (Feature-Sliced Design)
 
@@ -123,6 +133,17 @@ Production — один Docker Compose стек на VPS. Полная теку�
 не возвращай их обратно на хардкод. Инструкции по деплою — в `README.md`.
 
 ## Git
+
+Модель ветвления: `feature/*`/`fix/*` от `develop`, PR в `develop`; затем Release PR мержит
+`develop → main` (merge commit, чтобы границы релиза были видны в истории). `hotfix/*` — от `main`
+для срочных прод-фиксов, тоже через PR, потом бэкмержится в `develop`. Прямые push в `main` не
+являются нормальным рабочим процессом — задуман GitHub ruleset без bypass (даже для владельца
+репозитория и для hotfix), но **на момент CI/CD-переработки ruleset ещё не создан** — на уровне
+GitHub ничего технически не блокирует прямой push, следуй модели вручную. PR-мерж требует зелёного
+CI; обязательных ревью 0 (solo-проект, self-merge — нормально). Squash-merge для `feature/*`/`fix/*`
+в `develop`; merge commit для Release PR в `main`. Перед push гоняй `npm run ci` из корня — он
+зеркалит то, что проверяет CI. Полное обоснование — `docs/adr/0001-develop-main-branch-protection-no-bypass.md`
+(в .gitignore, только локально).
 
 Коммитим без строки `Co-Authored-By: Claude ...` в сообщении — не добавляй её при создании коммитов
 в этом репозитории.
