@@ -22,11 +22,11 @@
     max-height: calc(100vh - 32px);
     margin: 1rem;
     padding: 24px;
-    box-sizing: border-box;
     background: var(--white);
     border-radius: 18px;
     box-shadow: 0 24px 80px rgba(0 0 0 / 22%);
     transition: 0.3s transform;
+    box-sizing: border-box;
     overflow: hidden;
     overflow-y: auto;
     transform: scale(0.5);

@@ -8,19 +8,19 @@
 
 .statsGrid {
     display: grid;
-    grid-template-columns: repeat(4, minmax(140px, 1fr));
     gap: 12px;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
 }
 
 .statCard {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     padding: 16px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-md-redesigned);
-    background: var(--sidebar-bg-redesigned);
-    color: var(--sidebar-text-hover-redesigned);
+    gap: 8px;
 
     span {
         font-size: 13px;
@@ -32,13 +32,13 @@
     }
 }
 
-@media (max-width: 900px) {
+@media (width <= 900px) {
     .statsGrid {
         grid-template-columns: repeat(2, minmax(140px, 1fr));
     }
 }
 
-@media (max-width: 480px) {
+@media (width <= 480px) {
     .statsGrid {
         grid-template-columns: 1fr;
     }

@@ -6,24 +6,24 @@
 .titleBlock {
     display: flex;
     flex-direction: column;
-    gap: 6px;
     align-items: center;
     text-align: center;
+    gap: 6px;
 }
 
 .result {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     width: 100%;
     padding: 12px;
     border: 1px solid color-mix(in srgb, var(--success-text-redesigned) 38%, transparent);
     border-radius: 12px;
+    gap: 8px;
 
     span {
-        overflow-wrap: anywhere;
-        color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 68%, transparent);
         font-size: 13px;
+        color: color-mix(in srgb, var(--sidebar-text-hover-redesigned) 68%, transparent);
+        overflow-wrap: anywhere;
     }
 }
 

@@ -152,6 +152,10 @@ Use the Dev Loop profile when the user asks for autonomous end-to-end work. The 
 
 ## Git And Pull Requests
 
+Branching model: `feature/*`/`fix/*` branch off `develop`, PR into `develop`; a Release PR then merges `develop → main`. `hotfix/*` branches off `main` for production emergencies, still via PR, then gets back-merged into `develop`. Direct pushes to `main` are blocked by a GitHub ruleset with **no bypass** — not for the repo owner, not for hotfixes — and this applies to every change regardless of size, including one-line `chore:` edits. PR merge requires a green CI run; 0 approvals are required (solo project, self-merge is expected). Squash-merge `feature/*`/`fix/*` into `develop`; use a merge commit for the Release PR into `main`. Rationale and the branch-protection specifics are in `docs/adr/0001-develop-main-branch-protection-no-bypass.md` (gitignored — local only, not published; see git history/PRs if the file isn't present).
+
+Run `npm run ci` from the repo root before pushing — it mirrors the GitHub Actions `client-checks`/`server-checks`/`docs-links` jobs so failures surface locally instead of after push.
+
 Use standard `git` and `gh` commands. Commit messages must use Conventional Commits:
 
 - `feat: ...`
@@ -167,3 +171,5 @@ Before committing:
 4. Scan staged files for secrets, private media/uploads, ignored outputs, and unrelated changes.
 
 Do not add AI attribution trailers such as `Co-authored-by`, `Generated-by`, or similar metadata unless the user explicitly asks.
+
+Production deploy stays manual (`npm run deploy`, run by the owner from their own machine) — GitHub Actions does not deploy. See `docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md` (also gitignored) for why.

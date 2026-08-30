@@ -3,16 +3,16 @@
 }
 
 .subtitle {
-    margin-top: 4px;
     color: var(--sidebar-text-redesigned);
+    margin-top: 4px;
 }
 
 .summaryCard {
-    flex: 1 1 220px;
     min-width: 200px;
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
+    flex: 1 1 220px;
 }
 
 .danger {
@@ -37,20 +37,20 @@
 
 .filters {
     display: grid;
-    grid-template-columns: minmax(280px, 1fr) minmax(190px, 0.35fr) auto;
-    gap: 16px;
     align-items: end;
     width: 100%;
     padding: 16px;
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
+    gap: 16px;
+    grid-template-columns: minmax(280px, 1fr) minmax(190px, 0.35fr) auto;
 }
 
 .filterInput {
-    border-color: var(--card-border-redesigned);
-    border-radius: var(--radius-md-redesigned);
     background: var(--sidebar-bg-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    border-color: var(--card-border-redesigned);
 }
 
 .filterSelect {
@@ -61,16 +61,16 @@
     select {
         min-height: 46px;
         color: var(--sidebar-text-hover-redesigned);
-        border-color: var(--card-border-redesigned);
-        border-radius: var(--radius-md-redesigned);
         background: var(--sidebar-bg-redesigned);
+        border-radius: var(--radius-md-redesigned);
+        border-color: var(--card-border-redesigned);
     }
 }
 
 .filterActions {
     display: flex;
-    gap: 8px;
     justify-content: flex-end;
+    gap: 8px;
 }
 
 .resetButton {
@@ -80,39 +80,39 @@
 
 .pagination {
     display: flex;
-    gap: 12px;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
     width: 100%;
     padding: 0 4px;
-    color: var(--sidebar-text-redesigned);
     font-size: 14px;
+    color: var(--sidebar-text-redesigned);
+    gap: 12px;
 }
 
 .paginationActions {
     display: flex;
-    gap: 8px;
     align-items: center;
+    gap: 8px;
 }
 
 .pageButton {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     width: 32px;
     height: 32px;
     padding: 0;
     color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-hover-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: 50%;
-    background: var(--sidebar-hover-bg-redesigned);
 }
 
 .stateCard,
 .incidentCard {
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
 }
 
 .incidentCard.critical {
@@ -129,17 +129,17 @@
 
 .incidentGrid {
     display: grid;
-    grid-template-columns: minmax(260px, 1.5fr) minmax(220px, 1fr) 120px 120px auto;
-    gap: 16px;
     align-items: center;
+    gap: 16px;
+    grid-template-columns: minmax(260px, 1.5fr) minmax(220px, 1fr) 120px 120px auto;
 }
 
 .mainInfo,
 .clientInfo {
     display: flex;
     flex-direction: column;
-    gap: 6px;
     min-width: 0;
+    gap: 6px;
 }
 
 .badge,
@@ -150,9 +150,9 @@
     font-size: 11px;
     font-weight: 700;
     line-height: 1;
+    text-transform: uppercase;
     background: var(--sidebar-hover-bg-redesigned);
     border-radius: var(--radius-pill-redesigned);
-    text-transform: uppercase;
 }
 
 .payment {
@@ -201,9 +201,14 @@
 .link,
 .crmLink,
 .actionLink {
-    color: var(--sidebar-text-hover-redesigned);
     font-weight: 700;
+    color: var(--sidebar-text-hover-redesigned);
     text-decoration: none;
+}
+
+.crmLink {
+    font-size: 13px;
+    line-height: 18px;
 }
 
 .link:hover,
@@ -212,33 +217,28 @@
     text-decoration: underline;
 }
 
-.crmLink {
-    font-size: 13px;
-    line-height: 18px;
-}
-
 .actions {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     align-items: flex-end;
+    gap: 8px;
 }
 
 .resolveButton {
     padding: 7px 12px;
-    color: var(--success-text-redesigned);
     font-size: 13px;
+    color: var(--success-text-redesigned);
     border-color: var(--success-text-redesigned);
 }
 
 .studentLinks {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
     min-width: 0;
+    gap: 6px;
 }
 
-@media (max-width: 1200px) {
+@media (width <= 1200px) {
     .incidentGrid {
         grid-template-columns: repeat(2, minmax(220px, 1fr));
     }
@@ -248,7 +248,7 @@
     }
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .filters,
     .incidentGrid {
         grid-template-columns: 1fr;
@@ -256,8 +256,8 @@
 
     .filterActions,
     .pagination {
-        align-items: stretch;
         flex-direction: column;
+        align-items: stretch;
     }
 
     .paginationActions {

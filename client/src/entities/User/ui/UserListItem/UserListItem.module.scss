@@ -15,14 +15,14 @@
 
 .status {
     padding: 4px 9px;
-    border-radius: var(--radius-pill-redesigned);
-    background: var(--success-bg-redesigned);
-    color: var(--success-text-redesigned);
     font-size: 12px;
     font-weight: 600;
+    color: var(--success-text-redesigned);
+    background: var(--success-bg-redesigned);
+    border-radius: var(--radius-pill-redesigned);
 }
 
 .disabled {
-    background: var(--danger-bg-redesigned);
     color: var(--danger-text-redesigned);
+    background: var(--danger-bg-redesigned);
 }

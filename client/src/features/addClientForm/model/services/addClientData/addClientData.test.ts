@@ -1,62 +1,62 @@
-// import { TestAsyncThunk } from '@/shared/lib/tests/TestAsyncThunk/TestAsyncThunk';
-// import { Country } from '@/entities/Country';
-// import { Currency } from '@/entities/Currency';
-// import { ValidateProfileError } from '../../consts/consts';
-// import { updateProfileData } from './addClientData';
+import { StateSchema } from '@/app/providers/StoreProvider';
+import { addClientData } from './addClientData';
 
-// const data = {
-//     username: 'admin',
-//     age: 22,
-//     country: Country.Ukraine,
-//     lastname: 'ulbi tv',
-//     first: 'asd',
-//     city: 'asf',
-//     currency: Currency.USD,
-//     id: '1',
-// };
+const dispatch = jest.fn();
+const extra = { apiPrivate: { post: jest.fn() } };
 
-// describe('updateProfileData.test', () => {
-//     test('success', async () => {
-//         const thunk = new TestAsyncThunk(updateProfileData, {
-//             profile: {
-//                 form: data,
-//             },
-//         });
+const stateWithForm = {
+    client: {
+        form: {
+            firstName: 'Иван',
+            lastName: 'Петров',
+            branchId: 1,
+        },
+    },
+} as unknown as StateSchema;
 
-//         thunk.api.put.mockReturnValue(Promise.resolve({ data }));
+beforeEach(() => {
+    dispatch.mockClear();
+    extra.apiPrivate.post.mockClear();
+});
 
-//         const result = await thunk.callThunk();
+describe('addClientData', () => {
+    test('posts the filled form and fulfills with the created client', async () => {
+        const client = { id: 1, firstName: 'Иван', lastName: 'Петров' };
+        extra.apiPrivate.post.mockResolvedValue({ data: client });
 
-//         expect(thunk.api.put).toHaveBeenCalled();
-//         expect(result.meta.requestStatus).toBe('fulfilled');
-//         expect(result.payload).toEqual(data);
-//     });
+        const result = await addClientData({ groupIds: [2, 3] })(
+            dispatch,
+            () => stateWithForm,
+            extra as never,
+        );
 
-//     test('error', async () => {
-//         const thunk = new TestAsyncThunk(updateProfileData, {
-//             profile: {
-//                 form: data,
-//             },
-//         });
-//         thunk.api.put.mockReturnValue(Promise.resolve({ status: 403 }));
+        expect(extra.apiPrivate.post).toHaveBeenCalledWith('/clients', expect.any(FormData), expect.any(Object));
+        expect(result.meta.requestStatus).toBe('fulfilled');
+        expect(result.payload).toEqual(client);
+    });
 
-//         const result = await thunk.callThunk();
+    test('rejects without calling the API when the client form is empty', async () => {
+        const result = await addClientData({ groupIds: [] })(
+            dispatch,
+            () => ({} as StateSchema),
+            extra as never,
+        );
 
-//         expect(result.meta.requestStatus).toBe('rejected');
-//         expect(result.payload).toEqual([ValidateProfileError.SERVER_ERROR]);
-//     });
+        expect(extra.apiPrivate.post).not.toHaveBeenCalled();
+        expect(result.meta.requestStatus).toBe('rejected');
+        expect(result.payload).toBe('Форма клиента не заполнена');
+    });
 
-//     test('validate error', async () => {
-//         const thunk = new TestAsyncThunk(updateProfileData, {
-//             profile: {
-//                 form: { ...data, lastname: '' },
-//             },
-//         });
-//         const result = await thunk.callThunk();
+    test('rejects when the API call fails', async () => {
+        extra.apiPrivate.post.mockRejectedValue(new Error('network error'));
 
-//         expect(result.meta.requestStatus).toBe('rejected');
-//         expect(result.payload).toEqual([
-//             ValidateProfileError.INCORRECT_USER_DATA,
-//         ]);
-//     });
-// });
+        const result = await addClientData({ groupIds: [] })(
+            dispatch,
+            () => stateWithForm,
+            extra as never,
+        );
+
+        expect(result.meta.requestStatus).toBe('rejected');
+        expect(result.payload).toBe('error');
+    });
+});

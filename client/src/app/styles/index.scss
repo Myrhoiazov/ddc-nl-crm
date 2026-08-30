@@ -23,7 +23,7 @@
     min-height: calc(100vh - var(--navbar-height));
     background: var(--bg-redesigned);
 
-    @media (max-width: 768px) {
+    @media (width <= 768px) {
         // Sidebar is fixed overlay on mobile, content takes full width
         display: block;
     }

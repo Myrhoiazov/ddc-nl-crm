@@ -4,18 +4,18 @@
 
 .kpiCard {
     min-width: 220px;
-    flex: 1 1 220px;
     border: 1px solid var(--card-border-redesigned);
-    border-left: 4px solid var(--primary-redesigned);
     border-radius: var(--radius-md-redesigned);
+    border-left: 4px solid var(--primary-redesigned);
+    flex: 1 1 220px;
 }
 
 .kpiLabel {
-    color: var(--sidebar-group-label-redesigned);
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 0.06em;
+    color: var(--sidebar-group-label-redesigned);
     text-transform: uppercase;
+    letter-spacing: 0.06em;
 }
 
 .primary {
@@ -36,8 +36,8 @@
 }
 
 .revenueCard {
-    overflow: hidden;
     background: var(--sidebar-bg-redesigned);
+    overflow: hidden;
 }
 
 .chartHeader {
@@ -46,23 +46,23 @@
 
 .periodTabs {
     display: flex;
-    gap: 10px;
     align-items: center;
     flex-wrap: wrap;
+    gap: 10px;
 }
 
 .periodTab {
     min-height: 34px;
     padding: 0 16px;
-    color: var(--sidebar-text-redesigned);
     font: inherit;
     font-size: 13px;
     font-weight: 700;
+    color: var(--sidebar-text-redesigned);
+    background: transparent;
     border: none;
     border-radius: var(--radius-sm-redesigned);
-    background: transparent;
-    cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease;
+    cursor: pointer;
 }
 
 .activePeriodTab {
@@ -78,11 +78,11 @@
 .chartTotals {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     align-items: flex-end;
-    color: var(--sidebar-text-hover-redesigned);
     font-size: 13px;
     font-weight: 700;
+    color: var(--sidebar-text-hover-redesigned);
+    gap: 4px;
 }
 
 .legendDot,
@@ -112,49 +112,49 @@
 
 .chartArea {
     display: grid;
-    grid-auto-columns: minmax(92px, 1fr);
-    grid-auto-flow: column;
-    gap: 18px;
     align-items: end;
     width: 100%;
     min-height: 230px;
-    padding-top: 18px;
+    gap: 18px;
+    grid-auto-columns: minmax(92px, 1fr);
+    grid-auto-flow: column;
     overflow-x: auto;
+    padding-top: 18px;
 }
 
 .chartColumn {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     align-items: center;
     min-width: 92px;
+    gap: 8px;
 }
 
 .bars {
     display: flex;
-    gap: 4px;
-    align-items: end;
     justify-content: center;
+    align-items: end;
     width: 100%;
     height: 210px;
+    gap: 4px;
 }
 
 .barGroup {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    align-items: center;
     justify-content: flex-end;
+    align-items: center;
     width: min(46%, 74px);
     min-width: 34px;
     height: 100%;
+    gap: 6px;
 }
 
 .barValue {
-    color: var(--sidebar-text-redesigned);
     font-size: 11px;
     font-weight: 800;
     line-height: 1;
+    color: var(--sidebar-text-redesigned);
     white-space: nowrap;
 }
 
@@ -173,9 +173,9 @@
 }
 
 .chartLabel {
-    color: var(--sidebar-text-redesigned);
     font-size: 12px;
     font-weight: 800;
+    color: var(--sidebar-text-redesigned);
 }
 
 .failedPayment {
@@ -188,8 +188,8 @@
 }
 
 .incidentsLink {
-    color: var(--primary-redesigned);
     font-weight: 700;
+    color: var(--primary-redesigned);
     text-decoration: none;
 }
 
@@ -197,10 +197,10 @@
     text-decoration: underline;
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .chartHeader {
-        align-items: flex-start;
         flex-direction: column;
+        align-items: flex-start;
     }
 
     .chartMeta {
