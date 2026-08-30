@@ -1,13 +1,13 @@
 .PageSkeleton {
     display: flex;
     flex-direction: column;
-    gap: 16px;
-    padding: 40px;
     height: calc(100vh - var(--navbar-height));
+    padding: 40px;
     box-sizing: border-box;
     flex-grow: 1;
+    gap: 16px;
 
-    @media (max-width: 768px) {
+    @media (width <= 768px) {
         padding: 20px 16px;
     }
 }

@@ -34,7 +34,7 @@ const sampleStudio = {
     email: 'info@talentcenterddc.nl',
     website: 'https://talentcenterddc.nl/',
     logoUrl: 'https://ddc-nl.denys-myr.com/upload/brands/logo.png',
-    legalLine: 'Talent Center DDC',
+    legalLine: 'Talent Center DDC · KVK 90720814',
 };
 
 test('reminder email is built per language with no payment link (auto-debit, informational only)', () => {

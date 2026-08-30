@@ -11,7 +11,10 @@ node_modules/
 !.deploy-docker.env.example
 
 # Build, cache, and coverage output
-build/
+# Anchored to the actual generated output dirs only — a bare "build/" also matched
+# client/config/build/ (real webpack config source), silently excluding it from git.
+/client/build/
+/server/build/
 dist/
 coverage/
 .cache/
@@ -52,6 +55,7 @@ docs/*.jpeg
 # Internal planning and security-review docs (not published)
 docs/roadmap/
 docs/security/
+docs/adr/
 
 # OS and editor files
 .DS_Store

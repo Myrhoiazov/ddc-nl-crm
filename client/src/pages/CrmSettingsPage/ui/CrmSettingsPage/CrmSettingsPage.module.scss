@@ -3,22 +3,22 @@
 }
 
 .subtitle {
-    margin-top: 4px;
     color: var(--sidebar-text-redesigned);
+    margin-top: 4px;
 }
 
 .card {
+    background: var(--sidebar-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-lg-redesigned);
-    background: var(--sidebar-bg-redesigned);
 }
 
 .header {
     display: flex;
-    gap: 16px;
-    align-items: flex-start;
     justify-content: space-between;
+    align-items: flex-start;
     width: 100%;
+    gap: 16px;
 }
 
 .badge {
@@ -43,39 +43,39 @@
 .explanation {
     display: flex;
     flex-direction: column;
-    gap: 8px;
     max-width: 900px;
     padding: 16px;
-    color: var(--sidebar-text-hover-redesigned);
     line-height: 1.55;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-hover-bg-redesigned);
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-md-redesigned);
-    background: var(--sidebar-hover-bg-redesigned);
+    gap: 8px;
 }
 
 .detailsGrid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
-    gap: 12px;
     width: 100%;
+    gap: 12px;
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
 }
 
 .detailItem {
     display: flex;
     flex-direction: column;
-    gap: 4px;
     padding: 12px 14px;
     border: 1px solid var(--card-border-redesigned);
     border-radius: var(--radius-md-redesigned);
+    gap: 4px;
 }
 
 .label {
-    color: var(--sidebar-group-label-redesigned);
     font-size: 12px;
+    color: var(--sidebar-group-label-redesigned);
     text-transform: uppercase;
 }
 
-@media (max-width: 768px) {
+@media (width <= 768px) {
     .header {
         flex-direction: column;
     }

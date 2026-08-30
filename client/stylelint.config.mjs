@@ -6,6 +6,8 @@ export default {
     rules: {
         'selector-class-pattern': null,
         'color-no-invalid-hex': true,
+        // CSS Modules' :global()/:local() escape hatch, not standard CSS pseudo-classes.
+        'selector-pseudo-class-no-unknown': [true, { ignorePseudoClasses: ['global', 'local'] }],
         'order/properties-order': [
             [
                 // Сначала позиционирование

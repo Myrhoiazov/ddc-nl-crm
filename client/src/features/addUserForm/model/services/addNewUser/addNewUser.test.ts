@@ -1,62 +1,50 @@
-// import { TestAsyncThunk } from '@/shared/lib/tests/TestAsyncThunk/TestAsyncThunk';
-// import { Country } from '@/entities/Country';
-// import { Currency } from '@/entities/Currency';
-// import { ValidateProfileError } from '../../consts/consts';
-// import { updateProfileData } from './addClientData';
+import { StateSchema } from '@/app/providers/StoreProvider';
+import { addNewUser } from './addNewUser';
 
-// const data = {
-//     username: 'admin',
-//     age: 22,
-//     country: Country.Ukraine,
-//     lastname: 'ulbi tv',
-//     first: 'asd',
-//     city: 'asf',
-//     currency: Currency.USD,
-//     id: '1',
-// };
+const dispatch = jest.fn();
+const extra = { apiPrivate: { post: jest.fn() } };
 
-// describe('updateProfileData.test', () => {
-//     test('success', async () => {
-//         const thunk = new TestAsyncThunk(updateProfileData, {
-//             profile: {
-//                 form: data,
-//             },
-//         });
+const stateWithForm = {
+    newUser: {
+        data: {
+            firstName: 'Admin',
+            lastName: 'User',
+            email: 'admin@example.com',
+        },
+    },
+} as unknown as StateSchema;
 
-//         thunk.api.put.mockReturnValue(Promise.resolve({ data }));
+beforeEach(() => {
+    dispatch.mockClear();
+    extra.apiPrivate.post.mockClear();
+});
 
-//         const result = await thunk.callThunk();
+describe('addNewUser', () => {
+    test('posts the filled form and fulfills with the created user', async () => {
+        const profile = { id: 1, firstName: 'Admin', lastName: 'User' };
+        extra.apiPrivate.post.mockResolvedValue({ data: profile });
 
-//         expect(thunk.api.put).toHaveBeenCalled();
-//         expect(result.meta.requestStatus).toBe('fulfilled');
-//         expect(result.payload).toEqual(data);
-//     });
+        const result = await addNewUser()(dispatch, () => stateWithForm, extra as never);
 
-//     test('error', async () => {
-//         const thunk = new TestAsyncThunk(updateProfileData, {
-//             profile: {
-//                 form: data,
-//             },
-//         });
-//         thunk.api.put.mockReturnValue(Promise.resolve({ status: 403 }));
+        expect(extra.apiPrivate.post).toHaveBeenCalledWith('/users', stateWithForm.newUser?.data);
+        expect(result.meta.requestStatus).toBe('fulfilled');
+        expect(result.payload).toEqual(profile);
+    });
 
-//         const result = await thunk.callThunk();
+    test('rejects without calling the API when the user form is empty', async () => {
+        const result = await addNewUser()(dispatch, () => ({} as StateSchema), extra as never);
 
-//         expect(result.meta.requestStatus).toBe('rejected');
-//         expect(result.payload).toEqual([ValidateProfileError.SERVER_ERROR]);
-//     });
+        expect(extra.apiPrivate.post).not.toHaveBeenCalled();
+        expect(result.meta.requestStatus).toBe('rejected');
+        expect(result.payload).toBe('Форма пользователя не заполнена');
+    });
 
-//     test('validate error', async () => {
-//         const thunk = new TestAsyncThunk(updateProfileData, {
-//             profile: {
-//                 form: { ...data, lastname: '' },
-//             },
-//         });
-//         const result = await thunk.callThunk();
+    test('rejects when the API call fails', async () => {
+        extra.apiPrivate.post.mockRejectedValue(new Error('network error'));
 
-//         expect(result.meta.requestStatus).toBe('rejected');
-//         expect(result.payload).toEqual([
-//             ValidateProfileError.INCORRECT_USER_DATA,
-//         ]);
-//     });
-// });
+        const result = await addNewUser()(dispatch, () => stateWithForm, extra as never);
+
+        expect(result.meta.requestStatus).toBe('rejected');
+        expect(result.payload).toBe('error');
+    });
+});

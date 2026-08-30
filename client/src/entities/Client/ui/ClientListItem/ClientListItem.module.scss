@@ -33,23 +33,23 @@
 .identity {
     display: flex;
     align-items: center;
-    gap: 10px;
     min-width: 0;
+    gap: 10px;
 }
 
 .rowAvatar {
     display: flex;
-    flex-shrink: 0;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     width: 28px;
     height: 28px;
-    overflow: hidden;
-    color: var(--primary-redesigned);
     font-size: 11px;
     font-weight: 700;
+    color: var(--primary-redesigned);
     background: var(--primary-soft-bg-redesigned);
     border-radius: 50%;
+    flex-shrink: 0;
+    overflow: hidden;
 
     img {
         width: 100%;
@@ -59,9 +59,9 @@
 }
 
 .name {
-    overflow: hidden;
     font-weight: 600;
     color: var(--sidebar-text-hover-redesigned);
+    overflow: hidden;
     text-decoration: none;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -87,12 +87,12 @@
 .SMALL {
     display: flex;
     flex-direction: column;
-    gap: 14px;
     min-height: 220px;
     transition:
         transform 0.2s ease,
         box-shadow 0.2s ease,
         border-color 0.2s ease;
+    gap: 14px;
 
     &:hover {
         transform: translateY(-2px);
@@ -102,24 +102,24 @@
 .tileHeader,
 .tileFooter {
     display: flex;
-    gap: 12px;
-    align-items: center;
     justify-content: space-between;
+    align-items: center;
+    gap: 12px;
 }
 
 .avatar {
     display: flex;
-    align-items: center;
     justify-content: center;
+    align-items: center;
     width: 52px;
     height: 52px;
-    overflow: hidden;
-    color: var(--primary-redesigned);
     font-size: 18px;
     font-weight: 700;
-    text-decoration: none;
+    color: var(--primary-redesigned);
     background: var(--primary-soft-bg-redesigned);
     border-radius: 50%;
+    overflow: hidden;
+    text-decoration: none;
 
     img {
         width: 100%;
@@ -129,12 +129,12 @@
 }
 
 .tileName {
-    overflow: hidden;
-    color: var(--sidebar-text-hover-redesigned);
     font-size: 20px;
     font-weight: 700;
-    text-overflow: ellipsis;
+    color: var(--sidebar-text-hover-redesigned);
+    overflow: hidden;
     text-decoration: none;
+    text-overflow: ellipsis;
     white-space: nowrap;
 
     &:hover {
@@ -144,11 +144,11 @@
 
 .tileDetails {
     display: flex;
-    flex: 1;
     flex-direction: column;
-    gap: 5px;
-    color: var(--sidebar-text-redesigned);
     font-size: 14px;
+    color: var(--sidebar-text-redesigned);
+    flex: 1;
+    gap: 5px;
 
     span {
         overflow: hidden;
@@ -176,8 +176,8 @@
 }
 
 .branch {
-    overflow: hidden;
     color: var(--sidebar-text-redesigned);
+    overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
