@@ -98,7 +98,11 @@ npm run deploy        # production Docker deploy
 npm run deploy:docker # alias for the same production deploy
 npm run ci            # mirrors CI locally: client lint/test/build + server build/test + docs-links
 npm run docs:links    # just the markdown link check
+npm run check:skylos  # Skylos audit (dead code / security / secrets / quality / SCA) — informational, not part of `ci`
 ```
+
+`check:skylos` requires Python 3.10+ and Skylos installed locally (`pip install skylos`) — see
+[`docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md`](docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md).
 
 Client (`cd client`):
 
@@ -201,6 +205,9 @@ documented in full:
 GitHub Actions:
 - [`ci.yml`](.github/workflows/ci.yml) — `client-checks`/`server-checks`/`docs-links` on Node 20,
   runs on PRs and pushes to `develop` and `main`
+- `skylos-check` — Skylos static-analysis audit (Python 3.12), same triggers. Currently
+  **informational only** (Phase A) — a failing run does not block merge yet; see
+  [`docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md`](docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md)
 
 Production deploy is manual (`npm run deploy`, run by the repo owner), not GitHub-Actions-triggered —
 see `docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md` (gitignored, local only)

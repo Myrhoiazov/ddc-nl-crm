@@ -22,6 +22,7 @@ npm start                      # запускает вместе server (nodemon
 npm run deploy                 # production Docker deploy (= deploy:docker)
 npm run ci                     # зеркалит CI: client lint/test/build + server build/test + docs-links
 npm run docs:links             # только проверка markdown-ссылок
+npm run check:skylos           # Skylos-аудит (dead code/security/secrets/quality/SCA); informational, не входит в `ci`
 npm run graphify:specs         # обновить Graphify HTML-деревья в docs/spec/
 ```
 
@@ -64,8 +65,9 @@ node --test -r ts-node/register src/services/service.Password.test.ts
 Других production deploy path в репозитории нет. Не дублируй детали здесь.
 
 Деплой **ручной** — его запускает владелец репозитория со своей машины. GitHub Actions (`ci.yml`)
-только гоняет проверки (`client-checks`/`server-checks`/`docs-links`) на PR и push в `develop`/`main`
-и ничего не деплоит; старый `deploy.yml` (PM2, только frontend, был нерабочим — не совпадал с
+только гоняет проверки (`client-checks`/`server-checks`/`docs-links`/`skylos-check`) на PR и push в
+`develop`/`main` и ничего не деплоит; `skylos-check` пока informational (Phase A, не required status
+check — см. `docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md`); старый `deploy.yml` (PM2, только frontend, был нерабочим — не совпадал с
 Docker-стеком и не имел нужных secrets) удалён. Подробности и почему это осознанное решение —
 `docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md` (в .gitignore, только локально).
 
