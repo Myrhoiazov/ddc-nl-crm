@@ -44,6 +44,7 @@ npm run deploy:docker
 npm run graphify:specs
 npm run ci             # mirrors CI: client lint/test/build + server build/test + docs-links
 npm run docs:links     # just the markdown link check
+npm run check:skylos   # Skylos audit (dead code/security/secrets/quality/SCA); informational, not part of `ci`
 ```
 
 Client, from `client/`:
@@ -124,7 +125,7 @@ Also keep `docs/schema.md` and Graphify outputs in sync when schema or architect
 
 ## Infrastructure And Deploy
 
-Production has one supported deploy path: Docker Compose via `npm run deploy` from the repository root. `npm run deploy:docker` is an alias. Deploy is manual, run by the repo owner from their own machine — GitHub Actions only runs CI (`ci.yml`: `client-checks`/`server-checks`/`docs-links`), it does not deploy.
+Production has one supported deploy path: Docker Compose via `npm run deploy` from the repository root. `npm run deploy:docker` is an alias. Deploy is manual, run by the repo owner from their own machine — GitHub Actions only runs CI (`ci.yml`: `client-checks`/`server-checks`/`docs-links`/`skylos-check`), it does not deploy. `skylos-check` (Skylos static analysis) is currently informational only (Phase A, see `docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md`) and is intentionally not part of `npm run ci` — run `npm run check:skylos` separately if you want to mirror it locally.
 
 Do not add parallel production deploy paths. Do not wire Graphify or documentation generation into production deploy. Keep container names and ports driven by env values rather than hardcoded compose values.
 
