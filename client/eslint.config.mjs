@@ -6,6 +6,7 @@ import tseslint from 'typescript-eslint';
 import eslintPluginPrettier from 'eslint-plugin-prettier';
 import pluginReact from 'eslint-plugin-react';
 import i18next from 'eslint-plugin-i18next';
+import globals from 'globals';
 import { IndentStyle } from 'typescript';
 
 export default defineConfig([
@@ -59,6 +60,12 @@ export default defineConfig([
         files: ['**/src/**/*.test.{js,ts,jsx,tsx}'],
         rules: {
             'i18next/no-literal-string': 'off',
+        },
+    },
+    {
+        files: ['config/**/*.js'],
+        languageOptions: {
+            globals: globals.node,
         },
     },
 ]);
