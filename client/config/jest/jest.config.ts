@@ -41,6 +41,7 @@ const config: Config = {
     moduleNameMapper: {
         '\\.(s?css)$': 'identity-obj-proxy',
         '\\.svg': path.resolve(__dirname, 'jestEnptyComponent.tsx'),
+        '\\.(png|jpe?g|gif|webp|avif)$': path.resolve(__dirname, 'fileMock.js'),
         '^react-i18next$': '<rootDir>/config/jest/__mocks__/react-i18next.ts',
         '^@/(.*)$': '<rootDir>/src/$1',
     },
