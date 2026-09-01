@@ -8,11 +8,13 @@
     "graphify:specs": "bash scripts/graphify-update-docs.sh",
     "docs:links": "bash scripts/check-markdown-links.sh",
     "check:skylos": "bash scripts/check-skylos.sh",
+    "test": "npm --prefix client test",
     "ci": "npm --prefix client ci && npm --prefix client run lint:ts && npm --prefix client run lint:scss && npm --prefix client test && npm --prefix client run build:prod && npm --prefix server ci && npm --prefix server run build && npm --prefix server run test:ci && npm run docs:links",
     "graph:update": "graphify extract . --code-only --no-cluster --out . && graphify tree --graph graphify-out/graph.json --output docs/spec/PROJECT_TREE.html --label \"DDC CRM\" && graphify extract server/src --code-only --no-cluster --out graphify-out/server-src && graphify tree --graph graphify-out/server-src/graphify-out/graph.json --output docs/spec/SERVER_SRC_TREE.html --label \"DDC CRM Server src\" && graphify extract client/src --code-only --no-cluster --out graphify-out/client-src && graphify tree --graph graphify-out/client-src/graphify-out/graph.json --output docs/spec/CLIENT_SRC_TREE.html --label \"DDC CRM Client src\""
   },
   "scriptDescriptions": {
     "graph:update": "Обновляет Graphify HTML-деревья проекта: общий граф, server/src и client/src. Запускай после изменений структуры файлов, импортов или крупных рефакторингов.",
+    "test": "Ручной прогон клиентских тестов (Jest) без остальных шагов CI — npm --prefix client test. Для серверных тестов используй domain-скрипты из server/ (test:auth, test:mollie и т.д.), единого server-wide test-скрипта нет.",
     "ci": "Зеркалит GitHub Actions CI локально: client lint/test/build + server build/test + docs-links. Требует настроенного CLIENT_API_URL (см. README) для build:prod. Гоняй перед push — PR обязателен без исключений, сюрпризов от CI быть не должно.",
     "docs:links": "Проверяет отслеживаемые Markdown-файлы на битые ссылки (тот же job, что и docs-links в CI).",
     "check:skylos": "Гоняет Skylos (dead code / security / secrets / quality / SCA) по всему репозиторию — тот же контракт, что и job skylos-check в CI. Требует Python 3.10+ и `pip install skylos` (см. README). Phase A: informational, не входит в npm run ci и не блокирует merge."
