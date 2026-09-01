@@ -4,5 +4,12 @@
         "@babel/preset-typescript",
         ["@babel/preset-react", { "runtime": "automatic" }]
     ],
-    "plugins": ["i18next-extract"]
+    "env": {
+        "development": {
+            "plugins": ["i18next-extract"]
+        },
+        "production": {
+            "plugins": ["i18next-extract"]
+        }
+    }
 }
