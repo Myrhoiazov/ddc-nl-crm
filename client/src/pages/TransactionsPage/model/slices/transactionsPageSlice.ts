@@ -4,7 +4,7 @@ import {
 } from '@reduxjs/toolkit';
 
 import { SortOrder } from '@/shared/types/sort';
-import { fetchTransactionsList } from '../services/fetchTransactionsList/fetchTransactionsList';
+import { fetchTransactionsList, TransactionsListResponse } from '../services/fetchTransactionsList/fetchTransactionsList';
 import { Transaction, TransactionSortField } from '@/entities/Transaction';
 import { TransactionType } from '@/entities/TransactionType';
 import { Summary } from '@/entities/Summary';
@@ -22,6 +22,8 @@ interface TransactionsPageState {
     type: TransactionType;
     sort: TransactionSortField,
     limit: number;
+    total: number;
+    totalPages: number;
     order: SortOrder;
     hasMore: boolean;
     _inited: boolean;
@@ -35,7 +37,9 @@ const initialState: TransactionsPageState = {
     page: 1,
     sort: TransactionSortField.ID,
     type: TransactionType.ALL,
-    limit: 9,
+    limit: 20,
+    total: 0,
+    totalPages: 1,
     month: Month.ALL,
     order: 'desc',
     search: '',
@@ -78,11 +82,15 @@ const transactionsPageSlice = createSlice({
             })
             .addCase(fetchTransactionsList.fulfilled, (
                 state,
-                action: PayloadAction<Transaction[]>,
+                action: PayloadAction<TransactionsListResponse>,
             ) => {
                 state.isLoading = false;
-                state.hasMore = action.payload.length >= state.limit;
-                state.items = action.payload
+                state.items = action.payload.items;
+                state.page = action.payload.page;
+                state.limit = action.payload.limit;
+                state.total = action.payload.total;
+                state.totalPages = action.payload.totalPages;
+                state.hasMore = action.payload.page < action.payload.totalPages;
             })
             .addCase(fetchTransactionsList.rejected, (state, action) => {
                 state.isLoading = false;

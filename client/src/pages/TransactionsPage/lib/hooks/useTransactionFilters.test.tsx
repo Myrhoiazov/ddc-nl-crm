@@ -4,7 +4,7 @@ import { createReduxStore } from '@/app/providers/StoreProvider';
 import { TransactionSortField } from '@/entities/Transaction';
 import { TransactionType } from '@/entities/TransactionType';
 import { Month } from '@/entities/Month';
-import { transactionsPageReducer } from '../../model/slices/transactionsPageSlice';
+import { transactionsPageActions, transactionsPageReducer } from '../../model/slices/transactionsPageSlice';
 import { useTransactionFilters } from './useTransactionFilters';
 
 jest.mock('@/shared/api/api', () => ({
@@ -71,5 +71,19 @@ describe('useTransactionFilters', () => {
         expect(store.getState().transactionPage!.order).toBe('desc');
         expect(store.getState().transactionPage!.type).toBe(TransactionType.EXPENSE);
         expect(store.getState().transactionPage!.month).toBe(Month.JANUARY);
+    });
+
+    test('changing a filter resets the page back to 1', () => {
+        const { result, store } = renderWithStore();
+
+        act(() => {
+            store.dispatch(transactionsPageActions.setPage(3));
+        });
+
+        act(() => {
+            result.current.onChangeSort(TransactionSortField.CATEGORY);
+        });
+
+        expect(store.getState().transactionPage!.page).toBe(1);
     });
 });
