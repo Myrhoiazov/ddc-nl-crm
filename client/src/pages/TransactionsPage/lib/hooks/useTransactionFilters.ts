@@ -34,7 +34,7 @@ export function useTransactionFilters() {
     const onChangeSearch = useCallback(
         (search: string) => {
             dispatch(transactionsPageActions.setSearch(search));
-            // dispatch(articlesPageActions.setPage(1));
+            dispatch(transactionsPageActions.setPage(1));
             debouncedFetchData();
         },
         [dispatch, debouncedFetchData],
@@ -43,7 +43,7 @@ export function useTransactionFilters() {
     const onChangeSort = useCallback(
         (newSort: TransactionSortField) => {
             dispatch(transactionsPageActions.setSort(newSort));
-            // dispatch(articlesPageActions.setPage(1));
+            dispatch(transactionsPageActions.setPage(1));
             fetchData();
         },
         [dispatch, fetchData],
@@ -52,7 +52,7 @@ export function useTransactionFilters() {
     const onChangeMonth = useCallback(
         (newMonth: Month) => {
             dispatch(transactionsPageActions.setMonth(newMonth));
-            // dispatch(articlesPageActions.setPage(1));
+            dispatch(transactionsPageActions.setPage(1));
             fetchData();
         },
         [dispatch, fetchData],
@@ -61,7 +61,7 @@ export function useTransactionFilters() {
     const onChangeOrder = useCallback(
         (newOrder: SortOrder) => {
             dispatch(transactionsPageActions.setOrder(newOrder));
-            // dispatch(articlesPageActions.setPage(1));
+            dispatch(transactionsPageActions.setPage(1));
             fetchData();
         },
         [dispatch, fetchData],
@@ -70,7 +70,7 @@ export function useTransactionFilters() {
     const onChangeType = useCallback(
         (value: TransactionType) => {
             dispatch(transactionsPageActions.setType(value));
-            // dispatch(articlesPageActions.setPage(1));
+            dispatch(transactionsPageActions.setPage(1));
             fetchData();
         },
         [dispatch, fetchData],

@@ -40,14 +40,30 @@ describe('transactionsPageSlice', () => {
         expect(state.error).toBeUndefined();
     });
 
-    test('fetchTransactionsList.fulfilled stores the items and computes hasMore', () => {
+    test('fetchTransactionsList.fulfilled stores the page and computes hasMore', () => {
         const state = transactionsPageReducer(
-            { ...initialState, limit: 9 },
-            fetchTransactionsList.fulfilled([{ id: '1' }] as never, 'id', {}),
+            initialState,
+            fetchTransactionsList.fulfilled({
+                items: [{ id: '1' }], total: 21, page: 1, limit: 20, totalPages: 2,
+            } as never, 'id', {}),
         );
 
         expect(state.isLoading).toBe(false);
         expect(state.items).toEqual([{ id: '1' }]);
+        expect(state.total).toBe(21);
+        expect(state.totalPages).toBe(2);
+        expect(state.page).toBe(1);
+        expect(state.hasMore).toBe(true);
+    });
+
+    test('fetchTransactionsList.fulfilled marks hasMore false on the last page', () => {
+        const state = transactionsPageReducer(
+            initialState,
+            fetchTransactionsList.fulfilled({
+                items: [{ id: '2' }], total: 21, page: 2, limit: 20, totalPages: 2,
+            } as never, 'id', {}),
+        );
+
         expect(state.hasMore).toBe(false);
     });
 

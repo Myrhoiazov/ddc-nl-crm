@@ -59,8 +59,18 @@ export interface GetTransactionsParams {
     _year?: string | number;
     _q?: string,
     _type?: TransactionType,
+    _page?: string | number;
+    _limit?: string | number;
     month?: number;
     year?: number;
+}
+
+export interface PaginatedTransactions {
+    items: FinancialTransaction[];
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
 }
 
 export type TransactionChartPeriod = 'week' | 'month' | 'threeMonths' | 'year';
@@ -305,9 +315,20 @@ const buildChartBuckets = (period: TransactionChartPeriod) => {
     });
 };
 
-export const getAllTransactions = async (params: GetTransactionsParams) => {
+export const getAllTransactions = async (params: GetTransactionsParams): Promise<PaginatedTransactions> => {
     triggerMolliePaymentsRefresh();
-    return getFilteredTransactions(params);
+    const filtered = await getFilteredTransactions(params);
+    const page = Math.max(Number(params._page) || 1, 1);
+    const limit = Math.min(Math.max(Number(params._limit) || 20, 1), 100);
+    const total = filtered.length;
+
+    return {
+        items: filtered.slice((page - 1) * limit, page * limit),
+        total,
+        page,
+        limit,
+        totalPages: Math.max(Math.ceil(total / limit), 1),
+    };
 };
 export const createTransaction = async (data: TTransaction) => {
 
