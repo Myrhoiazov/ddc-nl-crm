@@ -315,7 +315,8 @@ export const mollieCallbackController = async (req: Request, res: Response) => {
         await prisma.mollieOAuthState.delete({ where: { id: oauthState.id } });
 
         res.clearCookie('mollie_oauth_state', { path: '/api/v1/mollie/callback' });
-        res.redirect(process.env.CLIENT_URL ?? 'http://localhost:3000');
+        const fallbackClientUrl = process.env.MODE === 'development' ? 'http://localhost:3000' : undefined;
+        res.redirect(process.env.CLIENT_URL ?? fallbackClientUrl ?? '/');
     } catch (error) {
         console.error('Access Token Error', error.message);
         res.status(500).send('Error retrieving access token');
