@@ -1203,9 +1203,9 @@
 
 - [ ] `.:1` — Repository has no pre-commit policy file.
 
-### `SKY-R105` — Есть tsconfig.json, но нет npm-скрипта с tsc (1)
+### `SKY-R105` — Есть tsconfig.json, но нет npm-скрипта с tsc (1) — ЗАКРЫТО
 
 > Добавить, например, `"typecheck": "tsc --noEmit"` в client/package.json.
 
-- [ ] `client/package.json:1` — client/package.json has tsconfig.json but no npm script that runs tsc.
+- [x] `client/package.json:1` — добавлен скрипт `"typecheck": "tsc --noEmit"`. Внимание: сейчас он не проходит целиком — есть ~20 существующих ошибок типов из `node_modules` (рассинхрон версий `@types/react-router-dom` и `react-router`), не связанных с этой задачей; отдельная задача на будущее, `typecheck` пока не добавлен в `npm run ci`.
 
