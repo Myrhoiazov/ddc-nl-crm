@@ -1,6 +1,6 @@
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createReduxStore, ReduxStoreWithManager } from '@/app/providers/StoreProvider';
 import { $apiPrivate } from '@/shared/api/api';
 import TransactionsPage from './TransactionsPage';
@@ -21,8 +21,14 @@ const summary = { income: 0, expense: 100 };
 
 beforeEach(() => {
     jest.clearAllMocks();
-    ($apiPrivate.get as jest.Mock).mockImplementation((url: string) => {
-        if (url === '/transactions') return Promise.resolve({ data: transactions });
+    ($apiPrivate.get as jest.Mock).mockImplementation((url: string, config?: { params?: { _page?: number } }) => {
+        if (url === '/transactions') {
+            return Promise.resolve({
+                data: {
+                    items: transactions, total: 21, page: config?.params?._page ?? 1, limit: 20, totalPages: 2,
+                },
+            });
+        }
         if (url === '/transactions/summary') return Promise.resolve({ data: summary });
         return Promise.resolve({ data: [] });
     });
@@ -54,5 +60,28 @@ describe('TransactionsPage', () => {
         renderPage();
 
         expect(await screen.findByPlaceholderText('Поиск')).toBeInTheDocument();
+    });
+
+    test('requests the next page and limit of 20 when the next-page button is clicked', async () => {
+        renderPage();
+
+        await screen.findByText('Аренда');
+
+        fireEvent.click(screen.getAllByRole('button', { name: '→' })[0]);
+
+        await waitFor(() => {
+            expect($apiPrivate.get).toHaveBeenCalledWith('/transactions', expect.objectContaining({
+                params: expect.objectContaining({ _page: 2, _limit: 20 }),
+            }));
+        });
+    });
+
+    test('renders the pagination controls both above and below the transaction list', async () => {
+        renderPage();
+
+        await screen.findByText('Аренда');
+
+        expect(screen.getAllByRole('button', { name: '→' })).toHaveLength(2);
+        expect(screen.getAllByRole('button', { name: '←' })).toHaveLength(2);
     });
 });

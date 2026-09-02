@@ -19,6 +19,8 @@ function stateWith(overrides: Record<string, unknown> = {}) {
             order: 'asc',
             type: TransactionType.ALL,
             month: Month.ALL,
+            page: 1,
+            limit: 20,
             ...overrides,
         },
     }) as unknown as StateSchema;
@@ -31,8 +33,10 @@ beforeEach(() => {
 
 describe('fetchTransactionsList', () => {
     test('fetches transactions using the current filters and refreshes the summary', async () => {
-        const transactions = [{ id: '1' }];
-        extra.apiPrivate.get.mockResolvedValue({ data: transactions });
+        const response = {
+            items: [{ id: '1' }], total: 1, page: 1, limit: 20, totalPages: 1,
+        };
+        extra.apiPrivate.get.mockResolvedValue({ data: response });
 
         const result = await fetchTransactionsList({})(dispatch, stateWith({ search: 'rent' }), extra as never);
 
@@ -43,14 +47,34 @@ describe('fetchTransactionsList', () => {
                 _order: 'asc',
                 _month: Month.ALL,
                 _type: null,
+                _page: 1,
+                _limit: 20,
             },
         });
         expect(dispatch).toHaveBeenCalledWith({ type: 'summaryPage/fetchTransactionsSummary/mocked' });
-        expect(result.payload).toEqual(transactions);
+        expect(result.payload).toEqual(response);
+    });
+
+    test('sends the current page and limit from state', async () => {
+        extra.apiPrivate.get.mockResolvedValue({
+            data: {
+                items: [], total: 0, page: 2, limit: 20, totalPages: 3,
+            },
+        });
+
+        await fetchTransactionsList({})(dispatch, stateWith({ page: 2 }), extra as never);
+
+        expect(extra.apiPrivate.get).toHaveBeenCalledWith('/transactions', expect.objectContaining({
+            params: expect.objectContaining({ _page: 2, _limit: 20 }),
+        }));
     });
 
     test('sends the type filter when it is not ALL', async () => {
-        extra.apiPrivate.get.mockResolvedValue({ data: [] });
+        extra.apiPrivate.get.mockResolvedValue({
+            data: {
+                items: [], total: 0, page: 1, limit: 20, totalPages: 1,
+            },
+        });
 
         await fetchTransactionsList({})(dispatch, stateWith({ type: TransactionType.EXPENSE }), extra as never);
 
