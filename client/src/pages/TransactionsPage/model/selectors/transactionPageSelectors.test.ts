@@ -7,10 +7,14 @@ import {
     getTransactionPageError,
     getTransactionPageInited,
     getTransactionPageIsLoading,
+    getTransactionPageLimit,
     getTransactionPageMonth,
     getTransactionPageOrder,
+    getTransactionPagePage,
     getTransactionPageSearch,
     getTransactionPageSort,
+    getTransactionPageTotal,
+    getTransactionPageTotalPages,
     getTransactionPageType,
 } from './transactionPageSelectors';
 
@@ -27,6 +31,10 @@ describe('transactionPageSelectors', () => {
                 type: TransactionType.EXPENSE,
                 error: 'error',
                 month: Month.JANUARY,
+                page: 2,
+                limit: 20,
+                total: 21,
+                totalPages: 2,
             },
         } as unknown as StateSchema;
 
@@ -39,6 +47,10 @@ describe('transactionPageSelectors', () => {
         expect(getTransactionPageType(state)).toBe(TransactionType.EXPENSE);
         expect(getTransactionPageError(state)).toBe('error');
         expect(getTransactionPageMonth(state)).toBe(Month.JANUARY);
+        expect(getTransactionPagePage(state)).toBe(2);
+        expect(getTransactionPageLimit(state)).toBe(20);
+        expect(getTransactionPageTotal(state)).toBe(21);
+        expect(getTransactionPageTotalPages(state)).toBe(2);
     });
 
     test('fall back to defaults when the slice is not mounted', () => {
@@ -51,5 +63,9 @@ describe('transactionPageSelectors', () => {
         expect(getTransactionPageOrder(state)).toBe('asc');
         expect(getTransactionPageType(state)).toBe(TransactionType.ALL);
         expect(getTransactionPageMonth(state)).toBe(Month.ALL);
+        expect(getTransactionPagePage(state)).toBe(1);
+        expect(getTransactionPageLimit(state)).toBe(20);
+        expect(getTransactionPageTotal(state)).toBe(0);
+        expect(getTransactionPageTotalPages(state)).toBe(1);
     });
 });

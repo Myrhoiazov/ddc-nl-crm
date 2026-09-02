@@ -16,3 +16,7 @@ export const getTransactionPageType = (state: StateSchema) =>
     state.transactionPage?.type || TransactionType.ALL;
 export const getTransactionPageError = (state: StateSchema) => state.transactionPage?.error;
 export const getTransactionPageMonth = (state: StateSchema) => state.transactionPage?.month || Month.ALL;
+export const getTransactionPagePage = (state: StateSchema) => state.transactionPage?.page ?? 1;
+export const getTransactionPageLimit = (state: StateSchema) => state.transactionPage?.limit ?? 20;
+export const getTransactionPageTotal = (state: StateSchema) => state.transactionPage?.total ?? 0;
+export const getTransactionPageTotalPages = (state: StateSchema) => state.transactionPage?.totalPages ?? 1;
