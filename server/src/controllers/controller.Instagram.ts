@@ -2,13 +2,13 @@ import { Request, Response } from "express";
 import { env } from 'process';
 // import axios from "axios";
 import crypto from "crypto";
+import { timingSafeEqualStrings } from "../helpers";
 
 const VERIFY_TOKEN = env.VERIFY_MARKER_SECRET || "myverifytoken123";
 
 
 export const verifyRequestSignature = (req: Request, res: Response, buf: Buffer) => {
     const signature = req.headers['x-hub-signature-256'] as string;
-    console.log("signature: ", signature);
 
     if (!signature) return;
 
@@ -17,7 +17,7 @@ export const verifyRequestSignature = (req: Request, res: Response, buf: Buffer)
         .update(buf)
         .digest("hex");
 
-    if ("sha256=" + hash !== signature) {
+    if (!timingSafeEqualStrings("sha256=" + hash, signature)) {
         throw new Error("Invalid signature.");
     }
 }
@@ -36,11 +36,8 @@ export const instagramWebhookController = async (req: Request<{}, {}, {}, IGVeri
     const mode = req.query["hub.mode"];
     const token = req.query["hub.verify_token"];
     const challenge = req.query["hub.challenge"];
-    console.log("challenge: ", challenge);
-    console.log("token: ", token);
-    console.log("mode: ", mode);
 
-    if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    if (mode === "subscribe" && token && timingSafeEqualStrings(token, VERIFY_TOKEN)) {
         return res.status(200).send(Number(challenge));
     }
 

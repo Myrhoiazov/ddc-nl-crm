@@ -10,6 +10,15 @@
 - Один PR — одна категория (или один файл), чтобы ревью оставалось управляемым.
 - Разделы **SKY-D260** и **SKY-L012** отмечены отдельно ниже — с высокой вероятностью это шумные срабатывания для этого проекта, не исправлять их вслепую поштучно.
 
+## Прогресс
+
+**Категория "Безопасность" — закрыта первым проходом** (ветка `fix/skylos-findings`):
+- Реально исправлено: `SKY-D253` (3 из 5 — timing-safe сравнения через новый `timingSafeEqualStrings`), `SKY-D251` (убраны debug-логи с токеном/подписью), `SKY-D291`/`SKY-D293`/`SKY-D312` (permissions, persist-credentials, --ignore-scripts в `.github/workflows/ci.yml` — полностью закрыты), `SKY-D248` (1 из 7 — OAuth-редирект в Mollie).
+- Остальные пункты `SKY-D248`/`SKY-D252`/`SKY-D253`(2)/`SKY-D327`/`SKY-D216`/`SKY-D230`/`SKY-S101` проверены вручную и являются false positive либо намеренным поведением (dev/prod-разветвление) — помечено инлайн у каждого пункта, без изменений кода.
+- Повторный прогон `npm run check:skylos` подтвердил закрытие исправленных пунктов и обнаружил новую находку `SKY-A102` (`server/src/services/service.Token.ts` — "изменён security-код без изменения тестов") — добавлен `server/src/helpers/index.test.ts` на новый хелпер, находка снята.
+- **SKY-D260**: количество срабатываний нестабильно между запусками (187 → 80 без изменений в затронутых файлах) — похоже на нестрогую/выборочную проверку правила в этой версии Skylos; не полагаться на точное число.
+- Следующие категории (мёртвый код, качество/сложность функций, типобезопасность, `SKY-L012`) — отдельными проходами/PR, см. счётчики ниже.
+
 ## Сводка по правилам
 
 | Код | Категория | Кол-во | Что означает |
@@ -53,87 +62,84 @@
 
 ## Безопасность
 
-### `SKY-D253` — Сравнение с уязвимостью к timing-атаке (5)
+### `SKY-D253` — Сравнение с уязвимостью к timing-атаке (5) — ЗАКРЫТО
 
 > Использовать crypto.timingSafeEqual() для сравнения секретов/паролей.
 
-- [ ] `client/src/features/changePassword/model/services/changePasswordThunk.ts:23` — Timing-unsafe comparison of 'newPassword'. Use crypto.timingSafeEqual() for constant-time comparison.
-- [ ] `server/scripts/reset-user-password.ts:67` — Timing-unsafe comparison of 'password'. Use crypto.timingSafeEqual() for constant-time comparison.
-- [ ] `server/src/controllers/controller.Instagram.ts:43` — Timing-unsafe comparison of 'token'. Use crypto.timingSafeEqual() for constant-time comparison.
-- [ ] `server/src/controllers/controller.Instagram.ts:20` — Timing-unsafe comparison of 'signature'. Use crypto.timingSafeEqual() for constant-time comparison.
-- [ ] `server/src/services/service.Token.ts:181` — Timing-unsafe comparison of 'tokenHash'. Use crypto.timingSafeEqual() for constant-time comparison.
+- [x] `server/src/controllers/controller.Instagram.ts:43` — сравнение `hub.verify_token` с секретом переведено на `timingSafeEqualStrings` (новый хелпер в `server/src/helpers/index.ts`, покрыт тестами в `server/src/helpers/index.test.ts`).
+- [x] `server/src/controllers/controller.Instagram.ts:20` — сравнение подписи вебхука (`x-hub-signature-256`) переведено на `timingSafeEqualStrings`.
+- [x] `server/src/services/service.Token.ts:181` — сравнение `tokenHash` при определении текущей сессии переведено на `timingSafeEqualStrings`.
+- [ ] `client/src/features/changePassword/model/services/changePasswordThunk.ts:23` — **false positive**: сравнение `newPassword !== confirmPassword` в браузере — оба значения ввёл сам пользователь в своей форме, границы доверия не пересекаются, timing-атака неприменима. Не менять.
+- [ ] `server/scripts/reset-user-password.ts:67` — **false positive**: интерактивный CLI-скрипт, пароль и подтверждение вводит сам администратор в своём терминале — нет удалённого наблюдателя, способного измерить тайминг. Не менять.
 
-### `SKY-D248` — Захардкоженный внутренний URL (7)
+### `SKY-D248` — Захардкоженный внутренний URL (7) — 1 из 7 исправлен
 
 > Вынести хост в переменную окружения.
 
-- [ ] `client/webpack.config.ts:31` — Hardcoded internal URL detected. Use environment variables for host configuration.
-- [ ] `server/src/app.ts:25` — Hardcoded internal URL detected. Use environment variables for host configuration.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:318` — Hardcoded internal URL detected. Use environment variables for host configuration.
-- [ ] `server/src/middlewares/middleware.Csrf.ts:11` — Hardcoded internal URL detected. Use environment variables for host configuration.
-- [ ] `server/src/services/service.Files.ts:7` — Hardcoded internal URL detected. Use environment variables for host configuration.
-- [ ] `server/src/services/service.InvoiceDelivery.ts:24` — Hardcoded internal URL detected. Use environment variables for host configuration.
-- [ ] `server/src/services/service.PaymentReminders.ts:11` — Hardcoded internal URL detected. Use environment variables for host configuration.
+- [x] `server/src/controllers/conteroller.Mollie.ts:318` — OAuth-редирект после обмена токеном: `http://localhost:3000` fallback теперь применяется только при `MODE=development`, в проде — относительный `/` вместо захардкоженного адреса. Skylos продолжит подсвечивать эту строку (правило ищет сам литерал `http://localhost`, не смотрит на условие) — теперь это тот же принятый паттерн, что и у остальных 6 пунктов ниже.
+- [ ] `client/webpack.config.ts:31` — by design: fallback только при `isDev`, в проде требует `CLIENT_API_URL` (кидает ошибку, если не задан).
+- [ ] `server/src/app.ts:25` — by design: `http://localhost:3000` добавляется в `allowedClientOrigins` только когда `isDev`.
+- [ ] `server/src/middlewares/middleware.Csrf.ts:11` — by design: тот же паттерн — localhost добавляется в allowlist только при `MODE === 'development'`.
+- [ ] `server/src/services/service.Files.ts:7` — by design: `url = isDev ? 'http://localhost:8080' : process.env.CLIENT_URL`.
+- [ ] `server/src/services/service.InvoiceDelivery.ts:24` — by design: последний fallback после проверки `PUBLIC_API_URL`/`SERVER_URL`/`MOLLIE_WEBHOOK_URL`, используется только если ни одна прод-переменная не задана.
+- [ ] `server/src/services/service.PaymentReminders.ts:11` — by design: fallback только при `MODE === 'development'`.
 
-### `SKY-D327` — Возможная эксфильтрация данных (2)
+### `SKY-D327` — Возможная эксфильтрация данных (2) — false positives
 
 > Запрос отправляет process.env/секреты во внешний адрес — подтвердить адресата и убрать чувствительные данные из payload.
 
-- [ ] `scripts/deploy-docker.sh:66` — Shell command may exfiltrate environment variables or local secrets to an external destination.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:294` — HTTP request sends process.env data to an external destination.
+- [ ] `scripts/deploy-docker.sh:66` — **false positive**: `ssh "$DEPLOY_HOST" ...` — это штатный ручной деплой на свой же продовый хост (см. `npm run deploy`, `docs/adr/0002-...`), `$DEPLOY_HOST`/`$REMOTE_PATH` берутся из `.env` владельца репозитория, не из недоверенного ввода; rsync явно исключает `.env`/`node_modules`/`.git`.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:294` — **false positive**: это штатный OAuth2 `authorization_code` обмен с официальным `https://api.mollie.com/oauth2/tokens` — секреты (`MOLLIE_CLIENT_ID`/`MOLLIE_CLIENT_SECRET`) обязаны туда отправляться по протоколу OAuth, адрес захардкожен на HTTPS API Mollie, не переменный.
 
-### `SKY-D216` — Потенциальный SSRF (4)
+### `SKY-D216` — Потенциальный SSRF (4) — false positives
 
 > axios-запрос с URL из переменной — свалидировать против allowlist перед запросом.
 
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2482` — axios call with variable URL — potential SSRF. Validate URL against allowlist.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2416` — axios call with variable URL — potential SSRF. Validate URL against allowlist.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2575` — axios call with variable URL — potential SSRF. Validate URL against allowlist.
-- [ ] `server/src/routes/router.Health.test.ts:20` — fetch() with variable URL — potential SSRF. Validate URL against allowlist.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:2482` — **false positive**: это `axios.isAxiosError(error)` (проверка типа ошибки), не HTTP-запрос.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:2416` — **false positive**: аналогично, `axios.isAxiosError(error)`.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:2575` — **false positive**: аналогично, `axios.isAxiosError(error)`.
+- [ ] `server/src/routes/router.Health.test.ts:20` — **false positive**: тест делает `fetch` на `http://127.0.0.1:${port}`, где `port` — эфемерный порт локального сервера, поднятого этим же тестом.
 
-### `SKY-D230` — Открытый редирект (open redirect) (2)
+### `SKY-D230` — Открытый редирект (open redirect) (2) — false positives
 
 > res.redirect() с переменным аргументом — свалидировать целевой адрес.
 
-- [ ] `server/src/controllers/conteroller.Mollie.ts:270` — Open redirect — res.redirect() with variable argument. Validate redirect target.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:318` — Open redirect — res.redirect() with variable argument. Validate redirect target.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:270` — **false positive**: `authorizationUri` строится библиотекой OAuth2-клиента (`oauthClient.authorizeURL(...)`) из `MOLLIE_REDIRECT_URI`/client id/сгенерированного `state` — не из пользовательского ввода.
+- [x] `server/src/controllers/conteroller.Mollie.ts:318` — цель редиректа не пользовательский ввод (открытый редирект тут неприменим), но заодно убран захардкоженный localhost-fallback — см. `SKY-D248` выше.
 
-### `SKY-D252` — Флаги безопасности cookie не подтверждены (5)
+### `SKY-D252` — Флаги безопасности cookie не подтверждены (5) — by design, не менять
 
 > Явно выставить secure: true (не полагаться на значение по умолчанию/переменную).
 
-- [ ] `server/src/controllers/conteroller.Mollie.ts:262` — Cookie security flags are not proven enabled (httpOnly=true, secure=unknown). Set secure to literal true.
-- [ ] `server/src/controllers/controller.Auth.ts:105` — Cookie security flags are not proven enabled (httpOnly=true, secure=unknown). Set secure to literal true.
-- [ ] `server/src/controllers/controller.Auth.ts:172` — Cookie security flags are not proven enabled (httpOnly=true, secure=unknown). Set secure to literal true.
-- [ ] `server/src/controllers/controller.Auth.ts:254` — Cookie security flags are not proven enabled (httpOnly=true, secure=unknown). Set secure to literal true.
-- [ ] `server/src/controllers/controller.Auth.ts:353` — Cookie security flags are not proven enabled (httpOnly=true, secure=unknown). Set secure to literal true.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:262` — by design: `secure: process.env.MODE === 'production'` — намеренно, чтобы cookie работали по HTTP в локальной разработке (`secure: true` браузер не примет без HTTPS).
+- [ ] `server/src/controllers/controller.Auth.ts:105` — by design, тот же `cookieOptions`.
+- [ ] `server/src/controllers/controller.Auth.ts:172` — by design, тот же `twoFactorPendingCookieOptions`.
+- [ ] `server/src/controllers/controller.Auth.ts:254` — by design, тот же `trustedDeviceCookieOptions`.
+- [ ] `server/src/controllers/controller.Auth.ts:353` — by design, тот же `cookieOptions`.
 
-### `SKY-D251` — Чувствительные данные в console.log (1)
+### `SKY-D251` — Чувствительные данные в console.log (1) — ЗАКРЫТО
 
 > Убрать или замаскировать значение перед логированием.
 
-- [ ] `server/src/controllers/controller.Instagram.ts:40` — Sensitive data 'token' passed to console.log(). Remove or mask before logging.
+- [x] `server/src/controllers/controller.Instagram.ts:40` — `console.log("token", ...)` и соседние отладочные логи (`signature`, `challenge`, `mode`) удалены из `verifyRequestSignature`/`instagramWebhookController`.
 
-### `SKY-D291` — CI workflow без ограничения permissions (4)
+### `SKY-D291` — CI workflow без ограничения permissions (4) — ЗАКРЫТО
 
 > Задать permissions: {} на уровне workflow и минимально необходимые — на уровне job.
 
-- [ ] `.github/workflows/ci.yml:1` — Workflow does not declare top-level permissions. Set permissions: {} and grant minimal permissions per job.
-- [ ] `.github/workflows/ci.yml:18` — Job client-checks inherits the default GITHUB_TOKEN permissions because neither workflow nor job permissions are set.
-- [ ] `.github/workflows/ci.yml:52` — Job server-checks inherits the default GITHUB_TOKEN permissions because neither workflow nor job permissions are set.
-- [ ] `.github/workflows/ci.yml:78` — Job docs-links inherits the default GITHUB_TOKEN permissions because neither workflow nor job permissions are set.
+- [x] `.github/workflows/ci.yml` — добавлен `permissions: {}` на уровне workflow и `permissions: contents: read` для `client-checks`/`server-checks`/`docs-links` (у `skylos` уже был задан).
 
-### `SKY-D293` — actions/checkout сохраняет credentials (1)
+### `SKY-D293` — actions/checkout сохраняет credentials (1) — ЗАКРЫТО
 
 > Выставить persist-credentials: false, если далее в workflow нет git push.
 
-- [ ] `.github/workflows/ci.yml:28` — actions/checkout leaves credentials persisted by default. Set persist-credentials: false unless later git pushes need it.
+- [x] `.github/workflows/ci.yml` — `persist-credentials: false` добавлен на все 4 шага `actions/checkout` (нигде в CI нет `git push`).
 
-### `SKY-D312` — Установка npm-пакетов в CI выполняет lifecycle-скрипты (1)
+### `SKY-D312` — Установка npm-пакетов в CI выполняет lifecycle-скрипты (1) — ЗАКРЫТО
 
 > Использовать --ignore-scripts, если install-скрипты не обязательны.
 
-- [ ] `.github/workflows/ci.yml:36` — JavaScript package installation runs lifecycle scripts. Use --ignore-scripts in workflows unless install scripts are required.
+- [x] `.github/workflows/ci.yml` — `npm ci --ignore-scripts` в `client-checks` и `server-checks` (Prisma generate вызывается отдельным `prebuild`-скриптом, не install-хуком, поэтому не пострадал).
 
 ### `SKY-D260` — Похожий на ASCII символ другого алфавита (homoglyph) (187)
 
@@ -327,11 +333,11 @@
 - [ ] `docs/security/SECURITY_REVIEW_2026-08-12.md:109` — Non-ASCII character 'е' (U+0435) visually resembles ASCII 'e'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
 - [ ] `docs/security/SECURITY_REVIEW_2026-08-12.md:112` — Non-ASCII character 'о' (U+043E) visually resembles ASCII 'o'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
 
-### `SKY-S101` — Значение с высокой энтропией (похоже на секрет) (1)
+### `SKY-S101` — Значение с высокой энтропией (похоже на секрет) (1) — false positive
 
 > Проверить, не закоммичен ли реальный секрет/токен; при необходимости — ротировать и вынести в .env.
 
-- [ ] `server/src/controllers/controller.Clients.ts:193` — High-entropy value detected (entropy=4.23)
+- [ ] `server/src/controllers/controller.Clients.ts:193` — **false positive**: строка `if (selectedGroupIds && !await validateGroupSelection(...))` не содержит строковых литералов вообще; секрета на этой строке нет.
 
 ## Типобезопасность
 
