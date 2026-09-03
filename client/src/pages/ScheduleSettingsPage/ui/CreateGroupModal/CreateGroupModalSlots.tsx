@@ -1,9 +1,8 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ScheduleSlot } from '@/entities/DanceGroup';
+import { SlotRow } from './SlotRow';
 import s from './CreateGroupModal.module.scss';
-
-const DAYS = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 
 interface CreateGroupModalSlotsProps {
     slots: ScheduleSlot[];
@@ -13,7 +12,6 @@ interface CreateGroupModalSlotsProps {
 }
 
 export const CreateGroupModalSlots = memo((props: CreateGroupModalSlotsProps) => {
-    const { slots, onAddSlot, onUpdateSlot, onRemoveSlot } = props;
     const { t } = useTranslation();
 
     return (
@@ -22,45 +20,19 @@ export const CreateGroupModalSlots = memo((props: CreateGroupModalSlotsProps) =>
                 <label className={s.label}>
                     {t('Слоты расписания')} <span className={s.req}>*</span>
                 </label>
-                <button type="button" className={s.addSlotBtn} onClick={onAddSlot}>
+                <button type="button" className={s.addSlotBtn} onClick={props.onAddSlot}>
                     {t('+ Добавить слот')}
                 </button>
             </div>
-            {slots.map((slot, idx) => (
-                <div key={idx} className={s.slotRow}>
-                    <select
-                        className={s.daySelect}
-                        value={slot.dayOfWeek}
-                        onChange={(e) => onUpdateSlot(idx, 'dayOfWeek', e.target.value)}
-                    >
-                        {DAYS.map((d) => (
-                            <option key={d} value={d}>
-                                {d}
-                            </option>
-                        ))}
-                    </select>
-                    <input
-                        className={s.timeInput}
-                        type="time"
-                        value={slot.startTime}
-                        onChange={(e) => onUpdateSlot(idx, 'startTime', e.target.value)}
-                    />
-                    <input
-                        className={s.timeInput}
-                        type="time"
-                        value={slot.endTime}
-                        onChange={(e) => onUpdateSlot(idx, 'endTime', e.target.value)}
-                    />
-                    {slots.length > 1 && (
-                        <button
-                            type="button"
-                            className={s.removeSlot}
-                            onClick={() => onRemoveSlot(idx)}
-                        >
-                            ×
-                        </button>
-                    )}
-                </div>
+            {props.slots.map((slot, idx) => (
+                <SlotRow
+                    key={idx}
+                    slot={slot}
+                    idx={idx}
+                    removable={props.slots.length > 1}
+                    onUpdate={props.onUpdateSlot}
+                    onRemove={props.onRemoveSlot}
+                />
             ))}
         </div>
     );
