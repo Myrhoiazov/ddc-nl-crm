@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (18/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (19/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -964,6 +964,11 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
   `usePaymentHistory.ts` + подкомпонент `PaymentHistoryDayCard`, и
   `useMollieCustomerDetails.ts` для хендлеров главного компонента. Закрывает
   все 3 находки `SKY-C304` и находку `SKY-Q301` на этом файле разом.
+- `PaymentRemindersPage.tsx:95` (329 строк, cc21) — вынесен хук
+  `usePaymentReminders()` (типы, стейт настроек/шаблонов/очереди, вся
+  загрузка и сохранение) и три подкомпонента:
+  `PaymentReminderSettingsCard`, `PaymentReminderTemplateCard`,
+  `PaymentReminderDeliveriesCard`.
 
 Проверено на каждом файле: `tsc --noEmit` (client) — 0 новых ошибок; `npx eslint`
 — 0 ошибок; существующие Jest-тесты каждой страницы прошли без изменений
@@ -1081,7 +1086,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.tsx:104` — Function 'anonymous' is 342 lines long (limit: 50)
 - [x] `client/src/pages/OrganizationBrandsPage/ui/OrganizationBrandsPage.tsx:57` — Function 'anonymous' is 131 lines long (limit: 50)
 - [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.test.tsx:67` — Function 'anonymous' is 65 lines long (limit: 50)
-- [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' is 329 lines long (limit: 50)
+- [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' is 329 lines long (limit: 50)
 - [ ] `client/src/pages/ProfilePage/ui/ActiveSessions/ActiveSessions.tsx:53` — Function 'anonymous' is 125 lines long (limit: 50)
 - [ ] `client/src/pages/ProfilePage/ui/ProfilePage.tsx:38` — Function 'anonymous' is 90 lines long (limit: 50)
 - [ ] `client/src/pages/ProfilePage/ui/ProfilePageHeader/ProfilePageHeader.tsx:20` — Function 'anonymous' is 88 lines long (limit: 50)
@@ -1163,16 +1168,17 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (23/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (24/35)
 
 > Упростить ветвления, вынести под-функции.
 
 **Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
 1 сознательно оставлена, 1 отложена вместе с `SKY-C304`); из 23 client-находок
-обработаны 13 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
+обработаны 14 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
 `DanceStylesPage.tsx`, `ClientEmailBlock.tsx`, `EmailMessageDetail.tsx`,
 `MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx`,
 `HomePage.tsx`, `ClientForm.tsx`, `CreateGroupModal.tsx`,
+`PaymentRemindersPage.tsx`,
 `MollieCustomerDetails.tsx`,
 `MollieIncidents.tsx` — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
@@ -1275,7 +1281,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:173` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [ ] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.tsx:104` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10)
 - [x] `client/src/pages/OrganizationBrandsPage/ui/OrganizationBrandsPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
-- [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
+- [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
