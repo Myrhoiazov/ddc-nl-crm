@@ -1,6 +1,5 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
-import { ClientSortField } from '@/entities/Client';
 import s from './TransactionSortSelector.module.scss';
 import { SortOrder } from '@/shared/types/sort';
 import { useTranslation } from 'react-i18next';

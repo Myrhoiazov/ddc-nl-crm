@@ -1,20 +1,24 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
+import { User } from '@/entities/User';
+import { Article } from '@/entities/Article';
+import { RoleKey } from '@/entities/Role';
 import { addCommentFormActions } from '../../slice/addCommentFormSlice';
 import { sendComment } from './sendComment';
 
 const dispatch = jest.fn();
 const extra = { api: { post: jest.fn() } };
 
-const user = { id: '1', username: 'denis', email: 'd@example.com', role: 'admin' };
+const user = { id: '1', username: 'denis', email: 'd@example.com', role: RoleKey.ADMIN };
 const article = { id: '5', title: 'Title' };
 
-function stateWith(overrides: Partial<{ authData: unknown; articleData: unknown; text: string }> = {}) {
+function stateWith(overrides: Partial<{ authData: Partial<User>; articleData: Partial<Article>; text: string }> = {}): () => StateSchema {
     const { authData = user, articleData = article, text = 'hi' } = overrides;
-    return () => ({
+    return () => fromPartial({
         user: { authData, _inited: true },
         articleDetails: { data: articleData },
         addCommentForm: { text },
-    }) as unknown as StateSchema;
+    });
 }
 
 beforeEach(() => {

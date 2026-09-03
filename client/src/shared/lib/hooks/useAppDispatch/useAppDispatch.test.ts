@@ -9,7 +9,7 @@ jest.mock('react-redux', () => ({
 describe('useAppDispatch', () => {
     test('returns the dispatch function from react-redux', () => {
         const dispatch = jest.fn();
-        (useDispatch as unknown as jest.Mock).mockReturnValue(dispatch);
+        jest.mocked(useDispatch).mockReturnValue(dispatch);
 
         const { result } = renderHook(() => useAppDispatch());
 

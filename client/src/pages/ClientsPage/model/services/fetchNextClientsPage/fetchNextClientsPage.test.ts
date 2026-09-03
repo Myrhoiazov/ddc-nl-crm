@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { fetchNextClientsPage } from './fetchNextClientsPage';
 import { clientsPageActions } from '../../slices/clientsPageSlice';
@@ -7,7 +8,7 @@ const extra = {};
 
 describe('fetchNextClientsPage', () => {
     test('advances the page when more clients are available and nothing is loading', async () => {
-        const state = { clientsPage: { page: 2, hasMore: true, isLoading: false } } as unknown as StateSchema;
+        const state: StateSchema = fromPartial({ clientsPage: { page: 2, hasMore: true, isLoading: false } });
 
         await fetchNextClientsPage()(dispatch, () => state, extra as never);
 
@@ -15,7 +16,7 @@ describe('fetchNextClientsPage', () => {
     });
 
     test('does nothing when there are no more clients to load', async () => {
-        const state = { clientsPage: { page: 2, hasMore: false, isLoading: false } } as unknown as StateSchema;
+        const state: StateSchema = fromPartial({ clientsPage: { page: 2, hasMore: false, isLoading: false } });
 
         await fetchNextClientsPage()(dispatch, () => state, extra as never);
 
@@ -23,7 +24,7 @@ describe('fetchNextClientsPage', () => {
     });
 
     test('does nothing while a page is already loading', async () => {
-        const state = { clientsPage: { page: 2, hasMore: true, isLoading: true } } as unknown as StateSchema;
+        const state: StateSchema = fromPartial({ clientsPage: { page: 2, hasMore: true, isLoading: true } });
 
         await fetchNextClientsPage()(dispatch, () => state, extra as never);
 

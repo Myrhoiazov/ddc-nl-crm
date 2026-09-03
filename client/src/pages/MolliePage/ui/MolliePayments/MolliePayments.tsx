@@ -150,18 +150,6 @@ const getCustomerName = (customer?: MolliePaymentCustomer) => {
         || 'Без имени';
 };
 
-const getCrmClientName = (customer?: MolliePaymentCustomer) => {
-    const crmClient = customer?.clientLinks?.[0]?.client || customer?.client;
-
-    if (!crmClient) {
-        return '';
-    }
-
-    return [crmClient.firstName, crmClient.lastName].filter(Boolean).join(' ')
-        || crmClient.email
-        || `Ученик #${crmClient.id}`;
-};
-
 const getStudentLinks = (customer?: MolliePaymentCustomer) => (
     customer?.clientLinks?.length
         ? customer.clientLinks

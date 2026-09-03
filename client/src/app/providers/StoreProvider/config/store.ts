@@ -1,6 +1,6 @@
 import { configureStore, Reducer, ReducersMapObject } from '@reduxjs/toolkit';
 import { userReducer } from '@/entities/User';
-import { StateSchema } from './StateSchema';
+import { StateSchema, ReduxStoreWithManager } from './StateSchema';
 import { createReducerManager } from './reducerManager';
 import { $api, $apiPrivate, injectStore } from '@/shared/api/api';
 import { uiReducer } from '@/features/UI';
@@ -18,7 +18,6 @@ export function createReduxStore(
     const reducerManager = createReducerManager(rootReducers);
 
     const store = configureStore({
-        // @ts-ignore
         reducer: reducerManager.reduce as Reducer<CombinedState<StateSchema>>,
         devTools: __IS_DEV__,
         preloadedState: initialState,
@@ -32,8 +31,7 @@ export function createReduxStore(
         })
     });
 
-    // @ts-ignore
-    store.reducerManager = reducerManager;
+    (store as ReduxStoreWithManager).reducerManager = reducerManager;
     injectStore(store);
 
     return store;

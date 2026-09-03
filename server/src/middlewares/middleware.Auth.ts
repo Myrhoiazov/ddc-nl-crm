@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from "express";
-import { get, merge } from "lodash";
+import { merge } from "lodash";
 import { getUserByOpaqueSessionToken } from "../services/service.Token";
 import { UserRole } from "@prisma/client";
 
@@ -27,24 +27,12 @@ export const isAuthenticated = async (req: Request, res: Response, next: NextFun
     }
 }
 
-export const asyncHandler = (fn: any) => (req: Request, res: Response, next: NextFunction) =>
+type AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => unknown;
+
+export const asyncHandler = (fn: AsyncRequestHandler) => (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);
+};
 
-
-export const isOwner = (req: Request, res: Response, next: NextFunction) => {
-    const { id } = req.params
-    if (!id) {
-        return res.status(400).json({ message: "User ID is required" });
-    }
-    const userId = get(req, "params.id", null);
-    const currentUser = get(req, "user", null);
-
-    if (!currentUser || !userId || String(currentUser.id) !== String(userId)) {
-        return res.status(403).json({ message: "Forbidden" });
-    }
-
-    next();
-}
 
 export const requireRole = (...roles: UserRole[]) => (
     req: Request,
