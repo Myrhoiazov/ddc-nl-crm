@@ -1088,12 +1088,13 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (7/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (10/35)
 
 > Упростить ветвления, вынести под-функции.
 
-**Прогресс: server-часть начата (7 из 12 находок на сервере обработаны, 5 ещё
-остались), client-часть (23 находки) ещё не начата.** Многие из client-находок
+**Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
+1 сознательно оставлена, 1 отложена вместе с `SKY-C304`), client-часть
+(23 находки) ещё не начата.** Многие из client-находок
 — это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
 `SKY-C304` (те же файлы фигурируют там как "слишком длинные функции") — их
 корректная декомпозиция это фактически та же работа, что и для `SKY-C304`, и
@@ -1125,6 +1126,32 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
   и `controller.Invoices.ts:793` (`createInvoiceAdjustment`, cc11) — валидационные
   проверки (тип документа/статус/сумма) вынесены в
   `validateInvoicePaymentEligibility`/`validateInvoiceAdjustmentEligibility`.
+- `controller.Schedule.ts:336` (`danceStyleData`, cc12) — 10 полей строились
+  через одинаковый `body.X ? String(body.X).trim() : null`; вынесено в один
+  переиспользуемый `optionalTrimmedString(value)`.
+- `controller.Users.ts:65` (`updateUserController`, cc13) — два блока записи
+  security-аудита (смена роли, смена isEnabled — каждый с двумя
+  `recordAuthSecurityEvent`) вынесены в `recordRoleChangeAudit`/
+  `recordEnabledChangeAudit`. Сами проверки-guard'ы (нельзя заблокировать/
+  переназначить себе роль) не трогались.
+- `service.InvoiceDelivery.ts:62` (`sendInvoiceEmail`, cc12) — условие
+  `balanceDueCents > 0 && iban && paymentReference` было продублировано в двух
+  тернарниках (текстовая и html-версия банковских реквизитов) — объединено в
+  один локальный хелпер `bankTransferInstructions()`; резолвинг ссылки на
+  оплату вынесен в `resolvePaymentUrls()`. Оба — локальные замыкания внутри
+  функции (не отдельные top-level экспорты), поэтому не пришлось выписывать
+  Prisma-тип инвойса вручную.
+- `service.Transaction.ts:200` (`getFilteredTransactions`, cc15) — сортировка
+  строила `leftValue`/`rightValue` через одинаковую цепочку из 3 вложенных
+  тернарников по `_sortBy`, продублированную для `left`/`right` — вынесено в
+  `sortKeyFor(transaction, sortBy)`.
+
+Отложено вместе с `SKY-C304` (та же функция там же тоже фигурирует):
+- `service.InvoicePdf.ts:66` (`createInvoicePdf`, cc25) — ~200-строчная функция
+  вёрстки PDF через `pdfkit` (шапка, реквизиты сторон, таблица позиций, итоги,
+  QR-код, футер). Правильное исправление — это декомпозиция на функции по
+  секциям макета, что и есть работа по `SKY-C304` для этого же файла;
+  переделывать её дважды смысла нет.
 
 Сознательно не тронуто:
 - `controller.Auth.ts:110` (`login`, cc11) — функция логина: dummy-hash сравнение
@@ -1176,11 +1203,11 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - [x] `server/src/controllers/controller.Invoices.ts:584` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
 - [x] `server/src/controllers/controller.Invoices.ts:762` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
 - [x] `server/src/controllers/controller.Invoices.ts:793` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
-- [ ] `server/src/controllers/controller.Schedule.ts:336` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
-- [ ] `server/src/controllers/controller.Users.ts:65` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
-- [ ] `server/src/services/service.InvoiceDelivery.ts:62` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
+- [x] `server/src/controllers/controller.Schedule.ts:336` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
+- [x] `server/src/controllers/controller.Users.ts:65` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
+- [x] `server/src/services/service.InvoiceDelivery.ts:62` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [ ] `server/src/services/service.InvoicePdf.ts:66` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10)
-- [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
+- [x] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
 
 ### `SKY-Q302` — Слишком большая глубина вложенности (4) — ЗАКРЫТО
 
