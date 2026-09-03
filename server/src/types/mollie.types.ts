@@ -40,7 +40,7 @@ export interface MollieCustomer {
     name: string;
     email: string;
     locale?: string;
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     recentlyUsedMethods?: string[];
     createdAt: string;
 }

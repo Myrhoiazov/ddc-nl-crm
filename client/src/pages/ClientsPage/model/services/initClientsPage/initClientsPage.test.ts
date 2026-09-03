@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { ClientSortField } from '@/entities/Client';
 import { clientsPageActions } from '../../slices/clientsPageSlice';
@@ -13,8 +14,8 @@ jest.mock('../fetchClientsList/fetchClientsList', () => ({
 const dispatch = jest.fn();
 const extra = {};
 
-function stateWith(inited: boolean) {
-    return () => ({ clientsPage: { _inited: inited } }) as unknown as StateSchema;
+function stateWith(inited: boolean): () => StateSchema {
+    return () => fromPartial({ clientsPage: { _inited: inited } });
 }
 
 beforeEach(() => {

@@ -1,4 +1,5 @@
 import { act, render, screen } from '@testing-library/react';
+import { fromAny } from '@total-typescript/shoehorn';
 import { Avatar } from './Avatar';
 
 class MockImage {
@@ -19,12 +20,12 @@ let instances: MockImage[] = [];
 
 beforeEach(() => {
     instances = [];
-    (global as unknown as { Image: typeof Image }).Image = class extends MockImage {
+    global.Image = fromAny(class extends MockImage {
         constructor() {
             super();
             instances.push(this);
         }
-    } as unknown as typeof Image;
+    });
 });
 
 describe('Avatar', () => {

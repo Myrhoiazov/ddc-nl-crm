@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import dayjs from 'dayjs';
 import prisma from '../../prisma/prisma-client'
 import ApiError from '../helpers/ApiError';
+import { timingSafeEqualStrings } from '../helpers';
 import { getUserById } from './service.Users';
 
 const Session = prisma.session
@@ -178,7 +179,7 @@ export const listUserSessions = async (userId: number, currentSessionToken: stri
 
     return sessions.map(({ tokenHash, ...session }) => ({
         ...session,
-        isCurrent: Boolean(currentTokenHash && tokenHash === currentTokenHash),
+        isCurrent: Boolean(currentTokenHash && timingSafeEqualStrings(tokenHash, currentTokenHash)),
     }));
 };
 

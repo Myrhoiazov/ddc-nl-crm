@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import {
     getMollieClientsPageError,
@@ -12,11 +13,11 @@ import {
 
 describe('mollieClientsPageSelectors', () => {
     test('read from mollieClientsPage for list-page fields', () => {
-        const state = {
+        const state: StateSchema = fromPartial({
             mollieClientsPage: {
                 isLoading: true, error: 'error', page: 2, limit: 20, total: 40, totalPages: 2,
             },
-        } as unknown as StateSchema;
+        });
 
         expect(getMollieClientsPageIsLoading(state)).toBe(true);
         expect(getMollieClientsPageError(state)).toBe('error');
@@ -29,9 +30,9 @@ describe('mollieClientsPageSelectors', () => {
     test('read mandates and subscriptions from customerDetailsMandates', () => {
         const mandates = [{ id: '1' }];
         const subscriptions = [{ id: '1' }];
-        const state = {
+        const state: StateSchema = fromPartial({
             customerDetailsMandates: { isLoading: true, error: 'error', mandates, subscriptions },
-        } as unknown as StateSchema;
+        });
 
         expect(getMollieClientsPageMandates(state)).toEqual(mandates);
         expect(getMollieClientsPageSubscriptions(state)).toEqual(subscriptions);

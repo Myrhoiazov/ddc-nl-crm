@@ -1,5 +1,5 @@
 import { Checkbox } from '@headlessui/react';
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './CheckBox.module.scss';
 import { HStack } from '../Stack';

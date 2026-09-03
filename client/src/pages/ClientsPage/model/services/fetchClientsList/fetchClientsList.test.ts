@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { ClientSortField } from '@/entities/Client';
 import { fetchClientsList } from './fetchClientsList';
@@ -5,8 +6,8 @@ import { fetchClientsList } from './fetchClientsList';
 const dispatch = jest.fn();
 const extra = { apiPrivate: { get: jest.fn() } };
 
-function stateWith(overrides: Record<string, unknown> = {}) {
-    return () => ({
+function stateWith(overrides: Record<string, unknown> = {}): () => StateSchema {
+    return () => fromPartial({
         clientsPage: {
             search: '',
             sort: ClientSortField.CREATED,
@@ -15,7 +16,7 @@ function stateWith(overrides: Record<string, unknown> = {}) {
             paymentStatus: 'all',
             ...overrides,
         },
-    }) as unknown as StateSchema;
+    });
 }
 
 beforeEach(() => {

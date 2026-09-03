@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { Month } from '@/entities/Month';
 import { TransactionType } from '@/entities/TransactionType';
@@ -6,8 +7,8 @@ import { fetchTransactionsSummary } from './fetchTransactionsSummary';
 const dispatch = jest.fn();
 const extra = { apiPrivate: { get: jest.fn() } };
 
-function stateWith(type: TransactionType, month: Month) {
-    return () => ({ transactionPage: { type, month } }) as unknown as StateSchema;
+function stateWith(type: TransactionType, month: Month): () => StateSchema {
+    return () => fromPartial({ transactionPage: { type, month } });
 }
 
 beforeEach(() => {
