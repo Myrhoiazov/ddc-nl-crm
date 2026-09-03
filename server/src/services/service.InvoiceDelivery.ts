@@ -80,23 +80,32 @@ export const sendInvoiceEmail = async ({
         throw new Error('Draft or cancelled invoice cannot be sent');
     }
 
-    const publicToken = crypto.randomBytes(32).toString('hex');
-    const paymentLink = invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)
-        ? await ensureInvoicePaymentLink(invoice)
-        : null;
-    const paymentUrl = paymentLink?.paymentUrl ?? null;
-    const emailPaymentUrl = invoice.showPaymentButton ? paymentUrl : null;
-    const bankTransferText = invoice.balanceDueCents > 0 && invoice.iban && invoice.paymentReference
-        ? `\n\nBank transfer:\nIBAN: ${invoice.iban}\nReference: ${invoice.paymentReference}\nAlways include this reference so we can match your payment to the invoice.`
-        : '';
-    const bankTransferHtml = invoice.balanceDueCents > 0 && invoice.iban && invoice.paymentReference
-        ? `<div style="margin:20px 0;padding:16px;background:#f5f6f8;border-radius:8px">
+    const resolvePaymentUrls = async () => {
+        const paymentLink = invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)
+            ? await ensureInvoicePaymentLink(invoice)
+            : null;
+        const paymentUrl = paymentLink?.paymentUrl ?? null;
+        return { paymentUrl, emailPaymentUrl: invoice.showPaymentButton ? paymentUrl : null };
+    };
+
+    const bankTransferInstructions = () => {
+        if (invoice.balanceDueCents <= 0 || !invoice.iban || !invoice.paymentReference) {
+            return { text: '', html: '' };
+        }
+        return {
+            text: `\n\nBank transfer:\nIBAN: ${invoice.iban}\nReference: ${invoice.paymentReference}\nAlways include this reference so we can match your payment to the invoice.`,
+            html: `<div style="margin:20px 0;padding:16px;background:#f5f6f8;border-radius:8px">
                 <strong>Pay by bank transfer</strong>
                 <p style="margin:8px 0 4px">IBAN: ${escapeHtml(invoice.iban)}</p>
                 <p style="margin:4px 0">Reference: <strong>${escapeHtml(invoice.paymentReference)}</strong></p>
                 <p style="margin:8px 0 0;color:#6b7280;font-size:13px">Always include this reference so we can match your payment to the invoice.</p>
-            </div>`
-        : '';
+            </div>`,
+        };
+    };
+
+    const publicToken = crypto.randomBytes(32).toString('hex');
+    const { paymentUrl, emailPaymentUrl } = await resolvePaymentUrls();
+    const { text: bankTransferText, html: bankTransferHtml } = bankTransferInstructions();
     const subject = subjectFor(invoice.number, type);
     const delivery = await prisma.invoiceDelivery.create({
         data: {

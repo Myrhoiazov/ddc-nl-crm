@@ -197,6 +197,13 @@ const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
     return manual.concat(mollie);
 };
 
+const sortKeyFor = (transaction: FinancialTransaction, sortBy: string) => {
+    if (sortBy === 'category') return transaction.category;
+    if (sortBy === 'id') return transaction.id;
+    if (sortBy === 'createdAt') return transaction.createdAt.getTime();
+    return transaction.date.getTime();
+};
+
 const getFilteredTransactions = async (params: GetTransactionsParams) => {
     let { _sortBy = 'createdAt', _q, _type, _month = Month.ALL, _year = dayjs().year() } = params;
     const order = params._order?.toLowerCase() === 'asc' ? 'asc' : 'desc';
@@ -229,20 +236,8 @@ const getFilteredTransactions = async (params: GetTransactionsParams) => {
             return matchesQuery && matchesType && matchesMonth;
         })
         .sort((left, right) => {
-            const leftValue = _sortBy === 'category'
-                ? left.category
-                : _sortBy === 'id'
-                    ? left.id
-                : _sortBy === 'createdAt'
-                    ? left.createdAt.getTime()
-                    : left.date.getTime();
-            const rightValue = _sortBy === 'category'
-                ? right.category
-                : _sortBy === 'id'
-                    ? right.id
-                : _sortBy === 'createdAt'
-                    ? right.createdAt.getTime()
-                    : right.date.getTime();
+            const leftValue = sortKeyFor(left, _sortBy);
+            const rightValue = sortKeyFor(right, _sortBy);
             const comparison = leftValue < rightValue ? -1 : leftValue > rightValue ? 1 : 0;
 
             return order === 'asc' ? comparison : -comparison;
