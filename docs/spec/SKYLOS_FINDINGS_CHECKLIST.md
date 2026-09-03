@@ -1027,6 +1027,54 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
 `npm run lint:ts` 0 ошибок, `npm run build:prod` чисто (только исходные предупреждения
 о размере бандла), `npm run docs:links` чисто.
 
+**Волна 7 (server-контроллеры — рефокус с client-хуков на серверные
+контроллеры, вариант план-1):** декомпозированы два самых крупных неразложенных
+серверных контроллера. Суммарно находки `SKY-C304`/`SKY-Q301` на них упали
+**29 → 26** (`conteroller.Mollie.ts` 17 → 16, `controller.Invoices.ts` 12 → 10).
+
+- `controller.Invoices.ts` — добавлены чистые хелперы `calculateTotalCents`,
+  `mapInvoiceItemCreates`, `archivePaymentLinksSafe`, `buildPaidInvoiceCreateData`,
+  `buildInvoiceUpdateData`, `calculatePaymentResult` + типы `InvoiceItemInput`/
+  `CreateInvoiceData`; к ним переведены `createInvoice`, `createPaidInvoice`,
+  `updateInvoice`, `updateInvoiceStatus`, `recordInvoicePayment`. Снято 2 находки
+  `SKY-C304` (функции, поднятые <50 строк); прочие остаются >50 (валюто-/
+  статус-логика), включая отложенные HIGH-risk денежные функции
+  `createInvoiceAdjustment` (cc17/109 строк) и `confirmPaidInvoice` (cc11/82 строк).
+- `conteroller.Mollie.ts` — добавлены кросс-функциональные хелперы `queryString`,
+  `paginatedResponse`, `paymentDateRangeWhere`, `customerSearchWhere`,
+  `paymentSearchWhere`; ими переведены read-only контроллеры `mollieGetCustomersController`,
+  `mollieGetPaymentsController`, `mollieExportPaymentsController`. Инцидент-контроллер
+  `mollieGetPaymentIncidentsController` переписан через хелперы инцидентов
+  (`incidentCustomerSelect`, `includePaymentRelations`, `loadIncidentResolvedIds`,
+  `incidentTotals`, `incidentPaginatedResponse`, `loadPaymentIncidents`,
+  `loadSubscriptionIncidents`, `loadCustomerIncidents`, `loadCombinedIncidents`) —
+  размер функции 238 → 66 строк.
+- `mollieGetPaymentsMatrixController` (read-only, 202 строки) — разложен через
+  чистые хелперы `resolvePaymentMatrixYear`, `buildPaymentMatrixMonths`,
+  `paymentMatrixSelector`, `createPaymentsMatrixCells`, `matrixClientsQuery`,
+  `matrixUnlinkedCustomersQuery`, `buildMatrixClientRow`, `buildMatrixUnlinkedRow`
+  + типы `MatrixCell`/`MatrixMonth`/`MatrixPayment`/`MatrixRow`; функция поднята
+  под 50 строк, находка `SKY-C304` закрыта.
+- Сознательно НЕ тронуты (HIGH-risk денежные пути — дефер до следующих волн):
+  `mollieCallbackController` (:272), `mollieCreateCustomerPaymentLinkController`
+  (:1528), `mollieCreateMandateSubscriptionController` (:2228),
+  `mollieUpdateSubscriptionController` (:2372), `mollieRestartSubscriptionController`
+  (:2480), `mollieRevokeMandateController` (:2546), `mollieCancelPaymentController`,
+  `mollieResolveIncidentController`, `createInvoiceAdjustment`, `confirmPaidInvoice`.
+- Client (1 чистая декомпозиция): `useMolliePayments` — вынесены `buildPaymentParams`
+  (общий маппинг фильтров для списка) и `downloadBlob` (скачивание CSV), убрано
+  дублирование между `loadPayments`/`onExport`.
+- Известные артефакты декомпозиции: новые хелперы дают ложные `SKY-U001`
+  "unused function" — это dead-code эвристика, не понимающая экспорт-роут-связки;
+  сами указывают на хелперы, реально используемые контроллерами (уже шумная
+  категория, не блок, не гоняемся за ней).
+- Проверки: `tsc --noEmit` (server) чисто (TSC_EXIT=0); `npm run test:ci` — все
+  домены зелёные (auth 11 / mollie 7 / search 6 / email 10 / payment-reminders 14,
+  0 fail); client `npm run lint:ts` 0 ошибок, Jest 281/281 suites / 976/976.
+  Контроллеры без unit-тестов (как и раньше) — проверка через `tsc` +
+  строго behavior-preserving extraction.** `check:skylos` informational (Phase A),
+  не блокирует merge.
+
 - [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:38` — Function 'anonymous' is 82 lines long (limit: 50)
 - [ ] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.tsx:27` — Function 'anonymous' is 63 lines long (limit: 50)
 - [ ] `client/src/entities/Client/ui/ClientCard/ClientCard.tsx:28` — Function 'anonymous' is 94 lines long (limit: 50)
