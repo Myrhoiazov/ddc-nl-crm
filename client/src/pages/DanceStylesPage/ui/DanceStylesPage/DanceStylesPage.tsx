@@ -1,157 +1,38 @@
-import { ChangeEvent, memo, useCallback, useEffect, useMemo, useState } from 'react';
+import { memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Page } from '@/widgets/Page/Page';
-import { Modal } from '@/shared/ui/Modal/Modal';
-import { $apiPrivate } from '@/shared/api/api';
-import { toast } from 'react-toastify';
-import { useSearchParams } from 'react-router-dom';
 import { getStyleColorSlot } from '@/shared/lib/styleColor/styleColor';
+import { useDanceStyles } from '../../useDanceStyles';
+import { DanceStyleFormModal } from './DanceStyleFormModal';
 import s from './DanceStylesPage.module.scss';
-
-interface DanceStyle {
-    id: number;
-    name: string;
-    nameUa?: string;
-    nameEn?: string;
-    description?: string;
-    descriptionUa?: string;
-    descriptionEn?: string;
-    content?: string;
-    contentUa?: string;
-    contentEn?: string;
-    image?: string;
-    youtubeUrl?: string;
-    isActive: boolean;
-}
-
-type Lang = 'ru' | 'ua' | 'en';
-type StyleForm = Omit<DanceStyle, 'id'>;
-
-const emptyForm: StyleForm = {
-    name: '',
-    nameUa: '',
-    nameEn: '',
-    description: '',
-    descriptionUa: '',
-    descriptionEn: '',
-    content: '',
-    contentUa: '',
-    contentEn: '',
-    image: '',
-    youtubeUrl: '',
-    isActive: true,
-};
-
-const langFields = {
-    ru: { name: 'name', description: 'description', content: 'content', label: 'RU' },
-    ua: { name: 'nameUa', description: 'descriptionUa', content: 'contentUa', label: 'UA' },
-    en: { name: 'nameEn', description: 'descriptionEn', content: 'contentEn', label: 'EN' },
-} as const;
 
 const DanceStylesPage = memo(() => {
     const { t } = useTranslation();
-    const [searchParams] = useSearchParams();
-    const [items, setItems] = useState<DanceStyle[]>([]);
-    const [search, setSearch] = useState(searchParams.get('_q') ?? '');
-    const [status, setStatus] = useState('all');
-    const [sort, setSort] = useState('name-asc');
-    const [loading, setLoading] = useState(false);
-    const [modalOpen, setModalOpen] = useState(false);
-    const [editingId, setEditingId] = useState<number>();
-    const [lang, setLang] = useState<Lang>('ru');
-    const [form, setForm] = useState<StyleForm>(emptyForm);
-    const [saving, setSaving] = useState(false);
-
-    const loadStyles = useCallback(async () => {
-        setLoading(true);
-        try {
-            const { data } = await $apiPrivate.get<{ items: DanceStyle[] }>('/schedule/style-cards', {
-                params: { _q: search, status, sort },
-            });
-            setItems(data.items);
-        } catch {
-            toast.error('Не удалось загрузить стили');
-        } finally {
-            setLoading(false);
-        }
-    }, [search, status, sort]);
-
-    useEffect(() => {
-        const timer = window.setTimeout(loadStyles, 250);
-        return () => window.clearTimeout(timer);
-    }, [loadStyles]);
-
-    useEffect(() => {
-        setSearch(searchParams.get('_q') ?? '');
-    }, [searchParams]);
-
-    const openCreate = () => {
-        setEditingId(undefined);
-        setForm(emptyForm);
-        setLang('ru');
-        setModalOpen(true);
-    };
-
-    const openEdit = (item: DanceStyle) => {
-        setEditingId(item.id);
-        setForm({ ...emptyForm, ...item });
-        setLang('ru');
-        setModalOpen(true);
-    };
-
-    const updateField = (field: keyof StyleForm, value: string | boolean) => {
-        setForm((current) => ({ ...current, [field]: value }));
-    };
-
-    const uploadImage = async (event: ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        const data = new FormData();
-        data.append('file', file);
-        try {
-            const response = await $apiPrivate.post<{ url: string }>('/schedule/style-cards/upload', data);
-            updateField('image', response.data.url);
-        } catch {
-            toast.error('Не удалось загрузить фото');
-        }
-    };
-
-    const save = async () => {
-        if (!form.name.trim()) {
-            toast.error('Укажите название на русском');
-            return;
-        }
-        setSaving(true);
-        try {
-            if (editingId) await $apiPrivate.put(`/schedule/style-cards/${editingId}`, form);
-            else await $apiPrivate.post('/schedule/style-cards', form);
-            toast.success(editingId ? 'Стиль обновлён' : 'Стиль добавлен');
-            setModalOpen(false);
-            loadStyles();
-        } catch {
-            toast.error('Не удалось сохранить стиль');
-        } finally {
-            setSaving(false);
-        }
-    };
-
-    const remove = async (item: DanceStyle) => {
-        if (!window.confirm(`Удалить стиль «${item.name}»?`)) return;
-        try {
-            await $apiPrivate.delete(`/schedule/style-cards/${item.id}`);
-            toast.success('Стиль удалён');
-            loadStyles();
-        } catch {
-            toast.error('Не удалось удалить стиль');
-        }
-    };
-
-    const toggle = async (item: DanceStyle) => {
-        await $apiPrivate.put(`/schedule/style-cards/${item.id}`, { ...item, isActive: !item.isActive });
-        loadStyles();
-    };
-
-    const fields = langFields[lang];
+    const {
+        items,
+        search,
+        setSearch,
+        status,
+        setStatus,
+        sort,
+        setSort,
+        loading,
+        modalOpen,
+        setModalOpen,
+        editingId,
+        lang,
+        setLang,
+        form,
+        saving,
+        openCreate,
+        openEdit,
+        updateField,
+        uploadImage,
+        save,
+        remove,
+        toggle,
+        resetFilters,
+    } = useDanceStyles();
     const shown = useMemo(() => `${items.length}`, [items.length]);
 
     return (
@@ -165,7 +46,7 @@ const DanceStylesPage = memo(() => {
                 <label>{t('Поиск')}<input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="По названию или описанию" /></label>
                 <label>{t('Статус')}<select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">{t('Все')}</option><option value="active">{t('Включены')}</option><option value="inactive">{t('Выключены')}</option></select></label>
                 <label>{t('Сортировка')}<select value={sort} onChange={(e) => setSort(e.target.value)}><option value="name-asc">{t('По алфавиту: А → Я')}</option><option value="name-desc">{t('По алфавиту: Я → А')}</option><option value="newest">{t('Сначала новые')}</option></select></label>
-                <button className={s.reset} onClick={() => { setSearch(''); setStatus('all'); setSort('name-asc'); }}>{t('Сбросить')}</button>
+                <button className={s.reset} onClick={resetFilters}>{t('Сбросить')}</button>
                 <span className={s.count}>{t('Показано: {{shown}}', { shown })}</span>
             </section>
 
@@ -188,20 +69,18 @@ const DanceStylesPage = memo(() => {
                 </div>
             )}
 
-            <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} lazy>
-                <div className={s.form}>
-                    <h2>{editingId ? 'Редактировать стиль' : 'Добавить стиль'}</h2>
-                    <div className={s.tabs}>{(['ua', 'ru', 'en'] as Lang[]).map((code) => <button key={code} className={lang === code ? s.activeTab : ''} onClick={() => setLang(code)}>{langFields[code].label}</button>)}</div>
-                    <label>{t('Название (')}{fields.label}) {lang === 'ru' && '*'}<input value={String(form[fields.name] ?? '')} onChange={(e) => updateField(fields.name, e.target.value)} placeholder={`${fields.label}: Например Jazz Funk`} /></label>
-                    <label>{t('Описание (')}{fields.label})<textarea rows={3} value={String(form[fields.description] ?? '')} onChange={(e) => updateField(fields.description, e.target.value)} placeholder="Краткое описание направления для карточки" /></label>
-                    <label>{t('Подробное описание (')}{fields.label})<textarea className={s.editor} rows={8} value={String(form[fields.content] ?? '')} onChange={(e) => updateField(fields.content, e.target.value)} placeholder="Подробное описание стиля" /></label>
-                    <label>{t('Фото')}<input type="file" accept="image/*" onChange={uploadImage} /></label>
-                    {form.image && <img className={s.preview} src={form.image} alt="" />}
-                    <label>{t('Ссылка на YouTube')}<input value={form.youtubeUrl} onChange={(e) => updateField('youtubeUrl', e.target.value)} placeholder="https://www.youtube.com/watch?v=..." /></label>
-                    <label className={s.toggleLabel}><button className={`${s.switch} ${form.isActive ? s.on : ''}`} onClick={() => updateField('isActive', !form.isActive)}><span /></button>{form.isActive ? 'Включен' : 'Выключен'}</label>
-                    <div className={s.formActions}><button className={s.reset} onClick={() => setModalOpen(false)}>{t('Закрыть')}</button><button className={s.cta} onClick={save} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить стиль'}</button></div>
-                </div>
-            </Modal>
+            <DanceStyleFormModal
+                isOpen={modalOpen}
+                isEditing={editingId !== undefined}
+                lang={lang}
+                form={form}
+                saving={saving}
+                onClose={() => setModalOpen(false)}
+                onLangChange={setLang}
+                onFieldChange={updateField}
+                onUploadImage={uploadImage}
+                onSave={save}
+            />
         </Page>
     );
 });
