@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (21/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (24/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -994,6 +994,19 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 353/cc37, `ScheduleSettingsPage.tsx` 327/cc21, `ChoreographerModal.tsx`
 322/cc35 и т.д.).
 
+**Волна 5 (декомпозиция auth/profile форм):** закрыто 3 находки `SKY-C304` — `LoginForm`
+(хук `useLoginForm` + подкомпоненты `LoginFormHeader`/`LoginFormFields`/
+`LoginFormError`/`LoginFormActions`), `ProfilePage` (хук `useProfilePage` +
+`ProfileValidateErrors`) и `ProfilePageHeader` (подкомпоненты `ProfileHeaderInfo`/
+`ProfileHeaderActions`); все компоненты и хуки <50 строк, подтверждено повторным
+`check:skylos`. Улучшена структура, но находки НЕ закрыты (функции >50 строк
+остаются): `TwoFactorForm` (91 строка — инлайн state/обработчики),
+`ChangePasswordModal` (75 строк — инлайн state/обработчик) и хук
+`useActiveSessions` (async-обработчики) — компонент `ActiveSessions` при этом закрыт.
+Требования: `tsc --noEmit` (client) чисто, `npm run lint:ts` 0 ошибок,
+Jest 281/281 suites / 976/976, `npm run build:prod` чисто (только исходные
+предупреждения о размере бандла).
+
 - [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:38` — Function 'anonymous' is 82 lines long (limit: 50)
 - [ ] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.tsx:27` — Function 'anonymous' is 63 lines long (limit: 50)
 - [ ] `client/src/entities/Client/ui/ClientCard/ClientCard.tsx:28` — Function 'anonymous' is 94 lines long (limit: 50)
@@ -1019,9 +1032,9 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/entities/User/ui/UserCard/UserCard.tsx:24` — Function 'anonymous' is 91 lines long (limit: 50)
 - [ ] `client/src/features/Auth/model/services/loginByUsername/loginByUsername.test.ts:21` — Function 'anonymous' is 54 lines long (limit: 50)
 - [ ] `client/src/features/Auth/model/slice/authSlice.test.ts:5` — Function 'anonymous' is 53 lines long (limit: 50)
-- [ ] `client/src/features/Auth/ui/LoginForm/LoginForm.tsx:39` — Function 'anonymous' is 138 lines long (limit: 50)
+- [x] `client/src/features/Auth/ui/LoginForm/LoginForm.tsx:39` — Function 'anonymous' is 138 lines long (limit: 50) → разложен (хук `useLoginForm` + подкомпоненты `LoginFormHeader`/`LoginFormFields`/`LoginFormError`/`LoginFormActions`); компонент и хук <50 строк, проверено `check:skylos`
 - [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.test.tsx:33` — Function 'anonymous' is 62 lines long (limit: 50)
-- [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.tsx:24` — Function 'anonymous' is 132 lines long (limit: 50)
+- [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.tsx:24` — Function 'anonymous' is 132 lines long (limit: 50) → рендер разложен на подкомпоненты (`TwoFactorFormHeader`/`TwoFactorFormFields`/`TwoFactorFormActions`), но функция компонента всё ещё 91 строка (инлайн state+обработчики) — НЕ закрыто
 - [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.test.tsx:6` — Function 'anonymous' is 56 lines long (limit: 50)
 - [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:24` — Function 'anonymous' is 109 lines long (limit: 50)
 - [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:65` — Function 'anonymous' is 54 lines long (limit: 50)
@@ -1038,7 +1051,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/features/addUserForm/ui/UserForm/UserForm.tsx:31` — Function 'anonymous' is 77 lines long (limit: 50)
 - [ ] `client/src/features/changePassword/model/services/changePasswordThunk.test.ts:12` — Function 'anonymous' is 65 lines long (limit: 50)
 - [ ] `client/src/features/changePassword/ui/ChangePasswordModal/ChangePasswordModal.test.tsx:30` — Function 'anonymous' is 61 lines long (limit: 50)
-- [ ] `client/src/features/changePassword/ui/ChangePasswordModal/ChangePasswordModal.tsx:21` — Function 'anonymous' is 112 lines long (limit: 50)
+- [ ] `client/src/features/changePassword/ui/ChangePasswordModal/ChangePasswordModal.tsx:21` — Function 'anonymous' is 112 lines long (limit: 50) → рендер разложен (`ChangePasswordFields`/`ChangePasswordActions`), но функция компонента всё ещё 75 строк (инлайн state+обработчик) — НЕ закрыто
 - [ ] `client/src/features/createMollieMandateForm/model/slices/createMollieMandateFormSlice.test.ts:7` — Function 'anonymous' is 68 lines long (limit: 50)
 - [ ] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:42` — Function 'anonymous' is 73 lines long (limit: 50)
 - [ ] `client/src/features/editMollieClientDropdown/model/slices/mollieClientSlice.test.ts:7` — Function 'anonymous' is 103 lines long (limit: 50)
@@ -1099,9 +1112,9 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [x] `client/src/pages/OrganizationBrandsPage/ui/OrganizationBrandsPage.tsx:57` — Function 'anonymous' is 131 lines long (limit: 50)
 - [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.test.tsx:67` — Function 'anonymous' is 65 lines long (limit: 50)
 - [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' is 329 lines long (limit: 50)
-- [ ] `client/src/pages/ProfilePage/ui/ActiveSessions/ActiveSessions.tsx:53` — Function 'anonymous' is 125 lines long (limit: 50)
-- [ ] `client/src/pages/ProfilePage/ui/ProfilePage.tsx:38` — Function 'anonymous' is 90 lines long (limit: 50)
-- [ ] `client/src/pages/ProfilePage/ui/ProfilePageHeader/ProfilePageHeader.tsx:20` — Function 'anonymous' is 88 lines long (limit: 50)
+- [ ] `client/src/pages/ProfilePage/ui/ActiveSessions/ActiveSessions.tsx:53` — Function 'anonymous' is 125 lines long (limit: 50) → компонент разложен (<50, закрыт) + хук `useActiveSessions` (~57 строк, async-обработчики) — находка переехала в хук, НЕ закрыто
+- [x] `client/src/pages/ProfilePage/ui/ProfilePage.tsx:38` — Function 'anonymous' is 90 lines long (limit: 50) → разложен (хук `useProfilePage` + `ProfileValidateErrors`); компонент и хук <50 строк, проверено `check:skylos`
+- [x] `client/src/pages/ProfilePage/ui/ProfilePageHeader/ProfilePageHeader.tsx:20` — Function 'anonymous' is 88 lines long (limit: 50) → разложен (подкомпоненты `ProfileHeaderInfo`/`ProfileHeaderActions`); компонент <50 строк, проверено `check:skylos`
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.test.tsx:65` — Function 'anonymous' is 62 lines long (limit: 50)
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.tsx:46` — Function 'anonymous' is 126 lines long (limit: 50)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.test.tsx:25` — Function 'anonymous' is 66 lines long (limit: 50)
