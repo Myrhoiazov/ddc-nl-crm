@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Invoice, InvoiceAuditLog, InvoiceStatus } from '../../model/types';
+import { statusLabel } from '../../model/consts';
 import { InvoiceAction } from '../InvoiceActionModal/InvoiceActionModal';
 import s from './InvoicesPage.module.scss';
 
@@ -44,7 +45,6 @@ const canEdit = (invoice: Invoice) => (
 
 interface InvoiceListItemProps {
     invoice: Invoice;
-    statusLabel: Record<InvoiceStatus, string>;
     onEdit: (invoice: Invoice) => void;
     onPreviewPdf: (invoice: Invoice) => void;
     onDownloadPdf: (invoice: Invoice) => void;
@@ -57,7 +57,6 @@ interface InvoiceListItemProps {
 export const InvoiceListItem = memo((props: InvoiceListItemProps) => {
     const {
         invoice,
-        statusLabel,
         onEdit,
         onPreviewPdf,
         onDownloadPdf,
