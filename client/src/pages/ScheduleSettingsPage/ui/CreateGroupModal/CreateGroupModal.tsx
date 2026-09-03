@@ -15,57 +15,43 @@ interface CreateGroupModalProps {
 
 export const CreateGroupModal = memo(
     ({ isOpen, onClose, onSaved, editGroup }: CreateGroupModalProps) => {
-        const {
-            name, setName,
-            style, setStyle,
-            level, setLevel,
-            maxParticipants, setMaxParticipants,
-            lessonPrice, setLessonPrice,
-            choreographerId, setChoreographerId,
-            slots, addSlot, updateSlot, removeSlot,
-            saving,
-            branchId, setBranchId,
-            choreographers, branches, styles,
-            onSubmit,
-        } = useCreateGroupForm(isOpen, editGroup, onSaved, onClose);
+        const f = useCreateGroupForm(isOpen, editGroup, onSaved, onClose);
+        const label = editGroup ? 'РЕДАКТИРОВАТЬ ГРУППУ' : 'СОЗДАТЬ ГРУППУ';
+        const submitLabel = f.saving ? 'Сохранение...' : editGroup ? 'Сохранить' : 'Создать';
 
         return (
             <Modal isOpen={isOpen} onClose={onClose} lazy>
                 <div className={s.modal}>
-                    <h2 className={s.title}>
-                        {editGroup ? 'РЕДАКТИРОВАТЬ ГРУППУ' : 'СОЗДАТЬ ГРУППУ'}
-                    </h2>
-
+                    <h2 className={s.title}>{label}</h2>
                     <div className={s.form}>
                         <CreateGroupModalFields
-                            name={name}
-                            setName={setName}
-                            choreographerId={choreographerId}
-                            setChoreographerId={setChoreographerId}
-                            choreographers={choreographers}
-                            style={style}
-                            setStyle={setStyle}
-                            styles={styles}
-                            branchId={branchId}
-                            setBranchId={setBranchId}
-                            branches={branches}
-                            level={level}
-                            setLevel={setLevel}
-                            maxParticipants={maxParticipants}
-                            setMaxParticipants={setMaxParticipants}
-                            lessonPrice={lessonPrice}
-                            setLessonPrice={setLessonPrice}
+                            name={f.name}
+                            setName={f.setName}
+                            choreographerId={f.choreographerId}
+                            setChoreographerId={f.setChoreographerId}
+                            choreographers={f.choreographers}
+                            style={f.style}
+                            setStyle={f.setStyle}
+                            styles={f.styles}
+                            branchId={f.branchId}
+                            setBranchId={f.setBranchId}
+                            branches={f.branches}
+                            level={f.level}
+                            setLevel={f.setLevel}
+                            maxParticipants={f.maxParticipants}
+                            setMaxParticipants={f.setMaxParticipants}
+                            lessonPrice={f.lessonPrice}
+                            setLessonPrice={f.setLessonPrice}
                         />
                         <CreateGroupModalSlots
-                            slots={slots}
-                            onAddSlot={addSlot}
-                            onUpdateSlot={updateSlot}
-                            onRemoveSlot={removeSlot}
+                            slots={f.slots}
+                            onAddSlot={f.addSlot}
+                            onUpdateSlot={f.updateSlot}
+                            onRemoveSlot={f.removeSlot}
                         />
                     </div>
-
-                    <button className={s.submitBtn} onClick={onSubmit} disabled={saving}>
-                        {saving ? 'Сохранение...' : editGroup ? 'Сохранить' : 'Создать'}
+                    <button className={s.submitBtn} onClick={f.onSubmit} disabled={f.saving}>
+                        {submitLabel}
                     </button>
                 </div>
             </Modal>
