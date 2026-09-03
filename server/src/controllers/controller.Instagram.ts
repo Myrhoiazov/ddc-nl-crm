@@ -3,6 +3,7 @@ import { env } from 'process';
 // import axios from "axios";
 import crypto from "crypto";
 import { timingSafeEqualStrings } from "../helpers";
+import ApiError from "../helpers/ApiError";
 
 const VERIFY_TOKEN = env.VERIFY_MARKER_SECRET || "myverifytoken123";
 
@@ -18,7 +19,7 @@ export const verifyRequestSignature = (req: Request, res: Response, buf: Buffer)
         .digest("hex");
 
     if (!timingSafeEqualStrings("sha256=" + hash, signature)) {
-        throw new Error("Invalid signature.");
+        throw new ApiError(401, "Invalid signature.");
     }
 }
 

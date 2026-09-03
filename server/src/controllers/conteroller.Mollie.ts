@@ -4,7 +4,6 @@ import { oauthClient } from "../config/oauthClient";
 import { Request, Response } from "express";
 import dotenv from 'dotenv';
 import axios from "axios";
-import { merge } from "lodash";
 import * as mollieService from '../services/service.Mollie';
 import { getCostomerByMollieId, TCustomer } from "../services/service.Customer";
 import { MandateFormData } from "types/mollie.types";

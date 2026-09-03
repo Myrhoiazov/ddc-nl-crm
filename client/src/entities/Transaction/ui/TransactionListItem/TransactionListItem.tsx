@@ -1,4 +1,4 @@
-import React, { memo, ReactNode } from 'react';
+import { memo, ReactNode } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './TransactionListItem.module.scss';
 import { Transaction } from '../../model/types/transaction';
@@ -19,8 +19,10 @@ const TransactionListItem = ({
 }: TransactionListItemProps) => {
     const onlyDate = new Intl.DateTimeFormat('ru-RU').format(new Date(transaction?.date as string));
 
-    const paymentKey = transaction?.paymentMethod as unknown as keyof typeof PaymentMethod;
-    const paymentMethod = PaymentMethod[paymentKey];
+    const paymentKey: string | undefined = transaction?.paymentMethod;
+    const paymentMethod = paymentKey && paymentKey in PaymentMethod
+        ? PaymentMethod[paymentKey as keyof typeof PaymentMethod]
+        : undefined;
     const formattedAmount = new Intl.NumberFormat('nl-NL', {
         style: 'currency',
         currency: transaction.currency ?? 'EUR',

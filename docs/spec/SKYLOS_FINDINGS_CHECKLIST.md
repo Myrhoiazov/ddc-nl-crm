@@ -19,6 +19,38 @@
 - **SKY-D260**: количество срабатываний нестабильно между запусками (187 → 80 без изменений в затронутых файлах) — похоже на нестрогую/выборочную проверку правила в этой версии Skylos; не полагаться на точное число.
 - Следующие категории (мёртвый код, качество/сложность функций, типобезопасность, `SKY-L012`) — отдельными проходами/PR, см. счётчики ниже.
 
+**Категория "Типобезопасность" — закрыта** (ветка `fix/skylos-findings`, все 47 находок):
+- `SKY-T104` (2/2), `SKY-T106` (4/4) — закрыты (см. инлайн-описания).
+- `SKY-T105` (1/1) — проверен, false positive (обоснование инлайн), код не менялся.
+- `SKY-T103` (40/40) — закрыто. 11 находок — identity-упрощения для `RoleKey`/`ClientStatusKey`, валидация через `in` для `Month`/`PaymentMethod`, `jest.mocked()` вместо `as unknown as jest.Mock`, `fromAny()` из новой dev-зависимости `@total-typescript/shoehorn` для DOM/observer-моков. Остальные 29 (`as unknown as StateSchema` в тестовых фабриках state, 24 файла) мигрированы на `fromPartial()` из того же пакета — в отличие от голого каста, `fromPartial` реально проверяет форму мока против `StateSchema`, что попутно вскрыло и исправило 2 реальных бага в тестовых данных (`role: 'admin'` вместо `RoleKey.ADMIN`; поля `firstName`/`lastName` вместо `givenName`/`familyName` у `MollieClient`) — детали инлайн у соответствующих пунктов.
+- Проверено: `tsc --noEmit` в `client/` и `server/` — 0 новых ошибок (в client остаётся ~20 предсуществующих ошибок из `node_modules` типов `react-router-dom`/`mdx`, не связанных с этой работой, см. `SKY-R105`); `npm run build` в `server/` и `npm run build:prod` в `client/` проходят; `npx jest` в `client/` — 281/281 сьютов, 976/976 тестов; `npm run test:auth` в `server/` — 14/14; `npm run lint:ts` в `client/` — 0 ошибок (130 предсуществующих warning, ни один не в затронутых файлах).
+
+**Категория "Мёртвый код" — закрыта** (ветка `fix/skylos-findings`, все 185 находок:
+`SKY-U001` 22, `SKY-U002` 75, `SKY-U003` 15, `SKY-U004` 6, `SKY-E003` 67):
+- Реально удалено ~40 находок (неиспользуемые импорты/переменные/функции/классы плюс
+  13 файлов целиком — включая один осиротевший дубликат сервиса, легаси
+  request-logger вытесненный winston-логгером, легаси axios-клиент Mollie
+  вытесненный официальным SDK, cron-задачу с полностью закомментированным телом,
+  которая никогда не регистрировалась, и Zod-схему/DTO для доменов вроде "Product"/
+  "процедуры", не существующих в DDC CRM).
+- Остальное — false positive: `React`-импорты, ставшие лишними при
+  `"jsx": "react-jsx"`; Jest/Storybook/Prisma/webpack/stylelint конфиги,
+  подключаемые CLI/loader-конвенцией, а не прямым импортом (Skylos не сканирует
+  `client/config/**`); Storybook CSF-экспорты (`Light`/`Primary`/...) и
+  `*.stories.tsx`, подхватываемые Storybook по glob-паттерну, а не импортом;
+  полифилл-методы `disconnect`/`takeRecords`, вызываемые извне по интерфейсу
+  наблюдателя.
+- Один пункт (`revokeTrustedDevices`) при разборе на секунду показался потенциальной
+  дырой в безопасности (написан с комментарием про ревокацию доверенных устройств
+  при смене пароля, но нигде не вызывался) — проверка показала, что вызовы уже
+  инлайнены напрямую в `service.Users.ts` в нужных местах, реальной дыры нет,
+  функция была просто дублирующим мёртвым кодом.
+- Подробности и обоснования — инлайн у каждого пункта в разделах `SKY-U001`–`SKY-E003`
+  ниже. Проверено на каждом шаге: `tsc --noEmit` (client+server), `npm run lint:ts`,
+  `npm run build:prod` (client) + `npm run build` (server), Jest client 281/281
+  suites/976/976 тестов, server `test:auth` 14/14 + `test:mollie` 7/7 — без
+  регрессий на всём протяжении.
+
 ## Сводка по правилам
 
 | Код | Категория | Кол-во | Что означает |
@@ -341,284 +373,507 @@
 
 ## Типобезопасность
 
-### `SKY-T103` — Цепочка `as unknown as X` (40)
+### `SKY-T103` — Цепочка `as unknown as X` (40) — ЗАКРЫТО
 
 > В основном тестовые моки состояния — заменить на валидацию/сузение типа или на фабрику тестового state.
 
-- [ ] `client/config/jest/setupTests.ts:24` — Chained assertion uses 'unknown' to force a value to 'typeof IntersectionObserver'; validate or narrow the value instead.
-- [ ] `client/src/entities/ClientStatus/ui/ClientStatusSelect/ClientStatusSelect.tsx:32` — Chained assertion uses 'unknown' to force a value to 'keyof typeof ClientStatusKey'; validate or narrow the value instead.
-- [ ] `client/src/entities/Month/ui/MonthSelect/MonthSelect.tsx:40` — Chained assertion uses 'unknown' to force a value to 'keyof typeof Month'; validate or narrow the value instead.
-- [ ] `client/src/entities/Profile/model/services/updateProfileData/updateProfileData.test.tsx:16` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/entities/Role/ui/RoleSelect/RoleSelect.tsx:32` — Chained assertion uses 'unknown' to force a value to 'keyof typeof RoleKey'; validate or narrow the value instead.
-- [ ] `client/src/entities/Transaction/ui/TransactionListItem/TransactionListItem.tsx:22` — Chained assertion uses 'unknown' to force a value to 'keyof typeof PaymentMethod'; validate or narrow the value instead.
-- [ ] `client/src/features/AddCommentForm/model/services/addCommentForArticle/addCommentForArticle.test.ts:11` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/AddCommentForm/model/services/sendComment/sendComment.test.ts:13` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/addClientForm/model/services/addClientData/addClientData.test.ts:7` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/addMollieClientForm/model/services/addMolieClientData/addMolieClientData.test.ts:7` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/addMollieSubscriptionForm/model/services/addSubscription/addSubscription.test.ts:8` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/addTransactionForm/model/services/createTransaction/createTransaction.test.ts:11` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/addUserForm/model/services/addNewUser/addNewUser.test.ts:7` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/createMollieMandateForm/model/services/addMandate/addMandate.test.ts:8` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/editMollieClientDropdown/model/services/updateMollieClientData/updateMollieClientData.test.ts:8` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/features/editProfile/model/services/updateProfileData.test.ts:16` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ArticlesPage/model/services/fetchNextArticlesPage/fetchNextArticlesPage.test.ts:13` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ArticlesPage/model/services/fetchNextArticlesPage/fetchNextArticlesPage.test.ts:22` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ArticlesPage/model/services/fetchNextArticlesPage/fetchNextArticlesPage.test.ts:31` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsDetailsPage/model/selectors/comments.test.ts:6` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsDetailsPage/model/services/addCommentsForClient/addCommentsForClient.test.ts:13` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsPage/model/selectors/clientsPageSelectors.test.ts:20` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsPage/model/services/fetchClientsList/fetchClientsList.test.ts:9` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.test.ts:10` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.test.ts:18` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.test.ts:26` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/ClientsPage/model/services/initClientsPage/initClientsPage.test.ts:17` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/MolliePage/model/selectors/mollieClientsPageSelectors.test.ts:15` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/MolliePage/model/selectors/mollieClientsPageSelectors.test.ts:32` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/TransactionsPage/model/selectors/getTransactionPageSummary.test.ts:7` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/TransactionsPage/model/selectors/transactionPageSelectors.test.ts:23` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/TransactionsPage/model/services/fetchTransactionsList/fetchTransactionsList.test.ts:15` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/TransactionsPage/model/services/fetchTransactionsSummary/fetchTransactionsSummary.test.ts:10` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/pages/TransactionsPage/model/services/initTransactionsPage/initTransactionsPage.test.ts:17` — Chained assertion uses 'unknown' to force a value to 'StateSchema'; validate or narrow the value instead.
-- [ ] `client/src/shared/lib/hooks/useAppDispatch/useAppDispatch.test.ts:12` — Chained assertion uses 'unknown' to force a value to 'jest.Mock'; validate or narrow the value instead.
-- [ ] `client/src/shared/lib/hooks/useRefreshToken/useRefreshToken.test.ts:11` — Chained assertion uses 'unknown' to force a value to 'jest.Mock'; validate or narrow the value instead.
-- [ ] `client/src/shared/ui/AppImage/AppImage.test.tsx:22` — Chained assertion uses 'unknown' to force a value to '{ Image: typeof Image }'; validate or narrow the value instead.
-- [ ] `client/src/shared/ui/AppImage/AppImage.test.tsx:22` — Chained assertion uses 'unknown' to force a value to 'typeof Image'; validate or narrow the value instead.
-- [ ] `client/src/shared/ui/Avatar/Avatar.test.tsx:22` — Chained assertion uses 'unknown' to force a value to '{ Image: typeof Image }'; validate or narrow the value instead.
-- [ ] `client/src/shared/ui/Avatar/Avatar.test.tsx:22` — Chained assertion uses 'unknown' to force a value to 'typeof Image'; validate or narrow the value instead.
+- [x] `client/config/jest/setupTests.ts:24` — заменено на `fromAny()` из `@total-typescript/shoehorn` (мок-класс `IntersectionObserver` намеренно не реализует полный интерфейс — это ровно случай `fromAny`, не двойной каст).
+- [x] `client/src/entities/ClientStatus/ui/ClientStatusSelect/ClientStatusSelect.tsx:32` — `ClientStatusKey` — строковый enum, где ключи совпадают со значениями (`bronze` = `'bronze'`), поэтому `ClientStatusKey[value as unknown as keyof typeof ClientStatusKey]` был тождественным преобразованием; каст убран, `value` передаётся напрямую.
+- [x] `client/src/entities/Month/ui/MonthSelect/MonthSelect.tsx:40` — заменено на валидацию через `key in Month` (компонент нигде не используется в приложении, кроме re-export из barrel — поведение сохранено 1:1, каст убран без изменения текущей логики).
+- [x] `client/src/entities/Profile/model/services/updateProfileData/updateProfileData.test.tsx:16` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/entities/Role/ui/RoleSelect/RoleSelect.tsx:32` — `RoleKey` — строковый enum, ключи совпадают со значениями (`ADMIN` = `'ADMIN'`), `RoleKey[value as unknown as keyof typeof RoleKey]` был тождественным преобразованием; каст убран, `value` передаётся напрямую.
+- [x] `client/src/entities/Transaction/ui/TransactionListItem/TransactionListItem.tsx:22` — `PaymentMethod` — ключи (`CASH`/`CARD`/`BANK_TRANSFER`) не совпадают со значениями (русские лейблы); заменено на валидацию через `paymentKey in PaymentMethod` (поведение сохранено 1:1, каст убран без изменения текущей логики).
+- [x] `client/src/features/AddCommentForm/model/services/addCommentForArticle/addCommentForArticle.test.ts:11` — заменено на `fromPartial(...)` из `@total-typescript/shoehorn`: `() => ({...}) as unknown as StateSchema` → `() => fromPartial({...})`, с явным типом-аннотацией `(): () => StateSchema` там, где её не было (иначе `fromPartial<T>` не может вывести `T` — у него `NoInfer<T>`, требуется контекстный тип). В отличие от голого каста, `fromPartial` реально проверяет форму мока — это вскрыло настоящий баг в тестовых данных: `role: 'admin'` (строка) не подходит под `RoleKey` — заменено на `RoleKey.ADMIN`.
+- [x] `client/src/features/AddCommentForm/model/services/sendComment/sendComment.test.ts:13` — заменено на `fromPartial()`; та же находка `role: 'admin'` → `RoleKey.ADMIN`, и параметры `authData`/`articleData` перетипированы с `unknown` на `Partial<User>`/`Partial<Article>` (голый `unknown` не проходит через `fromPartial`, а был бы поводом для `fromAny`, что менее строго — здесь реальный тип известен и уже, оставлен строгий вариант).
+- [x] `client/src/features/addClientForm/model/services/addClientData/addClientData.test.ts:7` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/features/addMollieClientForm/model/services/addMolieClientData/addMolieClientData.test.ts:7` — заменено на `fromPartial()`; вскрыло реальный баг в тестовых данных — мок использовал `firstName`/`lastName`, которых нет в `MollieClient` (там `givenName`/`familyName`), старый `as unknown as StateSchema` это маскировал. Поля переименованы, тест по-прежнему проверяет форму через self-reference (`stateWithForm.addMollieClientForm?.data`), поведение не изменилось.
+- [x] `client/src/features/addMollieSubscriptionForm/model/services/addSubscription/addSubscription.test.ts:8` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/features/addTransactionForm/model/services/createTransaction/createTransaction.test.ts:11` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/features/addUserForm/model/services/addNewUser/addNewUser.test.ts:7` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/features/createMollieMandateForm/model/services/addMandate/addMandate.test.ts:8` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/features/editMollieClientDropdown/model/services/updateMollieClientData/updateMollieClientData.test.ts:8` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/features/editProfile/model/services/updateProfileData.test.ts:16` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ArticlesPage/model/services/fetchNextArticlesPage/fetchNextArticlesPage.test.ts:13` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ArticlesPage/model/services/fetchNextArticlesPage/fetchNextArticlesPage.test.ts:22` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ArticlesPage/model/services/fetchNextArticlesPage/fetchNextArticlesPage.test.ts:31` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsDetailsPage/model/selectors/comments.test.ts:6` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsDetailsPage/model/services/addCommentsForClient/addCommentsForClient.test.ts:13` — заменено на `fromPartial()`; параметры `userData`/`client` перетипированы с `unknown` на `Partial<User> | undefined`/`Partial<Client> | undefined`.
+- [x] `client/src/pages/ClientsPage/model/selectors/clientsPageSelectors.test.ts:20` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsPage/model/services/fetchClientsList/fetchClientsList.test.ts:9` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.test.ts:10` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.test.ts:18` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.test.ts:26` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/ClientsPage/model/services/initClientsPage/initClientsPage.test.ts:17` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/MolliePage/model/selectors/mollieClientsPageSelectors.test.ts:15` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/MolliePage/model/selectors/mollieClientsPageSelectors.test.ts:32` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/TransactionsPage/model/selectors/getTransactionPageSummary.test.ts:7` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/TransactionsPage/model/selectors/transactionPageSelectors.test.ts:23` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/TransactionsPage/model/services/fetchTransactionsList/fetchTransactionsList.test.ts:15` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/TransactionsPage/model/services/fetchTransactionsSummary/fetchTransactionsSummary.test.ts:10` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/pages/TransactionsPage/model/services/initTransactionsPage/initTransactionsPage.test.ts:17` — заменено на `fromPartial()` из `@total-typescript/shoehorn` (описание общего подхода см. в первой находке этой группы).
+- [x] `client/src/shared/lib/hooks/useAppDispatch/useAppDispatch.test.ts:12` — заменено на `jest.mocked(useDispatch)` (стандартный типобезопасный идиом Jest 29+, не требует каста вовсе).
+- [x] `client/src/shared/lib/hooks/useRefreshToken/useRefreshToken.test.ts:11` — заменено на `jest.mocked($api.get)`.
+- [x] `client/src/shared/ui/AppImage/AppImage.test.tsx:22` (обе находки на строке) — заменено на `fromAny()` (мок-класс `Image` намеренно не реализует полный DOM-интерфейс — классический случай `fromAny`).
+- [x] `client/src/shared/ui/Avatar/Avatar.test.tsx:22` (обе находки на строке) — заменено на `fromAny()`, тот же паттерн, что и в `AppImage.test.tsx`.
 
-### `SKY-T104` — @ts-ignore скрывает все ошибки следующей строки (2)
+### `SKY-T104` — @ts-ignore скрывает все ошибки следующей строки (2) — ЗАКРЫТО
 
 > Заменить на @ts-expect-error с пояснением или исправить тип.
 
-- [ ] `client/src/app/providers/StoreProvider/config/store.ts:21` — @ts-ignore hides every TypeScript error on the next line; fix the type or use @ts-expect-error with a reason.
-- [ ] `client/src/app/providers/StoreProvider/config/store.ts:35` — @ts-ignore hides every TypeScript error on the next line; fix the type or use @ts-expect-error with a reason.
+- [x] `client/src/app/providers/StoreProvider/config/store.ts:21` — этот `@ts-ignore` оказался лишним: без него (проверено) строка компилируется чисто, `@ts-ignore` удалён без замены.
+- [x] `client/src/app/providers/StoreProvider/config/store.ts:35` — заменено на явный каст `(store as ReduxStoreWithManager).reducerManager = reducerManager` (интерфейс `ReduxStoreWithManager` уже существовал в `StateSchema.ts`, просто не был использован здесь).
 
-### `SKY-T105` — JSON.parse() приведён к типу без проверки в рантайме (1)
+### `SKY-T105` — JSON.parse() приведён к типу без проверки в рантайме (1) — проверено, доп. валидация не нужна
 
 > Добавить валидацию (zod/схема) перед приведением типа.
 
-- [ ] `server/src/controllers/controller.Invoices.ts:198` — JSON.parse() result is asserted as 'Prisma.InputJsonValue' without runtime validation.
+- [ ] `server/src/controllers/controller.Invoices.ts:198` — **false positive**: `snapshot()` строит значение через `JSON.parse(JSON.stringify(value, replacer))` — это его собственный JSON round-trip, поэтому результат по построению всегда JSON-совместим (`Prisma.InputJsonValue`); отдельная рантайм-схема для валидации по сути проверяла бы то, что уже гарантировано самим JSON.stringify/parse. Данные — собственный аудит-снапшот сервера (before/after invoice), не пользовательский ввод. Не менять.
 
-### `SKY-T106` — Публичный API использует `any` (4)
+### `SKY-T106` — Публичный API использует `any` (4) — ЗАКРЫТО
 
 > Заменить на точный тип или unknown + валидацию.
 
-- [ ] `server/src/middlewares/middleware.Auth.ts:30` — Exported API 'asyncHandler' uses the exact type 'any'; use a precise type or unknown with validation.
-- [ ] `server/src/middlewares/middlewares.Error.ts:10` — Exported API 'errorMiddleware' uses the exact type 'any'; use a precise type or unknown with validation.
-- [ ] `server/src/services/service.Clients.ts:246` — Exported API 'updateClient' uses the exact type 'any'; use a precise type or unknown with validation.
-- [ ] `server/src/types/mollie.types.ts:43` — Exported API 'MollieCustomer' uses 'Record<string, any>'; use a precise type or unknown with validation.
+- [x] `server/src/middlewares/middleware.Auth.ts:30` — `fn: any` заменён на именованный тип `AsyncRequestHandler = (req: Request, res: Response, next: NextFunction) => unknown`; обёртка получила явный `: void`, чтобы совпасть с сигнатурой Express `RequestHandler` (иначе `Promise<unknown>` не совпадал с overload'ами `router.get/post/...` — задело ~130 мест использования, все перепроверены `tsc --noEmit`, 0 ошибок).
+- [x] `server/src/middlewares/middlewares.Error.ts:10` — типизировано через `express.ErrorRequestHandler` вместо `: any`.
+- [x] `server/src/services/service.Clients.ts:246` — `data: any` заменён на `data: Partial<TClient>` (тот же тип, что уже использует `createClient` и вызывающий контроллер `controller.Clients.ts`).
+- [x] `server/src/types/mollie.types.ts:43` — `Record<string, any>` заменён на `Record<string, unknown>` (Mollie `metadata` — непрозрачный JSON-блоб, заданный самим мерчантом при создании клиента); `tsc --noEmit` подтвердил отсутствие новых ошибок во всех местах использования.
 
-## Мёртвый код (неиспользуемое)
+## Мёртвый код (неиспользуемое) — ЗАКРЫТО (185/185)
 
 ### `SKY-U001` — Неиспользуемая функция (22)
 
 > Проверить реальную неиспользуемость (в т.ч. динамические/publicAPI-экспорты) и удалить либо оставить с пометкой, почему используется.
 
-- [ ] `client/config/jest/__mocks__/react-i18next.ts:1` — unused function: useTranslation
-- [ ] `client/config/jest/jestEnptyComponent.tsx:3` — unused function: jestEnptyComponent
-- [ ] `client/config/jest/setupTests.ts:27` — unused function: disconnect
-- [ ] `client/config/jest/setupTests.ts:28` — unused function: takeRecords
-- [ ] `client/src/pages/ArticleDetailsPage/model/selectors/comments.ts:4` — unused function: getArticleCommentsError
-- [ ] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:153` — unused function: getCrmClientName
-- [ ] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:5` — unused function: getSettingsPageIsLoading
-- [ ] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:6` — unused function: getSettingsPageError
-- [ ] `client/src/shared/config/storybook/StoreDecorator/StoreDecorator.tsx:12` — unused function: StoreDecorator
-- [ ] `client/src/shared/const/router.ts:39` — unused function: getRouteTransactionEdit
-- [ ] `client/src/shared/const/router.ts:40` — unused function: getRouteTransactionCreate
-- [ ] `client/src/shared/const/router.ts:37` — unused function: getRouteTransactions
-- [ ] `client/src/shared/const/router.ts:38` — unused function: getRouteTransactionDetails
-- [ ] `server/src/middlewares/middleware.Auth.ts:34` — unused function: isOwner
-- [ ] `server/src/middlewares/middleware.Logger.ts:8` — unused function: logEvents
-- [ ] `server/src/middlewares/middleware.Logger.ts:26` — unused function: logger
-- [ ] `server/src/services/service.ClientStatus.ts:7` — unused function: createClientStatus
-- [ ] `server/src/services/service.Clients.ts:275` — unused function: findClientByEmailOrPhone
-- [ ] `server/src/services/service.Customer.ts:21` — unused function: createCustomer
-- [ ] `server/src/services/service.Customer.ts:34` — unused function: updateCustomer
-- [ ] `server/src/services/service.Customer.ts:47` — unused function: deleteAllCustomers
-- [ ] `server/src/services/service.TwoFactorAuth.ts:256` — unused function: revokeTrustedDevices
+- [x] `client/config/jest/__mocks__/react-i18next.ts:1` — unused function: useTranslation
+- [x] `client/config/jest/jestEnptyComponent.tsx:3` — unused function: jestEnptyComponent
+- [x] `client/config/jest/setupTests.ts:27` — unused function: disconnect
+- [x] `client/config/jest/setupTests.ts:28` — unused function: takeRecords
+- [x] `client/src/pages/ArticleDetailsPage/model/selectors/comments.ts:4` — unused function: getArticleCommentsError
+- [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:153` — unused function: getCrmClientName
+- [x] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:5` — unused function: getSettingsPageIsLoading
+- [x] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:6` — unused function: getSettingsPageError
+- [x] `client/src/shared/config/storybook/StoreDecorator/StoreDecorator.tsx:12` — unused function: StoreDecorator
+- [x] `client/src/shared/const/router.ts:39` — unused function: getRouteTransactionEdit
+- [x] `client/src/shared/const/router.ts:40` — unused function: getRouteTransactionCreate
+- [x] `client/src/shared/const/router.ts:37` — unused function: getRouteTransactions
+- [x] `client/src/shared/const/router.ts:38` — unused function: getRouteTransactionDetails
+- [x] `server/src/middlewares/middleware.Auth.ts:34` — unused function: isOwner
+- [x] `server/src/middlewares/middleware.Logger.ts:8` — unused function: logEvents
+- [x] `server/src/middlewares/middleware.Logger.ts:26` — unused function: logger
+- [x] `server/src/services/service.ClientStatus.ts:7` — unused function: createClientStatus
+- [x] `server/src/services/service.Clients.ts:275` — unused function: findClientByEmailOrPhone
+- [x] `server/src/services/service.Customer.ts:21` — unused function: createCustomer
+- [x] `server/src/services/service.Customer.ts:34` — unused function: updateCustomer
+- [x] `server/src/services/service.Customer.ts:47` — unused function: deleteAllCustomers
+- [x] `server/src/services/service.TwoFactorAuth.ts:256` — unused function: revokeTrustedDevices
+
+**SKY-U001 — ЗАКРЫТО (22/22), из них 4 false positive, 18 реальных удалений (3 файла
+удалены целиком).**
+
+- False positive (4): `useTranslation` в `config/jest/__mocks__/react-i18next.ts` и
+  `jestEnptyComponent` в `config/jest/jestEnptyComponent.tsx` — подключаются неявно
+  через Jest `moduleNameMapper` (`jest.config.ts`), а не через обычный импорт по
+  имени, Skylos не отследил; `disconnect`/`takeRecords` в
+  `config/jest/setupTests.ts` — методы анонимных классов-полифиллов
+  `ResizeObserver`/`IntersectionObserver`, вызываются извне (React/headlessui) через
+  интерфейс наблюдателя, а не по прямой ссылке на имя.
+- Разбирался отдельно и снят как ложная тревога: `revokeTrustedDevices` в
+  `service.TwoFactorAuth.ts` был написан с комментарием "Called wherever authVersion
+  is bumped... alongside session.deleteMany", что на первый взгляд выглядело как
+  забытый вызов ревокации доверенных устройств (потенциальная security-дыра).
+  Проверка всех трёх мест в `service.Users.ts`, где `authVersion` увеличивается
+  (`updateUser`, `updateUserSecurity`, `updateUserPassword`), показала, что там уже
+  напрямую вызывается `transaction.trustedDevice.deleteMany(...)` — т.е. ревокация
+  реально происходит, просто не через этот хелпер. Гэпа в безопасности нет, функция
+  действительно не используется — удалена как дубликат уже инлайненной логики.
+- Реально удалено (18), включая 3 файла целиком: `StoreDecorator.tsx` — используется
+  только в закомментированном коде нескольких `.stories.tsx` (не паттерн Storybook
+  CSF, а обычная неиспользуемая функция) — файл удалён (закрывает и SKY-E003);
+  `middleware.Logger.ts` (`logEvents` + `logger`) — легаси request-logger,
+  вытесненный отдельным winston-логгером `server/src/logger/index.ts`
+  (`import { logger } from '../logger'`, используется повсеместно) — файл удалён
+  целиком (закрывает и SKY-E003); `service.ClientStatus.ts` (`createClientStatus`)
+  — нигде не импортируется — файл удалён целиком (закрывает и SKY-E003). Точечные
+  удаления: `getArticleCommentsError`, `getSettingsPageIsLoading`,
+  `getSettingsPageError` — неиспользуемые selector'ы; `getCrmClientName` в
+  `MolliePayments.tsx` — мёртвая локальная копия (реально используемая версия живёт
+  в `MollieIncidents.tsx`); `getRouteTransactions`/`getRouteTransactionDetails`/
+  `getRouteTransactionEdit`/`getRouteTransactionCreate` в `shared/const/router.ts` —
+  в клиенте нет отдельных страниц деталей/редактирования/создания транзакции
+  (зарегистрирован только список `/transactions`); `isOwner` в
+  `middleware.Auth.ts` — не подключён ни к одному роуту (заодно убран более не
+  нужный импорт `get` из lodash); `findClientByEmailOrPhone` в
+  `service.Clients.ts`; `createCustomer`/`updateCustomer`/`deleteAllCustomers` в
+  `service.Customer.ts` (файл остаётся — `TCustomer` и `getCostomerByMollieId`
+  используются в `conteroller.Mollie.ts`); `revokeTrustedDevices` в
+  `service.TwoFactorAuth.ts` (см. разбор выше).
+
+Проверено: `tsc --noEmit` (client+server) — 0 ошибок (кроме исходной baseline
+`node_modules`); `npm run lint:ts` (client) — 0 ошибок, warnings снизились
+96 → 93; `npm run build:prod` (client) и `npm run build` (server) — чисто; Jest
+client 281/281 suites, 976/976 тестов; server `test:auth` 14/14, `test:mollie`
+7/7 — без регрессий.
 
 ### `SKY-U002` — Неиспользуемый импорт (75)
 
 > Удалить импорт.
 
-- [ ] `client/config/jest/jestEnptyComponent.tsx:1` — unused import: React
-- [ ] `client/eslint.config.mjs:10` — unused import: IndentStyle
-- [ ] `client/src/app/providers/router/ui/PublicRoute/PublicRoute.tsx:3` — unused import: Outlet
-- [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:9` — unused import: TextSize
-- [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:9` — unused import: TextAlign
-- [ ] `client/src/entities/Article/ui/ArticleImageBlockComponent/ArticleImageBlockComponent.tsx:3` — unused import: TextAlign
-- [ ] `client/src/entities/Client/ui/ClientDetails/ClientDetails.tsx:1` — unused import: React
-- [ ] `client/src/entities/Client/ui/ClientList/ClientList.tsx:1` — unused import: React
-- [ ] `client/src/entities/Client/ui/ClientListHeader/ClientListHeader.tsx:1` — unused import: React
-- [ ] `client/src/entities/Client/ui/ClientListItem/ClientListItem.tsx:1` — unused import: React
-- [ ] `client/src/entities/Mandate/ui/MandateCard/MandateCard.tsx:1` — unused import: classNames
-- [ ] `client/src/entities/Mandate/ui/MandateItem/MandateItem.tsx:1` — unused import: React
-- [ ] `client/src/entities/Mandate/ui/MandateList/MandateList.tsx:1` — unused import: React
-- [ ] `client/src/entities/MollieClient/ui/ClientDetails/ClientDetails.tsx:1` — unused import: React
-- [ ] `client/src/entities/MollieClient/ui/ClientListHeader/ClientListHeader.tsx:1` — unused import: React
-- [ ] `client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx:1` — unused import: React
-- [ ] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.tsx:1` — unused import: React
-- [ ] `client/src/entities/MollieSubscription/ui/MollieSubscriptionItem/MollieSubscriptionItem.tsx:1` — unused import: React
-- [ ] `client/src/entities/MollieSubscription/ui/MollieSubscriptionList/MollieSubscriptionList.tsx:1` — unused import: React
-- [ ] `client/src/entities/PaymentMethod/ui/PaymentMethod/PaymentMethodSelect.tsx:3` — unused import: useMemo
-- [ ] `client/src/entities/PaymentMethod/ui/PaymentMethod/PaymentMethodSelect.tsx:6` — unused import: ListBox
-- [ ] `client/src/entities/Profile/model/types/profile.ts:1` — unused import: Role
-- [ ] `client/src/entities/Transaction/ui/TransactionCard/TransactionCard.tsx:1` — unused import: classNames
-- [ ] `client/src/entities/Transaction/ui/TransactionList/TransactionList.tsx:1` — unused import: React
-- [ ] `client/src/entities/Transaction/ui/TransactionListItem/TransactionListItem.tsx:1` — unused import: React
-- [ ] `client/src/entities/TransactionCategory/ui/TransactionCategorySelect/TransactionCategorySelect.tsx:3` — unused import: cls
-- [ ] `client/src/entities/TransactionType/ui/TransactionSelect/TransactionSelect.tsx:3` — unused import: useMemo
-- [ ] `client/src/entities/TransactionType/ui/TransactionSelect/TransactionSelect.tsx:6` — unused import: ListBox
-- [ ] `client/src/entities/User/ui/UserListItem/UserListItem.tsx:1` — unused import: React
-- [ ] `client/src/entities/User/ui/UsersList/UsersList.tsx:1` — unused import: React
-- [ ] `client/src/features/ClientSortSelector/ui/ClientSortSelector/ClientSortSelector.tsx:1` — unused import: React
-- [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:1` — unused import: React
-- [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:3` — unused import: ClientSortField
-- [ ] `client/src/features/addUserForm/model/types/addUserFormSchema.ts:1` — unused import: Client
-- [ ] `client/src/features/addUserForm/model/types/addUserFormSchema.ts:3` — unused import: User
-- [ ] `client/src/features/createMollieMandateForm/model/slices/createMollieMandateFormSlice.ts:6` — unused import: access
-- [ ] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:4` — unused import: cls
-- [ ] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:2` — unused import: classNames
-- [ ] `client/src/features/editMollieClientDropdown/model/services/deleteMollieClientById.tsx:3` — unused import: Client
-- [ ] `client/src/features/editMollieClientDropdown/model/types/mollieClientFormSchema.ts:1` — unused import: Client
-- [ ] `client/src/pages/AuthPage/ui/LoginPage/LoginPage.tsx:1` — unused import: React
-- [ ] `client/src/pages/ClientsDetailsPage/ui/ClientsDetailsPage/ClientsDetailsPage.tsx:1` — unused import: React
-- [ ] `client/src/pages/ClientsDetailsPage/ui/HeaderDetails/HeaderDetails.tsx:1` — unused import: React
-- [ ] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.ts:7` — unused import: fetchClientsList
-- [ ] `client/src/pages/ClientsPage/ui/ClientsPageFilters/ClientsPageFilters.tsx:1` — unused import: React
-- [ ] `client/src/pages/MolliePage/model/services/fetchAllMandates/fetchAllMandates.ts:3` — unused import: MollieClient
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:1` — unused import: React
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:2` — unused import: React
-- [ ] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:3` — unused import: ClientStatusKey
-- [ ] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:2` — unused import: ClientView
-- [ ] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:2` — unused import: ClientSortField
-- [ ] `client/src/pages/SettingsPage/model/services/fetchUsersList/fetchUsersList.ts:4` — unused import: ClientStatusKey
-- [ ] `client/src/pages/SettingsPage/model/services/fetchUsersList/fetchUsersList.ts:3` — unused import: Client
-- [ ] `client/src/pages/SettingsPage/ui/SettingsPage/SettingsPage.tsx:2` — unused import: use
-- [ ] `client/src/pages/TransactionsPage/ui/FiltersContainer/FiltersContainer.tsx:2` — unused import: HStack
-- [ ] `client/src/pages/TransactionsPage/ui/TransactionsPage/TransactionsPage.tsx:1` — unused import: React
-- [ ] `client/src/shared/ui/CheckBox/CheckBox.tsx:2` — unused import: React
-- [ ] `client/src/shared/ui/Loader/Loader.tsx:1` — unused import: React
-- [ ] `client/src/widgets/ClientFilters/ui/ClientFilters/ClientFilters.tsx:1` — unused import: React
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:1` — unused import: React
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:6` — unused import: Input
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:10` — unused import: ClientSortField
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:8` — unused import: SearchIcon
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:9` — unused import: ClientSortSelector
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:11` — unused import: SortOrder
-- [ ] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:13` — unused import: ClientFormModal
-- [ ] `client/src/widgets/TransactionFilters/ui/TransactionFilters/TransactionFilters.tsx:1` — unused import: React
-- [ ] `client/src/widgets/UserFilters/ui/UserFilters/UserFilters.tsx:1` — unused import: React
-- [ ] `server/scripts/reset-user-password.ts:2` — unused import: readline
-- [ ] `server/src/controllers/conteroller.Mollie.ts:7` — unused import: merge
-- [ ] `server/src/controllers/controller.Users.ts:1` — unused import: NextFunction
-- [ ] `server/src/routes/router.Instagram.ts:2` — unused import: isAuthenticated
-- [ ] `server/src/routes/router.Instagram.ts:3` — unused import: verifyRequestSignature
-- [ ] `server/src/services/recalculateLoyalty.ts:3` — unused import: LOYALTY_LEVELS
-- [ ] `server/src/services/recalculateLoyalty.ts:3` — unused import: LoyaltyLevel
+- [x] `client/config/jest/jestEnptyComponent.tsx:1` — unused import: React
+- [x] `client/eslint.config.mjs:10` — unused import: IndentStyle
+- [x] `client/src/app/providers/router/ui/PublicRoute/PublicRoute.tsx:3` — unused import: Outlet
+- [x] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:9` — unused import: TextSize
+- [x] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:9` — unused import: TextAlign
+- [x] `client/src/entities/Article/ui/ArticleImageBlockComponent/ArticleImageBlockComponent.tsx:3` — unused import: TextAlign
+- [x] `client/src/entities/Client/ui/ClientDetails/ClientDetails.tsx:1` — unused import: React
+- [x] `client/src/entities/Client/ui/ClientList/ClientList.tsx:1` — unused import: React
+- [x] `client/src/entities/Client/ui/ClientListHeader/ClientListHeader.tsx:1` — unused import: React
+- [x] `client/src/entities/Client/ui/ClientListItem/ClientListItem.tsx:1` — unused import: React
+- [x] `client/src/entities/Mandate/ui/MandateCard/MandateCard.tsx:1` — unused import: classNames
+- [x] `client/src/entities/Mandate/ui/MandateItem/MandateItem.tsx:1` — unused import: React
+- [x] `client/src/entities/Mandate/ui/MandateList/MandateList.tsx:1` — unused import: React
+- [x] `client/src/entities/MollieClient/ui/ClientDetails/ClientDetails.tsx:1` — unused import: React
+- [x] `client/src/entities/MollieClient/ui/ClientListHeader/ClientListHeader.tsx:1` — unused import: React
+- [x] `client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx:1` — unused import: React
+- [x] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.tsx:1` — unused import: React
+- [x] `client/src/entities/MollieSubscription/ui/MollieSubscriptionItem/MollieSubscriptionItem.tsx:1` — unused import: React
+- [x] `client/src/entities/MollieSubscription/ui/MollieSubscriptionList/MollieSubscriptionList.tsx:1` — unused import: React
+- [x] `client/src/entities/PaymentMethod/ui/PaymentMethod/PaymentMethodSelect.tsx:3` — unused import: useMemo
+- [x] `client/src/entities/PaymentMethod/ui/PaymentMethod/PaymentMethodSelect.tsx:6` — unused import: ListBox
+- [x] `client/src/entities/Profile/model/types/profile.ts:1` — unused import: Role
+- [x] `client/src/entities/Transaction/ui/TransactionCard/TransactionCard.tsx:1` — unused import: classNames
+- [x] `client/src/entities/Transaction/ui/TransactionList/TransactionList.tsx:1` — unused import: React
+- [x] `client/src/entities/Transaction/ui/TransactionListItem/TransactionListItem.tsx:1` — unused import: React
+- [x] `client/src/entities/TransactionCategory/ui/TransactionCategorySelect/TransactionCategorySelect.tsx:3` — unused import: cls
+- [x] `client/src/entities/TransactionType/ui/TransactionSelect/TransactionSelect.tsx:3` — unused import: useMemo
+- [x] `client/src/entities/TransactionType/ui/TransactionSelect/TransactionSelect.tsx:6` — unused import: ListBox
+- [x] `client/src/entities/User/ui/UserListItem/UserListItem.tsx:1` — unused import: React
+- [x] `client/src/entities/User/ui/UsersList/UsersList.tsx:1` — unused import: React
+- [x] `client/src/features/ClientSortSelector/ui/ClientSortSelector/ClientSortSelector.tsx:1` — unused import: React
+- [x] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:1` — unused import: React
+- [x] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:3` — unused import: ClientSortField
+- [x] `client/src/features/addUserForm/model/types/addUserFormSchema.ts:1` — unused import: Client
+- [x] `client/src/features/addUserForm/model/types/addUserFormSchema.ts:3` — unused import: User
+- [x] `client/src/features/createMollieMandateForm/model/slices/createMollieMandateFormSlice.ts:6` — unused import: access
+- [x] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:4` — unused import: cls
+- [x] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:2` — unused import: classNames
+- [x] `client/src/features/editMollieClientDropdown/model/services/deleteMollieClientById.tsx:3` — unused import: Client
+- [x] `client/src/features/editMollieClientDropdown/model/types/mollieClientFormSchema.ts:1` — unused import: Client
+- [x] `client/src/pages/AuthPage/ui/LoginPage/LoginPage.tsx:1` — unused import: React
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientsDetailsPage/ClientsDetailsPage.tsx:1` — unused import: React
+- [x] `client/src/pages/ClientsDetailsPage/ui/HeaderDetails/HeaderDetails.tsx:1` — unused import: React
+- [x] `client/src/pages/ClientsPage/model/services/fetchNextClientsPage/fetchNextClientsPage.ts:7` — unused import: fetchClientsList
+- [x] `client/src/pages/ClientsPage/ui/ClientsPageFilters/ClientsPageFilters.tsx:1` — unused import: React
+- [x] `client/src/pages/MolliePage/model/services/fetchAllMandates/fetchAllMandates.ts:3` — unused import: MollieClient
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:1` — unused import: React
+- [x] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:2` — unused import: React
+- [x] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:3` — unused import: ClientStatusKey
+- [x] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:2` — unused import: ClientView
+- [x] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:2` — unused import: ClientSortField
+- [x] `client/src/pages/SettingsPage/model/services/fetchUsersList/fetchUsersList.ts:4` — unused import: ClientStatusKey
+- [x] `client/src/pages/SettingsPage/model/services/fetchUsersList/fetchUsersList.ts:3` — unused import: Client
+- [x] `client/src/pages/SettingsPage/ui/SettingsPage/SettingsPage.tsx:2` — unused import: use
+- [x] `client/src/pages/TransactionsPage/ui/FiltersContainer/FiltersContainer.tsx:2` — unused import: HStack
+- [x] `client/src/pages/TransactionsPage/ui/TransactionsPage/TransactionsPage.tsx:1` — unused import: React
+- [x] `client/src/shared/ui/CheckBox/CheckBox.tsx:2` — unused import: React
+- [x] `client/src/shared/ui/Loader/Loader.tsx:1` — unused import: React
+- [x] `client/src/widgets/ClientFilters/ui/ClientFilters/ClientFilters.tsx:1` — unused import: React
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:1` — unused import: React
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:6` — unused import: Input
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:10` — unused import: ClientSortField
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:8` — unused import: SearchIcon
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:9` — unused import: ClientSortSelector
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:11` — unused import: SortOrder
+- [x] `client/src/widgets/MollieClientAction/ui/MollieClientAction/MollieClientAction.tsx:13` — unused import: ClientFormModal
+- [x] `client/src/widgets/TransactionFilters/ui/TransactionFilters/TransactionFilters.tsx:1` — unused import: React
+- [x] `client/src/widgets/UserFilters/ui/UserFilters/UserFilters.tsx:1` — unused import: React
+- [x] `server/scripts/reset-user-password.ts:2` — unused import: readline
+- [x] `server/src/controllers/conteroller.Mollie.ts:7` — unused import: merge
+- [x] `server/src/controllers/controller.Users.ts:1` — unused import: NextFunction
+- [x] `server/src/routes/router.Instagram.ts:2` — unused import: isAuthenticated
+- [x] `server/src/routes/router.Instagram.ts:3` — unused import: verifyRequestSignature
+- [x] `server/src/services/recalculateLoyalty.ts:3` — unused import: LOYALTY_LEVELS
+- [x] `server/src/services/recalculateLoyalty.ts:3` — unused import: LoyaltyLevel
+
+**SKY-U002 — ЗАКРЫТО (75/75).** Все 75 неиспользуемых импортов удалены (в основном
+устаревшие `import React from 'react'` — не нужен при `"jsx": "react-jsx"` в
+`tsconfig.json` — и неиспользуемые именованные импорты). Отдельно отмечу: у
+`fetchNextClientsPage.ts:7` (`fetchClientsList`) и `recalculateLoyalty.ts:3`
+(`LOYALTY_LEVELS`, `LoyaltyLevel`) импорт был "использован" только внутри
+закомментированного кода — реально мёртвый, удалён как и остальные. Проверено:
+`tsc --noEmit` (client+server) — 0 ошибок; `npm run lint:ts` — 0 ошибок (96 warnings,
+все pre-existing, не в затронутых файлах); `npm run build:prod` (client) и
+`npm run build` (server) — чисто; Jest client 281/281 suites, 976/976 тестов; server
+`test:auth` 14/14 — без регрессий.
 
 ### `SKY-U004` — Неиспользуемый класс (6)
 
 > Проверить и удалить, либо задокументировать причину сохранения.
 
-- [ ] `client/src/app/providers/ErrorBoundary/ui/ErrorBoundary.tsx:12` — unused class: ErrorBoundary
-- [ ] `client/src/app/providers/ThemeProvider/ui/theme.ts:1` — unused class: Theme
-- [ ] `client/src/entities/Client/model/consts/consts.ts:1` — unused class: ValidateClientError
-- [ ] `client/src/entities/MollieClient/model/consts/consts.ts:1` — unused class: ValidateClientError
-- [ ] `client/src/entities/MollieClient/model/consts/consts.ts:13` — unused class: ClientSortField
-- [ ] `client/src/features/addMollieClientForm/model/consts/consts.ts:1` — unused class: ValidateClientError
+- [x] `client/src/app/providers/ErrorBoundary/ui/ErrorBoundary.tsx:12` — unused class: ErrorBoundary
+- [x] `client/src/app/providers/ThemeProvider/ui/theme.ts:1` — unused class: Theme
+- [x] `client/src/entities/Client/model/consts/consts.ts:1` — unused class: ValidateClientError
+- [x] `client/src/entities/MollieClient/model/consts/consts.ts:1` — unused class: ValidateClientError
+- [x] `client/src/entities/MollieClient/model/consts/consts.ts:13` — unused class: ClientSortField
+- [x] `client/src/features/addMollieClientForm/model/consts/consts.ts:1` — unused class: ValidateClientError
+
+**SKY-U004 — ЗАКРЫТО (6/6), из них 1 false positive, 5 реальных удалений.**
+
+- False positive: `ErrorBoundary` — реально используется в `client/src/index.tsx`
+  через barrel `app/providers/ErrorBoundary/index.ts` (`export { default } from
+  './ui/ErrorBoundary'`), Skylos не проследил default-экспорт через index.ts.
+- Реально удалено (мёртвый код): `app/providers/ThemeProvider/ui/theme.ts` —
+  осиротевший дубликат `Theme` enum с другими (устаревшими) строковыми значениями;
+  всё приложение реально импортирует `Theme` из `@/shared/const/theme` — файл удалён
+  целиком (закрывает заодно и соответствующий пункт SKY-E003 ниже);
+  `ValidateClientError` в `entities/Client/model/consts/consts.ts` — не
+  экспортируется из `index.ts` слайса и нигде не импортируется напрямую, удалён
+  (соседний `ClientSortField` в этом же файле реально используется и экспортируется
+  — оставлен без изменений); `ValidateClientError` и `ClientSortField` в
+  `entities/MollieClient/model/consts/consts.ts` — оба нигде не используются
+  (`ClientSortField` был явно закомментирован в `index.ts`, что подтверждает
+  намеренное отключение) — файл удалён целиком, закомментированная строка
+  ре-экспорта в `index.ts` тоже убрана как ссылающаяся на удалённый файл;
+  `ValidateClientError` в `features/addMollieClientForm/model/consts/consts.ts` — не
+  используется, удалён (соседний интерфейс `ServerError` в этом же файле
+  используется — оставлен).
+
+Проверено: `tsc --noEmit` (client+server) — 0 ошибок (кроме исходной baseline из
+~19 ошибок в `node_modules` react-router-dom/mdx, задокументированной в SKY-R105);
+`npm run build:prod` (client) и `npm run build` (server) — чисто; Jest client
+281/281 suites, 976/976 тестов; server `test:auth` 14/14 — без регрессий.
 
 ### `SKY-U003` — Неиспользуемая переменная (15)
 
 > Удалить переменную или использовать `_`-префикс, если требуется по сигнатуре.
 
-- [ ] `client/config/jest/jest.config.ts:9` — unused variable: config
-- [ ] `client/config/storybook/main.ts:3` — unused variable: config
-- [ ] `client/src/pages/ArticleDetailsPage/model/services/fetchCommentsByArticleId/fetchCommentsByArticleId.ts:5` — unused variable: fetchCommentsByArticleId
-- [ ] `client/src/pages/ProfilePage/ui/Sidebar.stories.tsx:11` — unused variable: Light
-- [ ] `client/src/shared/const/localstorage.ts:1` — unused variable: USER_LOCALSTORAGE_TOKEN
-- [ ] `client/src/shared/const/localstorage.ts:5` — unused variable: LOCAL_STORAGE_LAST_DESIGN_KEY
-- [ ] `client/src/shared/const/router.ts:43` — unused variable: AppRouteByPathPattern
-- [ ] `client/src/shared/ui/Button/Button.stories.tsx:14` — unused variable: Outline
-- [ ] `client/src/shared/ui/Button/Button.stories.tsx:29` — unused variable: Clear
-- [ ] `client/src/shared/ui/Input/Input.stories.tsx:4` — unused variable: meta
-- [ ] `client/src/shared/ui/Input/Input.stories.tsx:12` — unused variable: Primary
-- [ ] `client/src/widgets/Navbar/ui/Navbar.stories.tsx:11` — unused variable: Light
-- [ ] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.stories.tsx:11` — unused variable: Light
-- [ ] `server/src/services/service.Files.ts:6` — unused variable: isDev
-- [ ] `server/src/utils/paths.ts:12` — unused variable: UPLOAD_DIR
+- [x] `client/config/jest/jest.config.ts:9` — unused variable: config
+- [x] `client/config/storybook/main.ts:3` — unused variable: config
+- [x] `client/src/pages/ArticleDetailsPage/model/services/fetchCommentsByArticleId/fetchCommentsByArticleId.ts:5` — unused variable: fetchCommentsByArticleId
+- [x] `client/src/pages/ProfilePage/ui/Sidebar.stories.tsx:11` — unused variable: Light
+- [x] `client/src/shared/const/localstorage.ts:1` — unused variable: USER_LOCALSTORAGE_TOKEN
+- [x] `client/src/shared/const/localstorage.ts:5` — unused variable: LOCAL_STORAGE_LAST_DESIGN_KEY
+- [x] `client/src/shared/const/router.ts:43` — unused variable: AppRouteByPathPattern
+- [x] `client/src/shared/ui/Button/Button.stories.tsx:14` — unused variable: Outline
+- [x] `client/src/shared/ui/Button/Button.stories.tsx:29` — unused variable: Clear
+- [x] `client/src/shared/ui/Input/Input.stories.tsx:4` — unused variable: meta
+- [x] `client/src/shared/ui/Input/Input.stories.tsx:12` — unused variable: Primary
+- [x] `client/src/widgets/Navbar/ui/Navbar.stories.tsx:11` — unused variable: Light
+- [x] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.stories.tsx:11` — unused variable: Light
+- [x] `server/src/services/service.Files.ts:6` — unused variable: isDev
+- [x] `server/src/utils/paths.ts:12` — unused variable: UPLOAD_DIR
+
+**SKY-U003 — ЗАКРЫТО (15/15), из них 2 реальных исправления, 2 удаления мёртвого кода,
+11 false positive.**
+
+- Реально удалено (мёртвый код): `fetchCommentsByArticleId.ts` в
+  `pages/ArticleDetailsPage/model/services/` — осиротевший дубликат одноимённого
+  сервиса из `entities/Article` (весь проект использует версию из entities, эта
+  нигде не импортировалась) — файл удалён целиком; `USER_LOCALSTORAGE_TOKEN` и
+  `LOCAL_STORAGE_LAST_DESIGN_KEY` в `shared/const/localstorage.ts` — легаси от эпохи
+  до cookie-session авторизации, нигде не используются — удалены;
+  `AppRouteByPathPattern` в `shared/const/router.ts` — экспортировался, но нигде не
+  потреблялся — удалён; `UPLOAD_DIR` в `server/src/utils/paths.ts` — экспортировался,
+  но `service.Files.ts` строит путь загрузки отдельно через `path.resolve(ROOT_DIR,
+  'public', 'upload', ...)`, эту константу не использует — удалён (расхождение путей
+  в `service.Files.ts` — не предмет этой находки, не трогалось).
+- False positive (Storybook CSF): `config` в `client/config/jest/jest.config.ts` и
+  `client/config/storybook/main.ts` — используется через `export default`, Skylos не
+  распознал; `Light`/`Outline`/`Clear`/`meta`/`Primary` в `*.stories.tsx` (Sidebar,
+  Navbar, Button, Input) — именованные экспорты Storybook CSF, подхватываются
+  Storybook по конвенции файла, не через обычный импорт (см. также SKY-E003 ниже про
+  `.stories.tsx`).
+- False positive: `isDev` в `server/src/services/service.Files.ts:6` — используется
+  на следующей строке (`const url = isDev ? ... : ...`), Skylos ошибся.
+
+Проверено: `tsc --noEmit` (client+server) — 0 ошибок; Jest client 281/281 suites,
+976/976 тестов (без потери покрытия — у удалённого дубликата
+`fetchCommentsByArticleId.ts` теста не было); server `build` + `test:auth` 14/14 —
+без регрессий.
 
 ### `SKY-E003` — Файл, который никто не импортирует (67)
 
 > Проверить (напр. Jest setup/mocks подключаются через конфиг, не import) и удалить только реально мёртвые файлы.
 
-- [ ] `client/config/jest/__mocks__/react-i18next.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/config/jest/fileMock.js:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/config/jest/jestEnptyComponent.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/config/jest/setupTests.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/config/storybook/preview.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/config/storybook/webpack.config.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/app/providers/StoreProvider/config/middleware/authInterceptor.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/app/providers/ThemeProvider/ui/theme.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/app/providers/ThemeProvider/ui/withTheme.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Article/ui/ArticleList/ArticleList.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Article/ui/ArticleViewSelector/ArticleViewSelector.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Client/ui/ClientViewSelector/ClientViewSelector.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/ClientStatus/ui/ClientStatusSelect/RoleSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Comment/ui/CommentCard/CommentCard.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Comment/ui/CommentList/CommentList.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Country/ui/CountrySelect/CountrySelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/MollieClient/model/consts/consts.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/MollieSubscription/ui/MollieSubscriptionCard/MollieSubscriptionCard.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Month/ui/MonthSelect/MonthSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/PaymentMethod/ui/PaymentMethod/TransactionSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Role/ui/RoleSelect/RoleSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Summary/ui/SummaryCards/Summary.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/Transaction/model/slices/TransactionSlice.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/TransactionCategory/ui/TransactionCategorySelect/TransactionCategory.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/entities/TransactionType/ui/TransactionSelect/TransactionSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/Auth/ui/LoginForm/LoginForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/ClientTypeTabs/ui/ClientTypeTabs/ArticleTypeTabs.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/TransactionTypeTabs/ui/TransactionTypeTabs/TransactionTypeTabs.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/addMollieClientForm/model/consts/consts.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/addMollieSubscriptionForm/ui/AddMollieSubscriptionForm/AddMollieSubscriptionForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/addTransactionForm/ui/AddTransactionForm/AddTransactionForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/avatarDropdown/ui/AvatarDropdown/AvatarDropdown.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/config/storybook/RouterDecorator/RouterDecorator.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/config/storybook/StoreDecorator/StoreDecorator.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/config/storybook/StyleDecorator/StyleDecorator.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/const/common.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/AppImage/AppImage.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/AppLink/AppLink.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Avatar/Avatar.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Button/Button.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Card/Card.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Code/Code.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Input/Input.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Loader/Loader.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Modal/Modal.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Select/Select.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Skeleton/Skeleton.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/Text/Text.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/shared/ui/ThemeSwitcher/ui/ThemeSwitcher.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/widgets/ErrorPage/ui/ErrorPage.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/widgets/Navbar/ui/Navbar.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/widgets/Page/Page.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/stylelint.config.mjs:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `client/webpack.config.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/prisma.config.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/prisma/seed.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/api/api.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/middlewares/middleware.Logger.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/schemas/schema.product.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/services/recalculateLoyalty.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/services/service.ClientStatus.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/shared/helpers/cron.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
-- [ ] `server/src/types/ProcedureDTO.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/config/jest/__mocks__/react-i18next.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/config/jest/fileMock.js:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/config/jest/jestEnptyComponent.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/config/jest/setupTests.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/config/storybook/preview.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/config/storybook/webpack.config.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/app/providers/StoreProvider/config/middleware/authInterceptor.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/app/providers/ThemeProvider/ui/theme.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/app/providers/ThemeProvider/ui/withTheme.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Article/ui/ArticleList/ArticleList.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Article/ui/ArticleViewSelector/ArticleViewSelector.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Client/ui/ClientViewSelector/ClientViewSelector.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/ClientStatus/ui/ClientStatusSelect/RoleSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Comment/ui/CommentCard/CommentCard.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Comment/ui/CommentList/CommentList.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Country/ui/CountrySelect/CountrySelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/MollieClient/model/consts/consts.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/MollieSubscription/ui/MollieSubscriptionCard/MollieSubscriptionCard.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Month/ui/MonthSelect/MonthSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/PaymentMethod/ui/PaymentMethod/TransactionSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Role/ui/RoleSelect/RoleSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Summary/ui/SummaryCards/Summary.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/Transaction/model/slices/TransactionSlice.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/TransactionCategory/ui/TransactionCategorySelect/TransactionCategory.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/entities/TransactionType/ui/TransactionSelect/TransactionSelect.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/Auth/ui/LoginForm/LoginForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/ClientTypeTabs/ui/ClientTypeTabs/ArticleTypeTabs.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/TransactionTypeTabs/ui/TransactionTypeTabs/TransactionTypeTabs.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/addMollieClientForm/model/consts/consts.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/addMollieSubscriptionForm/ui/AddMollieSubscriptionForm/AddMollieSubscriptionForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/addTransactionForm/ui/AddTransactionForm/AddTransactionForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/avatarDropdown/ui/AvatarDropdown/AvatarDropdown.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/config/storybook/RouterDecorator/RouterDecorator.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/config/storybook/StoreDecorator/StoreDecorator.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/config/storybook/StyleDecorator/StyleDecorator.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/const/common.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/AppImage/AppImage.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/AppLink/AppLink.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Avatar/Avatar.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Button/Button.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Card/Card.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Code/Code.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Input/Input.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Loader/Loader.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Modal/Modal.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Select/Select.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Skeleton/Skeleton.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/Text/Text.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/shared/ui/ThemeSwitcher/ui/ThemeSwitcher.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/widgets/ErrorPage/ui/ErrorPage.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/widgets/Navbar/ui/Navbar.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/widgets/Page/Page.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.stories.tsx:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/stylelint.config.mjs:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `client/webpack.config.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/prisma.config.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/prisma/seed.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/api/api.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/middlewares/middleware.Logger.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/schemas/schema.product.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/services/recalculateLoyalty.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/services/service.ClientStatus.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/shared/helpers/cron.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+- [x] `server/src/types/ProcedureDTO.ts:1` — Unused TypeScript/JavaScript file (not imported by any other file)
+
+**SKY-E003 — ЗАКРЫТО (67/67), из них 50 false positive, 13 реальных удалений
+(4 уже закрыты как часть SKY-U001/U004 выше — `theme.ts`, `StoreDecorator.tsx`,
+`middleware.Logger.ts`, `service.ClientStatus.ts`).**
+
+- False positive, Jest-конфиг подключается через `moduleNameMapper`/
+  `setupFilesAfterEach`, не через import (4): `__mocks__/react-i18next.ts`,
+  `fileMock.js`, `jestEnptyComponent.tsx`, `setupTests.ts`.
+- False positive, Storybook CSF-конвенция — подхватываются по glob-паттерну
+  `stories: ["../../src/**/*.stories.@(...)"]` в `config/storybook/main.ts`, а не
+  через import (43 файла `*.stories.tsx` по всему `client/src`). Отдельно
+  проверено: `preview.ts`, `StyleDecorator.ts` и `RouterDecorator.tsx` тоже false
+  positive — реально импортируются из `config/storybook/preview.ts`, но Skylos,
+  судя по всему, не сканирует `client/config/**` как часть графа импортов, только
+  `client/src/**`.
+- False positive, CLI-конвенция конфигов (3): `client/stylelint.config.mjs`
+  (обнаруживается `stylelint` CLI), `client/webpack.config.ts` (используется
+  `webpack`/`webpack serve` CLI из npm-скриптов), `server/prisma.config.ts` +
+  `server/prisma/seed.ts` (обнаруживаются `prisma db seed`, путь на `seed.ts`
+  явно прописан в `prisma.config.ts`).
+- Реально удалено (13, включая 4, закрытые выше в SKY-U001/U004): `theme.ts`,
+  `StoreDecorator.tsx`, `middleware.Logger.ts`, `service.ClientStatus.ts` — см.
+  разбор в SKY-U001/SKY-U004. Новые удаления в рамках этого пункта:
+  `config/storybook/webpack.config.ts` — старый кастомный webpack-конфиг для
+  Storybook 6/7-стиля, не подключён в `main.ts` (текущий стек использует
+  `@storybook/react-webpack5` + `addon-webpack5-compiler-swc`), полностью
+  осиротел; `StoreProvider/config/middleware/authInterceptor.ts` и
+  `ThemeProvider/ui/withTheme.tsx` — файлы целиком состоят из закомментированного
+  кода, ни одного активного экспорта; `entities/MollieClient/model/consts/consts.ts`
+  и `features/addMollieClientForm/model/consts/consts.ts` — оба стали полностью
+  мёртвыми после точечных удалений в SKY-U001/U004 (второй файл — после удаления
+  `ValidateClientError` в нём не осталось используемого кода, `ServerError` внутри
+  него был отдельной неиспользуемой копией, у каждого фича-слайса своя версия этого
+  интерфейса); `shared/const/common.ts` — файл размером 0 байт; `server/src/api/api.ts`
+  — осиротевший прямой axios-клиент для Mollie API, вытесненный официальным
+  `@mollie/api-client` SDK в `service.Mollie.ts`; `server/src/schemas/schema.product.ts`
+  — Zod-схема для сущности "Product", отсутствующей в домене DDC CRM (клиенты,
+  танцевальные группы, транзакции, инвойсы, Mollie — не "продукты"), нигде не
+  используется; `server/src/shared/helpers/cron.ts` — cron-задача с полностью
+  закомментированным телом (Sequelize-эра, ссылалась на уже нерабочий
+  `recalculateLoyalty`), сама нигде не импортируется (даже side-effect импорта
+  нет — задача никогда не регистрировалась при старте сервера);
+  `server/src/services/recalculateLoyalty.ts` — после удаления неиспользуемого
+  импорта в SKY-U002 в файле остался только неиспользуемый интерфейс `IVisit` и
+  полностью закомментированная функция; `server/src/types/ProcedureDTO.ts` —
+  DTO для медицинских "процедур"/"зон инъекций", не относится к домену DDC CRM,
+  нигде не используется.
+- Отдельно проверено (не в этом списке, но связанная проверка): удаление
+  `config/storybook/webpack.config.ts` не ломает Storybook — `npx storybook build`
+  доходит до той же стадии индексации историй и падает на **предсуществующей**
+  (проверено по `git show HEAD`, было так с исходного коммита) проблеме "CSF:
+  missing default export" в нескольких `.stories.tsx`-файлах, чьё содержимое
+  полностью закомментировано — это не связано с удалённым файлом и не входит в
+  `npm run ci` (Storybook не гейтится в CI по AGENTS.md), поэтому не в скоупе
+  этой уборки мёртвого кода.
+
+Проверено: `tsc --noEmit` (client+server) — 0 ошибок (кроме исходной baseline
+`node_modules`); `npm run build:prod` (client) и `npm run build` (server) — чисто;
+Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
+`test:mollie` 7/7 — без регрессий.
+
+**Повторный прогон `npm run check:skylos` (обязателен по правилам этого чек-листа)
+подтвердил закрытие всех 185 находок и вскрыл ещё один слой мёртвого кода**,
+замаскированный первым слоем (Skylos считал символ «используемым», если на него
+ссылался другой символ, который сам был мёртвым и удалён в этом же проходе):
+
+- `client/src/shared/const/router.ts` — после удаления `AppRouteByPathPattern`
+  (см. SKY-U003) обнажились как мёртвые: enum `AppRoutes` (дублирует другой,
+  реально используемый `AppRoutes` в `shared/config/routeConfig/routeConfig.tsx`
+  — приложение навигирует только через него) и 10 функций-билдеров маршрутов
+  (`getRouteMain`, `getRouteAbout`, `getRouteArticles`, `getRouteArticleDetails`,
+  `getRouteArticleCreate`, `getRouteArticleEdit`, `getRouteClients`,
+  `getRouteClientEdit`, `getRouteAdmin`, `getRouteForbidden`) — их единственным
+  потребителем был именно удалённый `AppRouteByPathPattern`. Проверено по каждой
+  функции отдельно (0 внешних usage) — удалены; оставлены только 4 реально
+  используемые (`getRouteSettings`, `getRouteProfile`, `getRouteClientDetails`,
+  `getRouteMollieDetails`).
+- `server/src/utils/paths.ts` — после удаления `UPLOAD_DIR` (см. SKY-U003)
+  обнажился как мёртвый `PUBLIC_DIR` (его единственный потребитель) — удалён;
+  `ROOT_DIR` в том же файле активно используется в 6+ местах, файл не удалялся.
+- `client/src/entities/Transaction/model/slices/TransactionSlice.ts` — этого не
+  было в исходном списке `SKY-E003`(!), обнаружилось только повторным прогоном:
+  осиротевшая заготовка Redux-слайса с плейсхолдер-редьюсером `template` и
+  полностью закомментированными `extraReducers`, нигде не подключена к
+  `StateSchema` и не импортируется — удалена. Публичный тип `TransactionSchema`
+  из соседнего файла не пострадал (структурный интерфейс, от слайса не зависит,
+  по-прежнему реэкспортируется из `entities/Transaction/index.ts`).
+- `server/src/controllers/controller.Instagram.ts` — `verifyRequestSignature`
+  тоже обнажилась (её единственной "видимой" Skylos ссылкой был неиспользуемый
+  импорт в `router.Instagram.ts`, удалённый в SKY-U002). **В отличие от
+  `revokeTrustedDevices` выше, это оказалась настоящая, ранее не закрытая дыра
+  безопасности**: функция проверяет HMAC-подпись вебхука Instagram
+  (`x-hub-signature-256`), но нигде не была подключена к пайплайну запроса —
+  глобальный `bodyParser.json()` в `server/src/app.ts` не передавал `verify`,
+  так что POST на `/api/v1/instagram/webhook` принимался без проверки подписи.
+  Согласовано с пользователем (см. AskUserQuestion в истории сессии) — выбран
+  вариант "подключить сейчас". Исправлено: `bodyParser.json()` в `app.ts` теперь
+  принимает `verify`, который вызывает `verifyRequestSignature` только для
+  запросов с `req.originalUrl`, начинающимся на `/api/v1/instagram/webhook`
+  (остальные роуты не затронуты — тело есть в `verify` только при наличии
+  заголовка `x-hub-signature-256`, у любых других клиентов его нет); заодно
+  `throw new Error(...)` заменён на `throw new ApiError(401, ...)`, чтобы
+  `errorMiddleware` вернул корректный 401 вместо общего 500. Проверено вручную
+  изолированным скриптом (`ts-node -e`, вне тестового сьюта — под функцию нет
+  отдельного unit-теста, `server` не имеет единой test-команды на весь репозиторий,
+  см. `AGENTS.md`): валидная HMAC-подпись проходит, невалидная отклоняется с
+  `401 Invalid signature.`, отсутствие заголовка — no-op (как и раньше, чтобы не
+  ломать не-Instagram трафик). `tsc --noEmit`, `npm run build`, `npm run test:ci`
+  (все 5 сьютов, 0 fail) — без регрессий.
+
+Финальный повторный прогон `npm run check:skylos` после этих доп. исправлений
+подтвердил: находок `SKY-U001`–`SKY-U004`/`SKY-E003` не осталось, кроме уже
+задокументированных выше false positive; никаких новых цепочек не обнажилось.
 
 ## Качество кода (сложность/размер функций)
 

@@ -1,5 +1,4 @@
 import 'dotenv/config';
-import readline from 'readline';
 import { AuthSecurityEventType } from '@prisma/client';
 import prisma from '../prisma/prisma-client';
 import { hashPassword, isPasswordAllowed } from '../src/services/service.Password';
