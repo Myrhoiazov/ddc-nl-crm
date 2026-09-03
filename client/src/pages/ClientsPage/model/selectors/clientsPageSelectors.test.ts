@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { ClientSortField, ClientView } from '@/entities/Client';
 import {
@@ -17,7 +18,7 @@ import {
 
 describe('clientsPageSelectors', () => {
     test('return the stored values', () => {
-        const state = {
+        const state: StateSchema = fromPartial({
             clientsPage: {
                 isLoading: true,
                 error: 'error',
@@ -32,7 +33,7 @@ describe('clientsPageSelectors', () => {
                 branchId: '2',
                 paymentStatus: 'paid',
             },
-        } as unknown as StateSchema;
+        });
 
         expect(getClientsPageIsLoading(state)).toBe(true);
         expect(getClientsPageError(state)).toBe('error');

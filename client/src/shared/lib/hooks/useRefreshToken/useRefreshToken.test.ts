@@ -8,7 +8,7 @@ jest.mock('@/shared/api/api', () => ({
 
 describe('useRefreshToken', () => {
     test('requests /refresh with credentials and returns the access token', async () => {
-        (($api.get as unknown) as jest.Mock).mockResolvedValue({
+        jest.mocked($api.get).mockResolvedValue({
             data: { accessToken: 'new-token' },
         });
 

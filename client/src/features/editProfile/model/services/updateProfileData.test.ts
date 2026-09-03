@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { ValidateProfileError } from '@/entities/Profile';
 import { RoleKey } from '@/entities/Role';
@@ -13,10 +14,10 @@ beforeEach(() => {
 });
 
 function stateWith(form: Record<string, unknown>, authData: Record<string, unknown>): () => StateSchema {
-    return () => ({
+    return () => fromPartial({
         profile: { form, isLoading: false, readonly: false },
         user: { authData, _inited: true },
-    }) as unknown as StateSchema;
+    });
 }
 
 describe('updateProfileData (editProfile)', () => {

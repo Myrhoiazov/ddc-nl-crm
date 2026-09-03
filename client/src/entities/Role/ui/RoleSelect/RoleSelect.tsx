@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Select } from '@/shared/ui/Select/Select';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 import { RoleKey, RoleLabels } from '../../model/types/role';
 import { classNames } from '@/shared/lib/classNames/classNames';
 
@@ -28,16 +28,12 @@ export const RoleSelect = memo(({ className, value, onChange, readonly }: RoleSe
         [onChange]
     );
 
-    const selectRole = useMemo(() => {
-        return RoleKey[value as unknown as keyof typeof RoleKey];
-    }, [value]);
-
     return (
         <Select
             className={classNames('', {}, [className])}
             label={t('Укажите роль')}
             options={options}
-            value={selectRole}
+            value={value}
             onChange={onChangeHandler}
             readonly={readonly}
         />

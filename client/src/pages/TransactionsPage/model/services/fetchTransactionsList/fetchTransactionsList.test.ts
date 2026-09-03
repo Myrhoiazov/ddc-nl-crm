@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { Month } from '@/entities/Month';
 import { TransactionSortField } from '@/entities/Transaction';
@@ -11,8 +12,8 @@ jest.mock('../fetchTransactionsSummary/fetchTransactionsSummary', () => ({
 const dispatch = jest.fn();
 const extra = { apiPrivate: { get: jest.fn() } };
 
-function stateWith(overrides: Record<string, unknown> = {}) {
-    return () => ({
+function stateWith(overrides: Record<string, unknown> = {}): () => StateSchema {
+    return () => fromPartial({
         transactionPage: {
             search: '',
             sort: TransactionSortField.DATE,
@@ -23,7 +24,7 @@ function stateWith(overrides: Record<string, unknown> = {}) {
             limit: 20,
             ...overrides,
         },
-    }) as unknown as StateSchema;
+    });
 }
 
 beforeEach(() => {
