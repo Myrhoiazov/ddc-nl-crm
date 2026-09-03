@@ -1,13 +1,13 @@
 ---
 name: code-review
-description: Review DDC NL theme changes against repository standards and the requested spec. Use before PR publishing, when reviewing WIP changes, or when asked to review since a branch, commit, tag, or fixed point.
+description: Review DDC CRM changes against repository standards and the requested spec. Use before PR publishing, when reviewing WIP changes, or when asked to review since a branch, commit, tag, or fixed point.
 ---
 
-# DDC NL Code Review
+# DDC CRM Code Review
 
 Review the diff along two axes:
 
-- **Standards:** whether the change follows DDC NL repository rules and local conventions.
+- **Standards:** whether the change follows DDC CRM repository rules and local conventions.
 - **Spec:** whether the change matches the user request, issue, PRD, or `tasks/plan.md`.
 
 ## 1. Pin the Diff
@@ -15,8 +15,8 @@ Review the diff along two axes:
 Use the fixed point supplied by the user. If none is supplied, default to:
 
 ```bash
-git diff origin/main...HEAD
-git log origin/main..HEAD --oneline
+git diff develop...HEAD
+git log develop..HEAD --oneline
 ```
 
 Confirm the fixed point resolves and the diff is non-empty. If the working tree has uncommitted changes, include them in the review by inspecting `git diff` and `git diff --staged` as well.
@@ -28,18 +28,20 @@ Completion criterion: the reviewed change set is explicit.
 Read:
 
 - `AGENTS.md`
+- `CONTEXT.md` when domain language or architecture changed
 - `README.md`
-- `CONTEXT.md` when public copy or domain terms changed
 - Any local coding standards or task files relevant to the diff
 
-Apply these standing DDC NL checks:
+Apply these standing DDC CRM checks:
 
-- Public copy uses `Talent Center DDC` and `DDC NL` terminology.
-- Public slugs, template names, CSS/JS ids, and classes are changed only with usage checks.
-- Secrets and private customer data are not committed.
-- `images/`, `videos/`, `.env`, `.DS_Store`, and `node_modules/` are not staged.
-- Generated style files stay aligned with SCSS when styles change.
-- PHP and JS checks required by `AGENTS.md` are run or explicitly blocked.
+- Client code respects Feature-Sliced Design import rules (`eslint-plugin-denys-fix-fsd-path-plugin`): no imports into another slice's internals; use `@/slice` public APIs.
+- New React components are functional and usually wrapped with `memo()` following local patterns.
+- UI text uses i18next where practical; styling uses SCSS Modules and theme tokens, not raw colors; dark theme stays real.
+- Server code follows the layered `routes → controllers → services` flow with Zod validation in `schemas/`.
+- Auth/security patterns are preserved: cookie sessions, CSRF double-submit, Argon2id, rate limiting. Never weaken or bypass them.
+- Prisma schema changes are followed by `npm run prisma:generate` and a migration.
+- Secrets and private customer data are not committed; `.env`, uploads, `.DS_Store`, and `node_modules/` are not staged.
+- The checks required by `AGENTS.md` for the changed surface are run or explicitly blocked.
 - No AI attribution trailers are added to commits.
 
 Completion criterion: every applicable standard source has been considered.
