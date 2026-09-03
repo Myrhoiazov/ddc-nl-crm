@@ -824,15 +824,267 @@ const resolveMandatesFilter = (has: string | undefined) => {
     return undefined;
 };
 
+const queryString = (value: unknown) => (typeof value === 'string' ? value : undefined);
+
+const paginatedResponse = (items: unknown[], total: number, page: number, limit: number) => ({
+    items,
+    total,
+    page,
+    limit,
+    totalPages: Math.max(Math.ceil(total / limit), 1),
+});
+
+const paymentDateRangeWhere = (dateFrom?: string, dateTo?: string) => {
+    if (!dateFrom && !dateTo) return undefined;
+    return {
+        ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+        ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
+    };
+};
+
+const customerSearchWhere = (search?: string): Prisma.CustomerWhereInput['OR'] => {
+    if (!search) return undefined;
+    return [
+        { mollieId: { contains: search } },
+        { email: { contains: search } },
+        { givenName: { contains: search } },
+        { familyName: { contains: search } },
+        { payerName: { contains: search } },
+        { client: { firstName: { contains: search } } },
+        { client: { lastName: { contains: search } } },
+        { client: { email: { contains: search } } },
+        { clientLinks: { some: { client: { firstName: { contains: search } } } } },
+        { clientLinks: { some: { client: { lastName: { contains: search } } } } },
+        { clientLinks: { some: { client: { email: { contains: search } } } } },
+    ];
+};
+
+const paymentSearchWhere = (search?: string): Prisma.PaymentWhereInput['OR'] => {
+    if (!search) return undefined;
+    return [
+        { mollieId: { contains: search } },
+        { description: { contains: search } },
+        { customer: { email: { contains: search } } },
+        { customer: { givenName: { contains: search } } },
+        { customer: { familyName: { contains: search } } },
+        { customer: { payerName: { contains: search } } },
+        { customer: { client: { firstName: { contains: search } } } },
+        { customer: { client: { lastName: { contains: search } } } },
+        { customer: { client: { email: { contains: search } } } },
+        { customer: { clientLinks: { some: { client: { firstName: { contains: search } } } } } },
+        { customer: { clientLinks: { some: { client: { lastName: { contains: search } } } } } },
+        { customer: { clientLinks: { some: { client: { email: { contains: search } } } } } },
+        { subscription: { mollieId: { contains: search } } },
+    ];
+};
+
+type MatrixCell = {
+    paid: boolean;
+    paidCount: number;
+    issueCount: number;
+    amount: number;
+    currency: string;
+};
+
+type MatrixMonth = {
+    key: string;
+    label: string;
+    year: number;
+    month: number;
+};
+
+type MatrixPayment = {
+    id: number;
+    status: string;
+    amountValue: Prisma.Decimal;
+    amountCurrency: string;
+    paidAt: Date | null;
+    createdAt: Date;
+};
+
+type MatrixRow = {
+    key: string;
+    clientId: number | null;
+    customerId: number | null;
+    name: string;
+    payerNames: string[];
+    branch: string | null;
+    cells: Record<string, MatrixCell>;
+    paidMonths: number;
+};
+
+const resolvePaymentMatrixYear = (requested: unknown, now: Date) => {
+    const requestedStartYear = Number(requested);
+    const defaultStartYear = now.getUTCMonth() >= 8 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
+    return Number.isInteger(requestedStartYear)
+        && requestedStartYear >= 2020
+        && requestedStartYear <= now.getUTCFullYear() + 1
+        ? requestedStartYear
+        : defaultStartYear;
+};
+
+const buildPaymentMatrixMonths = (startYear: number): MatrixMonth[] => Array.from({ length: 12 }, (_, index) => {
+    const date = new Date(Date.UTC(startYear, 8 + index, 1));
+    return {
+        key: date.toISOString().slice(0, 7),
+        label: date.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }),
+        year: date.getUTCFullYear(),
+        month: date.getUTCMonth() + 1,
+    };
+});
+
+const paymentMatrixSelector = (periodStart: Date, periodEnd: Date) => ({
+    where: { createdAt: { gte: periodStart, lt: periodEnd } },
+    select: {
+        id: true,
+        status: true,
+        amountValue: true,
+        amountCurrency: true,
+        paidAt: true,
+        createdAt: true,
+    },
+});
+
+const createPaymentsMatrixCells = (
+    months: MatrixMonth[],
+) => (payments: MatrixPayment[]): Record<string, MatrixCell> => {
+    const uniquePayments = Array.from(
+        new Map(payments.map((payment) => [payment.id, payment])).values(),
+    );
+
+    return Object.fromEntries(months.map((month) => {
+        const monthPayments = uniquePayments.filter((payment) => (
+            (payment.paidAt ?? payment.createdAt).toISOString().slice(0, 7) === month.key
+        ));
+        const paidPayments = monthPayments.filter((payment) => payment.status === 'paid');
+
+        return [month.key, {
+            paid: paidPayments.length > 0,
+            paidCount: paidPayments.length,
+            issueCount: monthPayments.filter((payment) => molliePaymentIssueStatuses.includes(payment.status as never)).length,
+            amount: paidPayments.reduce((total, payment) => total + Number(payment.amountValue), 0),
+            currency: paidPayments[0]?.amountCurrency ?? 'EUR',
+        }];
+    }));
+};
+
+const matrixClientsQuery = (periodStart: Date, periodEnd: Date) => prisma.client.findMany({
+    select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        branch: {
+            select: { name: true },
+        },
+        mollieCustomers: {
+            select: {
+                id: true,
+                payerName: true,
+                givenName: true,
+                familyName: true,
+                email: true,
+                payments: paymentMatrixSelector(periodStart, periodEnd),
+            },
+        },
+        mollieLinks: {
+            select: {
+                customer: {
+                    select: {
+                        id: true,
+                        payerName: true,
+                        givenName: true,
+                        familyName: true,
+                        email: true,
+                        payments: paymentMatrixSelector(periodStart, periodEnd),
+                    },
+                },
+            },
+        },
+    },
+    orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
+});
+
+const matrixUnlinkedCustomersQuery = (periodStart: Date, periodEnd: Date) => prisma.customer.findMany({
+    where: {
+        clientId: null,
+        clientLinks: { none: {} },
+        payments: {
+            some: { createdAt: { gte: periodStart, lt: periodEnd } },
+        },
+    },
+    select: {
+        id: true,
+        payerName: true,
+        givenName: true,
+        familyName: true,
+        email: true,
+        payments: paymentMatrixSelector(periodStart, periodEnd),
+    },
+});
+
+type MatrixClient = Awaited<ReturnType<typeof matrixClientsQuery>>[number];
+type MatrixUnlinkedCustomer = Awaited<ReturnType<typeof matrixUnlinkedCustomersQuery>>[number];
+
+const buildMatrixClientRow = (
+    client: MatrixClient,
+    createCells: (payments: MatrixPayment[]) => Record<string, MatrixCell>,
+): MatrixRow => {
+    const customers = [
+        ...client.mollieCustomers,
+        ...client.mollieLinks.map((link) => link.customer),
+    ];
+    const uniqueCustomers = Array.from(
+        new Map(customers.map((customer) => [customer.id, customer])).values(),
+    );
+    const cells = createCells(uniqueCustomers.flatMap((customer) => customer.payments));
+
+    return {
+        key: `client-${client.id}`,
+        clientId: client.id,
+        customerId: null as number | null,
+        name: [client.firstName, client.lastName].filter(Boolean).join(' ') || client.email || `Student #${client.id}`,
+        payerNames: uniqueCustomers.map((customer) => (
+            customer.payerName
+            || [customer.givenName, customer.familyName].filter(Boolean).join(' ')
+            || customer.email
+            || `Payer #${customer.id}`
+        )),
+        branch: client.branch?.name ?? null,
+        cells,
+        paidMonths: Object.values(cells).filter((cell) => cell.paid).length,
+    };
+};
+
+const buildMatrixUnlinkedRow = (
+    customer: MatrixUnlinkedCustomer,
+    createCells: (payments: MatrixPayment[]) => Record<string, MatrixCell>,
+): MatrixRow => {
+    const cells = createCells(customer.payments);
+
+    return {
+        key: `customer-${customer.id}`,
+        clientId: null as number | null,
+        customerId: customer.id,
+        name: customer.payerName
+            || [customer.givenName, customer.familyName].filter(Boolean).join(' ')
+            || customer.email
+            || `Payer #${customer.id}`,
+        payerNames: [] as string[],
+        branch: null as string | null,
+        cells,
+        paidMonths: Object.values(cells).filter((cell) => cell.paid).length,
+    };
+};
+
 export const mollieGetCustomersController = async (req: Request, res: Response) => {
     try {
-        const getQueryValue = (value: unknown) => (typeof value === 'string' ? value : undefined);
-        const search = getQueryValue(req.query._q)?.trim();
-        const hasSubscriptions = getQueryValue(req.query.hasSubscriptions);
-        const hasMandates = getQueryValue(req.query.hasMandates);
-        const subscriptionStatus = getQueryValue(req.query.subscriptionStatus);
-        const requestedPage = Number(getQueryValue(req.query._page));
-        const requestedLimit = Number(getQueryValue(req.query._limit));
+        const search = queryString(req.query._q)?.trim();
+        const hasSubscriptions = queryString(req.query.hasSubscriptions);
+        const hasMandates = queryString(req.query.hasMandates);
+        const subscriptionStatus = queryString(req.query.subscriptionStatus);
+        const requestedPage = Number(queryString(req.query._page));
+        const requestedLimit = Number(queryString(req.query._limit));
         const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
         const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
             ? Math.min(requestedLimit, 100)
@@ -841,21 +1093,8 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
 
         const where: Prisma.CustomerWhereInput = {};
 
-        if (search) {
-            where.OR = [
-                { mollieId: { contains: search } },
-                { email: { contains: search } },
-                { givenName: { contains: search } },
-                { familyName: { contains: search } },
-                { payerName: { contains: search } },
-                { client: { firstName: { contains: search } } },
-                { client: { lastName: { contains: search } } },
-                { client: { email: { contains: search } } },
-                { clientLinks: { some: { client: { firstName: { contains: search } } } } },
-                { clientLinks: { some: { client: { lastName: { contains: search } } } } },
-                { clientLinks: { some: { client: { email: { contains: search } } } } },
-            ];
-        }
+        const or = customerSearchWhere(search);
+        if (or) where.OR = or;
 
         const subscriptionsFilter = resolveSubscriptionsFilter(subscriptionStatus, hasSubscriptions);
         if (subscriptionsFilter) where.subscriptions = subscriptionsFilter;
@@ -917,13 +1156,7 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
             prisma.customer.count({ where }),
         ]);
 
-        return res.status(200).json({
-            items: customers,
-            total,
-            page,
-            limit,
-            totalPages: Math.max(Math.ceil(total / limit), 1),
-        });
+        return res.status(200).json(paginatedResponse(customers, total, page, limit));
     } catch (error) {
         console.error('Error fetching Mollie customers:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
@@ -1130,53 +1363,32 @@ export const mollieGetOrganizationsController = async (req: Request, res: Respon
 
 export const mollieGetPaymentsController = async (req: Request, res: Response) => {
     try {
-        const getQueryValue = (value: unknown) => (typeof value === 'string' ? value : undefined);
-        const search = getQueryValue(req.query._q)?.trim();
-        const status = getQueryValue(req.query.status);
-        const issueOnly = getQueryValue(req.query.issueOnly) === 'true';
-        const dateFrom = getQueryValue(req.query.dateFrom);
-        const dateTo = getQueryValue(req.query.dateTo);
-        const page = Math.max(Number(getQueryValue(req.query._page) ?? 1), 1);
-        const limit = Math.min(Math.max(Number(getQueryValue(req.query._limit) ?? 25), 1), 100);
-        const issueStatuses = [...molliePaymentIssueStatuses];
-        const method = getQueryValue(req.query.method);
+        const search = queryString(req.query._q)?.trim();
+        const status = queryString(req.query.status);
+        const issueOnly = queryString(req.query.issueOnly) === 'true';
+        const dateFrom = queryString(req.query.dateFrom);
+        const dateTo = queryString(req.query.dateTo);
+        const page = Math.max(Number(queryString(req.query._page) ?? 1), 1);
+        const limit = Math.min(Math.max(Number(queryString(req.query._limit) ?? 25), 1), 100);
+        const method = queryString(req.query.method);
 
         const where: Prisma.PaymentWhereInput = {};
 
-        if (search) {
-            where.OR = [
-                { mollieId: { contains: search } },
-                { description: { contains: search } },
-                { customer: { email: { contains: search } } },
-                { customer: { givenName: { contains: search } } },
-                { customer: { familyName: { contains: search } } },
-                { customer: { payerName: { contains: search } } },
-                { customer: { client: { firstName: { contains: search } } } },
-                { customer: { client: { lastName: { contains: search } } } },
-                { customer: { client: { email: { contains: search } } } },
-                { customer: { clientLinks: { some: { client: { firstName: { contains: search } } } } } },
-                { customer: { clientLinks: { some: { client: { lastName: { contains: search } } } } } },
-                { customer: { clientLinks: { some: { client: { email: { contains: search } } } } } },
-                { subscription: { mollieId: { contains: search } } },
-            ];
-        }
+        const or = paymentSearchWhere(search);
+        if (or) where.OR = or;
 
         if (status && status !== 'all') {
             where.status = status;
         } else if (issueOnly) {
-            where.status = { in: issueStatuses };
+            where.status = { in: [...molliePaymentIssueStatuses] };
         }
 
         if (method && method !== 'all') {
             where.method = method;
         }
 
-        if (dateFrom || dateTo) {
-            where.createdAt = {
-                ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-                ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
-            };
-        }
+        const createdAt = paymentDateRangeWhere(dateFrom, dateTo);
+        if (createdAt) where.createdAt = createdAt;
 
         const [payments, total] = await Promise.all([
             prisma.payment.findMany({
@@ -1203,13 +1415,7 @@ export const mollieGetPaymentsController = async (req: Request, res: Response) =
             prisma.payment.count({ where }),
         ]);
 
-        return res.status(200).json({
-            items: payments,
-            total,
-            page,
-            limit,
-            totalPages: Math.max(Math.ceil(total / limit), 1),
-        });
+        return res.status(200).json(paginatedResponse(payments, total, page, limit));
     } catch (error) {
         console.error('Error fetching Mollie payments:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
@@ -1217,13 +1423,12 @@ export const mollieGetPaymentsController = async (req: Request, res: Response) =
 }
 
 export const mollieExportPaymentsController = async (req: Request, res: Response) => {
-    const getQueryValue = (value: unknown) => (typeof value === 'string' ? value : undefined);
-    const search = getQueryValue(req.query._q)?.trim();
-    const issueOnly = getQueryValue(req.query.issueOnly) === 'true';
-    const status = getQueryValue(req.query.status);
-    const method = getQueryValue(req.query.method);
-    const dateFrom = getQueryValue(req.query.dateFrom);
-    const dateTo = getQueryValue(req.query.dateTo);
+    const search = queryString(req.query._q)?.trim();
+    const issueOnly = queryString(req.query.issueOnly) === 'true';
+    const status = queryString(req.query.status);
+    const method = queryString(req.query.method);
+    const dateFrom = queryString(req.query.dateFrom);
+    const dateTo = queryString(req.query.dateTo);
     const where: Prisma.PaymentWhereInput = {};
 
     if (search) {
@@ -1239,12 +1444,8 @@ export const mollieExportPaymentsController = async (req: Request, res: Response
     if (issueOnly) where.status = { in: [...molliePaymentIssueStatuses] };
     else if (status && status !== 'all') where.status = status;
     if (method && method !== 'all') where.method = method;
-    if (dateFrom || dateTo) {
-        where.createdAt = {
-            ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-            ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
-        };
-    }
+    const createdAt = paymentDateRangeWhere(dateFrom, dateTo);
+    if (createdAt) where.createdAt = createdAt;
 
     const payments = await prisma.payment.findMany({
         where,
@@ -1277,201 +1478,29 @@ export const mollieExportPaymentsController = async (req: Request, res: Response
 };
 
 export const mollieGetPaymentsMatrixController = async (req: Request, res: Response) => {
-    const requestedStartYear = Number(req.query.startYear);
     const now = new Date();
-    const defaultStartYear = now.getUTCMonth() >= 8 ? now.getUTCFullYear() : now.getUTCFullYear() - 1;
-    const startYear = Number.isInteger(requestedStartYear)
-        && requestedStartYear >= 2020
-        && requestedStartYear <= now.getUTCFullYear() + 1
-        ? requestedStartYear
-        : defaultStartYear;
+    const startYear = resolvePaymentMatrixYear(req.query.startYear, now);
     const periodStart = new Date(Date.UTC(startYear, 8, 1));
     const periodEnd = new Date(Date.UTC(startYear + 1, 8, 1));
-    const months = Array.from({ length: 12 }, (_, index) => {
-        const date = new Date(Date.UTC(startYear, 8 + index, 1));
-        return {
-            key: date.toISOString().slice(0, 7),
-            label: date.toLocaleDateString('en-GB', { month: 'short', timeZone: 'UTC' }),
-            year: date.getUTCFullYear(),
-            month: date.getUTCMonth() + 1,
-        };
-    });
+    const months = buildPaymentMatrixMonths(startYear);
+    const createCells = createPaymentsMatrixCells(months);
 
     try {
         const [clients, unlinkedCustomers] = await Promise.all([
-            prisma.client.findMany({
-                select: {
-                    id: true,
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                    branch: {
-                        select: { name: true },
-                    },
-                    mollieCustomers: {
-                        select: {
-                            id: true,
-                            payerName: true,
-                            givenName: true,
-                            familyName: true,
-                            email: true,
-                            payments: {
-                                where: { createdAt: { gte: periodStart, lt: periodEnd } },
-                                select: {
-                                    id: true,
-                                    status: true,
-                                    amountValue: true,
-                                    amountCurrency: true,
-                                    paidAt: true,
-                                    createdAt: true,
-                                },
-                            },
-                        },
-                    },
-                    mollieLinks: {
-                        select: {
-                            customer: {
-                                select: {
-                                    id: true,
-                                    payerName: true,
-                                    givenName: true,
-                                    familyName: true,
-                                    email: true,
-                                    payments: {
-                                        where: { createdAt: { gte: periodStart, lt: periodEnd } },
-                                        select: {
-                                            id: true,
-                                            status: true,
-                                            amountValue: true,
-                                            amountCurrency: true,
-                                            paidAt: true,
-                                            createdAt: true,
-                                        },
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-            }),
-            prisma.customer.findMany({
-                where: {
-                    clientId: null,
-                    clientLinks: { none: {} },
-                    payments: {
-                        some: { createdAt: { gte: periodStart, lt: periodEnd } },
-                    },
-                },
-                select: {
-                    id: true,
-                    payerName: true,
-                    givenName: true,
-                    familyName: true,
-                    email: true,
-                    payments: {
-                        where: { createdAt: { gte: periodStart, lt: periodEnd } },
-                        select: {
-                            id: true,
-                            status: true,
-                            amountValue: true,
-                            amountCurrency: true,
-                            paidAt: true,
-                            createdAt: true,
-                        },
-                    },
-                },
-            }),
+            matrixClientsQuery(periodStart, periodEnd),
+            matrixUnlinkedCustomersQuery(periodStart, periodEnd),
         ]);
 
-        const createCells = (payments: Array<{
-            id: number;
-            status: string;
-            amountValue: Prisma.Decimal;
-            amountCurrency: string;
-            paidAt: Date | null;
-            createdAt: Date;
-        }>) => {
-            const uniquePayments = Array.from(
-                new Map(payments.map((payment) => [payment.id, payment])).values(),
-            );
-
-            return Object.fromEntries(months.map((month) => {
-                const monthPayments = uniquePayments.filter((payment) => (
-                    (payment.paidAt ?? payment.createdAt).toISOString().slice(0, 7) === month.key
-                ));
-                const paidPayments = monthPayments.filter((payment) => payment.status === 'paid');
-
-                return [month.key, {
-                    paid: paidPayments.length > 0,
-                    paidCount: paidPayments.length,
-                    issueCount: monthPayments.filter((payment) => molliePaymentIssueStatuses.includes(payment.status as never)).length,
-                    amount: paidPayments.reduce((total, payment) => total + Number(payment.amountValue), 0),
-                    currency: paidPayments[0]?.amountCurrency ?? 'EUR',
-                }];
-            }));
-        };
-
-        type PaymentMatrixRow = {
-            key: string;
-            clientId: number | null;
-            customerId: number | null;
-            name: string;
-            payerNames: string[];
-            branch: string | null;
-            cells: ReturnType<typeof createCells>;
-            paidMonths: number;
-        };
-
-        const rows: PaymentMatrixRow[] = clients.map((client) => {
-            const customers = [
-                ...client.mollieCustomers,
-                ...client.mollieLinks.map((link) => link.customer),
-            ];
-            const uniqueCustomers = Array.from(
-                new Map(customers.map((customer) => [customer.id, customer])).values(),
-            );
-            const cells = createCells(uniqueCustomers.flatMap((customer) => customer.payments));
-
-            return {
-                key: `client-${client.id}`,
-                clientId: client.id,
-                customerId: null as number | null,
-                name: [client.firstName, client.lastName].filter(Boolean).join(' ') || client.email || `Student #${client.id}`,
-                payerNames: uniqueCustomers.map((customer) => (
-                    customer.payerName
-                    || [customer.givenName, customer.familyName].filter(Boolean).join(' ')
-                    || customer.email
-                    || `Payer #${customer.id}`
-                )),
-                branch: client.branch?.name ?? null,
-                cells,
-                paidMonths: Object.values(cells).filter((cell) => cell.paid).length,
-            };
-        });
-        const unlinkedRows: PaymentMatrixRow[] = unlinkedCustomers.map((customer) => {
-            const cells = createCells(customer.payments);
-
-            return {
-                key: `customer-${customer.id}`,
-                clientId: null as number | null,
-                customerId: customer.id,
-                name: customer.payerName
-                    || [customer.givenName, customer.familyName].filter(Boolean).join(' ')
-                    || customer.email
-                    || `Payer #${customer.id}`,
-                payerNames: [] as string[],
-                branch: null as string | null,
-                cells,
-                paidMonths: Object.values(cells).filter((cell) => cell.paid).length,
-            };
-        });
+        const rows: MatrixRow[] = [
+            ...clients.map((client) => buildMatrixClientRow(client, createCells)),
+            ...unlinkedCustomers.map((customer) => buildMatrixUnlinkedRow(customer, createCells)),
+        ];
 
         return res.status(200).json({
             startYear,
             endYear: startYear + 1,
             months,
-            rows: [...rows, ...unlinkedRows],
+            rows,
         });
     } catch (error) {
         console.error('Error fetching Mollie payments matrix:', error);
@@ -1813,222 +1842,224 @@ const mapCustomerIncident = (customer: {
     customer,
 });
 
+const incidentCustomerSelect = {
+    id: true,
+    mollieId: true,
+    email: true,
+    givenName: true,
+    familyName: true,
+    payerName: true,
+    payerRelation: true,
+    linkSource: true,
+    client: {
+        select: customerClientSelect,
+    },
+    clientLinks: {
+        select: {
+            id: true,
+            payerRelation: true,
+            linkSource: true,
+            isPrimary: true,
+            client: {
+                select: customerClientSelect,
+            },
+        },
+    },
+    createdAt: true,
+    updatedAt: true,
+} as const;
+
+const includePaymentRelations = {
+    customer: {
+        select: mollieCustomerSelect,
+    },
+    subscription: {
+        select: {
+            id: true,
+            mollieId: true,
+            status: true,
+            description: true,
+        },
+    },
+} as const;
+
+const includeSubscriptionRelations = {
+    customer: {
+        select: mollieCustomerSelect,
+    },
+    mandate: {
+        select: {
+            id: true,
+            mollieId: true,
+            status: true,
+            method: true,
+        },
+    },
+} as const;
+
+const loadIncidentResolvedIds = async () => {
+    const resolutions = await prisma.mollieIncidentResolution.findMany({
+        select: {
+            incidentType: true,
+            sourceId: true,
+        },
+    });
+    return {
+        payment: resolutions.filter((item) => item.incidentType === 'payment').map((item) => item.sourceId),
+        subscription: resolutions.filter((item) => item.incidentType === 'subscription').map((item) => item.sourceId),
+        customer: resolutions.filter((item) => item.incidentType === 'customer').map((item) => item.sourceId),
+    };
+};
+
+const incidentTotals = (counts: { payments: number; subscriptions: number; customers: number }) => ({
+    payments: counts.payments,
+    subscriptions: counts.subscriptions,
+    customers: counts.customers,
+    total: counts.payments + counts.subscriptions + counts.customers,
+});
+
+const incidentPaginatedResponse = (
+    items: unknown[],
+    totals: { payments: number; subscriptions: number; customers: number; total: number },
+    total: number,
+    page: number,
+    limit: number,
+) => ({
+    ...paginatedResponse(items, total, page, limit),
+    totals,
+});
+
+const loadPaymentIncidents = async (
+    where: Prisma.PaymentWhereInput,
+    page: number,
+    limit: number,
+) => {
+    const [items, total] = await Promise.all([
+        prisma.payment.findMany({
+            where,
+            include: includePaymentRelations,
+            orderBy: { updatedAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+        }),
+        prisma.payment.count({ where }),
+    ]);
+    return { items, total };
+};
+
+const loadSubscriptionIncidents = async (
+    where: Prisma.SubscriptionWhereInput,
+    page: number,
+    limit: number,
+) => {
+    const [items, total] = await Promise.all([
+        prisma.subscription.findMany({
+            where,
+            include: includeSubscriptionRelations,
+            orderBy: { updatedAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+        }),
+        prisma.subscription.count({ where }),
+    ]);
+    return { items, total };
+};
+
+const loadCustomerIncidents = async (
+    where: Prisma.CustomerWhereInput,
+    page: number,
+    limit: number,
+) => {
+    const [items, total] = await Promise.all([
+        prisma.customer.findMany({
+            where,
+            select: incidentCustomerSelect,
+            orderBy: { updatedAt: 'desc' },
+            skip: (page - 1) * limit,
+            take: limit,
+        }),
+        prisma.customer.count({ where }),
+    ]);
+    return { items, total };
+};
+
+const loadCombinedIncidents = async (
+    paymentWhere: Prisma.PaymentWhereInput,
+    subscriptionWhere: Prisma.SubscriptionWhereInput,
+    customerWhere: Prisma.CustomerWhereInput,
+) => {
+    const [payments, subscriptions, customers] = await Promise.all([
+        prisma.payment.findMany({
+            where: paymentWhere,
+            include: includePaymentRelations,
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+        }),
+        prisma.subscription.findMany({
+            where: subscriptionWhere,
+            include: includeSubscriptionRelations,
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+        }),
+        prisma.customer.findMany({
+            where: customerWhere,
+            select: incidentCustomerSelect,
+            orderBy: { updatedAt: 'desc' },
+            take: 10,
+        }),
+    ]);
+    return { payments, subscriptions, customers };
+};
+
 export const mollieGetPaymentIncidentsController = async (req: Request, res: Response) => {
     try {
-        const getQueryValue = (value: unknown) => (typeof value === 'string' ? value : undefined);
-        const search = getQueryValue(req.query._q)?.trim();
-        const type = getQueryValue(req.query.type) ?? 'all';
-        const page = Math.max(Number(getQueryValue(req.query._page) ?? 1), 1);
-        const limit = Math.min(Math.max(Number(getQueryValue(req.query._limit) ?? 25), 1), 100);
-        const resolutions = await prisma.mollieIncidentResolution.findMany({
-            select: {
-                incidentType: true,
-                sourceId: true,
-            },
-        });
-        const resolvedIds = {
-            payment: resolutions.filter((item) => item.incidentType === 'payment').map((item) => item.sourceId),
-            subscription: resolutions.filter((item) => item.incidentType === 'subscription').map((item) => item.sourceId),
-            customer: resolutions.filter((item) => item.incidentType === 'customer').map((item) => item.sourceId),
-        };
+        const search = queryString(req.query._q)?.trim();
+        const type = queryString(req.query.type) ?? 'all';
+        const page = Math.max(Number(queryString(req.query._page) ?? 1), 1);
+        const limit = Math.min(Math.max(Number(queryString(req.query._limit) ?? 25), 1), 100);
+        const resolvedIds = await loadIncidentResolvedIds();
 
         const paymentWhere = buildPaymentIncidentWhere(search, resolvedIds.payment);
         const subscriptionWhere = buildSubscriptionIncidentWhere(search, resolvedIds.subscription);
         const customerWhere = buildCustomerIncidentWhere(search, resolvedIds.customer);
 
-        const includePaymentRelations = {
-            customer: {
-                select: mollieCustomerSelect,
-            },
-            subscription: {
-                select: {
-                    id: true,
-                    mollieId: true,
-                    status: true,
-                    description: true,
-                },
-            },
-        };
-
-        const includeSubscriptionRelations = {
-            customer: {
-                select: mollieCustomerSelect,
-            },
-            mandate: {
-                select: {
-                    id: true,
-                    mollieId: true,
-                    status: true,
-                    method: true,
-                },
-            },
-        };
-
-        const [
-            paymentIncidentsCount,
-            subscriptionIncidentsCount,
-            customerIncidentsCount,
-        ] = await Promise.all([
+        const counts = await Promise.all([
             prisma.payment.count({ where: paymentWhere }),
             prisma.subscription.count({ where: subscriptionWhere }),
             prisma.customer.count({ where: customerWhere }),
         ]);
-
-        const totals = {
-            payments: paymentIncidentsCount,
-            subscriptions: subscriptionIncidentsCount,
-            customers: customerIncidentsCount,
-            total: paymentIncidentsCount + subscriptionIncidentsCount + customerIncidentsCount,
-        };
+        const totals = incidentTotals({
+            payments: counts[0],
+            subscriptions: counts[1],
+            customers: counts[2],
+        });
 
         if (type === 'payments') {
-            const [payments, total] = await Promise.all([
-                prisma.payment.findMany({
-                    where: paymentWhere,
-                    include: includePaymentRelations,
-                    orderBy: {
-                        updatedAt: 'desc',
-                    },
-                    skip: (page - 1) * limit,
-                    take: limit,
-                }),
-                prisma.payment.count({ where: paymentWhere }),
-            ]);
-
-            return res.status(200).json({
-                items: payments.map(mapPaymentIncident),
-                totals,
-                total,
-                page,
-                limit,
-                totalPages: Math.max(Math.ceil(total / limit), 1),
-            });
+            const { items, total } = await loadPaymentIncidents(paymentWhere, page, limit);
+            return res.status(200).json(
+                incidentPaginatedResponse(items.map(mapPaymentIncident), totals, total, page, limit),
+            );
         }
 
         if (type === 'subscriptions') {
-            const [subscriptions, total] = await Promise.all([
-                prisma.subscription.findMany({
-                    where: subscriptionWhere,
-                    include: includeSubscriptionRelations,
-                    orderBy: {
-                        updatedAt: 'desc',
-                    },
-                    skip: (page - 1) * limit,
-                    take: limit,
-                }),
-                prisma.subscription.count({ where: subscriptionWhere }),
-            ]);
-
-            return res.status(200).json({
-                items: subscriptions.map(mapSubscriptionIncident),
-                totals,
-                total,
-                page,
-                limit,
-                totalPages: Math.max(Math.ceil(total / limit), 1),
-            });
+            const { items, total } = await loadSubscriptionIncidents(subscriptionWhere, page, limit);
+            return res.status(200).json(
+                incidentPaginatedResponse(items.map(mapSubscriptionIncident), totals, total, page, limit),
+            );
         }
 
         if (type === 'customers') {
-            const [customers, total] = await Promise.all([
-                prisma.customer.findMany({
-                    where: customerWhere,
-                    select: {
-                        id: true,
-                        mollieId: true,
-                        email: true,
-                        givenName: true,
-                        familyName: true,
-                        payerName: true,
-                        payerRelation: true,
-                        linkSource: true,
-                        client: {
-                            select: customerClientSelect,
-                        },
-                        clientLinks: {
-                            select: {
-                                id: true,
-                                payerRelation: true,
-                                linkSource: true,
-                                isPrimary: true,
-                                client: {
-                                    select: customerClientSelect,
-                                },
-                            },
-                        },
-                        createdAt: true,
-                        updatedAt: true,
-                    },
-                    orderBy: {
-                        updatedAt: 'desc',
-                    },
-                    skip: (page - 1) * limit,
-                    take: limit,
-                }),
-                prisma.customer.count({ where: customerWhere }),
-            ]);
-
-            return res.status(200).json({
-                items: customers.map(mapCustomerIncident),
-                totals,
-                total,
-                page,
-                limit,
-                totalPages: Math.max(Math.ceil(total / limit), 1),
-            });
+            const { items, total } = await loadCustomerIncidents(customerWhere, page, limit);
+            return res.status(200).json(
+                incidentPaginatedResponse(items.map(mapCustomerIncident), totals, total, page, limit),
+            );
         }
 
-        const [payments, subscriptions, customers] = await Promise.all([
-            prisma.payment.findMany({
-                where: paymentWhere,
-                include: includePaymentRelations,
-                orderBy: {
-                    updatedAt: 'desc',
-                },
-                take: 10,
-            }),
-            prisma.subscription.findMany({
-                where: subscriptionWhere,
-                include: includeSubscriptionRelations,
-                orderBy: {
-                    updatedAt: 'desc',
-                },
-                take: 10,
-            }),
-            prisma.customer.findMany({
-                where: customerWhere,
-                select: {
-                    id: true,
-                    mollieId: true,
-                    email: true,
-                    givenName: true,
-                    familyName: true,
-                    payerName: true,
-                    payerRelation: true,
-                    linkSource: true,
-                    client: {
-                        select: customerClientSelect,
-                    },
-                    clientLinks: {
-                        select: {
-                            id: true,
-                            payerRelation: true,
-                            linkSource: true,
-                            isPrimary: true,
-                            client: {
-                                select: customerClientSelect,
-                            },
-                        },
-                    },
-                    createdAt: true,
-                    updatedAt: true,
-                },
-                orderBy: {
-                    updatedAt: 'desc',
-                },
-                take: 10,
-            }),
-        ]);
+        const { payments, subscriptions, customers } = await loadCombinedIncidents(
+            paymentWhere,
+            subscriptionWhere,
+            customerWhere,
+        );
 
         const items = [
             ...payments.map(mapPaymentIncident),
@@ -2038,14 +2069,9 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
             new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
         )).slice((page - 1) * limit, page * limit);
 
-        return res.status(200).json({
-            items,
-            totals,
-            total: totals.total,
-            page,
-            limit,
-            totalPages: Math.max(Math.ceil(totals.total / limit), 1),
-        });
+        return res.status(200).json(
+            incidentPaginatedResponse(items, totals, totals.total, page, limit),
+        );
     } catch (error) {
         console.error('Error fetching Mollie payment incidents:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
