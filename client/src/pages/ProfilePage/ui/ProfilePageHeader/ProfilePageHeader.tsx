@@ -1,5 +1,3 @@
-import { Button, ButtonTheme } from '@/shared/ui/Button/Button';
-import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import { getProfileData, profileActions } from '@/entities/Profile';
 import { useCallback, useState } from 'react';
@@ -9,9 +7,10 @@ import { getProfileReadonly } from '@/entities/Profile';
 import { updateProfileData } from '@/features/editProfile';
 import cls from './ProfilePageHeader.module.scss';
 import { getUserAuthData } from '@/entities/User';
-import { RoleKey, RoleLabels } from '@/entities/Role/';
-import { Avatar } from '@/shared/ui/Avatar/Avatar';
+import { RoleKey } from '@/entities/Role/';
 import { ChangePasswordModal } from '@/features/changePassword';
+import { ProfileHeaderInfo } from './ProfileHeaderInfo';
+import { ProfileHeaderActions } from './ProfileHeaderActions';
 
 interface ProfilePageHeaderProps {
     className?: string;
@@ -19,15 +18,13 @@ interface ProfilePageHeaderProps {
 
 export const ProfilePageHeader = (props: ProfilePageHeaderProps) => {
     const { className } = props;
-    const { t } = useTranslation('profile');
-
     const authData = useSelector(getUserAuthData);
     const profileData = useSelector(getProfileData);
 
-    const isCanEdit = authData?.id == profileData?.id || authData?.role === RoleKey.ADMIN;
-    const isOwnProfile = authData?.id == profileData?.id;
+    const isCanEdit = Boolean(authData?.id == profileData?.id || authData?.role === RoleKey.ADMIN);
+    const isOwnProfile = Boolean(authData?.id == profileData?.id);
 
-    const readonly = useSelector(getProfileReadonly);
+    const readonly = Boolean(useSelector(getProfileReadonly));
     const dispatch = useAppDispatch();
 
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -43,58 +40,21 @@ export const ProfilePageHeader = (props: ProfilePageHeaderProps) => {
               ? profileData.firstName[0].toUpperCase()
               : '?';
 
-    const roleLabel = profileData?.role ? RoleLabels[profileData.role] : '';
-
     return (
         <div className={classNames(cls.ProfilePageHeader, {}, [className])}>
             <div className={cls.banner} />
-
             <div className={cls.body}>
-                <div className={cls.left}>
-                    <div className={cls.avatarWrap}>
-                        {profileData?.avatar ? (
-                            <Avatar src={profileData.avatar} size={46} />
-                        ) : (
-                            <div className={cls.avatarInitials}>{initials}</div>
-                        )}
-                    </div>
-
-                    <div className={cls.info}>
-                        <div className={cls.name}>
-                            {profileData?.firstName} {profileData?.lastName}
-                        </div>
-                        {roleLabel && <span className={cls.badge}>{roleLabel}</span>}
-                    </div>
-                </div>
-
-                {isCanEdit && (
-                    <div className={cls.actions}>
-                        {isOwnProfile && readonly && (
-                            <Button
-                                theme={ButtonTheme.OUTLINE}
-                                onClick={() => setIsPasswordModalOpen(true)}
-                            >
-                                {t('Изменить пароль')}
-                            </Button>
-                        )}
-                        {readonly ? (
-                            <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onEdit}>
-                                {t('Редактировать')}
-                            </Button>
-                        ) : (
-                            <>
-                                <Button theme={ButtonTheme.OUTLINE_RED} onClick={onCancelEdit}>
-                                    {t('Отменить')}
-                                </Button>
-                                <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSave}>
-                                    {t('Сохранить')}
-                                </Button>
-                            </>
-                        )}
-                    </div>
-                )}
+                <ProfileHeaderInfo profileData={profileData} initials={initials} />
+                <ProfileHeaderActions
+                    isCanEdit={isCanEdit}
+                    isOwnProfile={isOwnProfile}
+                    readonly={readonly}
+                    onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+                    onEdit={onEdit}
+                    onCancelEdit={onCancelEdit}
+                    onSave={onSave}
+                />
             </div>
-
             {profileData?.id && (
                 <ChangePasswordModal
                     isOpen={isPasswordModalOpen}

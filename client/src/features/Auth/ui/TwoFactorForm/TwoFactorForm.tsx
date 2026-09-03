@@ -1,15 +1,14 @@
 import { FormEvent, memo, useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button, ButtonTheme } from '@/shared/ui/Button/Button';
-import { Input } from '@/shared/ui/Input/Input';
 import { CheckBox } from '@/shared/ui/CheckBox';
-import { Text } from '@/shared/ui/Text/Text';
 import { Card } from '@/shared/ui/Card/Card';
-import { VStack } from '@/shared/ui/Stack';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
 import { verifyTwoFactorCode } from '../../model/services/verifyTwoFactorCode/verifyTwoFactorCode';
 import { resendTwoFactorCode } from '../../model/services/resendTwoFactorCode/resendTwoFactorCode';
+import { TwoFactorFormHeader } from './TwoFactorFormHeader';
+import { TwoFactorFormFields } from './TwoFactorFormFields';
+import { TwoFactorFormActions } from './TwoFactorFormActions';
 import cls from './TwoFactorForm.module.scss';
 
 const RESEND_COOLDOWN_SECONDS = 60;
@@ -91,64 +90,23 @@ export const TwoFactorForm = memo(({ className, maskedEmail, onSuccess, onBack }
     return (
         <Card className={classNames(cls.TwoFactorForm, {}, [className])} padding="40">
             <form onSubmit={onSubmit}>
-                <VStack gap="4" align="center" className={cls.header}>
-                    <Text size="m" title={t('Введите код подтверждения')} bold />
-                    <Text size="s" text={t('Мы отправили код на {{email}}', { email: maskedEmail })} />
-                </VStack>
-
-                <div className={cls.fields}>
-                    <Input
-                        fullWidth
-                        label={t('Код из письма')}
-                        type="text"
-                        inputMode="numeric"
-                        autoComplete="one-time-code"
-                        maxLength={6}
-                        autofocus
-                        className={cls.input}
-                        placeholder="000000"
-                        value={code}
-                        onChange={onChangeCode}
-                    />
-                </div>
-
+                <TwoFactorFormHeader maskedEmail={maskedEmail} />
+                <TwoFactorFormFields code={code} onChangeCode={onChangeCode} />
                 <CheckBox
                     value={trustDevice}
                     onChange={setTrustDevice}
                     label={t('Запомнить это устройство на 30 дней')}
                 />
-
                 {error && <div className={cls.error}>{error}</div>}
                 {!error && resendMessage && <div className={cls.success}>{resendMessage}</div>}
-
-                <VStack gap="16" align="center">
-                    <Button
-                        type="submit"
-                        theme={ButtonTheme.BACKGROUND_INVERTED}
-                        className={cls.submitBtn}
-                        disabled={isVerifying || code.length !== 6}
-                        fullWidth
-                    >
-                        {isVerifying ? t('Проверка...') : t('Подтвердить')}
-                    </Button>
-
-                    <Button
-                        type="button"
-                        theme={ButtonTheme.CLEAR}
-                        disabled={isResending || secondsLeft > 0}
-                        onClick={onResend}
-                    >
-                        {isResending
-                            ? t('Отправка...')
-                            : secondsLeft > 0
-                                ? t('Отправить код повторно через {{seconds}} с', { seconds: secondsLeft })
-                                : t('Отправить код повторно')}
-                    </Button>
-
-                    <Button type="button" theme={ButtonTheme.CLEAR} className={cls.back} onClick={onBack}>
-                        {t('Назад')}
-                    </Button>
-                </VStack>
+                <TwoFactorFormActions
+                    isVerifying={isVerifying}
+                    codeLength={code.length}
+                    isResending={isResending}
+                    secondsLeft={secondsLeft}
+                    onResend={onResend}
+                    onBack={onBack}
+                />
             </form>
         </Card>
     );
