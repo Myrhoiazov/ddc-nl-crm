@@ -1,6 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { ThunkConfig } from '@/app/providers/StoreProvider';
-import { Client } from '@/entities/Client';
 import { MollieClient } from '@/entities/MollieClient';
 
 export const deleteMollieClientById = createAsyncThunk<MollieClient, string, ThunkConfig<string>>(

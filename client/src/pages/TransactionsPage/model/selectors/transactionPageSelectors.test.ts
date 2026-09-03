@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { Month } from '@/entities/Month';
 import { TransactionSortField } from '@/entities/Transaction';
@@ -20,7 +21,7 @@ import {
 
 describe('transactionPageSelectors', () => {
     test('return the stored values', () => {
-        const state = {
+        const state: StateSchema = fromPartial({
             transactionPage: {
                 isLoading: true,
                 items: [{ id: '1' }],
@@ -36,7 +37,7 @@ describe('transactionPageSelectors', () => {
                 total: 21,
                 totalPages: 2,
             },
-        } as unknown as StateSchema;
+        });
 
         expect(getTransactionPageIsLoading(state)).toBe(true);
         expect(getTransactionPageData(state)).toEqual([{ id: '1' }]);

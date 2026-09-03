@@ -1,11 +1,12 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { addMandate } from './addMandate';
 
 const dispatch = jest.fn();
 const extra = { apiPrivate: { post: jest.fn() } };
 
-function stateWith(data: Record<string, unknown> | undefined) {
-    return () => ({ createMollieMandateForm: { data } }) as unknown as StateSchema;
+function stateWith(data: Record<string, unknown> | undefined): () => StateSchema {
+    return () => fromPartial({ createMollieMandateForm: { data } });
 }
 
 beforeEach(() => {

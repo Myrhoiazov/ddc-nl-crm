@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './ClientsDetailsPage.module.scss';
 import { ClientDetails } from '@/entities/Client';

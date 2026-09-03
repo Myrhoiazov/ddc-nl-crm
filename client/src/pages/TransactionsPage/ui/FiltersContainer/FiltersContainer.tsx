@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { HStack, VStack } from '@/shared/ui/Stack';
+import { VStack } from '@/shared/ui/Stack';
 import { TransactionTypeTabs } from '@/features/TransactionTypeTabs';
 import { useTransactionFilters } from '../../lib/hooks/useTransactionFilters';
 import { TransactionFilters } from '@/widgets/TransactionFilters';

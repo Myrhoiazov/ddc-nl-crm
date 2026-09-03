@@ -7,7 +7,6 @@ import eslintPluginPrettier from 'eslint-plugin-prettier';
 import pluginReact from 'eslint-plugin-react';
 import i18next from 'eslint-plugin-i18next';
 import globals from 'globals';
-import { IndentStyle } from 'typescript';
 
 export default defineConfig([
     js.configs.recommended,

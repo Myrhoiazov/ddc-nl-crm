@@ -1,4 +1,4 @@
-import React, { memo, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { ClientSortField } from '@/entities/Client';
 import s from './ClientSortSelector.module.scss';

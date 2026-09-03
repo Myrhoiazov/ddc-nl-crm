@@ -1,6 +1,5 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { ThunkConfig } from '@/app/providers/StoreProvider';
-import { MollieClient } from '@/entities/MollieClient';
 import { Mandate } from '@/entities/Mandate';
 
 interface fetchAllMandatesProps {

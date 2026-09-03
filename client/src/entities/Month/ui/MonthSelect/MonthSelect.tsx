@@ -37,7 +37,8 @@ export const MonthSelect = memo(({ className, value, onChange, readonly }: Month
     );
 
     const selectMonth = useMemo(() => {
-        return Month[value as unknown as keyof typeof Month];
+        const key: string | undefined = value;
+        return key && key in Month ? Month[key as keyof typeof Month] : undefined;
     }, [value]);
 
     return (

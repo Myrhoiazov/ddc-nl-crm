@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { Select } from '@/shared/ui/Select/Select';
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback } from 'react';
 import { ClientStatusKey, ClientStatusLabels } from '../../model/types/status';
 import { classNames } from '@/shared/lib/classNames/classNames';
 
@@ -28,16 +28,12 @@ export const ClientStatusSelect = memo(
             [onChange]
         );
 
-        const selectRole = useMemo(() => {
-            return ClientStatusKey[value as unknown as keyof typeof ClientStatusKey];
-        }, [value]);
-
         return (
             <Select
                 className={classNames('', {}, [className])}
                 label={t('Укажите статус')}
                 options={options}
-                value={selectRole}
+                value={value}
                 onChange={onChangeHandler}
                 readonly={readonly}
             />
