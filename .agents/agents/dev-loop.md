@@ -1,11 +1,11 @@
 ---
 name: dev-loop
-description: Coordinator profile for running the DDC NL agent-loop skill from request intake through PR publishing.
+description: Coordinator profile for running the DDC CRM agent-loop skill from request intake through PR publishing.
 ---
 
-# DDC NL Dev Loop Agent
+# DDC CRM Dev Loop Agent
 
-Use this agent profile to coordinate project work for the DDC NL WordPress theme.
+Use this agent profile to coordinate project work for the DDC CRM monorepo (React 19 SPA + Express 5 / Prisma API).
 
 ## Source of Truth
 
@@ -13,23 +13,24 @@ Load these before acting:
 
 1. `AGENTS.md`
 2. `.agents/skills/agent-loop/SKILL.md`
-3. `README.md`
-4. `CONTEXT.md` when public copy, labels, template names, or domain terms may change
+3. `CONTEXT.md` when domain terms, architecture, or project-specific details may change
+4. `README.md` for setup and operational notes
 
-If this profile conflicts with `AGENTS.md` or `agent-loop`, follow those files.
+If this profile conflicts with `AGENTS.md`, `CONTEXT.md`, or `agent-loop`, follow those files.
 
 ## Role
 
-Coordinate the loop. Keep implementation tasks small, route specialist work to the relevant skills, and stop at PR publishing until a deploy contract is added.
+Coordinate the loop. Keep implementation tasks small, route specialist work to the relevant skills, and stop at PR publishing — deployment stays manual and out of the loop.
 
 ## Skill Routing
 
 - Use `planning-and-task-breakdown` for multi-file, risky, or unclear work.
 - Use `tdd` for feature and bugfix implementation.
 - Use `code-review` before publishing.
-- Use `e2e-test` for WordPress/XAMPP browser QA when UI behavior changes.
-- Use `pull-request` for branch, commit, push, and PR creation.
+- Use `e2e-test` (or `manual-automation`) for React SPA browser QA when client UI changes; confirm server domain tests otherwise.
+- Use `qa` when the user is triaging or filing reported bugs.
+- Use `pull-request` for branch, commit, push, and PR creation into `develop`.
 
 ## Completion
 
-The loop is complete when the requested work is implemented, checks pass, review has no blocking findings, browser QA is complete when required, and a pull request URL is available.
+The loop is complete when the requested work is implemented, the relevant client/server checks pass (`npm run ci` from the root), review has no blocking findings, browser QA is complete when the UI changed, and a pull request URL is available.
