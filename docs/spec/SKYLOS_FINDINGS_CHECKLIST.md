@@ -1088,9 +1088,63 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (7/35)
 
 > Упростить ветвления, вынести под-функции.
+
+**Прогресс: server-часть начата (7 из 12 находок на сервере обработаны, 5 ещё
+остались), client-часть (23 находки) ещё не начата.** Многие из client-находок
+— это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
+`SKY-C304` (те же файлы фигурируют там как "слишком длинные функции") — их
+корректная декомпозиция это фактически та же работа, что и для `SKY-C304`, и
+имеет смысл делать обе находки по каждому такому файлу вместе, а не дважды
+переписывать один и тот же компонент. Дальнейший прогресс — отдельными
+проходами.
+
+Обработано:
+- `conteroller.Mollie.ts:380` (`webhookMollieController`, cc13) — вынесены
+  отдельные функции `findInvoicePaymentLinkByToken`, `markInvoicePaymentLinkPaid`,
+  `findSyncedPaymentForWebhook`, `logWebhookOutcome`, `notifyMolliePaymentIfLinked`,
+  `markMollieEventFailed` — каждая отвечает за один шаг обработки вебхука.
+- `conteroller.Mollie.ts:785` (`mollieGetCustomersController`, cc14) — закрыто
+  попутно при рефакторинге `SKY-Q302` (см. выше) через `resolveSubscriptionsFilter`/
+  `resolveMandatesFilter`.
+- `conteroller.Mollie.ts:1611` (`mollieGetPaymentIncidentsController`, cc18) —
+  самая крупная находка на сервере (~390 строк, 4 ветки payments/subscriptions/
+  customers/all с дублированием where-условий и мапперов). Вынесены
+  `buildPaymentIncidentWhere`/`buildSubscriptionIncidentWhere`/
+  `buildCustomerIncidentWhere` и `mapPaymentIncident`/`mapSubscriptionIncident`/
+  `mapCustomerIncident` — раньше эта логика была продублирована трижды
+  (в каждой type-ветке и в комбинированной), теперь переиспользуется.
+- `controller.Invoices.ts:584` (`updateInvoiceStatus`, cc15) — блок отмены
+  связанных платежей Mollie вынесен в `cancelInvoiceMolliePayments(id, existing)`,
+  возвращающую либо обновлённый инвойс, либо `{status, message}` для ответа —
+  сохраняет точную семантику ранних `return` без изменения поведения.
+- `controller.Invoices.ts:762` (`recordInvoicePayment`, cc18 по факту — на этой
+  строке после сдвига оказалась либо эта, либо соседняя функция, обе обработаны)
+  и `controller.Invoices.ts:793` (`createInvoiceAdjustment`, cc11) — валидационные
+  проверки (тип документа/статус/сумма) вынесены в
+  `validateInvoicePaymentEligibility`/`validateInvoiceAdjustmentEligibility`.
+
+Сознательно не тронуто:
+- `controller.Auth.ts:110` (`login`, cc11) — функция логина: dummy-hash сравнение
+  для защиты от timing-атак при отсутствующем пользователе, разветвление
+  disabled-аккаунт/апгрейд хэша/доверенное устройство/2FA. Сложность здесь
+  отражает реальные security-ветвления, а не случайную запутанность. У
+  `controller.Auth.ts` нет отдельного теста на сам `login` (`test:auth` покрывает
+  только сервисы `service.Password`/`service.Token`/`service.Csrf`/
+  `service.AuthSecurityAudit`/`service.RateLimit`/`service.TwoFactorAuth`, не
+  сам контроллер) — рефакторинг authentication-кода без теста, ловящего
+  регрессию в security-логике, рискованнее, чем выигрыш от снижения метрики.
+  Оставлено как есть; для безопасного рефакторинга в будущем сначала нужен
+  dedicated-тест на `login`/`verifyTwoFactor`.
+
+Проверено на каждом шаге: `tsc --noEmit` (server) — 0 ошибок; `npm run build`
+(server) — чисто; `npm run test:ci` (все 5 сьютов) — 0 fail. Заметка: у
+`conteroller.Mollie.ts`, `controller.Invoices.ts` нет отдельных unit-тестов
+(только type-check + build + существующий `test:mollie`, который эти конкретные
+контроллеры не вызывает) — рефакторинг делался как чистый перенос кода
+(extract function) без изменения логики, построчно сверено.
 
 - [ ] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.tsx:60` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
 - [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
@@ -1115,13 +1169,13 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:1611` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
+- [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
+- [x] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
+- [x] `server/src/controllers/conteroller.Mollie.ts:1611` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
 - [ ] `server/src/controllers/controller.Auth.ts:110` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
-- [ ] `server/src/controllers/controller.Invoices.ts:584` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
-- [ ] `server/src/controllers/controller.Invoices.ts:762` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
-- [ ] `server/src/controllers/controller.Invoices.ts:793` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
+- [x] `server/src/controllers/controller.Invoices.ts:584` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
+- [x] `server/src/controllers/controller.Invoices.ts:762` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
+- [x] `server/src/controllers/controller.Invoices.ts:793` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
 - [ ] `server/src/controllers/controller.Schedule.ts:336` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [ ] `server/src/controllers/controller.Users.ts:65` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
 - [ ] `server/src/services/service.InvoiceDelivery.ts:62` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)

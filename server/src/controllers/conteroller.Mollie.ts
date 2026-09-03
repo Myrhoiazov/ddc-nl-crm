@@ -377,6 +377,126 @@ export const mollieDisconnectController = async (req: AuthenticatedRequest, res:
     });
 };
 
+const findInvoicePaymentLinkByToken = async (req: Request) => {
+    const token = typeof req.query.invoicePaymentLinkToken === 'string'
+        ? req.query.invoicePaymentLinkToken
+        : null;
+
+    if (!token) return null;
+
+    return prisma.invoiceMolliePaymentLink.findUnique({
+        where: { webhookToken: token },
+        select: { id: true, invoiceId: true },
+    });
+};
+
+const markInvoicePaymentLinkPaid = async (
+    invoicePaymentLink: { id: number } | null,
+    payment: { status: string; paidAt?: string | null },
+) => {
+    if (!invoicePaymentLink || payment.status !== 'paid') return;
+
+    await prisma.invoiceMolliePaymentLink.update({
+        where: { id: invoicePaymentLink.id },
+        data: {
+            paidAt: payment.paidAt ? new Date(payment.paidAt) : new Date(),
+            archived: true,
+        },
+    });
+};
+
+const findSyncedPaymentForWebhook = (mollieId: string) => prisma.payment.findUnique({
+    where: { mollieId },
+    select: {
+        id: true,
+        status: true,
+        mollieId: true,
+        amountValue: true,
+        amountCurrency: true,
+        refundedAmount: true,
+        chargedBackAmount: true,
+        description: true,
+        method: true,
+        paidAt: true,
+        customer: {
+            select: {
+                payerName: true,
+                givenName: true,
+                familyName: true,
+                email: true,
+                client: {
+                    select: {
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                    },
+                },
+                clientLinks: {
+                    select: {
+                        client: {
+                            select: {
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        invoice: {
+            select: {
+                number: true,
+                billToName: true,
+            },
+        },
+    },
+});
+
+const logWebhookOutcome = (effectiveStatus: string, mollieId: string) => {
+    switch (getWebhookAttentionLevel(effectiveStatus)) {
+        case 'success':
+            console.log(`✅ Payment ${mollieId} marked as paid`);
+            break;
+        case 'attention':
+            console.warn(`⚠️ Payment ${mollieId} needs attention: ${effectiveStatus}`);
+            break;
+        default:
+            console.log(`ℹ️ Payment ${mollieId} synced with status: ${effectiveStatus}`);
+    }
+};
+
+const notifyMolliePaymentIfLinked = async (
+    syncedPayment: Awaited<ReturnType<typeof findSyncedPaymentForWebhook>>,
+    payment: { id: string; details?: unknown },
+) => {
+    if (!syncedPayment?.mollieId) return;
+
+    const paymentDetails = payment.details as { consumerName?: string } | null;
+    await notifyMolliePayment({
+        ...syncedPayment,
+        consumerName: paymentDetails?.consumerName ?? null,
+    }).catch((telegramError) => {
+        console.error(`Telegram notification failed for ${payment.id}:`, telegramError);
+    });
+};
+
+const markMollieEventFailed = async (eventId: number | null, err: unknown) => {
+    if (!eventId) return;
+
+    await prisma.mollieEvent.update({
+        where: { id: eventId },
+        data: {
+            processingStatus: 'failed',
+            dedupeKey: null,
+            errorMessage: err instanceof Error ? err.message : String(err),
+            processedAt: new Date(),
+        },
+    }).catch((eventError) => {
+        console.error('Failed to mark Mollie event as failed:', eventError);
+    });
+};
+
 export const webhookMollieController = async (req: Request, res: Response) => {
     const paymentId = req.body.id;
 
@@ -387,15 +507,7 @@ export const webhookMollieController = async (req: Request, res: Response) => {
     let eventId: number | null = null;
 
     try {
-        const invoicePaymentLinkToken = typeof req.query.invoicePaymentLinkToken === 'string'
-            ? req.query.invoicePaymentLinkToken
-            : null;
-        const invoicePaymentLink = invoicePaymentLinkToken
-            ? await prisma.invoiceMolliePaymentLink.findUnique({
-                where: { webhookToken: invoicePaymentLinkToken },
-                select: { id: true, invoiceId: true },
-            })
-            : null;
+        const invoicePaymentLink = await findInvoicePaymentLinkByToken(req);
         const payment = await mollieService.getPaymentById(paymentId);
         const dedupeKey = buildMollieWebhookDedupeKey(payment);
         const event = await prisma.mollieEvent.create({
@@ -409,62 +521,9 @@ export const webhookMollieController = async (req: Request, res: Response) => {
 
         console.log(`💡 Webhook received for payment ${payment.id} — status: ${payment.status}`);
         await mollieSyncService.syncMolliePayment(payment, invoicePaymentLink?.invoiceId);
-        if (invoicePaymentLink && payment.status === 'paid') {
-            await prisma.invoiceMolliePaymentLink.update({
-                where: { id: invoicePaymentLink.id },
-                data: {
-                    paidAt: payment.paidAt ? new Date(payment.paidAt) : new Date(),
-                    archived: true,
-                },
-            });
-        }
-        const syncedPayment = await prisma.payment.findUnique({
-            where: { mollieId: payment.id },
-            select: {
-                id: true,
-                status: true,
-                mollieId: true,
-                amountValue: true,
-                amountCurrency: true,
-                refundedAmount: true,
-                chargedBackAmount: true,
-                description: true,
-                method: true,
-                paidAt: true,
-                customer: {
-                    select: {
-                        payerName: true,
-                        givenName: true,
-                        familyName: true,
-                        email: true,
-                        client: {
-                            select: {
-                                firstName: true,
-                                lastName: true,
-                                email: true,
-                            },
-                        },
-                        clientLinks: {
-                            select: {
-                                client: {
-                                    select: {
-                                        firstName: true,
-                                        lastName: true,
-                                        email: true,
-                                    },
-                                },
-                            },
-                        },
-                    },
-                },
-                invoice: {
-                    select: {
-                        number: true,
-                        billToName: true,
-                    },
-                },
-            },
-        });
+        await markInvoicePaymentLinkPaid(invoicePaymentLink, payment);
+
+        const syncedPayment = await findSyncedPaymentForWebhook(payment.id);
         const effectiveStatus = syncedPayment?.status ?? payment.status;
 
         await prisma.mollieEvent.update({
@@ -477,26 +536,8 @@ export const webhookMollieController = async (req: Request, res: Response) => {
             },
         });
 
-        switch (getWebhookAttentionLevel(effectiveStatus)) {
-            case 'success':
-                console.log(`✅ Payment ${payment.id} marked as paid`);
-                break;
-            case 'attention':
-                console.warn(`⚠️ Payment ${payment.id} needs attention: ${effectiveStatus}`);
-                break;
-            default:
-                console.log(`ℹ️ Payment ${payment.id} synced with status: ${effectiveStatus}`);
-        }
-
-        if (syncedPayment?.mollieId) {
-            const paymentDetails = payment.details as { consumerName?: string } | null;
-            await notifyMolliePayment({
-                ...syncedPayment,
-                consumerName: paymentDetails?.consumerName ?? null,
-            }).catch((telegramError) => {
-                console.error(`Telegram notification failed for ${payment.id}:`, telegramError);
-            });
-        }
+        logWebhookOutcome(effectiveStatus, payment.id);
+        await notifyMolliePaymentIfLinked(syncedPayment, payment);
 
         return res.status(200).send('OK');
     } catch (err) {
@@ -504,20 +545,7 @@ export const webhookMollieController = async (req: Request, res: Response) => {
             return res.status(200).send('Already processed');
         }
         console.error('Error handling webhook:', err);
-
-        if (eventId) {
-            await prisma.mollieEvent.update({
-                where: { id: eventId },
-                data: {
-                    processingStatus: 'failed',
-                    dedupeKey: null,
-                    errorMessage: err instanceof Error ? err.message : String(err),
-                    processedAt: new Date(),
-                },
-            }).catch((eventError) => {
-                console.error('Failed to mark Mollie event as failed:', eventError);
-            });
-        }
+        await markMollieEventFailed(eventId, err);
 
         return res.status(500).send('Webhook processing failed');
     }
@@ -1612,6 +1640,179 @@ export const mollieCancelPaymentController = async (req: Request, res: Response)
     }
 }
 
+const buildPaymentIncidentWhere = (
+    search: string | undefined,
+    resolvedPaymentIds: number[],
+): Prisma.PaymentWhereInput => {
+    const where: Prisma.PaymentWhereInput = {
+        id: resolvedPaymentIds.length ? { notIn: resolvedPaymentIds } : undefined,
+        status: {
+            in: [...molliePaymentIssueStatuses],
+        },
+    };
+
+    if (search) {
+        where.OR = [
+            { mollieId: { contains: search } },
+            { description: { contains: search } },
+            { customer: { email: { contains: search } } },
+            { customer: { givenName: { contains: search } } },
+            { customer: { familyName: { contains: search } } },
+            { customer: { payerName: { contains: search } } },
+            { customer: { client: { firstName: { contains: search } } } },
+            { customer: { client: { lastName: { contains: search } } } },
+            { customer: { client: { email: { contains: search } } } },
+            { subscription: { mollieId: { contains: search } } },
+        ];
+    }
+
+    return where;
+};
+
+const buildSubscriptionIncidentWhere = (
+    search: string | undefined,
+    resolvedSubscriptionIds: number[],
+): Prisma.SubscriptionWhereInput => {
+    const where: Prisma.SubscriptionWhereInput = {
+        id: resolvedSubscriptionIds.length ? { notIn: resolvedSubscriptionIds } : undefined,
+        OR: [
+            { mandateId: null },
+            { mandate: { status: { not: 'valid' } } },
+        ],
+        status: {
+            in: ['active', 'pending', 'suspended'],
+        },
+    };
+
+    if (search) {
+        where.AND = [
+            {
+                OR: [
+                    { mollieId: { contains: search } },
+                    { description: { contains: search } },
+                    { customer: { email: { contains: search } } },
+                    { customer: { givenName: { contains: search } } },
+                    { customer: { familyName: { contains: search } } },
+                    { customer: { client: { firstName: { contains: search } } } },
+                    { customer: { client: { lastName: { contains: search } } } },
+                    { customer: { client: { email: { contains: search } } } },
+                    { customer: { clientLinks: { some: { client: { firstName: { contains: search } } } } } },
+                    { customer: { clientLinks: { some: { client: { lastName: { contains: search } } } } } },
+                    { customer: { clientLinks: { some: { client: { email: { contains: search } } } } } },
+                ],
+            },
+        ];
+    }
+
+    return where;
+};
+
+const buildCustomerIncidentWhere = (
+    search: string | undefined,
+    resolvedCustomerIds: number[],
+): Prisma.CustomerWhereInput => {
+    const where: Prisma.CustomerWhereInput = {
+        id: resolvedCustomerIds.length ? { notIn: resolvedCustomerIds } : undefined,
+        OR: [
+            { email: null },
+            { email: '' },
+            { clientLinks: { none: {} } },
+        ],
+    };
+
+    if (search) {
+        where.AND = [
+            {
+                OR: [
+                    { mollieId: { contains: search } },
+                    { givenName: { contains: search } },
+                    { familyName: { contains: search } },
+                    { payerName: { contains: search } },
+                    { client: { firstName: { contains: search } } },
+                    { client: { lastName: { contains: search } } },
+                    { client: { email: { contains: search } } },
+                    { clientLinks: { some: { client: { firstName: { contains: search } } } } },
+                    { clientLinks: { some: { client: { lastName: { contains: search } } } } },
+                    { clientLinks: { some: { client: { email: { contains: search } } } } },
+                ],
+            },
+        ];
+    }
+
+    return where;
+};
+
+const mapPaymentIncident = (payment: {
+    id: number;
+    status: string;
+    amountValue: Prisma.Decimal;
+    amountCurrency: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    customer: unknown;
+    subscription: unknown;
+}) => ({
+    id: `payment-${payment.id}`,
+    type: 'payment',
+    severity: payment.status === 'charged_back' ? 'critical' : 'warning',
+    title: `Платёж ${payment.status}`,
+    status: payment.status,
+    amountValue: payment.amountValue,
+    amountCurrency: payment.amountCurrency,
+    description: payment.description,
+    createdAt: payment.createdAt,
+    updatedAt: payment.updatedAt,
+    customer: payment.customer,
+    subscription: payment.subscription,
+    payment,
+});
+
+const mapSubscriptionIncident = (subscription: {
+    id: number;
+    status: string;
+    amountValue: Prisma.Decimal;
+    amountCurrency: string;
+    description: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    customer: unknown;
+    mandate: unknown;
+}) => ({
+    id: `subscription-${subscription.id}`,
+    type: 'subscription',
+    severity: 'warning',
+    title: 'Подписка без valid mandate',
+    status: subscription.status,
+    amountValue: subscription.amountValue,
+    amountCurrency: subscription.amountCurrency,
+    description: subscription.description,
+    createdAt: subscription.createdAt,
+    updatedAt: subscription.updatedAt,
+    customer: subscription.customer,
+    subscription,
+    mandate: subscription.mandate,
+});
+
+const mapCustomerIncident = (customer: {
+    id: number;
+    mollieId: string;
+    email: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+    clientLinks: unknown[];
+}) => ({
+    id: `customer-${customer.id}`,
+    type: 'customer',
+    severity: 'info',
+    title: customer.email && !customer.clientLinks.length ? 'Платёжный профиль без ученика' : 'Платёжный профиль без email',
+    status: customer.email && !customer.clientLinks.length ? 'missing_crm_client' : 'missing_email',
+    description: customer.mollieId,
+    createdAt: customer.createdAt,
+    updatedAt: customer.updatedAt,
+    customer,
+});
+
 export const mollieGetPaymentIncidentsController = async (req: Request, res: Response) => {
     try {
         const getQueryValue = (value: unknown) => (typeof value === 'string' ? value : undefined);
@@ -1619,7 +1820,6 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
         const type = getQueryValue(req.query.type) ?? 'all';
         const page = Math.max(Number(getQueryValue(req.query._page) ?? 1), 1);
         const limit = Math.min(Math.max(Number(getQueryValue(req.query._limit) ?? 25), 1), 100);
-        const paymentIssueStatuses = [...molliePaymentIssueStatuses];
         const resolutions = await prisma.mollieIncidentResolution.findMany({
             select: {
                 incidentType: true,
@@ -1632,86 +1832,9 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
             customer: resolutions.filter((item) => item.incidentType === 'customer').map((item) => item.sourceId),
         };
 
-        const paymentWhere: Prisma.PaymentWhereInput = {
-            id: resolvedIds.payment.length ? { notIn: resolvedIds.payment } : undefined,
-            status: {
-                in: paymentIssueStatuses,
-            },
-        };
-
-        if (search) {
-            paymentWhere.OR = [
-                { mollieId: { contains: search } },
-                { description: { contains: search } },
-                { customer: { email: { contains: search } } },
-                { customer: { givenName: { contains: search } } },
-                { customer: { familyName: { contains: search } } },
-                { customer: { payerName: { contains: search } } },
-                { customer: { client: { firstName: { contains: search } } } },
-                { customer: { client: { lastName: { contains: search } } } },
-                { customer: { client: { email: { contains: search } } } },
-                { subscription: { mollieId: { contains: search } } },
-            ];
-        }
-
-        const subscriptionWhere: Prisma.SubscriptionWhereInput = {
-            id: resolvedIds.subscription.length ? { notIn: resolvedIds.subscription } : undefined,
-            OR: [
-                { mandateId: null },
-                { mandate: { status: { not: 'valid' } } },
-            ],
-            status: {
-                in: ['active', 'pending', 'suspended'],
-            },
-        };
-
-        if (search) {
-            subscriptionWhere.AND = [
-                {
-                    OR: [
-                        { mollieId: { contains: search } },
-                        { description: { contains: search } },
-                        { customer: { email: { contains: search } } },
-                        { customer: { givenName: { contains: search } } },
-                        { customer: { familyName: { contains: search } } },
-                        { customer: { client: { firstName: { contains: search } } } },
-                        { customer: { client: { lastName: { contains: search } } } },
-                        { customer: { client: { email: { contains: search } } } },
-                        { customer: { clientLinks: { some: { client: { firstName: { contains: search } } } } } },
-                        { customer: { clientLinks: { some: { client: { lastName: { contains: search } } } } } },
-                        { customer: { clientLinks: { some: { client: { email: { contains: search } } } } } },
-                    ],
-                },
-            ];
-        }
-
-        const customerWhere: Prisma.CustomerWhereInput = {
-            id: resolvedIds.customer.length ? { notIn: resolvedIds.customer } : undefined,
-            OR: [
-                { email: null },
-                { email: '' },
-                { clientLinks: { none: {} } },
-            ],
-        };
-
-        if (search) {
-            customerWhere.AND = [
-                {
-                    OR: [
-                        { mollieId: { contains: search } },
-                        { givenName: { contains: search } },
-                        { familyName: { contains: search } },
-                        { payerName: { contains: search } },
-                        { client: { firstName: { contains: search } } },
-                        { client: { lastName: { contains: search } } },
-                        { client: { email: { contains: search } } },
-                        { clientLinks: { some: { client: { firstName: { contains: search } } } } },
-                        { clientLinks: { some: { client: { lastName: { contains: search } } } } },
-                        { clientLinks: { some: { client: { email: { contains: search } } } } },
-                    ],
-                },
-            ];
-        }
+        const paymentWhere = buildPaymentIncidentWhere(search, resolvedIds.payment);
+        const subscriptionWhere = buildSubscriptionIncidentWhere(search, resolvedIds.subscription);
+        const customerWhere = buildCustomerIncidentWhere(search, resolvedIds.customer);
 
         const includePaymentRelations = {
             customer: {
@@ -1773,21 +1896,7 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
             ]);
 
             return res.status(200).json({
-                items: payments.map((payment) => ({
-                    id: `payment-${payment.id}`,
-                    type: 'payment',
-                    severity: payment.status === 'charged_back' ? 'critical' : 'warning',
-                    title: `Платёж ${payment.status}`,
-                    status: payment.status,
-                    amountValue: payment.amountValue,
-                    amountCurrency: payment.amountCurrency,
-                    description: payment.description,
-                    createdAt: payment.createdAt,
-                    updatedAt: payment.updatedAt,
-                    customer: payment.customer,
-                    subscription: payment.subscription,
-                    payment,
-                })),
+                items: payments.map(mapPaymentIncident),
                 totals,
                 total,
                 page,
@@ -1811,21 +1920,7 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
             ]);
 
             return res.status(200).json({
-                items: subscriptions.map((subscription) => ({
-                    id: `subscription-${subscription.id}`,
-                    type: 'subscription',
-                    severity: 'warning',
-                    title: 'Подписка без valid mandate',
-                    status: subscription.status,
-                    amountValue: subscription.amountValue,
-                    amountCurrency: subscription.amountCurrency,
-                    description: subscription.description,
-                    createdAt: subscription.createdAt,
-                    updatedAt: subscription.updatedAt,
-                    customer: subscription.customer,
-                    subscription,
-                    mandate: subscription.mandate,
-                })),
+                items: subscriptions.map(mapSubscriptionIncident),
                 totals,
                 total,
                 page,
@@ -1874,17 +1969,7 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
             ]);
 
             return res.status(200).json({
-                items: customers.map((customer) => ({
-                    id: `customer-${customer.id}`,
-                    type: 'customer',
-                    severity: 'info',
-                    title: customer.email && !customer.clientLinks.length ? 'Платёжный профиль без ученика' : 'Платёжный профиль без email',
-                    status: customer.email && !customer.clientLinks.length ? 'missing_crm_client' : 'missing_email',
-                    description: customer.mollieId,
-                    createdAt: customer.createdAt,
-                    updatedAt: customer.updatedAt,
-                    customer,
-                })),
+                items: customers.map(mapCustomerIncident),
                 totals,
                 total,
                 page,
@@ -1946,47 +2031,9 @@ export const mollieGetPaymentIncidentsController = async (req: Request, res: Res
         ]);
 
         const items = [
-            ...payments.map((payment) => ({
-                id: `payment-${payment.id}`,
-                type: 'payment',
-                severity: payment.status === 'charged_back' ? 'critical' : 'warning',
-                title: `Платёж ${payment.status}`,
-                status: payment.status,
-                amountValue: payment.amountValue,
-                amountCurrency: payment.amountCurrency,
-                description: payment.description,
-                createdAt: payment.createdAt,
-                updatedAt: payment.updatedAt,
-                customer: payment.customer,
-                subscription: payment.subscription,
-                payment,
-            })),
-            ...subscriptions.map((subscription) => ({
-                id: `subscription-${subscription.id}`,
-                type: 'subscription',
-                severity: 'warning',
-                title: 'Подписка без valid mandate',
-                status: subscription.status,
-                amountValue: subscription.amountValue,
-                amountCurrency: subscription.amountCurrency,
-                description: subscription.description,
-                createdAt: subscription.createdAt,
-                updatedAt: subscription.updatedAt,
-                customer: subscription.customer,
-                subscription,
-                mandate: subscription.mandate,
-            })),
-            ...customers.map((customer) => ({
-                id: `customer-${customer.id}`,
-                type: 'customer',
-                severity: 'info',
-                title: customer.email && !customer.clientLinks.length ? 'Платёжный профиль без ученика' : 'Платёжный профиль без email',
-                status: customer.email && !customer.clientLinks.length ? 'missing_crm_client' : 'missing_email',
-                description: customer.mollieId,
-                createdAt: customer.createdAt,
-                updatedAt: customer.updatedAt,
-                customer,
-            })),
+            ...payments.map(mapPaymentIncident),
+            ...subscriptions.map(mapSubscriptionIncident),
+            ...customers.map(mapCustomerIncident),
         ].sort((first, second) => (
             new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
         )).slice((page - 1) * limit, page * limit);
