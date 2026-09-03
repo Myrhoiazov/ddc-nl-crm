@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useState } from 'react';
+import { memo, useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './UserFilters.module.scss';

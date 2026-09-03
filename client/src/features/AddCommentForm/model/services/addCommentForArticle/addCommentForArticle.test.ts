@@ -1,17 +1,19 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
+import { RoleKey } from '@/entities/Role';
 import { addCommentForArticle } from './addCommentForArticle';
 
 const dispatch = jest.fn();
 const extra = { api: { post: jest.fn() } };
 
-const user = { id: '1', username: 'denis', email: 'd@example.com', role: 'admin' };
+const user = { id: '1', username: 'denis', email: 'd@example.com', role: RoleKey.ADMIN };
 const article = { id: '5', title: 'Title' };
 
-function stateWith({ withUser = true, withArticle = true } = {}) {
-    return () => ({
+function stateWith({ withUser = true, withArticle = true } = {}): () => StateSchema {
+    return () => fromPartial({
         user: { authData: withUser ? user : undefined, _inited: true },
         articleDetails: { data: withArticle ? article : undefined },
-    }) as unknown as StateSchema;
+    });
 }
 
 beforeEach(() => {

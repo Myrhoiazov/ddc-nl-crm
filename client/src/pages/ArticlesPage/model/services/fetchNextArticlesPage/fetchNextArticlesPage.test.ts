@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { fetchNextArticlesPage } from './fetchNextArticlesPage';
 import { fetchArticlesList } from '../fetchArticlesList/fetchArticlesList';
@@ -10,7 +11,7 @@ const extra = {};
 
 describe('fetchNextArticlesPage', () => {
     test('advances the page and fetches the next batch when more articles are available', async () => {
-        const state = { articlesPage: { page: 2, hasMore: true, isLoading: false } } as unknown as StateSchema;
+        const state: StateSchema = fromPartial({ articlesPage: { page: 2, hasMore: true, isLoading: false } });
 
         await fetchNextArticlesPage()(dispatch, () => state, extra as never);
 
@@ -19,7 +20,7 @@ describe('fetchNextArticlesPage', () => {
     });
 
     test('does nothing when there are no more articles to load', async () => {
-        const state = { articlesPage: { page: 2, hasMore: false, isLoading: false } } as unknown as StateSchema;
+        const state: StateSchema = fromPartial({ articlesPage: { page: 2, hasMore: false, isLoading: false } });
 
         await fetchNextArticlesPage()(dispatch, () => state, extra as never);
 
@@ -28,7 +29,7 @@ describe('fetchNextArticlesPage', () => {
     });
 
     test('does nothing while a page is already loading', async () => {
-        const state = { articlesPage: { page: 2, hasMore: true, isLoading: true } } as unknown as StateSchema;
+        const state: StateSchema = fromPartial({ articlesPage: { page: 2, hasMore: true, isLoading: true } });
 
         await fetchNextArticlesPage()(dispatch, () => state, extra as never);
 

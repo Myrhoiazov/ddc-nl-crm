@@ -1,10 +1,11 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { addClientData } from './addClientData';
 
 const dispatch = jest.fn();
 const extra = { apiPrivate: { post: jest.fn() } };
 
-const stateWithForm = {
+const stateWithForm: StateSchema = fromPartial({
     client: {
         form: {
             firstName: 'Иван',
@@ -12,7 +13,7 @@ const stateWithForm = {
             branchId: 1,
         },
     },
-} as unknown as StateSchema;
+});
 
 beforeEach(() => {
     dispatch.mockClear();

@@ -1,5 +1,8 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { RoleKey } from '@/entities/Role';
+import { User } from '@/entities/User';
+import { Client } from '@/entities/Client';
 import { addCommentsForClient } from './addCommentsForClient';
 
 jest.mock('../fetchCommentsByClientId/fetchCommentsByClientId', () => ({
@@ -9,11 +12,11 @@ jest.mock('../fetchCommentsByClientId/fetchCommentsByClientId', () => ({
 const dispatch = jest.fn();
 const extra = { apiPrivate: { post: jest.fn() } };
 
-function stateWith(userData: unknown, client: unknown) {
-    return () => ({
+function stateWith(userData: Partial<User> | undefined, client: Partial<Client> | undefined): () => StateSchema {
+    return () => fromPartial({
         user: { authData: userData },
         clientDetails: { data: client },
-    }) as unknown as StateSchema;
+    });
 }
 
 beforeEach(() => {

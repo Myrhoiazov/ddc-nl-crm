@@ -13,6 +13,7 @@ import errorMiddleware from './middlewares/middlewares.Error';
 import { csrfProtection } from './middlewares/middleware.Csrf';
 import { logger } from './logger';
 import { env } from 'process';
+import { verifyRequestSignature } from './controllers/controller.Instagram';
 
 dotenv.config();
 const ROOT_DIR = process.cwd();
@@ -62,7 +63,15 @@ app.use(morgan('combined', {
         write: message => logger.info(message.trim())
     }
 }));
-app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.json({
+    limit: '1mb',
+    verify: (req, res, buf) => {
+        const expressReq = req as express.Request;
+        if (expressReq.originalUrl.startsWith('/api/v1/instagram/webhook')) {
+            verifyRequestSignature(expressReq, res as express.Response, buf);
+        }
+    },
+}));
 app.use(cookieParser());
 
 const corsOptions = {

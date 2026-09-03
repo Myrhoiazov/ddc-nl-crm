@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { memo, use } from 'react';
+import { memo } from 'react';
 import { Page } from '@/widgets/Page/Page';
 import { VStack } from '@/shared/ui/Stack';
 import { Text } from '@/shared/ui/Text/Text';

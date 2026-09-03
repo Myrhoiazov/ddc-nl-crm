@@ -243,7 +243,7 @@ export const getClientById = async (id: number) => {
     return client;
 };
 
-export const updateClient = async (id: number, data: any, groupIds?: number[]) => {
+export const updateClient = async (id: number, data: Partial<TClient>, groupIds?: number[]) => {
     const clientData = normalizeClientData(data);
 
     return prisma.$transaction(async (transaction) => {
@@ -272,13 +272,3 @@ export const deleteClient = async (id: number) => {
     });
 };
 
-export const findClientByEmailOrPhone = async (email: string, phoneNumber: string) => {
-    return Client.findFirst({
-        where: {
-            OR: [
-                { email },
-                { phoneNumber },
-            ],
-        },
-    });
-};

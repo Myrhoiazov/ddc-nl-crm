@@ -1,4 +1,4 @@
-import React, { memo, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { RoutePath } from '@/shared/config/routeConfig/routeConfig';

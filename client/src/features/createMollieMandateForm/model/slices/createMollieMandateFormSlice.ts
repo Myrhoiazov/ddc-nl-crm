@@ -3,7 +3,6 @@ import { CreateMollieMandateFormSchema } from '../types/createMollieMandateFormS
 import { Mandate } from '@/entities/Mandate';
 import { addMandate } from '../services/addMandate/addMandate';
 import { fetchMollieClientsList } from '../services/fetchMollieClientsList/fetchMollieClientsList';
-import { access } from 'fs';
 import { MollieClient } from '@/entities/MollieClient';
 
 const initialState: CreateMollieMandateFormSchema = {

@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { TransactionType } from '@/entities/TransactionType';
 import { PaymentMethod } from '@/entities/PaymentMethod';
@@ -7,8 +8,8 @@ import { createTransaction } from './createTransaction';
 const dispatch = jest.fn();
 const extra = { apiPrivate: { post: jest.fn() } };
 
-function stateWith(data: Record<string, unknown> | undefined) {
-    return () => ({ addTransactionForm: { data } }) as unknown as StateSchema;
+function stateWith(data: Record<string, unknown> | undefined): () => StateSchema {
+    return () => fromPartial({ addTransactionForm: { data } });
 }
 
 beforeEach(() => {
