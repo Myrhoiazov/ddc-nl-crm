@@ -5,68 +5,50 @@ import s from './ScheduleSettingsPage.module.scss';
 import { useScheduleSettingsPage } from './useScheduleSettingsPage';
 import { GroupStatisticsSection } from './GroupStatisticsSection';
 import { GroupsListSection } from './GroupsListSection';
+import { ScheduleToolbar } from './ScheduleToolbar';
 import { CreateGroupModal } from '../CreateGroupModal/CreateGroupModal';
 
 const ScheduleSettingsPage = memo(() => {
     const { t } = useTranslation();
-    const {
-        groups, total, loading, statistics, styles, choreographers,
-        filterStyle, setFilterStyle,
-        filterChoreographer, setFilterChoreographer,
-        filterLevel, setFilterLevel,
-        createOpen, setCreateOpen,
-        editGroup,
-        getBranchView, setBranchViewMode,
-        openBranches, onToggleBranch,
-        highlightedGroupId, groupCardRefs,
-        onDeleteGroup, onReset, onEdit, onCloseCreate, onSaved,
-    } = useScheduleSettingsPage();
+    const p = useScheduleSettingsPage();
 
     return (
         <Page>
             <h1 className={s.pageTitle}>{t('Управление группами')}</h1>
-
-            <div className={s.toolbar}>
-                <button className={s.primaryBtn} onClick={() => setCreateOpen(true)}>
-                    {t('+ Создать группу')}
-                </button>
-            </div>
-
-            {statistics && (
+            <ScheduleToolbar onCreate={() => p.setCreateOpen(true)} />
+            {p.statistics && (
                 <GroupStatisticsSection
-                    statistics={statistics}
-                    getBranchView={getBranchView}
-                    setBranchViewMode={setBranchViewMode}
-                    openBranches={openBranches}
-                    onToggleBranch={onToggleBranch}
-                    highlightedGroupId={highlightedGroupId}
-                    groupCardRefs={groupCardRefs}
+                    statistics={p.statistics}
+                    getBranchView={p.getBranchView}
+                    setBranchViewMode={p.setBranchViewMode}
+                    openBranches={p.openBranches}
+                    onToggleBranch={p.onToggleBranch}
+                    highlightedGroupId={p.highlightedGroupId}
+                    groupCardRefs={p.groupCardRefs}
                 />
             )}
-
             <GroupsListSection
-                groups={groups}
-                total={total}
-                loading={loading}
-                statistics={statistics}
-                styles={styles}
-                choreographers={choreographers}
-                filterStyle={filterStyle}
-                setFilterStyle={setFilterStyle}
-                filterChoreographer={filterChoreographer}
-                setFilterChoreographer={setFilterChoreographer}
-                filterLevel={filterLevel}
-                setFilterLevel={setFilterLevel}
-                onReset={onReset}
-                onEdit={onEdit}
-                onDeleteGroup={onDeleteGroup}
+                groups={p.groups}
+                total={p.total}
+                loading={p.loading}
+                statistics={p.statistics}
+                styles={p.styles}
+                choreographers={p.choreographers}
+                filterStyle={p.filterStyle}
+                setFilterStyle={p.setFilterStyle}
+                filterChoreographer={p.filterChoreographer}
+                setFilterChoreographer={p.setFilterChoreographer}
+                filterLevel={p.filterLevel}
+                setFilterLevel={p.setFilterLevel}
+                onReset={p.onReset}
+                onEdit={p.onEdit}
+                onDeleteGroup={p.onDeleteGroup}
             />
-
             <CreateGroupModal
-                isOpen={createOpen}
-                onClose={onCloseCreate}
-                onSaved={onSaved}
-                editGroup={editGroup}
+                isOpen={p.createOpen}
+                onClose={p.onCloseCreate}
+                onSaved={p.onSaved}
+                editGroup={p.editGroup}
             />
         </Page>
     );
