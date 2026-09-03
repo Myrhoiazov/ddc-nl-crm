@@ -1,4 +1,4 @@
-import React, { memo, ReactNode } from 'react';
+import { memo, ReactNode } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './MollieClientList.module.scss';
 import { HStack, VStack } from '@/shared/ui/Stack';

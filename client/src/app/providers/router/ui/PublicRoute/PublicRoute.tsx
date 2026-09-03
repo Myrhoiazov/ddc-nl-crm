@@ -1,6 +1,6 @@
 import { getUserAuthData } from '@/entities/User';
 import { useSelector } from 'react-redux';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { RoutePath } from '@/shared/config/routeConfig/routeConfig';
 
 interface PublicRouteProps {

@@ -7,8 +7,5 @@ export {
 export { ClientDetails as MollieClientDetails } from './ui/ClientDetails/ClientDetails'
 export { MollieClientCard } from './ui/MollieClientCard/MollieClientCard'
 
-// export { ClientSortField } from './model/consts/consts'
-
-
 // export { getClientDetailsData } from './model/selectors/clientDetails'
 // export { ClientViewSelector } from './ui/ClientViewSelector/ClientViewSelector'

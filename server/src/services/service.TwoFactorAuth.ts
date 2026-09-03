@@ -250,9 +250,3 @@ export const isTrustedDeviceValid = async (rawToken: string | undefined, userId:
     return true;
 };
 
-// Called wherever authVersion is bumped (password/email change, role/isEnabled
-// change) alongside the existing session.deleteMany — a stolen trusted-device
-// cookie must not survive a password reset.
-export const revokeTrustedDevices = async (userId: number) => {
-    await prisma.trustedDevice.deleteMany({ where: { userId } });
-};

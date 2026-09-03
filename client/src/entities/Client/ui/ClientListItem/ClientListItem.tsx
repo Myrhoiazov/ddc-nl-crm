@@ -1,4 +1,4 @@
-import React, { memo, ReactNode } from 'react';
+import { memo, ReactNode } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './ClientListItem.module.scss';
 import { Client, ClientView } from '../../model/types/client';
