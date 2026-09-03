@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (24/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (27/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -1006,6 +1006,26 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 Требования: `tsc --noEmit` (client) чисто, `npm run lint:ts` 0 ошибок,
 Jest 281/281 suites / 976/976, `npm run build:prod` чисто (только исходные
 предупреждения о размере бандла).
+
+**Волна 6 (декомпозиция поддерева ScheduleSettingsPage, вариант B):** закрыто 3
+находки `SKY-C304` и 1 находка `SKY-Q301` — `GroupCard` (:41, 79 строк; hall-строка
+вынесена в `GroupCardMeta`, блок «активные/неактивные ученики» — в
+`GroupCardStudents`), главный компонент `ScheduleSettingsPage.tsx:34` (327 строк,
+cc21; разложен через существующий хук `useScheduleSettingsPage` + новые
+`ScheduleToolbar`), и `ScheduleSettingsPage.tsx:184` (109 строк; секция списка групп
+вынесена в `GroupsListSection`, фильтры — в `GroupFilters`). Все компоненты
+поддерева теперь чисто-рендерные без переноса длинной логики в хуки (урок
+round4/round5: перенос в `useXxx.ts`-хук не закрывает находку — Skylos флагает сам
+хук), поэтому закрылись именно <50-строчные JSX-функции. Повторный `check:skylos`
+подтвердил закрытие: `GroupCard.tsx`/`GroupCardStudents.tsx`/`GroupCardMeta.tsx`/
+`CreateGroupModalFields.tsx`/`CreateGroupModalSlots.tsx`/`SlotRow.tsx`/`FormField.tsx`/
+`GroupsListSection.tsx`/`GroupFilters.tsx`/`ScheduleToolbar.tsx`/`ScheduleSettingsPage.tsx`
+больше не флагаются. Сознательно не тронуты (round4-паттерн, не закрываются чисто):
+`useCreateGroupForm` (114), `useScheduleSettingsPage` (146/cc11), `GroupStatisticsSection`
+(134/109); тестовые `.test.ts(x)`-файлы не делятся ради метрики строк (см. приоритет
+выше). Требования: полный Jest 281/281 suites / 976/976, `tsc --noEmit` (client) чисто,
+`npm run lint:ts` 0 ошибок, `npm run build:prod` чисто (только исходные предупреждения
+о размере бандла), `npm run docs:links` чисто.
 
 - [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:38` — Function 'anonymous' is 82 lines long (limit: 50)
 - [ ] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.tsx:27` — Function 'anonymous' is 63 lines long (limit: 50)
@@ -1119,10 +1139,10 @@ Jest 281/281 suites / 976/976, `npm run build:prod` чисто (только и�
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.tsx:46` — Function 'anonymous' is 126 lines long (limit: 50)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.test.tsx:25` — Function 'anonymous' is 66 lines long (limit: 50)
 - [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' is 284 lines long (limit: 50)
-- [ ] `client/src/pages/ScheduleSettingsPage/ui/GroupCard/GroupCard.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50)
+- [x] `client/src/pages/ScheduleSettingsPage/ui/GroupCard/GroupCard.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50) → волна 6: hall-строка вынесена в `GroupCardMeta`, блок «активные/неактивные ученики» — в `GroupCardStudents`; сам компонент <50 строк, подтверждено `check:skylos`
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.test.tsx:69` — Function 'anonymous' is 60 lines long (limit: 50)
-- [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' is 327 lines long (limit: 50)
-- [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:184` — Function 'anonymous' is 109 lines long (limit: 50)
+- [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' is 327 lines long (limit: 50) → волна 6: разложен (хук `useScheduleSettingsPage` + `ScheduleToolbar`/`GroupsListSection`/`GroupStatisticsSection`); главный компонент — чистый JSX <50 строк, подтверждено `check:skylos`
+- [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:184` — Function 'anonymous' is 109 lines long (limit: 50) → волна 6: секция списка групп вынесена в `GroupsListSection` + фильтры в `GroupFilters`, подтверждено `check:skylos`
 - [ ] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.test.tsx:33` — Function 'anonymous' is 57 lines long (limit: 50)
 - [ ] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.ts:19` — Function 'useTransactionFilters' is 73 lines long (limit: 50)
 - [ ] `client/src/pages/TransactionsPage/model/selectors/transactionPageSelectors.test.ts:21` — Function 'anonymous' is 51 lines long (limit: 50)
@@ -1193,7 +1213,7 @@ Jest 281/281 suites / 976/976, `npm run build:prod` чисто (только и�
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (26/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (27/35)
 
 > Упростить ветвления, вынести под-функции.
 
@@ -1207,7 +1227,8 @@ Jest 281/281 suites / 976/976, `npm run build:prod` чисто (только и�
 `MollieCustomerDetails.tsx`,
 `MollieIncidents.tsx`,
 `EmailPage.tsx`,
-`MolliePaymentsMatrix.tsx` — см.
+`MolliePaymentsMatrix.tsx`,
+`ScheduleSettingsPage.tsx:34` (cc21, волна 6; главный компонент разложен до чистого JSX) — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
 Многие из оставшихся client-находок
 — это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
@@ -1310,7 +1331,7 @@ Jest 281/281 suites / 976/976, `npm run build:prod` чисто (только и�
 - [x] `client/src/pages/OrganizationBrandsPage/ui/OrganizationBrandsPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
-- [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
+- [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10) → волна 6: главный компонент разложен до чистого JSX, сложность снята, подтверждено `check:skylos` (остаётся `useScheduleSettingsPage.ts:44` cc11 — отложен вместе с `SKY-C304`, не трогаем)
 - [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:1611` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)

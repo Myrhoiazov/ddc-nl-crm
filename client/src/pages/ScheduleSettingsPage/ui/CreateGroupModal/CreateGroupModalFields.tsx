@@ -1,11 +1,14 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { classNames } from '@/shared/lib/classNames/classNames';
 import { Choreographer, GroupLevel, Branch } from '@/entities/DanceGroup';
+import { SelectField, NumberField, LevelButtons } from './FormField';
 import s from './CreateGroupModal.module.scss';
 
-const LEVELS: GroupLevel[] = ['START', 'FAN', 'PRO'];
-const LEVEL_LABELS: Record<GroupLevel, string> = { START: 'Start', FAN: 'Fan', PRO: 'Pro' };
+const LEVELS: { value: GroupLevel; label: string }[] = [
+    { value: 'START', label: 'Start' },
+    { value: 'FAN', label: 'Fan' },
+    { value: 'PRO', label: 'Pro' },
+];
 
 interface CreateGroupModalFieldsProps {
     name: string;
@@ -27,12 +30,9 @@ interface CreateGroupModalFieldsProps {
     setLessonPrice: (value: string) => void;
 }
 
-export const CreateGroupModalFields = memo((props: CreateGroupModalFieldsProps) => {
-    const {
-        name, setName, choreographerId, setChoreographerId, choreographers,
-        style, setStyle, styles, branchId, setBranchId, branches,
-        level, setLevel, maxParticipants, setMaxParticipants, lessonPrice, setLessonPrice,
-    } = props;
+export const CreateGroupModalFields = memo(function CreateGroupModalFields(
+    props: CreateGroupModalFieldsProps,
+) {
     const { t } = useTranslation();
 
     return (
@@ -44,107 +44,74 @@ export const CreateGroupModalFields = memo((props: CreateGroupModalFieldsProps) 
                 <input
                     className={s.input}
                     placeholder="Break dance 6-10 років"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={props.name}
+                    onChange={(e) => props.setName(e.target.value)}
                 />
             </div>
 
-            <div className={s.field}>
-                <label className={s.label}>
-                    {t('Хореограф')} <span className={s.req}>*</span>
-                </label>
-                <select
-                    className={s.select}
-                    value={choreographerId}
-                    onChange={(e) => setChoreographerId(e.target.value)}
-                >
-                    <option value="">{t('Выберите хореографа')}</option>
-                    {choreographers.map((c) => (
-                        <option key={c.id} value={c.id}>
-                            {c.firstName} {c.lastName}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            <SelectField
+                label="Хореограф"
+                required
+                value={props.choreographerId}
+                onChange={props.setChoreographerId}
+                placeholder="Выберите хореографа"
+            >
+                {props.choreographers.map((c) => (
+                    <option key={c.id} value={c.id}>
+                        {c.firstName} {c.lastName}
+                    </option>
+                ))}
+            </SelectField>
 
-            <div className={s.field}>
-                <label className={s.label}>
-                    {t('Стиль')} <span className={s.req}>*</span>
-                </label>
-                <select
-                    className={s.select}
-                    value={style}
-                    onChange={(e) => setStyle(e.target.value)}
-                >
-                    <option value="">{t('Выберите стиль')}</option>
-                    {styles.map((styleName) => (
-                        <option key={styleName} value={styleName}>
-                            {styleName}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            <SelectField
+                label="Стиль"
+                required
+                value={props.style}
+                onChange={props.setStyle}
+                placeholder="Выберите стиль"
+            >
+                {props.styles.map((styleName) => (
+                    <option key={styleName} value={styleName}>
+                        {styleName}
+                    </option>
+                ))}
+            </SelectField>
 
-            <div className={s.field}>
-                <label className={s.label}>
-                    {t('Филиал')} <span className={s.req}>*</span>
-                </label>
-                <select
-                    className={s.select}
-                    value={branchId}
-                    onChange={(e) => setBranchId(e.target.value)}
-                >
-                    <option value="">{t('Выберите филиал')}</option>
-                    {branches.map((b) => (
-                        <option key={b.id} value={b.id}>
-                            {b.name}
-                            {b.city ? ` · ${b.city}` : ''}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            <SelectField
+                label="Филиал"
+                required
+                value={props.branchId}
+                onChange={props.setBranchId}
+                placeholder="Выберите филиал"
+            >
+                {props.branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                        {b.name}
+                        {b.city ? ` · ${b.city}` : ''}
+                    </option>
+                ))}
+            </SelectField>
 
             <div className={s.row}>
                 <div className={s.field}>
                     <label className={s.label}>
                         {t('Уровень группы')} <span className={s.req}>*</span>
                     </label>
-                    <div className={s.levelGroup}>
-                        {LEVELS.map((l) => (
-                            <button
-                                key={l}
-                                type="button"
-                                className={classNames(s.levelBtn, {
-                                    [s.levelActive]: level === l,
-                                })}
-                                onClick={() => setLevel(l)}
-                            >
-                                {LEVEL_LABELS[l]}
-                            </button>
-                        ))}
-                    </div>
+                    <LevelButtons levels={LEVELS} level={props.level} setLevel={props.setLevel} />
                 </div>
-                <div className={s.field}>
-                    <label className={s.label}>{t('Макс. участников')}</label>
-                    <input
-                        className={s.inputSmall}
-                        type="number"
-                        min={1}
-                        value={maxParticipants}
-                        onChange={(e) => setMaxParticipants(Number(e.target.value))}
-                    />
-                </div>
-                <div className={s.field}>
-                    <label className={s.label}>{t('Стоимость занятия, EUR')}</label>
-                    <input
-                        className={s.inputSmall}
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        value={lessonPrice}
-                        onChange={(e) => setLessonPrice(e.target.value)}
-                    />
-                </div>
+                <NumberField
+                    label="Макс. участников"
+                    value={props.maxParticipants}
+                    min={1}
+                    onChange={(value) => props.setMaxParticipants(Number(value))}
+                />
+                <NumberField
+                    label="Стоимость занятия, EUR"
+                    value={props.lessonPrice}
+                    min={0}
+                    step="0.01"
+                    onChange={props.setLessonPrice}
+                />
             </div>
         </>
     );
