@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (15/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (18/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -955,6 +955,15 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
   `MollieIncidentsFilters`, `MollieIncidentsSummary`,
   `MollieIncidentsPagination`, `MollieIncidentCard` (закрывает обе находки в
   этом файле).
+- `MollieCustomerDetails.tsx:105` (`MollieStudentLinksManager`, 188 строк),
+  `:294` (`MolliePaymentHistory`, 153 строки, cc11) и `:448` (сам
+  `MollieCustomerDetails`, 103 строки) — файл уже содержал 3 отдельных
+  компонента, каждый по отдельности слишком длинный. Каждый вынесен в свой
+  файл с собственным хуком: `MollieStudentLinksManager.tsx` +
+  `useStudentLinksManager.ts`, `MolliePaymentHistory.tsx` +
+  `usePaymentHistory.ts` + подкомпонент `PaymentHistoryDayCard`, и
+  `useMollieCustomerDetails.ts` для хендлеров главного компонента. Закрывает
+  все 3 находки `SKY-C304` и находку `SKY-Q301` на этом файле разом.
 
 Проверено на каждом файле: `tsc --noEmit` (client) — 0 новых ошибок; `npx eslint`
 — 0 ошибок; существующие Jest-тесты каждой страницы прошли без изменений
@@ -1057,9 +1066,9 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/MolliePage/model/services/fetchMollieClientsList/fetchMollieClientsList.test.ts:13` — Function 'anonymous' is 72 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/model/slices/mollieClientsDetailsPageSlice.test.ts:6` — Function 'anonymous' is 76 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/model/slices/mollieClientsDetailsPageSlice.ts:44` — Function 'anonymous' is 59 lines long (limit: 50)
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:105` — Function 'anonymous' is 188 lines long (limit: 50)
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' is 153 lines long (limit: 50)
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:448` — Function 'anonymous' is 103 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:105` — Function 'anonymous' is 188 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' is 153 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:448` — Function 'anonymous' is 103 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.test.tsx:40` — Function 'anonymous' is 71 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:74` — Function 'anonymous' is 185 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.test.tsx:52` — Function 'anonymous' is 78 lines long (limit: 50)
@@ -1154,16 +1163,17 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (22/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (23/35)
 
 > Упростить ветвления, вынести под-функции.
 
 **Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
 1 сознательно оставлена, 1 отложена вместе с `SKY-C304`); из 23 client-находок
-обработаны 12 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
+обработаны 13 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
 `DanceStylesPage.tsx`, `ClientEmailBlock.tsx`, `EmailMessageDetail.tsx`,
 `MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx`,
 `HomePage.tsx`, `ClientForm.tsx`, `CreateGroupModal.tsx`,
+`MollieCustomerDetails.tsx`,
 `MollieIncidents.tsx` — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
 Многие из оставшихся client-находок
@@ -1260,7 +1270,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — Function 'anonymous' has cyclomatic complexity 37 (limit: 10)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 29 (limit: 10)
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
 - [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:191` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
 - [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:173` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [ ] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.tsx:104` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10)
