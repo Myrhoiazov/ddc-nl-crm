@@ -1,4 +1,4 @@
-# DDC NL Commit Message Guidelines
+# DDC CRM Commit Message Guidelines
 
 ## Core Principles
 
@@ -27,7 +27,7 @@ For tiny documentation or chore changes, the header alone is acceptable when the
 
 The header must be **72 characters or less**.
 
-For **Breaking Changes**, append `!` after the type/scope (e.g., `feat!: drop support for Node 12`) to signal a Major version bump.
+For **Breaking Changes**, append `!` after the type/scope (e.g., `feat!: drop Node 12 support`) to signal a Major version bump.
 
 ### Types
 
@@ -49,10 +49,11 @@ Select the most specific type:
 
 Use the affected module/component (folder) name (lowercase, kebab-case):
 
-- WordPress/theme: `templates`, `parts`, `includes`, `functions`
-- UI/assets: `styles`, `scripts`, `assets`
-- Content/domain: `copy`, `schedule`, `locations`, `forms`
-- Automation: `agents`, `ci`, `config`, `release`
+- Client domain: `clients`, `students`, `groups`, `schedule`, `choreographers`, `branches`
+- Client core: `auth`, `settings`, `users`, `roles`
+- Invoicing/payments: `invoices`, `mollie`, `payment-reminders`
+- Email: `email`
+- Cross-cutting: `api`, `styles`, `prisma`, `server`, `client`, `agents`, `ci`, `config`, `release`
 
 **Constraints**:
 
@@ -80,14 +81,14 @@ Use the affected module/component (folder) name (lowercase, kebab-case):
 
 Instead of listing file changes, list significant side effects or impacts that may not be visible in the code diff.
 
-- **Migrations**: Database schema changes or data migrations?
+- **Migrations**: Prisma schema/data migrations (run `npm run prisma:generate` and a migration)?
 - **Deprecations**: Are any APIs or features deprecated?
 - **Dependencies**: New external libraries added?
 - **Configuration**: Changes to ENV variables or config files?
 
 ## 4. Footer / Metadata
 
-- Reference issue tracker IDs explicitly (e.g., Jira, GitHub Issues).
+- Reference issue tracker IDs explicitly (e.g., GitHub Issues).
 - Format: `Ref: #123` or `Fixes: ISSUE-123`.
 - Mention breaking changes if any: `BREAKING CHANGE: <description>`.
 - Do not add `Co-authored-by`, `Generated-by`, AI attribution trailers, or similar metadata unless the user explicitly asks.
@@ -95,13 +96,13 @@ Instead of listing file changes, list significant side effects or impacts that m
 ### Example
 
 ```text
-fix(forms): Validate trial lesson phone input
+fix(invoices): validate invoice customer phone before send
 
-This change validates the phone field before a trial lesson contact
-request is sent, so incomplete requests can be corrected on the page.
+This change validates the customer phone field before an invoice is
+sent, so incomplete invoices can be corrected in the UI.
 
 Impact:
-- Forms: Prevents submission when the phone field is empty
+- Invoices: Prevents sending when the phone field is empty
 - Configuration: No new environment variables
 
 Ref: #123

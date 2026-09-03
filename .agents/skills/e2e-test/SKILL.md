@@ -1,62 +1,64 @@
 ---
 name: e2e-test
-description: Browser QA for the DDC NL WordPress theme on local XAMPP or a supplied URL. Use when templates, forms, front-end JavaScript, SCSS/CSS, navigation, or public WordPress pages change.
+description: Browser QA for the DDC CRM React admin SPA. Use when client templates, forms, front-end JavaScript, SCSS/CSS, navigation, or user-facing pages change.
 ---
 
-# DDC NL Browser QA
+# DDC CRM Browser QA
 
-Use this skill to verify user-facing behavior for the DDC NL WordPress theme. It complements static checks; it does not replace PHP lint, JS syntax checks, review, or brand/secret scans.
+Use this skill to verify user-facing behavior in the DDC CRM React 19 admin SPA. It complements static checks; it does not replace client lint/tests, server build/domain tests, review, or secret scans.
 
 ## Inputs
 
 Before testing, read:
 
 - `AGENTS.md`
-- `README.md`
-- `CONTEXT.md` when public copy or labels changed
+- `CONTEXT.md` for domain terminology and page/slice structure
+- `README.md` for how to run the app
 
-Determine the base URL from the user, local WordPress/XAMPP configuration, or a running local server. If no URL can be discovered, report that browser QA is blocked and continue with static verification.
+Determine the base URL. In development the SPA runs on `:3000` via `npm start` from the root (webpack-dev-server) with the API behind the dev proxy. A production preview or a deploy may supply a different URL. If no URL can be discovered, report that browser QA is blocked and continue with static verification.
 
-## Server Readiness
+Completion criterion: a reachable base URL is known, or the blocker is documented.
 
-For local XAMPP, prefer checking the existing site instead of restarting services.
+## Server/Spa Readiness
 
-1. Probe the likely local URL with `curl -I` or a browser navigation.
-2. If the site is unavailable, identify the missing prerequisite without stopping unrelated services.
-3. Do not edit secrets or WordPress configuration to make QA pass.
+Prefer checking the running app instead of restarting services.
+
+1. Confirm the dev app is up (`npm start` from the root serves client on `:3000`).
+2. Probe the base URL with `curl -I` or a browser navigation.
+3. If the app is unavailable, identify the missing prerequisite without stopping unrelated services.
+4. Do not edit `.env` or database content to make QA pass.
 
 Completion criterion: a reachable base URL is known, or the blocker is documented.
 
 ## Pages to Check
 
-Choose pages affected by the diff first. When unsure, include:
+Choose the flows affected by the diff first. When unsure, include:
 
-- Home page.
-- Schedule or location page if enrollment/navigation changed.
-- Trial Lesson or contact form page if forms/CTA changed.
-- Agreement page if formal copy/templates changed.
-- Any changed custom template under `templates/`, `page-templates/`, or `parts/`.
+- The login/session flow if auth changed.
+- The client/student or dance-group flow if the domain changed.
+- The schedule/calendar flow if scheduling changed.
+- The invoice/payment flow if invoicing or Mollie changed.
+- The email workflow if message/account handling changed.
+- Any changed page under `client/src/pages/` or feature under `client/src/features/`.
 
 Completion criterion: every changed user-facing path has at least one rendered-page check.
 
 ## Browser Assertions
 
-Use browser automation or manual inspection to verify:
+Use browser automation (see the `browser-automation` skill for a headless run) or manual inspection to verify:
 
-- The page renders without visible PHP warnings or broken markup.
-- No new console errors appear during load and primary interactions.
-- Navigation and CTA links target the expected pages.
-- Forms can be filled and validated without sending real private customer data unless the user explicitly approves a live submission.
+- The page renders and mounts without console errors.
+- Redux-driven state reflects the expected data (dynamic module loaders mount, slices hydrate).
+- Navigation and links target the expected routes.
+- Forms validate and submit without private customer data unless the user explicitly approves a live interaction.
 - Desktop and mobile viewports remain readable when layout changed.
-- Public text follows `Talent Center DDC` / `DDC NL` terminology from `CONTEXT.md`.
+- Dark theme remains real when styling changed (check both themes).
 
-Prefer DOM assertions for exact checks and screenshots for layout evidence.
+Prefer DOM/state assertions for exact checks and screenshots for layout evidence.
 
 ## Form Safety
 
-Contact requests are private customer communication. Use test data and stop before live submission unless the task specifically requires submission testing and the user approved it.
-
-If Telegram integration is involved, verify configuration presence without exposing token values.
+Do not submit real private customer data during QA. Use test data and stop before any live submission unless the task specifically requires it and the user approved it.
 
 ## Reporting
 
