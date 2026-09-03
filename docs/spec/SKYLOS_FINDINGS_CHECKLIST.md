@@ -51,6 +51,27 @@
   suites/976/976 тестов, server `test:auth` 14/14 + `test:mollie` 7/7 — без
   регрессий на всём протяжении.
 
+**Категория "Качество кода" — волна 1 закрыта** (`SKY-L007` 1, `SKY-C303` 1,
+`SKY-Q302` 4, `SKY-Q402` 23 = 29 из 249; остаются `SKY-Q301` 35 и `SKY-C304` 185
+отдельными волнами):
+- `SKY-C303` и `SKY-Q302` — реальные точечные рефакторинги: группировка параметров
+  в объект (`createAuditLog`), замена `if/else if` цепочек на `switch`/guard clauses,
+  вынос карточки инвойса в отдельный компонент `InvoiceListItem.tsx`.
+- `SKY-L007` — единственная находка оказалась уже задокументированным по правилам
+  самого чек-листа кейсом (комментарий внутри `catch {}` объясняет, почему пусто) —
+  false positive, код не менялся.
+- `SKY-Q402` (await в цикле) — из 23 находок только 3 реально распараллелены
+  (независимая запись вложений писем, синхронизация email-аккаунтов по cron).
+  Остальные 20 сознательно оставлены последовательными с обоснованием инлайн:
+  Prisma-транзакции не поддерживают параллельные запросы на одном соединении,
+  IMAP-синк — это стрим с одного соединения, а не независимый массив, отмена
+  платежей Mollie и рассылки email-напоминаний используют последовательность
+  как единственный текущий механизм троттлинга/останова-на-ошибке.
+- Проверено: `tsc --noEmit` (client+server) — 0 ошибок; `npm run build` (server) +
+  `npm run build:prod` (client) — чисто; `npm run test:ci` (server, все 5 сьютов) —
+  0 fail; Jest client 281/281 suites, 976/976 тестов; `npm run lint:ts` (client) —
+  0 ошибок.
+
 ## Сводка по правилам
 
 | Код | Категория | Кол-во | Что означает |
@@ -1107,54 +1128,152 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - [ ] `server/src/services/service.InvoicePdf.ts:66` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10)
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
 
-### `SKY-Q302` — Слишком большая глубина вложенности (4)
+### `SKY-Q302` — Слишком большая глубина вложенности (4) — ЗАКРЫТО
 
 > Использовать ранние return/guard clauses.
 
-- [ ] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' has nesting depth 6 (limit: 4)
-- [ ] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:108` — Function 'anonymous' has nesting depth 6 (limit: 4)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has nesting depth 5 (limit: 4)
-- [ ] `server/src/services/service.PaymentReminders.ts:197` — Function 'anonymous' has nesting depth 5 (limit: 4)
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' has nesting depth 6 (limit: 4)
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:108` — Function 'anonymous' has nesting depth 6 (limit: 4)
+- [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has nesting depth 5 (limit: 4)
+- [x] `server/src/services/service.PaymentReminders.ts:197` — Function 'anonymous' has nesting depth 5 (limit: 4)
 
-### `SKY-L007` — Пустой catch-блок (1)
+Исправлено:
+- `InvoicesPage.tsx:57` (сам компонент) — глубина 6 набегала из-за карточки инвойса,
+  инлайненной в `invoices.map()` внутри JSX (условный рендеринг вложен в условный
+  рендеринг). Карточка вынесена в отдельный мемоизированный компонент
+  `InvoiceListItem.tsx` в той же папке — каждый уровень условного рендеринга внутри
+  неё стартует с глубины 1 заново. Заодно вынесены туда же локальные хелперы
+  `documentLabel`/`actionLabel`/`money`/`actorName`/`canEdit`, которые нужны только
+  карточке (`statusLabel` остался в `InvoicesPage.tsx` — используется ещё и в
+  фильтрах). Поведение не менялось, все существующие тесты
+  `InvoicesPage.test.tsx`/`InvoiceActionModal.test.tsx`/`CreateInvoiceModal.test.tsx`
+  прошли без изменений (21/21).
+- `InvoicesPage.tsx:108` (`handleActionConfirm`) — цепочка из 5 `if/else if` по
+  `result.type` заменена на `switch` (дискриминирующее объединение `ActionResult`
+  сужается по `switch` так же корректно, как по `if`).
+- `conteroller.Mollie.ts:785` (`mollieGetCustomersController`) — вложенные
+  `if/else if` по `subscriptionStatus`/`hasSubscriptions` и по `hasMandates`
+  вынесены в чистые хелперы `resolveSubscriptionsFilter`/`resolveMandatesFilter` с
+  ранними `return` вместо `else if`.
+- `service.PaymentReminders.ts:197` (`runPaymentReminders`) — `if/else if` цепочка
+  по `delivery.status` внутри `for`-цикла заменена на guard clause (`if (!delivery)
+  { ...; continue; }`) + `switch` по статусу.
+
+Проверено: `tsc --noEmit` (client+server) — 0 ошибок; `npm run build` (server) —
+чисто; server `test:payment-reminders` — 10/10; client Jest (полный набор)
+281/281 suites, 976/976 тестов — без регрессий.
+
+### `SKY-L007` — Пустой catch-блок (1) — проверено, false positive
 
 > Обработать ошибку, залогировать или задокументировать, почему её можно игнорировать.
 
-- [ ] `client/webpack.config.ts:9` — Empty catch block silently discards an error; handle it, report it, or document why ignoring it is safe.
+- [x] `client/webpack.config.ts:9` — Empty catch block silently discards an error; handle it, report it, or document why ignoring it is safe.
 
-### `SKY-Q402` — await внутри цикла (23)
+У блока уже есть комментарий, объясняющий, почему игнорирование безопасно
+(`.env` может отсутствовать при Docker-сборке — переменные приходят из окружения
+вызывающей стороны) — это ровно то, что просит рекомендация правила
+("...залогировать или задокументировать, почему её можно игнорировать"). Skylos,
+похоже, детектирует пустой `catch {}` синтаксически, не читая комментарий внутри.
+Код не менялся.
+
+### `SKY-Q402` — await внутри цикла (23) — ЗАКРЫТО
 
 > Использовать Promise.all()/Promise.allSettled() для параллельного выполнения, если итерации независимы.
 
-- [ ] `server/prisma/seed.ts:35` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/controllers/controller.Invoices.ts:654` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/controllers/controller.Invoices.ts:276` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/controllers/controller.Invoices.ts:280` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/controllers/controller.Invoices.ts:655` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailImap.ts:170` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailImap.ts:90` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailImap.ts:160` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailImap.ts:196` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailImap.ts:168` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailSmtp.ts:108` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.EmailSyncCron.ts:16` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.InvoiceDelivery.ts:173` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.InvoiceDelivery.ts:177` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:311` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:461` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:200` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:312` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:329` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:387` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:458` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.MollieSync.ts:384` — await inside loop — consider using Promise.all() for parallel execution.
-- [ ] `server/src/services/service.PaymentReminders.ts:210` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/prisma/seed.ts:35` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/controllers/controller.Invoices.ts:654` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/controllers/controller.Invoices.ts:276` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/controllers/controller.Invoices.ts:280` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/controllers/controller.Invoices.ts:655` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailImap.ts:170` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailImap.ts:90` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailImap.ts:160` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailImap.ts:196` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailImap.ts:168` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailSmtp.ts:108` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailSyncCron.ts:16` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.InvoiceDelivery.ts:173` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.InvoiceDelivery.ts:177` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:311` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:461` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:200` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:312` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:329` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:387` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:458` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:384` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.PaymentReminders.ts:210` — await inside loop — consider using Promise.all() for parallel execution.
 
-### `SKY-C303` — Слишком много параметров функции (1)
+Из 23 находок — 3 реально распараллелены, 20 сознательно оставлены
+последовательными (с обоснованием, не вслепую).
+
+**Распараллелено (3):**
+- `service.EmailImap.ts:90` (`saveAttachments`) и `service.EmailSmtp.ts:108`
+  (вложение писем) — сохранение вложений одного письма независимо друг от друга
+  (`storeAttachmentFile` пишет каждое во free-standing файл с уникальным `uuid`
+  именем) — заменено на `Promise.all(attachments.map(...))`.
+- `service.EmailSyncCron.ts:16` (`syncAllActiveEmailAccounts`) — комментарий над
+  функцией уже описывал желаемое поведение ("одна медленная/сломанная связь не
+  должна задерживать синхронизацию остальных"), но цикл был последовательным
+  (`for...of` + `await`), т.е. медленный ящик реально блокировал остальные —
+  заменено на `Promise.allSettled(accounts.map(...))`, что впервые реализует
+  задуманное параллельно по аккаунтам (у каждого аккаунта своё IMAP-соединение и
+  собственный guard `accountsCurrentlySyncing` от повторного захода).
+
+**Сознательно оставлено последовательным (20), с обоснованием:**
+- `service.EmailImap.ts:160/168/170/196` (4) — основной цикл синхронизации одного
+  почтового ящика — это `for await` по асинхронному итератору ОДНОГО IMAP-соединения
+  (`client.fetch(...)`), а не независимые итерации по массиву; кроме того, внутри
+  инкрементально накапливается `highestUid` и на каждое письмо — собственный
+  try/catch для изоляции ошибок по письму. Распараллеливание изменило бы протокольную
+  семантику IMAP-сессии и логику курсора синхронизации — не тривиальный рефакторинг,
+  не то же самое, что "await в цикле" по независимому массиву.
+- `controller.Invoices.ts:276/280` (2, `markOverdueInvoices`) — цикл внутри
+  `prisma.$transaction(async (transaction) => {...})`. Интерактивные транзакции
+  Prisma работают через одно соединение — параллельные запросы внутри одной
+  транзакции официально не поддерживаются Prisma (гонка за соединением). Оставлено
+  последовательным — это правильное поведение, не недостаток.
+- `controller.Invoices.ts:654/655` (2 — по факту сейчас строки ~683/684 из-за
+  сдвига номеров после правок SKY-C303/Q302 в этом же файле; сам код тот же) —
+  цикл отмены активных платежей Mollie при отмене инвойса. Последовательность
+  обеспечивает семантику "остановиться на первой ошибке, вернуть 502, инвойс не
+  тронут" — при `Promise.all` часть платежей могла бы отмениться, а часть нет, и
+  инвойс остался бы в неопределённом состоянии. Финансовая операция — оставлено
+  как есть намеренно.
+- `service.InvoiceDelivery.ts:173/177` (2, `sendDueInvoiceReminders`) и
+  `service.PaymentReminders.ts:210` (1, `runPaymentReminders`) — массовая отправка
+  email/напоминаний клиентам. Последовательная отправка — это единственный
+  механизм троттлинга, который сейчас есть (нет отдельного rate-limiter); неограниченный
+  `Promise.all` по потенциально десяткам-сотням инвойсов/подписок разом рискует
+  упереться в лимиты почтового провайдера. Требует продуктового решения о лимите
+  параллелизма — не мех. фикс, оставлено как есть.
+- `service.MollieSync.ts` (8: 196/200, 307/311-312, 325/329, 382/384/386-387,
+  456/458/460-461) — все циклы синхронизации с Mollie API (customers/payments/
+  mandates/subscriptions). Нет отдельного rate-limiter — последовательный `await`
+  в цикле сейчас единственная защита от пробивания лимитов Mollie API при полном
+  ресинке (потенциально сотни записей). Оставлено намеренно последовательным по
+  той же причине, что и email-рассылки выше.
+- `server/prisma/seed.ts:35` (`down()`) — цикл из 2 итераций (`TRUNCATE TABLE
+  sessions`, `TRUNCATE TABLE users`) между `SET FOREIGN_KEY_CHECKS = 0` и `= 1`.
+  Тривиальный dev-seed скрипт, распараллеливание TRUNCATE с отключенными FK
+  проверками не даёт ощутимого выигрыша и не стоит риска.
+
+Проверено: `tsc --noEmit` (server) — 0 ошибок; `npm run build` (server) — чисто;
+`npm run test:ci` (все 5 сьютов) — 0 fail — без регрессий.
+
+### `SKY-C303` — Слишком много параметров функции (1) — ЗАКРЫТО
 
 > Сгруппировать параметры в один объект.
 
-- [ ] `server/src/controllers/controller.Invoices.ts:203` — Function 'anonymous' has 6 parameters (limit: 5)
+- [x] `server/src/controllers/controller.Invoices.ts:203` — Function 'anonymous' has 6 parameters (limit: 5)
+
+`createAuditLog(transaction, invoiceId, action, actorId, oldValues, newValues)` →
+`createAuditLog(transaction, { invoiceId, action, actorId, oldValues, newValues })`
+— `transaction` (контекст) остался отдельным позиционным параметром, остальные 5
+сгруппированы в один объект `params`, как и рекомендует правило. Обновлены все 10
+мест вызова в файле. Проверено: `tsc --noEmit` (server) — 0 ошибок; `npm run build`
+— чисто; `npm run test:ci` — без регрессий (для этой функции отдельного unit-теста
+нет — `server` не имеет единой test-команды на весь репозиторий, см. `AGENTS.md`).
 
 ## Архитектура / публичные API модулей
 

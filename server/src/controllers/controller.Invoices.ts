@@ -202,18 +202,20 @@ const snapshot = (value: unknown): Prisma.InputJsonValue => (
 
 const createAuditLog = (
     transaction: Prisma.TransactionClient,
-    invoiceId: number,
-    action: string,
-    actorId: number | undefined,
-    oldValues?: unknown,
-    newValues?: unknown,
+    params: {
+        invoiceId: number;
+        action: string;
+        actorId: number | undefined;
+        oldValues?: unknown;
+        newValues?: unknown;
+    },
 ) => transaction.invoiceAuditLog.create({
     data: {
-        invoiceId,
-        action,
-        actorId,
-        ...(oldValues === undefined ? {} : { oldValues: snapshot(oldValues) }),
-        ...(newValues === undefined ? {} : { newValues: snapshot(newValues) }),
+        invoiceId: params.invoiceId,
+        action: params.action,
+        actorId: params.actorId,
+        ...(params.oldValues === undefined ? {} : { oldValues: snapshot(params.oldValues) }),
+        ...(params.newValues === undefined ? {} : { newValues: snapshot(params.newValues) }),
     },
 });
 
@@ -277,9 +279,12 @@ const markOverdueInvoices = async () => {
                 where: { id: invoice.id },
                 data: { status: InvoiceStatus.OVERDUE },
             });
-            await createAuditLog(transaction, invoice.id, 'MARKED_OVERDUE', undefined, invoice, {
-                ...invoice,
-                status: InvoiceStatus.OVERDUE,
+            await createAuditLog(transaction, {
+                invoiceId: invoice.id,
+                action: 'MARKED_OVERDUE',
+                actorId: undefined,
+                oldValues: invoice,
+                newValues: { ...invoice, status: InvoiceStatus.OVERDUE },
             });
         }
     });
@@ -379,7 +384,13 @@ export const createInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, created.id, 'CREATED', actorId, undefined, created);
+        await createAuditLog(transaction, {
+            invoiceId: created.id,
+            action: 'CREATED',
+            actorId,
+            oldValues: undefined,
+            newValues: created,
+        });
         return created;
     });
     return res.status(201).json(invoice);
@@ -447,7 +458,13 @@ export const createPaidInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, created.id, 'CREATED_PAID', actorId, undefined, created);
+        await createAuditLog(transaction, {
+            invoiceId: created.id,
+            action: 'CREATED_PAID',
+            actorId,
+            oldValues: undefined,
+            newValues: created,
+        });
         return created;
     });
     return res.status(201).json(invoice);
@@ -498,7 +515,13 @@ export const confirmPaidInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, 'DRAFT_CONFIRMED_PAID', actorId, existing, updated);
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: 'DRAFT_CONFIRMED_PAID',
+            actorId,
+            oldValues: existing,
+            newValues: updated,
+        });
         return updated;
     });
     return res.json(invoice);
@@ -574,7 +597,13 @@ export const updateInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, 'UPDATED', actorId, existing, updated);
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: 'UPDATED',
+            actorId,
+            oldValues: existing,
+            newValues: updated,
+        });
         return updated;
     });
 
@@ -689,7 +718,13 @@ export const updateInvoiceStatus = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, status === InvoiceStatus.CANCELLED ? 'CANCELLED' : 'STATUS_CHANGED', actorId, existing, updated);
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: status === InvoiceStatus.CANCELLED ? 'CANCELLED' : 'STATUS_CHANGED',
+            actorId,
+            oldValues: existing,
+            newValues: updated,
+        });
         return updated;
     });
     return res.json(invoice);
@@ -750,9 +785,15 @@ export const recordInvoicePayment = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, 'PAYMENT_RECORDED', actorId, existing, {
-            amountCents: parsed.data.amountCents,
-            invoice: updated,
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: 'PAYMENT_RECORDED',
+            actorId,
+            oldValues: existing,
+            newValues: {
+                amountCents: parsed.data.amountCents,
+                invoice: updated,
+            },
         });
         return updated;
     });
@@ -844,16 +885,32 @@ export const createInvoiceAdjustment = async (req: Request, res: Response) => {
                     updatedById: actorId,
                 },
             });
-            await createAuditLog(transaction, original.id, 'CREDIT_NOTE_APPLIED', actorId, original, {
-                creditNoteId: created.id,
-                invoice: updatedOriginal,
+            await createAuditLog(transaction, {
+                invoiceId: original.id,
+                action: 'CREDIT_NOTE_APPLIED',
+                actorId,
+                oldValues: original,
+                newValues: {
+                    creditNoteId: created.id,
+                    invoice: updatedOriginal,
+                },
             });
         } else {
-            await createAuditLog(transaction, original.id, 'DEBIT_NOTE_CREATED', actorId, original, {
-                debitNoteId: created.id,
+            await createAuditLog(transaction, {
+                invoiceId: original.id,
+                action: 'DEBIT_NOTE_CREATED',
+                actorId,
+                oldValues: original,
+                newValues: { debitNoteId: created.id },
             });
         }
-        await createAuditLog(transaction, created.id, 'CREATED', actorId, undefined, created);
+        await createAuditLog(transaction, {
+            invoiceId: created.id,
+            action: 'CREATED',
+            actorId,
+            oldValues: undefined,
+            newValues: created,
+        });
         return created;
     });
 

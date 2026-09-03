@@ -104,9 +104,7 @@ const sendEmail = async (accountId: number, input: SendEmailInput) => {
     });
 
     if (input.attachments?.length) {
-        for (const attachment of input.attachments) {
-            await storeAttachmentFile(savedMessage.id, attachment);
-        }
+        await Promise.all(input.attachments.map((attachment) => storeAttachmentFile(savedMessage.id, attachment)));
     }
 
     return savedMessage;

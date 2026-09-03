@@ -782,6 +782,20 @@ export const deleteCustomerStudentLinkController = async (req: Request, res: Res
     }
 };
 
+const resolveSubscriptionsFilter = (status: string | undefined, has: string | undefined) => {
+    if (status === 'active') return { some: { status: 'active' } };
+    if (status === 'not_active') return { none: { status: 'active' } };
+    if (has === 'yes') return { some: {} };
+    if (has === 'no') return { none: {} };
+    return undefined;
+};
+
+const resolveMandatesFilter = (has: string | undefined) => {
+    if (has === 'yes') return { some: {} };
+    if (has === 'no') return { none: {} };
+    return undefined;
+};
+
 export const mollieGetCustomersController = async (req: Request, res: Response) => {
     try {
         const getQueryValue = (value: unknown) => (typeof value === 'string' ? value : undefined);
@@ -815,21 +829,11 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
             ];
         }
 
-        if (subscriptionStatus === 'active') {
-            where.subscriptions = { some: { status: 'active' } };
-        } else if (subscriptionStatus === 'not_active') {
-            where.subscriptions = { none: { status: 'active' } };
-        } else if (hasSubscriptions === 'yes') {
-            where.subscriptions = { some: {} };
-        } else if (hasSubscriptions === 'no') {
-            where.subscriptions = { none: {} };
-        }
+        const subscriptionsFilter = resolveSubscriptionsFilter(subscriptionStatus, hasSubscriptions);
+        if (subscriptionsFilter) where.subscriptions = subscriptionsFilter;
 
-        if (hasMandates === 'yes') {
-            where.mandates = { some: {} };
-        } else if (hasMandates === 'no') {
-            where.mandates = { none: {} };
-        }
+        const mandatesFilter = resolveMandatesFilter(hasMandates);
+        if (mandatesFilter) where.mandates = mandatesFilter;
 
         const customersQuery = prisma.customer.findMany({
             where,
