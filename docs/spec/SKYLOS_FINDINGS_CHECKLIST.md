@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (9/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (10/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -936,6 +936,9 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
   `FlatResult` вынесены в отдельные типизированные `mapClientHit`/
   `mapPaymentHit`/... функции; `buildFlatResults` теперь просто их вызывает.
   Выпадающий список результатов вынесен в `GlobalSearchDropdown`.
+- `EditSubscriptionDropdown.tsx:30` (143 строки, cc16) — вынесен хук
+  `useEditSubscriptionDropdown()` и три модалки: `CancelSubscriptionModal`,
+  `EditSubscriptionModal`, `RestartSubscriptionModal`.
 
 Проверено на каждом файле: `tsc --noEmit` (client) — 0 новых ошибок; `npx eslint`
 — 0 ошибок; существующие Jest-тесты каждой страницы прошли без изменений
@@ -1000,7 +1003,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/features/editMollieClientDropdown/ui/EditMollieClientDropdown/EditMollieClientDropdown.tsx:25` — Function 'anonymous' is 57 lines long (limit: 50)
 - [ ] `client/src/features/editMollieClientDropdown/ui/MollieClientForm/MollieClientForm.tsx:28` — Function 'anonymous' is 114 lines long (limit: 50)
 - [ ] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.test.tsx:36` — Function 'anonymous' is 55 lines long (limit: 50)
-- [ ] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' is 143 lines long (limit: 50)
+- [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' is 143 lines long (limit: 50)
 - [ ] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.test.tsx:46` — Function 'anonymous' is 65 lines long (limit: 50)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:35` — Function 'anonymous' is 66 lines long (limit: 50)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' is 192 lines long (limit: 50)
@@ -1135,15 +1138,15 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (17/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (18/35)
 
 > Упростить ветвления, вынести под-функции.
 
 **Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
 1 сознательно оставлена, 1 отложена вместе с `SKY-C304`); из 23 client-находок
-обработаны 7 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
+обработаны 8 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
 `DanceStylesPage.tsx`, `ClientEmailBlock.tsx`, `EmailMessageDetail.tsx`,
-`MolliePayments.tsx`, `GlobalSearch.tsx` — см.
+`MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx` — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
 Многие из оставшихся client-находок
 — это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
@@ -1226,7 +1229,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 
 - [x] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.tsx:60` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
 - [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
-- [ ] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
+- [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — Function 'anonymous' has cyclomatic complexity 35 (limit: 10)
 - [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/ClientEmailBlock.tsx:35` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
