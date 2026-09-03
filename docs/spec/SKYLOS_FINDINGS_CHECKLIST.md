@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (12/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (13/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -946,6 +946,10 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
   стейт, Redux dispatch/selector, загрузка филиалов/групп/Mollie-клиентов,
   валидация и сохранение) и два подкомпонента: `ClientFormGroupsSection`,
   `ClientFormPaymentSection`.
+- `CreateGroupModal.tsx:26` (284 строки, cc14) — вынесен хук
+  `useCreateGroupForm()` (стейт формы, загрузка справочников, слоты
+  расписания, сохранение) и два подкомпонента: `CreateGroupModalFields`,
+  `CreateGroupModalSlots`.
 
 Проверено на каждом файле: `tsc --noEmit` (client) — 0 новых ошибок; `npx eslint`
 — 0 ошибок; существующие Jest-тесты каждой страницы прошли без изменений
@@ -1070,7 +1074,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.test.tsx:65` — Function 'anonymous' is 62 lines long (limit: 50)
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.tsx:46` — Function 'anonymous' is 126 lines long (limit: 50)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.test.tsx:25` — Function 'anonymous' is 66 lines long (limit: 50)
-- [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' is 284 lines long (limit: 50)
+- [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' is 284 lines long (limit: 50)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/GroupCard/GroupCard.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.test.tsx:69` — Function 'anonymous' is 60 lines long (limit: 50)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' is 327 lines long (limit: 50)
@@ -1145,16 +1149,16 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (20/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (21/35)
 
 > Упростить ветвления, вынести под-функции.
 
 **Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
 1 сознательно оставлена, 1 отложена вместе с `SKY-C304`); из 23 client-находок
-обработаны 10 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
+обработаны 11 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
 `DanceStylesPage.tsx`, `ClientEmailBlock.tsx`, `EmailMessageDetail.tsx`,
 `MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx`,
-`HomePage.tsx`, `ClientForm.tsx` — см.
+`HomePage.tsx`, `ClientForm.tsx`, `CreateGroupModal.tsx` — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
 Многие из оставшихся client-находок
 — это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
@@ -1256,7 +1260,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.tsx:104` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10)
 - [x] `client/src/pages/OrganizationBrandsPage/ui/OrganizationBrandsPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
-- [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
+- [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
