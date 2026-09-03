@@ -1,3 +1,4 @@
+import { fromPartial } from '@total-typescript/shoehorn';
 import { StateSchema } from '@/app/providers/StoreProvider';
 import { TransactionSortField } from '@/entities/Transaction';
 import { transactionsPageActions } from '../../slices/transactionsPageSlice';
@@ -13,8 +14,8 @@ jest.mock('../fetchTransactionsSummary/fetchTransactionsSummary', () => ({
 const dispatch = jest.fn();
 const extra = {};
 
-function stateWith(inited: boolean) {
-    return () => ({ transactionPage: { _inited: inited } }) as unknown as StateSchema;
+function stateWith(inited: boolean): () => StateSchema {
+    return () => fromPartial({ transactionPage: { _inited: inited } });
 }
 
 beforeEach(() => {
