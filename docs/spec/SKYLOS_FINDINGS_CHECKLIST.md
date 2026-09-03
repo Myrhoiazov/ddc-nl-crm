@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (10/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (11/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -939,6 +939,9 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - `EditSubscriptionDropdown.tsx:30` (143 строки, cc16) — вынесен хук
   `useEditSubscriptionDropdown()` и три модалки: `CancelSubscriptionModal`,
   `EditSubscriptionModal`, `RestartSubscriptionModal`.
+- `HomePage.tsx:126` (295 строк, cc12) — вынесен хук `useHomePageData()`
+  (summary/chart/sync стейт и загрузка) и три подкомпонента:
+  `HomePageKpiCards`, `HomePageRevenueChart`, `HomePageFailedPayments`.
 
 Проверено на каждом файле: `tsc --noEmit` (client) — 0 новых ошибок; `npx eslint`
 — 0 ошибок; существующие Jest-тесты каждой страницы прошли без изменений
@@ -1027,7 +1030,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/EmailPage/ui/EmailAccountsPanel/EmailAccountsPanel.tsx:47` — Function 'anonymous' is 117 lines long (limit: 50)
 - [ ] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' is 328 lines long (limit: 50)
 - [ ] `client/src/pages/HomePage/ui/HomePage.test.tsx:57` — Function 'anonymous' is 52 lines long (limit: 50)
-- [ ] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' is 295 lines long (limit: 50)
+- [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' is 295 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.test.tsx:46` — Function 'anonymous' is 92 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — Function 'anonymous' is 353 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' is 59 lines long (limit: 50)
@@ -1138,15 +1141,16 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (18/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (19/35)
 
 > Упростить ветвления, вынести под-функции.
 
 **Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
 1 сознательно оставлена, 1 отложена вместе с `SKY-C304`); из 23 client-находок
-обработаны 8 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
+обработаны 9 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
 `DanceStylesPage.tsx`, `ClientEmailBlock.tsx`, `EmailMessageDetail.tsx`,
-`MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx` — см.
+`MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx`,
+`HomePage.tsx` — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
 Многие из оставшихся client-находок
 — это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
@@ -1238,7 +1242,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10)
 - [x] `client/src/pages/DanceStylesPage/ui/DanceStylesPage/DanceStylesPage.tsx:51` — Function 'anonymous' has cyclomatic complexity 20 (limit: 10)
 - [ ] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
-- [ ] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
+- [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — Function 'anonymous' has cyclomatic complexity 37 (limit: 10)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 29 (limit: 10)
