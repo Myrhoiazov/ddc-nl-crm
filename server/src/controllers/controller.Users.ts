@@ -62,6 +62,42 @@ export const deleteUserByIdController = async (req: Request, res: Response) => {
     }
 }
 
+const recordRoleChangeAudit = async (req: Request, userId: number, previousRole: UserRole, nextRole: UserRole) => {
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.ROLE_CHANGED,
+        actorUserId: req.user?.id,
+        targetUserId: userId,
+        req,
+        metadata: { from: previousRole, to: nextRole },
+    });
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.SESSION_REVOKED,
+        actorUserId: req.user?.id,
+        targetUserId: userId,
+        req,
+        metadata: { reason: 'ROLE_CHANGED' },
+    });
+};
+
+const recordEnabledChangeAudit = async (req: Request, userId: number, previousEnabled: boolean, nextEnabled: boolean) => {
+    await recordAuthSecurityEvent({
+        type: nextEnabled
+            ? AuthSecurityEventType.ACCOUNT_ENABLED
+            : AuthSecurityEventType.ACCOUNT_DISABLED,
+        actorUserId: req.user?.id,
+        targetUserId: userId,
+        req,
+        metadata: { previous: previousEnabled, current: nextEnabled },
+    });
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.SESSION_REVOKED,
+        actorUserId: req.user?.id,
+        targetUserId: userId,
+        req,
+        metadata: { reason: nextEnabled ? 'ACCOUNT_ENABLED' : 'ACCOUNT_DISABLED' },
+    });
+};
+
 export const updateUserController = async (req: Request, res: Response) => {
     const userId = Number(req.params.id);
     const { role, isEnabled } = req.body;
@@ -93,38 +129,10 @@ export const updateUserController = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
         if (role !== undefined && role !== previousUser.role) {
-            await recordAuthSecurityEvent({
-                type: AuthSecurityEventType.ROLE_CHANGED,
-                actorUserId: req.user?.id,
-                targetUserId: userId,
-                req,
-                metadata: { from: previousUser.role, to: role },
-            });
-            await recordAuthSecurityEvent({
-                type: AuthSecurityEventType.SESSION_REVOKED,
-                actorUserId: req.user?.id,
-                targetUserId: userId,
-                req,
-                metadata: { reason: 'ROLE_CHANGED' },
-            });
+            await recordRoleChangeAudit(req, userId, previousUser.role, role);
         }
         if (isEnabled !== undefined && isEnabled !== previousUser.isEnabled) {
-            await recordAuthSecurityEvent({
-                type: isEnabled
-                    ? AuthSecurityEventType.ACCOUNT_ENABLED
-                    : AuthSecurityEventType.ACCOUNT_DISABLED,
-                actorUserId: req.user?.id,
-                targetUserId: userId,
-                req,
-                metadata: { previous: previousUser.isEnabled, current: isEnabled },
-            });
-            await recordAuthSecurityEvent({
-                type: AuthSecurityEventType.SESSION_REVOKED,
-                actorUserId: req.user?.id,
-                targetUserId: userId,
-                req,
-                metadata: { reason: isEnabled ? 'ACCOUNT_ENABLED' : 'ACCOUNT_DISABLED' },
-            });
+            await recordEnabledChangeAudit(req, userId, previousUser.isEnabled, isEnabled);
         }
         return res.status(200).json(updatedUser);
     } catch (error) {

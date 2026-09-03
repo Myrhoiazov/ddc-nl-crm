@@ -211,12 +211,19 @@ export const runPaymentReminders = async (triggeredById?: number): Promise<RunPa
 
         if (!delivery) {
             result.alreadyQueued += 1;
-        } else if (delivery.status === PaymentReminderStatus.SENT) {
-            result.sent += 1;
-        } else if (delivery.status === PaymentReminderStatus.SKIPPED) {
-            result.skipped += 1;
-        } else if (delivery.status === PaymentReminderStatus.FAILED) {
-            result.failed += 1;
+            continue;
+        }
+
+        switch (delivery.status) {
+            case PaymentReminderStatus.SENT:
+                result.sent += 1;
+                break;
+            case PaymentReminderStatus.SKIPPED:
+                result.skipped += 1;
+                break;
+            case PaymentReminderStatus.FAILED:
+                result.failed += 1;
+                break;
         }
     }
 
