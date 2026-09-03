@@ -139,20 +139,20 @@ Run `npm run graphify:specs` after significant structural changes such as new mo
 
 ## Local Agents And Skills
 
-Agent assets live under `.agents/`:
+The Dev Loop (`.agents/`) is the end-to-end delivery workflow for this React/Express/Prisma stack. Agent assets live under `.agents/`:
 
-- `.agents/agents/dev-loop.md` - coordinator profile for end-to-end delivery.
-- `.agents/skills/agent-loop/` - delivery loop: intake, planning, implementation, checks, review, browser QA, PR.
-- `.agents/skills/planning-and-task-breakdown/` - creates task plans for multi-file or risky work.
-- `.agents/skills/tdd/` - test-first implementation guidance.
-- `.agents/skills/code-review/` - standards/spec review before publishing.
-- `.agents/skills/e2e-test/` and `.agents/skills/manual-automation/` - browser QA guidance.
-- `.agents/skills/pull-request/` - branch, commit, push, and PR publishing.
-- `.agents/skills/qa/` - issue-filing workflow for reported bugs.
+- `.agents/agents/dev-loop.md` (and an opencode copy at `.opencode/agents/dev-loop.md`) - coordinator profile for end-to-end delivery.
+- `.agents/skills/agent-loop/` - delivery loop: intake, planning, TDD implementation, checks, review, browser QA, PR.
+- `.agents/skills/planning-and-task-breakdown/` - creates task plans for multi-file or risky client/server work.
+- `.agents/skills/tdd/` - test-first implementation guidance (Jest for client, Node test runner for server).
+- `.agents/skills/code-review/` - standards/spec review before publishing, default diff base `develop`.
+- `.agents/skills/e2e-test/` and `.agents/skills/manual-automation/` - browser QA for the React SPA.
+- `.agents/skills/pull-request/` - branch, commit, push, and PR publishing into `develop`.
+- `.agents/skills/qa/` - interactive bug triage and issue filing.
 
-Important: these local skills were created for an earlier DDC NL WordPress theme workflow and some still mention PHP, XAMPP, templates, and WordPress. For this CRM project, `AGENTS.md`, `README.md`, and `CONTEXT.md` supersede those stale references. When using or updating `.agents/` skills, translate the workflow to the current React/Express/Prisma stack and remove WordPress-specific checks.
+These skills target the current DDC CRM stack and are the source of truth for the delivery loop; `AGENTS.md`, `CONTEXT.md`, and `README.md` take precedence wherever they disagree.
 
-Use the Dev Loop profile when the user asks for autonomous end-to-end work. The current CRM completion bar is: scoped request, branch created, implementation complete, relevant client/server checks run, review completed, browser QA run when UI changed, and PR prepared or published when requested.
+Use the Dev Loop profile when the user asks for autonomous end-to-end work. The completion bar is: scoped request, branch created, implementation complete, relevant client/server checks run incl. `npm run ci`, review completed, browser QA run when UI changed, and PR prepared or published into `develop` when requested.
 
 ## Git And Pull Requests
 

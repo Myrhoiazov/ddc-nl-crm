@@ -1,9 +1,9 @@
 ---
 name: planning-and-task-breakdown
-description: Break DDC NL WordPress theme work into ordered, verifiable tasks. Use for multi-file features, risky template/form/style changes, unclear requirements, or work that needs agent-loop coordination.
+description: Break DDC CRM work into ordered, verifiable tasks. Use for multi-file features, risky client/server changes, schema/model changes, unclear requirements, or work that needs agent-loop coordination.
 ---
 
-# DDC NL Planning and Task Breakdown
+# DDC CRM Planning and Task Breakdown
 
 Use this skill before implementation when the request is larger than an obvious tiny change.
 
@@ -12,34 +12,35 @@ Use this skill before implementation when the request is larger than an obvious 
 Read:
 
 - `AGENTS.md`
+- `CONTEXT.md` for domain language, architecture, and FSD details
 - `README.md`
-- `CONTEXT.md` when public copy, labels, page names, template names, or domain language may change
-- Relevant PHP, SCSS, CSS, JS, and template files
+- Relevant roadmaps under `docs/roadmap/` when the area is covered
+- Relevant source: client slices under `client/src/**`, server routes/controllers/services, `server/prisma/schema/*.prisma`
 
 Completion criterion: the existing pattern and the risky surfaces are known.
 
 ## Planning Rules
 
-Plan in vertical slices that leave the site working after each task. Prefer slices around user-visible outcomes:
+Plan in vertical slices that leave the app compiling and its checks passing after each task. Prefer slices around user-visible or observable outcomes:
 
-- A template renders the requested content.
-- A form validates and routes a contact request.
-- A CTA or navigation path works.
+- A client page or feature renders and its Redux state behaves correctly.
+- A server endpoint validates input, persists, and returns the expected response.
+- A Prisma model or migration is applied and the client keeps working.
+- A form or interaction works end to end through the API.
 - A style change renders correctly across desktop and mobile.
-- A hook/filter integration behaves correctly through WordPress public boundaries.
 
-Keep task scope small. Break tasks that touch unrelated areas, require more than about five files, or combine behavior with broad visual polish.
+Keep task scope small. Break tasks that touch unrelated areas, span client and server without a clear contract, or require many files.
 
-## DDC NL Risk Checks
+## DDC CRM Risk Checks
 
 Call out risks when the work touches:
 
-- Public brand or domain terms from `CONTEXT.md`.
-- Slugs, template names, CSS/JS ids, or classes.
-- Telegram/contact form handling.
-- Ignored media folders: `images/`, `videos/`.
-- Generated style outputs: `style.css`, `css/style.css`, `style.css.map`.
-- Release/version files.
+- Domain terms from `CONTEXT.md` (client, student, group, schedule, choreographer, branch, invoice, Mollie payment, etc.).
+- Auth/security, sessions, CSRF, 2FA, or rate limiting — see `docs/roadmap/AUTH_SECURITY_ROADMAP.md`.
+- Invoices, Mollie payments, or payment reminders — see the invoices/payments roadmaps.
+- Organizations or brands — see `docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md`.
+- Prisma schema changes (require `npm run prisma:generate` and a migration).
+- `.env`, credentials, private uploads, or `node_modules/`.
 
 Completion criterion: each risk has a mitigation or an explicit open question.
 
@@ -66,16 +67,17 @@ Each task should use this shape:
 - [ ] [Specific, observable behavior]
 
 **Verification:**
-- [ ] PHP lint: `php -l path/to/file.php` when PHP changed
-- [ ] JS syntax: `node --check js/file.js` when project JS changed
+- [ ] Client: `npm run lint:ts` and relevant Jest test when client changed
+- [ ] Server: `npm run build` and the matching domain test when server changed
+- [ ] Prisma: `npm run prisma:generate` + migration when schema changed
 - [ ] Browser QA: [page/viewport/interaction] when UI changed
-- [ ] Brand/secret/media scan when relevant
+- [ ] Secret/media scan when relevant
 
 **Dependencies:** [Task numbers or "None"]
 
 **Files likely touched:**
-- `templates/example.php`
-- `scss/example.scss`
+- `client/src/...`
+- `server/src/...`
 
 **Estimated scope:** [XS | S | M]
 ```
@@ -90,14 +92,14 @@ Each task should use this shape:
 
 ## Relevant Context
 - [Existing pattern or file group.]
-- [Brand/domain constraint when applicable.]
+- [Domain/security constraint when applicable.]
 
 ## Task List
 - [ ] Task 1: ...
 - [ ] Task 2: ...
 
 ## Verification Plan
-- [ ] Static checks:
+- [ ] Checks: client lint/test, server build/test, or `npm run ci`
 - [ ] Browser QA:
 - [ ] Review:
 
@@ -117,7 +119,7 @@ Each task should use this shape:
 
 - [ ] Task 1: [Short title]
 - [ ] Task 2: [Short title]
-- [ ] Static checks passed
+- [ ] Checks passed (`npm run ci` from the root)
 - [ ] Code review passed
 - [ ] Browser QA completed or marked not required
 - [ ] Ready for PR
