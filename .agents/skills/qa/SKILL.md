@@ -1,11 +1,11 @@
 ---
 name: qa
-description: Interactive QA for DDC NL where the user reports bugs or issues conversationally and the agent files durable GitHub issues using project terminology. Use when the user wants to report bugs, run QA, or file issues.
+description: Interactive QA for DDC CRM where the user reports bugs or issues conversationally and the agent files durable GitHub issues using project terminology. Use when the user wants to report bugs, run QA, or file issues.
 ---
 
-# DDC NL QA Session
+# DDC CRM QA Session
 
-Run an interactive QA session for the DDC NL WordPress theme. The user describes problems, you clarify lightly, inspect the relevant site/theme context, and file GitHub issues that are durable, user-focused, and use the language from `CONTEXT.md`.
+Run an interactive QA session for the DDC CRM platform. The user describes problems, you clarify lightly, inspect the relevant client/server context, and file GitHub issues that are durable, user-focused, and use the language from `CONTEXT.md` (client, student, group, schedule, choreographer, branch, invoice, Mollie payment, email, user, role, setting, etc.).
 
 ## For each issue the user raises
 
@@ -35,7 +35,7 @@ Before filing, decide whether this is a **single issue** or needs to be **broken
 
 Break down when:
 
-- The fix spans multiple independent areas (e.g. "the form validation is wrong AND the success message is missing AND the redirect is broken")
+- The fix spans multiple independent areas (e.g. "the invoice send validation is wrong AND the email success message is missing AND the redirect is broken")
 - There are clearly separable concerns that different people could work on in parallel
 - The user describes something that has multiple distinct failure modes or symptoms
 
@@ -71,7 +71,7 @@ Use this template:
 
 ## Additional context
 
-[Any extra observations from the user or from codebase exploration that help frame the issue — e.g. "this only happens when using the Docker layer, not the filesystem layer" — use domain language but don't cite files]
+[Any extra observations from the user or from codebase exploration that help frame the issue — e.g. "this only happens for instructors, not admins" — use domain language but don't cite files]
 ```
 
 #### For a breakdown (multiple issues)
@@ -119,7 +119,7 @@ When creating a breakdown:
 
 - **No file paths or line numbers** — these go stale
 - **Use the project's domain language** from `CONTEXT.md`
-- **Describe behaviors, not code** — "the sync service fails to apply the patch" not "applyPatch() throws on line 42"
+- **Describe behaviors, not code** — "the invoice send flow fails to apply the customer discount" not "applyDiscount() throws on line 42"
 - **Reproduction steps are mandatory** — if you can't determine them, ask the user
 - **Keep it concise** — a developer should be able to read the issue in 30 seconds
 
