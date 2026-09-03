@@ -81,18 +81,18 @@ const findClientIdByAddress = async (fromAddress: string): Promise<number | null
 const saveAttachments = async (messageDbId: number, attachments: ParsedAttachment[]) => {
     const realAttachments = attachments.filter((attachment) => !attachment.related);
 
-    for (const attachment of realAttachments) {
+    await Promise.all(realAttachments.map((attachment) => {
         if (attachment.size > MAX_ATTACHMENT_SIZE) {
             logger.error(`Skipping oversized attachment "${attachment.filename}" (${attachment.size} bytes) for message=${messageDbId}`);
-            continue;
+            return undefined;
         }
 
-        await storeAttachmentFile(messageDbId, {
+        return storeAttachmentFile(messageDbId, {
             filename: attachment.filename ?? 'attachment',
             mimeType: attachment.contentType,
             buffer: attachment.content,
         });
-    }
+    }));
 };
 
 // The cron tick (every 5 minutes) and a manual "Sync" click can land on the
