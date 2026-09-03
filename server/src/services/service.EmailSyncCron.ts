@@ -11,14 +11,14 @@ export const syncAllActiveEmailAccounts = async () => {
         select: { id: true, label: true },
     });
 
-    for (const account of accounts) {
+    await Promise.allSettled(accounts.map(async (account) => {
         try {
             const result = await syncEmailAccount(account.id);
             logger.info(`[EmailSyncCron] Synced "${account.label}" (id=${account.id}): created=${result.created}, errors=${result.errors}`);
         } catch (error) {
             logger.error(`[EmailSyncCron] Failed to sync "${account.label}" (id=${account.id}): ${error}`);
         }
-    }
+    }));
 };
 
 export const startEmailSyncCron = () => {

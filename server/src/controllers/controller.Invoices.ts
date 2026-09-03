@@ -202,18 +202,20 @@ const snapshot = (value: unknown): Prisma.InputJsonValue => (
 
 const createAuditLog = (
     transaction: Prisma.TransactionClient,
-    invoiceId: number,
-    action: string,
-    actorId: number | undefined,
-    oldValues?: unknown,
-    newValues?: unknown,
+    params: {
+        invoiceId: number;
+        action: string;
+        actorId: number | undefined;
+        oldValues?: unknown;
+        newValues?: unknown;
+    },
 ) => transaction.invoiceAuditLog.create({
     data: {
-        invoiceId,
-        action,
-        actorId,
-        ...(oldValues === undefined ? {} : { oldValues: snapshot(oldValues) }),
-        ...(newValues === undefined ? {} : { newValues: snapshot(newValues) }),
+        invoiceId: params.invoiceId,
+        action: params.action,
+        actorId: params.actorId,
+        ...(params.oldValues === undefined ? {} : { oldValues: snapshot(params.oldValues) }),
+        ...(params.newValues === undefined ? {} : { newValues: snapshot(params.newValues) }),
     },
 });
 
@@ -277,9 +279,12 @@ const markOverdueInvoices = async () => {
                 where: { id: invoice.id },
                 data: { status: InvoiceStatus.OVERDUE },
             });
-            await createAuditLog(transaction, invoice.id, 'MARKED_OVERDUE', undefined, invoice, {
-                ...invoice,
-                status: InvoiceStatus.OVERDUE,
+            await createAuditLog(transaction, {
+                invoiceId: invoice.id,
+                action: 'MARKED_OVERDUE',
+                actorId: undefined,
+                oldValues: invoice,
+                newValues: { ...invoice, status: InvoiceStatus.OVERDUE },
             });
         }
     });
@@ -379,7 +384,13 @@ export const createInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, created.id, 'CREATED', actorId, undefined, created);
+        await createAuditLog(transaction, {
+            invoiceId: created.id,
+            action: 'CREATED',
+            actorId,
+            oldValues: undefined,
+            newValues: created,
+        });
         return created;
     });
     return res.status(201).json(invoice);
@@ -447,7 +458,13 @@ export const createPaidInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, created.id, 'CREATED_PAID', actorId, undefined, created);
+        await createAuditLog(transaction, {
+            invoiceId: created.id,
+            action: 'CREATED_PAID',
+            actorId,
+            oldValues: undefined,
+            newValues: created,
+        });
         return created;
     });
     return res.status(201).json(invoice);
@@ -498,7 +515,13 @@ export const confirmPaidInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, 'DRAFT_CONFIRMED_PAID', actorId, existing, updated);
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: 'DRAFT_CONFIRMED_PAID',
+            actorId,
+            oldValues: existing,
+            newValues: updated,
+        });
         return updated;
     });
     return res.json(invoice);
@@ -574,11 +597,98 @@ export const updateInvoice = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, 'UPDATED', actorId, existing, updated);
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: 'UPDATED',
+            actorId,
+            oldValues: existing,
+            newValues: updated,
+        });
         return updated;
     });
 
     return res.json(invoice);
+};
+
+const fetchInvoiceForStatusUpdate = (id: number) => prisma.invoice.findUnique({
+    where: { id },
+    include: {
+        molliePayments: {
+            select: { mollieId: true },
+        },
+    },
+});
+
+type InvoiceForStatusUpdate = NonNullable<Awaited<ReturnType<typeof fetchInvoiceForStatusUpdate>>>;
+
+// Cancels every still-active Mollie payment linked to the invoice before we cancel the
+// invoice itself. Returns the refreshed invoice on success, or the {status, message}
+// the caller should respond with — the caller can't tell the difference between "not
+// found" and "locked" and "Mollie rejected it" any other way without repeating this logic.
+const cancelInvoiceMolliePayments = async (
+    id: number,
+    existing: InvoiceForStatusUpdate,
+): Promise<{ invoice: InvoiceForStatusUpdate } | { status: number; message: string }> => {
+    try {
+        const remotePayments = await Promise.all(existing.molliePayments.map(async (payment) => {
+            if (!payment.mollieId) {
+                throw new Error('Связанный платёж Mollie не содержит идентификатор');
+            }
+            const remotePayment = await mollieService.getPaymentById(payment.mollieId);
+            await mollieSyncService.syncMolliePayment(remotePayment);
+            return remotePayment;
+        }));
+
+        const refreshed = await fetchInvoiceForStatusUpdate(id);
+        if (!refreshed) return { status: 404, message: 'Инвойс не найден' };
+        if (isFinanciallyLocked(refreshed)) {
+            return { status: 409, message: 'Инвойс с оплатой или корректировкой нельзя отменить' };
+        }
+
+        const finalStatuses = new Set(['paid', 'canceled', 'expired', 'failed']);
+        const remotelyExpiredPayments = remotePayments.filter((payment) => (
+            payment.status === 'open'
+            && payment.expiresAt
+            && new Date(payment.expiresAt).getTime() <= Date.now()
+        ));
+        if (remotelyExpiredPayments.length > 0) {
+            await prisma.payment.updateMany({
+                where: {
+                    mollieId: { in: remotelyExpiredPayments.map((payment) => payment.id) },
+                },
+                data: {
+                    status: 'expired',
+                    checkoutUrl: null,
+                    isCancelable: false,
+                },
+            });
+        }
+
+        const remotelyExpiredIds = new Set(remotelyExpiredPayments.map((payment) => payment.id));
+        const activePayments = remotePayments.filter((payment) => (
+            !finalStatuses.has(payment.status) && !remotelyExpiredIds.has(payment.id)
+        ));
+        const nonCancelablePayment = activePayments.find((payment) => !payment.isCancelable);
+        if (nonCancelablePayment) {
+            return {
+                status: 409,
+                message: `Mollie не разрешает отменить активный платёж ${nonCancelablePayment.id}`,
+            };
+        }
+
+        for (const payment of activePayments) {
+            const cancelledPayment = await mollieService.cancelPaymentById(payment.id);
+            await mollieSyncService.syncMolliePayment(cancelledPayment);
+        }
+
+        return { invoice: refreshed };
+    } catch (error) {
+        console.error(`Unable to cancel Mollie payments for invoice ${id}:`, error);
+        return {
+            status: 502,
+            message: 'Не удалось отменить связанные платежи в Mollie. Инвойс не был отменён.',
+        };
+    }
 };
 
 export const updateInvoiceStatus = async (req: Request, res: Response) => {
@@ -586,80 +696,15 @@ export const updateInvoiceStatus = async (req: Request, res: Response) => {
     const parsed = z.object({ status: z.enum([InvoiceStatus.DRAFT, InvoiceStatus.ISSUED, InvoiceStatus.CANCELLED]) }).safeParse(req.body);
     if (!id || !parsed.success) return res.status(400).json({ message: 'Некорректный статус' });
 
-    let existing = await prisma.invoice.findUnique({
-        where: { id },
-        include: {
-            molliePayments: {
-                select: { mollieId: true },
-            },
-        },
-    });
+    let existing = await fetchInvoiceForStatusUpdate(id);
     if (!existing) return res.status(404).json({ message: 'Инвойс не найден' });
 
     if (parsed.data.status === InvoiceStatus.CANCELLED && existing.molliePayments.length > 0) {
-        try {
-            const remotePayments = await Promise.all(existing.molliePayments.map(async (payment) => {
-                if (!payment.mollieId) {
-                    throw new Error('Связанный платёж Mollie не содержит идентификатор');
-                }
-                const remotePayment = await mollieService.getPaymentById(payment.mollieId);
-                await mollieSyncService.syncMolliePayment(remotePayment);
-                return remotePayment;
-            }));
-
-            existing = await prisma.invoice.findUnique({
-                where: { id },
-                include: {
-                    molliePayments: {
-                        select: { mollieId: true },
-                    },
-                },
-            });
-            if (!existing) return res.status(404).json({ message: 'Инвойс не найден' });
-            if (isFinanciallyLocked(existing)) {
-                return res.status(409).json({ message: 'Инвойс с оплатой или корректировкой нельзя отменить' });
-            }
-
-            const finalStatuses = new Set(['paid', 'canceled', 'expired', 'failed']);
-            const remotelyExpiredPayments = remotePayments.filter((payment) => (
-                payment.status === 'open'
-                && payment.expiresAt
-                && new Date(payment.expiresAt).getTime() <= Date.now()
-            ));
-            if (remotelyExpiredPayments.length > 0) {
-                await prisma.payment.updateMany({
-                    where: {
-                        mollieId: { in: remotelyExpiredPayments.map((payment) => payment.id) },
-                    },
-                    data: {
-                        status: 'expired',
-                        checkoutUrl: null,
-                        isCancelable: false,
-                    },
-                });
-            }
-
-            const remotelyExpiredIds = new Set(remotelyExpiredPayments.map((payment) => payment.id));
-            const activePayments = remotePayments.filter((payment) => (
-                !finalStatuses.has(payment.status) && !remotelyExpiredIds.has(payment.id)
-            ));
-            const nonCancelablePayment = activePayments.find((payment) => !payment.isCancelable);
-            if (nonCancelablePayment) {
-                return res.status(409).json({
-                    message: `Mollie не разрешает отменить активный платёж ${nonCancelablePayment.id}`,
-                });
-            }
-
-            for (const payment of activePayments) {
-                const cancelledPayment = await mollieService.cancelPaymentById(payment.id);
-                await mollieSyncService.syncMolliePayment(cancelledPayment);
-            }
-        } catch (error) {
-            console.error(`Unable to cancel Mollie payments for invoice ${id}:`, error);
-            return res.status(502).json({
-                message: 'Не удалось отменить связанные платежи в Mollie. Инвойс не был отменён.',
-            });
+        const result = await cancelInvoiceMolliePayments(id, existing);
+        if ('status' in result) {
+            return res.status(result.status).json({ message: result.message });
         }
+        existing = result.invoice;
     }
 
     if (parsed.data.status === InvoiceStatus.CANCELLED) {
@@ -689,10 +734,33 @@ export const updateInvoiceStatus = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, status === InvoiceStatus.CANCELLED ? 'CANCELLED' : 'STATUS_CHANGED', actorId, existing, updated);
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: status === InvoiceStatus.CANCELLED ? 'CANCELLED' : 'STATUS_CHANGED',
+            actorId,
+            oldValues: existing,
+            newValues: updated,
+        });
         return updated;
     });
     return res.json(invoice);
+};
+
+const validateInvoicePaymentEligibility = (
+    invoice: { documentType: InvoiceDocumentType; status: InvoiceStatus; balanceDueCents: number },
+    amountCents: number,
+): string | null => {
+    if (
+        invoice.documentType === InvoiceDocumentType.CREDIT_NOTE
+        || invoice.status === InvoiceStatus.DRAFT
+        || invoice.status === InvoiceStatus.CANCELLED
+    ) {
+        return 'Для этого документа нельзя зарегистрировать оплату';
+    }
+    if (amountCents > invoice.balanceDueCents) {
+        return 'Сумма оплаты превышает остаток задолженности';
+    }
+    return null;
 };
 
 export const recordInvoicePayment = async (req: Request, res: Response) => {
@@ -704,16 +772,9 @@ export const recordInvoicePayment = async (req: Request, res: Response) => {
 
     const existing = await prisma.invoice.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ message: 'Инвойс не найден' });
-    if (
-        existing.documentType === InvoiceDocumentType.CREDIT_NOTE
-        || existing.status === InvoiceStatus.DRAFT
-        || existing.status === InvoiceStatus.CANCELLED
-    ) {
-        return res.status(409).json({ message: 'Для этого документа нельзя зарегистрировать оплату' });
-    }
-    if (parsed.data.amountCents > existing.balanceDueCents) {
-        return res.status(409).json({ message: 'Сумма оплаты превышает остаток задолженности' });
-    }
+
+    const eligibilityError = validateInvoicePaymentEligibility(existing, parsed.data.amountCents);
+    if (eligibilityError) return res.status(409).json({ message: eligibilityError });
 
     try {
         await archiveInvoicePaymentLinks(id);
@@ -750,13 +811,36 @@ export const recordInvoicePayment = async (req: Request, res: Response) => {
             },
             include: invoiceInclude,
         });
-        await createAuditLog(transaction, id, 'PAYMENT_RECORDED', actorId, existing, {
-            amountCents: parsed.data.amountCents,
-            invoice: updated,
+        await createAuditLog(transaction, {
+            invoiceId: id,
+            action: 'PAYMENT_RECORDED',
+            actorId,
+            oldValues: existing,
+            newValues: {
+                amountCents: parsed.data.amountCents,
+                invoice: updated,
+            },
         });
         return updated;
     });
     return res.status(201).json(invoice);
+};
+
+const validateInvoiceAdjustmentEligibility = (
+    original: { documentType: InvoiceDocumentType; status: InvoiceStatus; totalCents: number; creditedAmountCents: number },
+    data: z.infer<typeof adjustmentSchema>,
+): string | null => {
+    if (
+        original.documentType !== InvoiceDocumentType.INVOICE
+        || original.status === InvoiceStatus.DRAFT
+        || original.status === InvoiceStatus.CANCELLED
+    ) {
+        return 'Этот документ нельзя корректировать';
+    }
+    if (data.kind === 'CREDIT' && data.amountCents > original.totalCents - original.creditedAmountCents) {
+        return 'Общая сумма кредит-нот не может превышать сумму инвойса';
+    }
+    return null;
 };
 
 export const createInvoiceAdjustment = async (req: Request, res: Response) => {
@@ -768,16 +852,9 @@ export const createInvoiceAdjustment = async (req: Request, res: Response) => {
 
     const original = await prisma.invoice.findUnique({ where: { id } });
     if (!original) return res.status(404).json({ message: 'Инвойс не найден' });
-    if (
-        original.documentType !== InvoiceDocumentType.INVOICE
-        || original.status === InvoiceStatus.DRAFT
-        || original.status === InvoiceStatus.CANCELLED
-    ) {
-        return res.status(409).json({ message: 'Этот документ нельзя корректировать' });
-    }
-    if (parsed.data.kind === 'CREDIT' && parsed.data.amountCents > original.totalCents - original.creditedAmountCents) {
-        return res.status(409).json({ message: 'Общая сумма кредит-нот не может превышать сумму инвойса' });
-    }
+
+    const eligibilityError = validateInvoiceAdjustmentEligibility(original, parsed.data);
+    if (eligibilityError) return res.status(409).json({ message: eligibilityError });
 
     if (parsed.data.kind === 'CREDIT') {
         try {
@@ -844,16 +921,32 @@ export const createInvoiceAdjustment = async (req: Request, res: Response) => {
                     updatedById: actorId,
                 },
             });
-            await createAuditLog(transaction, original.id, 'CREDIT_NOTE_APPLIED', actorId, original, {
-                creditNoteId: created.id,
-                invoice: updatedOriginal,
+            await createAuditLog(transaction, {
+                invoiceId: original.id,
+                action: 'CREDIT_NOTE_APPLIED',
+                actorId,
+                oldValues: original,
+                newValues: {
+                    creditNoteId: created.id,
+                    invoice: updatedOriginal,
+                },
             });
         } else {
-            await createAuditLog(transaction, original.id, 'DEBIT_NOTE_CREATED', actorId, original, {
-                debitNoteId: created.id,
+            await createAuditLog(transaction, {
+                invoiceId: original.id,
+                action: 'DEBIT_NOTE_CREATED',
+                actorId,
+                oldValues: original,
+                newValues: { debitNoteId: created.id },
             });
         }
-        await createAuditLog(transaction, created.id, 'CREATED', actorId, undefined, created);
+        await createAuditLog(transaction, {
+            invoiceId: created.id,
+            action: 'CREATED',
+            actorId,
+            oldValues: undefined,
+            newValues: created,
+        });
         return created;
     });
 

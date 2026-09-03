@@ -333,18 +333,20 @@ export const getStyles = async (_req: Request, res: Response) => {
     ])).sort());
 };
 
+const optionalTrimmedString = (value: unknown): string | null => (value ? String(value).trim() : null);
+
 const danceStyleData = (body: Record<string, unknown>) => ({
     name: String(body.name ?? '').trim(),
-    nameUa: body.nameUa ? String(body.nameUa).trim() : null,
-    nameEn: body.nameEn ? String(body.nameEn).trim() : null,
-    description: body.description ? String(body.description).trim() : null,
-    descriptionUa: body.descriptionUa ? String(body.descriptionUa).trim() : null,
-    descriptionEn: body.descriptionEn ? String(body.descriptionEn).trim() : null,
-    content: body.content ? String(body.content).trim() : null,
-    contentUa: body.contentUa ? String(body.contentUa).trim() : null,
-    contentEn: body.contentEn ? String(body.contentEn).trim() : null,
-    image: body.image ? String(body.image).trim() : null,
-    youtubeUrl: body.youtubeUrl ? String(body.youtubeUrl).trim() : null,
+    nameUa: optionalTrimmedString(body.nameUa),
+    nameEn: optionalTrimmedString(body.nameEn),
+    description: optionalTrimmedString(body.description),
+    descriptionUa: optionalTrimmedString(body.descriptionUa),
+    descriptionEn: optionalTrimmedString(body.descriptionEn),
+    content: optionalTrimmedString(body.content),
+    contentUa: optionalTrimmedString(body.contentUa),
+    contentEn: optionalTrimmedString(body.contentEn),
+    image: optionalTrimmedString(body.image),
+    youtubeUrl: optionalTrimmedString(body.youtubeUrl),
     isActive: body.isActive === undefined ? true : Boolean(body.isActive),
 });
 
