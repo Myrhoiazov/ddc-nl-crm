@@ -1,10 +1,11 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from '@/shared/ui/Card/Card';
 import { Text } from '@/shared/ui/Text/Text';
-import { Button, ButtonTheme } from '@/shared/ui/Button';
-import { HStack, VStack } from '@/shared/ui/Stack';
+import { VStack } from '@/shared/ui/Stack';
 import { EmailMessage } from '../../model/types/emailMessage';
 import { EmailComposer, EmailComposerSendPayload } from '../EmailComposer/EmailComposer';
+import { EmailMessageDetailHeader } from './EmailMessageDetailHeader';
+import { EmailMessageAttachments } from './EmailMessageAttachments';
 import cls from './EmailMessageDetail.module.scss';
 
 interface EmailMessageDetailProps {
@@ -16,22 +17,6 @@ interface EmailMessageDetailProps {
     onDelete: () => void;
     onMarkAsSpam: () => void;
 }
-
-const formatDate = (value: string) => new Date(value).toLocaleString('ru-RU', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-});
-
-const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes} Б`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} КБ`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
-};
-
-const attachmentDownloadUrl = (attachmentId: number) => `${__API__}/api/v1/email/attachments/${attachmentId}/download`;
 
 // Most HTML emails are built as fixed-width tables (~600px), so they render
 // consistently across mail clients — `table { width: 100% }` stretches that
@@ -101,38 +86,13 @@ export const EmailMessageDetail = memo((props: EmailMessageDetailProps) => {
     return (
         <Card padding="24" fullWidth className={cls.detail}>
             <VStack gap="16" max align="stretch">
-                <HStack justify="between" align="start" max>
-                    <div>
-                        <Text title={message.subject || '(без темы)'} size="m" bold />
-                        <Text
-                            text={`${message.isOutgoing ? 'Кому' : 'От'}: ${message.isOutgoing ? message.toAddresses.map((a) => a.address).join(', ') : `${message.fromName ? `${message.fromName} ` : ''}<${message.fromAddress}>`}`}
-                            size="s"
-                        />
-                        <Text text={formatDate(message.receivedAt)} size="s" className={cls.date} />
-                        {message.client && (
-                            <Text text={`Клиент: ${[message.client.firstName, message.client.lastName].filter(Boolean).join(' ')}`} size="s" variant="accent" />
-                        )}
-                    </div>
-
-                    <HStack gap="8" className={cls.actions}>
-                        {!message.isOutgoing && (
-                            <Button
-                                theme={ButtonTheme.OUTLINE}
-                                disabled={isMarkingAsSpam}
-                                onClick={onMarkAsSpamClick}
-                            >
-                                {isMarkingAsSpam ? 'Отправка...' : 'В спам'}
-                            </Button>
-                        )}
-                        <Button
-                            theme={ButtonTheme.OUTLINE_RED}
-                            disabled={isDeleting}
-                            onClick={onDeleteClick}
-                        >
-                            {isDeleting ? 'Удаление...' : 'Удалить'}
-                        </Button>
-                    </HStack>
-                </HStack>
+                <EmailMessageDetailHeader
+                    message={message}
+                    isDeleting={isDeleting}
+                    isMarkingAsSpam={isMarkingAsSpam}
+                    onDeleteClick={onDeleteClick}
+                    onMarkAsSpamClick={onMarkAsSpamClick}
+                />
 
                 <div className={cls.body}>
                     {responsiveBodyHtml ? (
@@ -150,24 +110,7 @@ export const EmailMessageDetail = memo((props: EmailMessageDetailProps) => {
                     )}
                 </div>
 
-                {message.attachments.length > 0 && (
-                    <VStack gap="8" max className={cls.attachments}>
-                        <Text title={`Вложения (${message.attachments.length})`} size="s" bold />
-                        <HStack gap="8" wrap="wrap">
-                            {message.attachments.map((attachment) => (
-                                <a
-                                    key={attachment.id}
-                                    href={attachmentDownloadUrl(attachment.id)}
-                                    className={cls.attachment}
-                                    download={attachment.filename}
-                                >
-                                    <span className={cls.attachmentName}>{attachment.filename}</span>
-                                    <span className={cls.attachmentSize}>{formatFileSize(attachment.sizeBytes)}</span>
-                                </a>
-                            ))}
-                        </HStack>
-                    </VStack>
-                )}
+                <EmailMessageAttachments attachments={message.attachments} />
 
                 <VStack gap="8" max className={cls.replyBox}>
                     <Text title="Ответить" size="s" bold />
