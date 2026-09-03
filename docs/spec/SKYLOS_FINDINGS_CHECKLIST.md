@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (11/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (12/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -942,6 +942,10 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 - `HomePage.tsx:126` (295 строк, cc12) — вынесен хук `useHomePageData()`
   (summary/chart/sync стейт и загрузка) и три подкомпонента:
   `HomePageKpiCards`, `HomePageRevenueChart`, `HomePageFailedPayments`.
+- `ClientForm.tsx:68` (282 строки, cc14) — вынесен хук `useClientForm()` (весь
+  стейт, Redux dispatch/selector, загрузка филиалов/групп/Mollie-клиентов,
+  валидация и сохранение) и два подкомпонента: `ClientFormGroupsSection`,
+  `ClientFormPaymentSection`.
 
 Проверено на каждом файле: `tsc --noEmit` (client) — 0 новых ошибок; `npx eslint`
 — 0 ошибок; существующие Jest-тесты каждой страницы прошли без изменений
@@ -989,7 +993,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `client/src/features/addClientForm/model/services/addClientData/addClientData.ts:13` — Function 'anonymous' is 60 lines long (limit: 50)
 - [ ] `client/src/features/addClientForm/model/slices/clientSlice.test.ts:6` — Function 'anonymous' is 63 lines long (limit: 50)
 - [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.test.tsx:42` — Function 'anonymous' is 68 lines long (limit: 50)
-- [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' is 282 lines long (limit: 50)
+- [x] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' is 282 lines long (limit: 50)
 - [ ] `client/src/features/addMollieClientForm/ui/MollieClientForm/MollieClientForm.tsx:33` — Function 'anonymous' is 86 lines long (limit: 50)
 - [ ] `client/src/features/addMollieSubscriptionForm/model/slices/addMollieSubscriptionSlice.test.ts:7` — Function 'anonymous' is 78 lines long (limit: 50)
 - [ ] `client/src/features/addMollieSubscriptionForm/ui/AddMollieSubscriptionForm/AddMollieSubscriptionForm.tsx:38` — Function 'anonymous' is 105 lines long (limit: 50)
@@ -1141,16 +1145,16 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 - [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (19/35)
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (20/35)
 
 > Упростить ветвления, вынести под-функции.
 
 **Прогресс: server-часть почти закрыта (10 из 12 находок на сервере обработаны,
 1 сознательно оставлена, 1 отложена вместе с `SKY-C304`); из 23 client-находок
-обработаны 9 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
+обработаны 10 (`InvoicesPage.tsx`, `OrganizationBrandsPage.tsx`,
 `DanceStylesPage.tsx`, `ClientEmailBlock.tsx`, `EmailMessageDetail.tsx`,
 `MolliePayments.tsx`, `GlobalSearch.tsx`, `EditSubscriptionDropdown.tsx`,
-`HomePage.tsx` — см.
+`HomePage.tsx`, `ClientForm.tsx` — см.
 подробности в разделе `SKY-C304` выше, эти же файлы там же и декомпозированы).**
 Многие из оставшихся client-находок
 — это гигантские компоненты/модали (сложность 20–43), которые пересекаются с
@@ -1232,7 +1236,7 @@ suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run buil
 (extract function) без изменения логики, построчно сверено.
 
 - [x] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.tsx:60` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
-- [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
+- [x] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — Function 'anonymous' has cyclomatic complexity 35 (limit: 10)
