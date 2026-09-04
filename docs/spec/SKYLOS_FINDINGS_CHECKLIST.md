@@ -989,10 +989,13 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 suites, 976/976 тестов), `npm run lint:ts` (0 ошибок), `npm run build:prod`
 (чисто, только исходные предупреждения о размере бандла).
 
-Дальнейшая декомпозиция — отдельными проходами, начиная с самых больших файлов
-(`ClientPaymentBlock.tsx` 570 строк/cc43, `InvoicesPage/CreateInvoiceModal.tsx`
-353/cc37, `ScheduleSettingsPage.tsx` 327/cc21, `ChoreographerModal.tsx`
-322/cc35 и т.д.).
+Дальнейшая декомпозиция — отдельными проходами. После волн 6–8 три крупнейших
+компонента (`ClientPaymentBlock`, `CreateInvoiceModal`, `ChoreographerModal`) уже
+разложены на хуки и подкомпоненты — их JSX-файлы теперь <160 строк каждый
+(исходно 570/353/322). Сами хуки остаются длинными (427/360/247 строк), что
+является ожидаемым паттерном — один хук = одна функция с инлайн-стейтом и
+обработчиками. Следующий этап — серверные контроллеры и сервисы (см. волну 7
+и последующие).
 
 **Волна 5 (декомпозиция auth/profile форм):** закрыто 3 находки `SKY-C304` — `LoginForm`
 (хук `useLoginForm` + подкомпоненты `LoginFormHeader`/`LoginFormFields`/
@@ -1187,10 +1190,10 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [x] `client/src/pages/BranchesPage/ui/BranchModal/BranchModal.tsx:16` — Function 'anonymous' is 111 lines long (limit: 50) → волна 8 (round 8): `useBranchModal` + `BranchFormFields`
 - [x] `client/src/pages/BranchesPage/ui/BranchesPage/BranchesPage.tsx:11` — Function 'anonymous' is 87 lines long (limit: 50) → волна 8 (round 23): `useBranches` + `BranchesHeader`/`BranchesEmptyState`
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.test.tsx:19` — Function 'anonymous' is 54 lines long (limit: 50)
-- [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — Function 'anonymous' is 322 lines long (limit: 50)
+- [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useChoreographerModal` + `ChoreographerPhotoSection` + `ChoreographerDetailsForm`; сам компонент — 92 строки
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographersPage/ChoreographersPage.tsx:11` — Function 'anonymous' is 79 lines long (limit: 50)
 - [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/ClientEmailBlock.tsx:35` — Function 'anonymous' is 159 lines long (limit: 50)
-- [ ] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — Function 'anonymous' is 570 lines long (limit: 50)
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useClientPaymentBlock` + 7 подкомпонентов; сам компонент — 156 строк чистого JSX
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' is 214 lines long (limit: 50)
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' is 55 lines long (limit: 50)
 - [x] `client/src/pages/ClientsDetailsPage/ui/PaymentLinkModal/PaymentLinkModal.tsx:33` — Function 'anonymous' is 142 lines long (limit: 50) → волна 8 (round 8): `usePaymentLinkModal` + `createPaymentLink` + `PaymentLinkFormFields`/`PaymentLinkActions`
@@ -1206,7 +1209,7 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [ ] `client/src/pages/HomePage/ui/HomePage.test.tsx:57` — Function 'anonymous' is 52 lines long (limit: 50)
 - [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' is 295 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.test.tsx:46` — Function 'anonymous' is 92 lines long (limit: 50)
-- [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — Function 'anonymous' is 353 lines long (limit: 50)
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useCreateInvoiceModal` + 5 подкомпонентов; сам компонент — 113 строк чистого JSX
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' is 59 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.test.tsx:33` — Function 'anonymous' is 85 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:63` — Function 'anonymous' is 75 lines long (limit: 50)
@@ -1414,15 +1417,15 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [x] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' has cyclomatic complexity 16 (limit: 10)
-- [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — Function 'anonymous' has cyclomatic complexity 35 (limit: 10)
+- [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — **ЗАКРЫТО**: компонент разложен (92 строки, чистое JSX-дерево)
 - [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/ClientEmailBlock.tsx:35` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
-- [ ] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — Function 'anonymous' has cyclomatic complexity 43 (limit: 10)
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — **ЗАКРЫТО**: компонент разложен на хук + 7 подкомпонентов (156 строк, cc < 10)
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' has cyclomatic complexity 22 (limit: 10)
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10)
 - [x] `client/src/pages/DanceStylesPage/ui/DanceStylesPage/DanceStylesPage.tsx:51` — Function 'anonymous' has cyclomatic complexity 20 (limit: 10)
 - [x] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
-- [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — Function 'anonymous' has cyclomatic complexity 37 (limit: 10)
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — **ЗАКРЫТО**: компонент разложен на хук + 5 подкомпонентов (113 строк, cc < 10)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 29 (limit: 10)
 - [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
