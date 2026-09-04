@@ -46,17 +46,7 @@ const paymentLinkWebhookUrl = (token: string) => {
     return url.toString();
 };
 
-export const ensureInvoicePaymentLink = async (invoice: PayableInvoice) => {
-    if (
-        invoice.documentType === InvoiceDocumentType.CREDIT_NOTE
-        || invoice.status === InvoiceStatus.DRAFT
-        || invoice.status === InvoiceStatus.CANCELLED
-        || invoice.balanceDueCents <= 0
-    ) {
-        return null;
-    }
-
-    const now = new Date();
+const findReusablePaymentLink = async (invoice: PayableInvoice, now: Date) => {
     const existing = await prisma.invoiceMolliePaymentLink.findFirst({
         where: {
             invoiceId: invoice.id,
@@ -67,13 +57,14 @@ export const ensureInvoicePaymentLink = async (invoice: PayableInvoice) => {
         },
         orderBy: { createdAt: 'desc' },
     });
-    if (existing) return { ...existing, reused: true };
+    return existing ? { ...existing, reused: true } : null;
+};
 
-    await archiveInvoicePaymentLinks(invoice.id);
-
+const createPaymentLinkRecord = async (invoice: PayableInvoice) => {
     const webhookToken = crypto.randomBytes(32).toString('hex');
     const expiresAt = paymentLinkExpiry(invoice.dueDate);
     if (invoice.dueDate && !expiresAt) return null;
+
     const paymentLink = await mollieService.createInvoicePaymentLink({
         amountValue: (invoice.balanceDueCents / 100).toFixed(2),
         description: `Invoice ${invoice.number}`,
@@ -97,6 +88,23 @@ export const ensureInvoicePaymentLink = async (invoice: PayableInvoice) => {
         }),
         reused: false,
     };
+};
+
+export const ensureInvoicePaymentLink = async (invoice: PayableInvoice) => {
+    if (
+        invoice.documentType === InvoiceDocumentType.CREDIT_NOTE
+        || invoice.status === InvoiceStatus.DRAFT
+        || invoice.status === InvoiceStatus.CANCELLED
+        || invoice.balanceDueCents <= 0
+    ) {
+        return null;
+    }
+
+    const reused = await findReusablePaymentLink(invoice, new Date());
+    if (reused) return reused;
+
+    await archiveInvoicePaymentLinks(invoice.id);
+    return createPaymentLinkRecord(invoice);
 };
 
 export const archiveInvoicePaymentLinks = async (invoiceId: number) => {
