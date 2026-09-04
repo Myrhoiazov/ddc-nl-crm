@@ -4,6 +4,49 @@ import prisma from '../../prisma/prisma-client'
 const Client = prisma.client
 const paymentIssueStatuses = ['failed', 'canceled', 'charged_back', 'chargeback'];
 
+const paymentStatusWhere: Record<ClientPaymentStatusFilter, Prisma.ClientWhereInput> = {
+    all: {},
+    linked: {
+        mollieLinks: { some: {} },
+    },
+    unlinked: {
+        mollieLinks: { none: {} },
+    },
+    active_subscription: {
+        mollieLinks: {
+            some: {
+                customer: {
+                    subscriptions: {
+                        some: { status: 'active' },
+                    },
+                },
+            },
+        },
+    },
+    paid: {
+        mollieLinks: {
+            some: {
+                customer: {
+                    payments: {
+                        some: { status: 'paid' },
+                    },
+                },
+            },
+        },
+    },
+    payment_issue: {
+        mollieLinks: {
+            some: {
+                customer: {
+                    payments: {
+                        some: { status: { in: paymentIssueStatuses } },
+                    },
+                },
+            },
+        },
+    },
+};
+
 export type ClientPaymentStatusFilter =
     | 'all'
     | 'linked'
@@ -66,6 +109,61 @@ const normalizeClientData = (data: Partial<TClient> & { status?: unknown }) => {
     return data;
 }
 
+type TransactionClient = Prisma.TransactionClient;
+
+const linkMollieCustomer = async (
+    transaction: TransactionClient,
+    clientId: number,
+    mollieCustomerId: number,
+    payerRelation?: string,
+) => {
+    const customer = await transaction.customer.findUnique({
+        where: { id: mollieCustomerId },
+    });
+
+    if (!customer) {
+        throw new Error('MOLLIE_CUSTOMER_NOT_FOUND');
+    }
+
+    const relation = payerRelation || 'unknown';
+    const existingLinksCount = await transaction.customerClientLink.count({
+        where: { customerId: customer.id },
+    });
+    const isPrimary = existingLinksCount === 0;
+
+    await transaction.customerClientLink.upsert({
+        where: {
+            customerId_clientId: {
+                customerId: customer.id,
+                clientId,
+            },
+        },
+        update: {
+            payerRelation: relation,
+            linkSource: 'manual',
+            isPrimary,
+        },
+        create: {
+            customerId: customer.id,
+            clientId,
+            payerRelation: relation,
+            linkSource: 'manual',
+            isPrimary,
+        },
+    });
+
+    if (!customer.clientId) {
+        await transaction.customer.update({
+            where: { id: customer.id },
+            data: {
+                clientId,
+                payerRelation: relation,
+                linkSource: 'manual',
+            },
+        });
+    }
+};
+
 export const createClient = async (data: TClient, options: CreateClientOptions = {}) => {
     const clientData = normalizeClientData(data as Partial<TClient> & { status?: unknown });
 
@@ -84,51 +182,7 @@ export const createClient = async (data: TClient, options: CreateClientOptions =
         });
 
         if (options.mollieCustomerId) {
-            const customer = await transaction.customer.findUnique({
-                where: { id: options.mollieCustomerId },
-            });
-
-            if (!customer) {
-                throw new Error('MOLLIE_CUSTOMER_NOT_FOUND');
-            }
-
-            const payerRelation = options.payerRelation || 'unknown';
-            const existingLinksCount = await transaction.customerClientLink.count({
-                where: { customerId: customer.id },
-            });
-            const isPrimary = existingLinksCount === 0;
-
-            await transaction.customerClientLink.upsert({
-                where: {
-                    customerId_clientId: {
-                        customerId: customer.id,
-                        clientId: newClient.id,
-                    },
-                },
-                update: {
-                    payerRelation,
-                    linkSource: 'manual',
-                    isPrimary,
-                },
-                create: {
-                    customerId: customer.id,
-                    clientId: newClient.id,
-                    payerRelation,
-                    linkSource: 'manual',
-                    isPrimary,
-                },
-            });
-
-            if (!customer.clientId) {
-                await transaction.customer.update({
-                    where: { id: customer.id },
-                    data: {
-                        clientId: newClient.id,
-                        payerRelation,
-                        linkSource: 'manual',
-                    },
-                });
-            }
+            await linkMollieCustomer(transaction, newClient.id, options.mollieCustomerId, options.payerRelation);
         }
 
         return newClient;
@@ -145,49 +199,6 @@ export const getAllClients = async (params: GetClientsParams) => {
         _paymentStatus = 'all',
     } = params;
     const branchId = _branchId ? Number(_branchId) : null;
-
-    const paymentStatusWhere: Record<ClientPaymentStatusFilter, Prisma.ClientWhereInput> = {
-        all: {},
-        linked: {
-            mollieLinks: { some: {} },
-        },
-        unlinked: {
-            mollieLinks: { none: {} },
-        },
-        active_subscription: {
-            mollieLinks: {
-                some: {
-                    customer: {
-                        subscriptions: {
-                            some: { status: 'active' },
-                        },
-                    },
-                },
-            },
-        },
-        paid: {
-            mollieLinks: {
-                some: {
-                    customer: {
-                        payments: {
-                            some: { status: 'paid' },
-                        },
-                    },
-                },
-            },
-        },
-        payment_issue: {
-            mollieLinks: {
-                some: {
-                    customer: {
-                        payments: {
-                            some: { status: { in: paymentIssueStatuses } },
-                        },
-                    },
-                },
-            },
-        },
-    };
 
     const whereClause: Prisma.ClientWhereInput = {
         ...(!!_q && {

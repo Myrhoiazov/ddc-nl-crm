@@ -72,6 +72,11 @@
   0 fail; Jest client 281/281 suites, 976/976 тестов; `npm run lint:ts` (client) —
   0 ошибок.
 
+**Категория "Качество кода" — волны wave10–11 (ветка `fix/skylos-code-quality-wave10`)**: декомпозиция длинных функций (`SKY-C304`) и сквозной проход по счётчикам.
+- Сервер: `conteroller.Mollie.ts` — 15 коммитов декомпозиции (экспорт/список/деньги/callback/возобновление подписок), `controller.Invoices.ts` (отмена Mollie-платежей, запись транзакции, adjustment-документы), `controller.Auth.ts` (test-first: `maskEmail`/`describeLoginFailure`/`buildAuthenticatedUserData`/`createTrustedDeviceIfRequested`, новые тесты, `test:auth` 17/17), плюс `EmailImap`, `Transaction`, `InvoiceDelivery`, `Clients`, `Service.Clients`, `MollieSync`, `PaymentReminders`, `Search`, `MolliePaymentInvoicePdf`, `InvoicePaymentLink` — каждая функция восстановлена до намеренного размера (координаторы без дублирования, хелперы переиспользуются между контроллерами).
+- Клиент: `MollieClientForm` (add-flow) — 7 повторяющихся `useCallback` свёрнуты в фабрику апдейтеров; `RichTextEditor` — 5 toolbar-кнопок вынесены в `ToolbarButton` + декларативный список действий.
+- Итоговые счётчики правил (после конфиг-правок wave13–14, `npm run check:skylos`): `SKY-Q301` 35 → 18, `SKY-Q402` 8 находок в 4 файлах (`service.EmailImap.ts`, `service.InvoiceDelivery.ts`, `controller.Invoices.ts`, `prisma/seed.ts`), `SKY-D260` → 0 (конфиг), `SKY-L012` → 0 (конфиг), `SKY-L007` 1 (false positive, задокументирован в коде). Оставшиеся 18 `SKY-Q301` прошли ручную проверку — это длинные, но линейные координаторы/хуки без вложенности (например `useCreateInvoiceModal`, `useEditClientModal`), разбиение которых снизило бы читаемость; оставшиеся `SKY-Q402` (await в цикле) — интенционально последовательные итерации (Prisma-транзакции на одном соединении, IMAP-стрим, троттлинг рассылок/отмен), паттерн зафиксирован в `tasks/plan.md`.
+
 ## Сводка по правилам
 
 | Код | Категория | Кол-во | Что означает |
@@ -110,8 +115,9 @@
 
 ## Приоритетная ручная проверка (не мех. фикс)
 
-- **SKY-D260** (187) — почти все срабатывания это обычный русский текст вперемешку с английским/кодом в markdown-документации (`CONTEXT.md`, `docs/**`, `AGENTS.md` и т.д.), что и создаёт смешение кириллицы/латиницы. Правило существует, чтобы ловить спрятанные инструкции для AI-агентов внутри вроде бы обычного текста — стоит один раз просмотреть список глазами на предмет реально подозрительных вставок, но переписывать сам текст ради снятия предупреждения не нужно.
-- **SKY-L012** (281) — почти наверняка ложные срабатывания для текущей FSD-конфигурации (`@/`-алиасы и barrel `index.ts`): инструмент не видит переэкспорт `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage` и т.д. как часть публичного API модуля. Разумный следующий шаг — один раз поправить конфигурацию Skylos под этот alias-resolver (или добавить исключение), а не редактировать сотни файлов.
+- **SKY-D260** (187) — почти все срабатывания это обычный русский текст вперемешку с английским/кодом в markdown-документации (`CONTEXT.md`, `docs/**`, `AGENTS.md` и т.д.), что и создаёт смешение кириллицы/латиницы. Правило существует, чтобы ловить спрятанные инструкции для AI-агентов внутри вроде бы обычного текста — список просмотрен глазами, подозрительных вставок нет, текст не переписывался; **закрыто конфигом** `skylos.toml` (whitelist для документационных путей, см. раздел SKY-D260).
+- **SKY-L012** (281) — почти наверняка ложные срабатывания для текущей FSD-конфигурации (`@/`-алиасы и barrel `index.ts`): инструмент не видит переэкспорт `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage` и т.д. как часть публичного API модуля. **Закрыто конфигом** `skylos.toml` (`ignore = ["SKY-L012"]`, см. раздел SKY-L012) — у Skylos нет alias-резолвера, а единственная альтернатива (правка сотен файлов) противоречит FSD-архитектуре.
+- **SKY-L007** (1, новый в прогоне wave10) — `client/webpack.config.ts:9` — пустой `catch` вокруг `process.loadEnvFile('.env')`: это намеренное поведение, безопасность игнорирования задокументирована комментарием в коде (при Docker-сборке `.env` может отсутствовать, переменные приходят из окружения/build args) — false positive, правок не требуется.
 
 ## Безопасность
 
@@ -194,9 +200,11 @@
 
 - [x] `.github/workflows/ci.yml` — `npm ci --ignore-scripts` в `client-checks` и `server-checks` (Prisma generate вызывается отдельным `prebuild`-скриптом, не install-хуком, поэтому не пострадал).
 
-### `SKY-D260` — Похожий на ASCII символ другого алфавита (homoglyph) (187)
+### `SKY-D260` — Похожий на ASCII символ другого алфавита (homoglyph) (187) — ЗАКРЫТО
 
 > Смешение кириллицы/латиницы — в основном естественный русскоязычный текст в документации; выборочно проверить, не спрятана ли инструкция, точечно фиксить не нужно.
+>
+> **Как закрыто (ветка `fix/skylos-code-quality-wave10`):** список ниже просмотрен глазами — все срабатывания это обычный русский текст в `CONTEXT.md`/`docs/**`/`AGENTS.md`/`README.md`, спрятанных инструкций нет. Вместо переписывания текста добавлен `skylos.toml` с `overrides.<путь>.whitelist = ["SKY-D260"]` для документационных путей (подключён в `scripts/check-skylos.sh` через `--config-file`). Повторный прогон `npm run check:skylos` — 0 срабатываний SKY-D260 в репозитории (в исходниках правило продолжает работать).
 
 - [ ] `CONTEXT.md:7` — Non-ASCII character 'а' (U+0430) visually resembles ASCII 'a'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
 - [ ] `CONTEXT.md:12` — Non-ASCII character 'а' (U+0430) visually resembles ASCII 'a'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
@@ -1598,9 +1606,11 @@ arm64/x86_64) — закрытие подтверждено построчно (
 
 ## Архитектура / публичные API модулей
 
-### `SKY-L012` — Символ используется, но не экспортирован из публичного API модуля (281)
+### `SKY-L012` — Символ используется, но не экспортирован из публичного API модуля (281) — ЗАКРЫТО
 
 > В основном false positive для текущей FSD-конфигурации алиасов/barrel-экспортов (`StateSchema`, `ThunkConfig`, компоненты страниц и т.д.) — нужен точечный ревью конфигурации Skylos под алиас `@/`, а не массовое переписывание экспортов.
+>
+> **Как закрыто (ветка `fix/skylos-code-quality-wave10`):** перед закрытием повторный прогон без конфигурации давал уже 326 срабатываний (325 в `client/src/` + 1 в `client/config/storybook/preview.ts`) — все одного паттерна: символ импортируется через алиас `@/` из barrel `index.ts`, который эти символы реально реэкспортирует (проверено на `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage`, `createReduxStore`, `ReduxStoreWithManager` и др.). У Skylos нет резолвера алиасов для такого случая (единственная настройка `ignore` применяется глобально, `overrides.whitelist` матчит имена символов, а не коды правил). Добавлен `skylos.toml` с `ignore = ["SKY-L012"]` (подключён в `scripts/check-skylos.sh` через `--config-file`) — повторный прогон `npm run check:skylos`: 0 срабатываний SKY-L012. Оставшиеся пункты ниже — исторический снапшот срабатываний, не требующий правок.
 
 - [ ] `client/config/storybook/preview.ts:5` — 'Theme' is referenced from local module '../../src/app/providers/ThemeProvider', but that symbol is not exported by its static API surface.
 - [ ] `client/src/app/App.tsx:2` — 'Navbar' is referenced from local module '@/widgets/Navbar', but that symbol is not exported by its static API surface.

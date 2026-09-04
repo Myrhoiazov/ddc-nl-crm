@@ -1,4 +1,4 @@
-import { ImapFlow } from 'imapflow';
+import { ImapFlow, type FetchMessageObject } from 'imapflow';
 import { simpleParser, Attachment as ParsedAttachment } from 'mailparser';
 import prisma from '../../prisma/prisma-client';
 import { logger } from '../logger';
@@ -116,9 +116,7 @@ export const syncEmailAccount = async (accountId: number): Promise<SyncResult> =
     }
 };
 
-const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult> => {
-    const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
-
+const connectToAccount = async (accountId: number) => {
     const account = await prisma.emailAccount.findUnique({ where: { id: accountId } });
 
     if (!account || !account.isActive) {
@@ -134,6 +132,58 @@ const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult>
     });
 
     await client.connect();
+    return { account, client };
+};
+
+const processMessage = async (
+    message: FetchMessageObject,
+    accountId: number,
+    startUid: number,
+): Promise<{ created: boolean; uid: number } | null> => {
+    if (message.uid < startUid) return null;
+
+    const parsed = message.source ? await simpleParser(message.source) : undefined;
+    const fromAddress = message.envelope?.from?.[0]?.address ?? parsed?.from?.value?.[0]?.address ?? '';
+
+    if (!fromAddress) return { created: false, uid: message.uid };
+
+    const clientId = await findClientIdByAddress(fromAddress);
+
+    const savedMessage = await prisma.emailMessage.upsert({
+        where: {
+            mailboxId_imapUid: {
+                mailboxId: accountId,
+                imapUid: message.uid,
+            },
+        },
+        create: {
+            mailboxId: accountId,
+            imapUid: message.uid,
+            messageId: message.envelope?.messageId ?? undefined,
+            inReplyToMessageId: message.envelope?.inReplyTo ?? undefined,
+            fromAddress,
+            fromName: message.envelope?.from?.[0]?.name ?? undefined,
+            toAddresses: addressesToJson(message.envelope?.to),
+            ccAddresses: addressesToJson(message.envelope?.cc),
+            subject: message.envelope?.subject ?? undefined,
+            bodyText: parsed?.text ?? undefined,
+            bodyHtml: typeof parsed?.html === 'string' ? parsed.html : undefined,
+            receivedAt: message.envelope?.date ?? new Date(),
+            clientId: clientId ?? undefined,
+        },
+        update: {},
+    });
+
+    if (parsed?.attachments?.length) {
+        await saveAttachments(savedMessage.id, parsed.attachments);
+    }
+
+    return { created: true, uid: message.uid };
+};
+
+const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult> => {
+    const result: SyncResult = { created: 0, updated: 0, skipped: 0, errors: 0 };
+    const { account, client } = await connectToAccount(accountId);
 
     try {
         const mailbox = await client.mailboxOpen('INBOX');
@@ -150,54 +200,18 @@ const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult>
             { envelope: true, source: true },
             { uid: true },
         )) {
-            if (message.uid < startUid) {
-                // The server can include the boundary message again; skip anything
-                // we've already synced.
-                continue;
-            }
-
             try {
-                const parsed = message.source ? await simpleParser(message.source) : undefined;
-                const fromAddress = message.envelope?.from?.[0]?.address ?? parsed?.from?.value?.[0]?.address ?? '';
+                const outcome = await processMessage(message, account.id, startUid);
 
-                if (!fromAddress) {
+                if (!outcome) continue; // already synced
+
+                if (outcome.created) {
+                    result.created += 1;
+                } else {
                     result.skipped += 1;
-                    continue;
                 }
 
-                const clientId = await findClientIdByAddress(fromAddress);
-
-                const savedMessage = await prisma.emailMessage.upsert({
-                    where: {
-                        mailboxId_imapUid: {
-                            mailboxId: account.id,
-                            imapUid: message.uid,
-                        },
-                    },
-                    create: {
-                        mailboxId: account.id,
-                        imapUid: message.uid,
-                        messageId: message.envelope?.messageId ?? undefined,
-                        inReplyToMessageId: message.envelope?.inReplyTo ?? undefined,
-                        fromAddress,
-                        fromName: message.envelope?.from?.[0]?.name ?? undefined,
-                        toAddresses: addressesToJson(message.envelope?.to),
-                        ccAddresses: addressesToJson(message.envelope?.cc),
-                        subject: message.envelope?.subject ?? undefined,
-                        bodyText: parsed?.text ?? undefined,
-                        bodyHtml: typeof parsed?.html === 'string' ? parsed.html : undefined,
-                        receivedAt: message.envelope?.date ?? new Date(),
-                        clientId: clientId ?? undefined,
-                    },
-                    update: {},
-                });
-
-                if (parsed?.attachments?.length) {
-                    await saveAttachments(savedMessage.id, parsed.attachments);
-                }
-
-                result.created += 1;
-                highestUid = Math.max(highestUid, message.uid);
+                highestUid = Math.max(highestUid, outcome.uid);
             } catch (error) {
                 logger.error(`Failed to sync email uid=${message.uid} for account=${account.id}: ${error}`);
                 result.errors += 1;
@@ -222,21 +236,7 @@ const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult>
 // removes by mistake is still recoverable from the mailbox's own Trash/Junk
 // folder via any regular mail client.
 export const moveMessageOnServer = async (accountId: number, imapUid: number, destinationFolder: string) => {
-    const account = await prisma.emailAccount.findUnique({ where: { id: accountId } });
-
-    if (!account) {
-        throw new Error('Email account not found');
-    }
-
-    const client = buildImapClient({
-        imapHost: account.imapHost,
-        imapPort: account.imapPort,
-        imapSecure: account.imapSecure,
-        username: account.username,
-        password: decryptEmailSecret(account.passwordEncrypted),
-    });
-
-    await client.connect();
+    const { client } = await connectToAccount(accountId);
 
     try {
         await client.mailboxOpen('INBOX');
