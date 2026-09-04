@@ -686,6 +686,60 @@ export const updateCustomerController = async (req: Request, res: Response) => {
 
 }
 
+type LinkRequestData = {
+    payerRelation: string;
+    notes?: string;
+    isPrimary: boolean;
+};
+
+const setPrimaryCustomerClientLink = async (
+    customerId: number,
+    clientId: number,
+    { payerRelation, notes, isPrimary }: LinkRequestData,
+    hasLegacyClient = false,
+) => {
+    if (isPrimary) {
+        await prisma.customerClientLink.updateMany({
+            where: { customerId },
+            data: { isPrimary: false },
+        });
+    }
+
+    await prisma.customerClientLink.upsert({
+        where: {
+            customerId_clientId: {
+                customerId,
+                clientId,
+            },
+        },
+        update: {
+            payerRelation,
+            linkSource: 'manual',
+            isPrimary,
+            notes,
+        },
+        create: {
+            customerId,
+            clientId,
+            payerRelation,
+            linkSource: 'manual',
+            isPrimary,
+            notes,
+        },
+    });
+
+    if (isPrimary || !hasLegacyClient) {
+        await prisma.customer.update({
+            where: { id: customerId },
+            data: {
+                clientId,
+                payerRelation,
+                linkSource: 'manual',
+            },
+        });
+    }
+};
+
 export const createCustomerStudentLinkController = async (req: Request, res: Response) => {
     const customerId = Number(req.params.customerId);
     const clientId = Number(req.body.clientId);
@@ -707,46 +761,7 @@ export const createCustomerStudentLinkController = async (req: Request, res: Res
             return res.status(404).json({ error: 'Customer or student not found' });
         }
 
-        if (isPrimary) {
-            await prisma.customerClientLink.updateMany({
-                where: { customerId },
-                data: { isPrimary: false },
-            });
-        }
-
-        await prisma.customerClientLink.upsert({
-            where: {
-                customerId_clientId: {
-                    customerId,
-                    clientId,
-                },
-            },
-            update: {
-                payerRelation,
-                linkSource: 'manual',
-                isPrimary,
-                notes,
-            },
-            create: {
-                customerId,
-                clientId,
-                payerRelation,
-                linkSource: 'manual',
-                isPrimary,
-                notes,
-            },
-        });
-
-        if (isPrimary || !customer.clientId) {
-            await prisma.customer.update({
-                where: { id: customerId },
-                data: {
-                    clientId,
-                    payerRelation,
-                    linkSource: 'manual',
-                },
-            });
-        }
+        await setPrimaryCustomerClientLink(customerId, clientId, { payerRelation, notes, isPrimary }, Boolean(customer.clientId));
 
         const updatedCustomer = await getCustomerWithStudentLinks(customerId);
         return res.status(200).json(updatedCustomer);
@@ -754,6 +769,34 @@ export const createCustomerStudentLinkController = async (req: Request, res: Res
         console.error('Error linking Mollie customer to student:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
     }
+};
+
+const promoteNextPrimaryLink = async (customerId: number) => {
+    const nextPrimaryLink = await prisma.customerClientLink.findFirst({
+        where: { customerId },
+        orderBy: [
+            { isPrimary: 'desc' },
+            { createdAt: 'asc' },
+        ],
+    });
+
+    if (nextPrimaryLink) {
+        await prisma.customerClientLink.update({
+            where: { id: nextPrimaryLink.id },
+            data: { isPrimary: true },
+        });
+    }
+
+    await prisma.customer.update({
+        where: { id: customerId },
+        data: {
+            clientId: nextPrimaryLink?.clientId ?? null,
+            linkSource: nextPrimaryLink ? 'manual' : 'unlinked',
+            payerRelation: nextPrimaryLink?.payerRelation ?? 'unknown',
+        },
+    });
+
+    return nextPrimaryLink;
 };
 
 export const deleteCustomerStudentLinkController = async (req: Request, res: Response) => {
@@ -780,29 +823,7 @@ export const deleteCustomerStudentLinkController = async (req: Request, res: Res
             where: { id: linkId },
         });
 
-        const nextPrimaryLink = await prisma.customerClientLink.findFirst({
-            where: { customerId },
-            orderBy: [
-                { isPrimary: 'desc' },
-                { createdAt: 'asc' },
-            ],
-        });
-
-        if (nextPrimaryLink) {
-            await prisma.customerClientLink.update({
-                where: { id: nextPrimaryLink.id },
-                data: { isPrimary: true },
-            });
-        }
-
-        await prisma.customer.update({
-            where: { id: customerId },
-            data: {
-                clientId: nextPrimaryLink?.clientId ?? null,
-                linkSource: nextPrimaryLink ? 'manual' : 'unlinked',
-                payerRelation: nextPrimaryLink?.payerRelation ?? 'unknown',
-            },
-        });
+        await promoteNextPrimaryLink(customerId);
 
         const updatedCustomer = await getCustomerWithStudentLinks(customerId);
         return res.status(200).json(updatedCustomer);
@@ -1225,58 +1246,97 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
     }
 }
 
-export const mollieExportActiveSubscriptionsController = async (req: Request, res: Response) => {
-    try {
-        const search = typeof req.query._q === 'string' ? req.query._q.trim() : '';
-        const customerWhere: Prisma.CustomerWhereInput = search
-            ? {
-                OR: [
-                    { mollieId: { contains: search } },
-                    { email: { contains: search } },
-                    { givenName: { contains: search } },
-                    { familyName: { contains: search } },
-                    { payerName: { contains: search } },
-                    { client: { firstName: { contains: search } } },
-                    { client: { lastName: { contains: search } } },
-                    { clientLinks: { some: { client: { firstName: { contains: search } } } } },
-                    { clientLinks: { some: { client: { lastName: { contains: search } } } } },
-                ],
-            }
-            : {};
-        const subscriptions = await prisma.subscription.findMany({
-            where: {
-                status: 'active',
-                customer: customerWhere,
+// Deliberately mirrors customerSearchWhere but without client.email — export
+// searches match on visible identity fields only, not private contact data.
+const subscriptionSearchCustomerWhere = (search: string): Prisma.CustomerWhereInput => (
+    search
+        ? {
+            OR: [
+                { mollieId: { contains: search } },
+                { email: { contains: search } },
+                { givenName: { contains: search } },
+                { familyName: { contains: search } },
+                { payerName: { contains: search } },
+                { client: { firstName: { contains: search } } },
+                { client: { lastName: { contains: search } } },
+                { clientLinks: { some: { client: { firstName: { contains: search } } } } },
+                { clientLinks: { some: { client: { lastName: { contains: search } } } } },
+            ],
+        }
+        : {}
+);
+
+const loadActiveSubscriptions = (customerWhere: Prisma.CustomerWhereInput) => prisma.subscription.findMany({
+    where: {
+        status: 'active',
+        customer: customerWhere,
+    },
+    include: {
+        mandate: {
+            select: {
+                mollieId: true,
+                status: true,
+                method: true,
             },
+        },
+        customer: {
             include: {
-                mandate: {
-                    select: {
-                        mollieId: true,
-                        status: true,
-                        method: true,
-                    },
+                client: {
+                    select: customerClientSelect,
                 },
-                customer: {
-                    include: {
+                clientLinks: {
+                    select: {
+                        payerRelation: true,
                         client: {
                             select: customerClientSelect,
                         },
-                        clientLinks: {
-                            select: {
-                                payerRelation: true,
-                                client: {
-                                    select: customerClientSelect,
-                                },
-                            },
-                        },
                     },
                 },
             },
-            orderBy: [
-                { nextPaymentDate: 'asc' },
-                { createdAt: 'asc' },
-            ],
-        });
+        },
+    },
+    orderBy: [
+        { nextPaymentDate: 'asc' },
+        { createdAt: 'asc' },
+    ],
+});
+
+type ActiveSubscription = Awaited<ReturnType<typeof loadActiveSubscriptions>>[number];
+
+const activeSubscriptionRow = (subscription: ActiveSubscription): unknown[] => {
+    const linkedStudents = subscription.customer.clientLinks
+        .map((link) => [link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email)
+        .filter(Boolean);
+    const legacyStudent = subscription.customer.client
+        ? [subscription.customer.client.firstName, subscription.customer.client.lastName].filter(Boolean).join(' ')
+            || subscription.customer.client.email
+        : '';
+    const students = Array.from(
+        new Set([...linkedStudents, legacyStudent].filter(Boolean)),
+    ).join('; ');
+
+    return [
+        subscription.mollieId,
+        subscription.description,
+        subscription.amountValue,
+        subscription.amountCurrency,
+        subscription.interval,
+        subscription.startDate,
+        subscription.nextPaymentDate,
+        subscription.customer.payerName
+            || [subscription.customer.givenName, subscription.customer.familyName].filter(Boolean).join(' '),
+        subscription.customer.email,
+        students,
+        subscription.mandate?.mollieId,
+        subscription.mandate?.status,
+        subscription.mandate?.method,
+    ];
+};
+
+export const mollieExportActiveSubscriptionsController = async (req: Request, res: Response) => {
+    try {
+        const search = typeof req.query._q === 'string' ? req.query._q.trim() : '';
+        const subscriptions = await loadActiveSubscriptions(subscriptionSearchCustomerWhere(search));
         const csv = createCsv(
             [
                 'Subscription ID',
@@ -1293,35 +1353,7 @@ export const mollieExportActiveSubscriptionsController = async (req: Request, re
                 'Mandate status',
                 'Mandate method',
             ],
-            subscriptions.map((subscription) => {
-                const linkedStudents = subscription.customer.clientLinks
-                    .map((link) => [link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email)
-                    .filter(Boolean);
-                const legacyStudent = subscription.customer.client
-                    ? [subscription.customer.client.firstName, subscription.customer.client.lastName].filter(Boolean).join(' ')
-                        || subscription.customer.client.email
-                    : '';
-                const students = Array.from(
-                    new Set([...linkedStudents, legacyStudent].filter(Boolean)),
-                ).join('; ');
-
-                return [
-                    subscription.mollieId,
-                    subscription.description,
-                    subscription.amountValue,
-                    subscription.amountCurrency,
-                    subscription.interval,
-                    subscription.startDate,
-                    subscription.nextPaymentDate,
-                    subscription.customer.payerName
-                        || [subscription.customer.givenName, subscription.customer.familyName].filter(Boolean).join(' '),
-                    subscription.customer.email,
-                    students,
-                    subscription.mandate?.mollieId,
-                    subscription.mandate?.status,
-                    subscription.mandate?.method,
-                ];
-            }),
+            subscriptions.map(activeSubscriptionRow),
         );
 
         res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -1412,13 +1444,9 @@ export const mollieGetPaymentsController = async (req: Request, res: Response) =
     }
 }
 
-export const mollieExportPaymentsController = async (req: Request, res: Response) => {
-    const search = queryString(req.query._q)?.trim();
-    const issueOnly = queryString(req.query.issueOnly) === 'true';
-    const status = queryString(req.query.status);
-    const method = queryString(req.query.method);
-    const dateFrom = queryString(req.query.dateFrom);
-    const dateTo = queryString(req.query.dateTo);
+const paymentsExportFilter = (query: Request['query']) => {
+    const search = queryString(query._q)?.trim();
+    const issueOnly = queryString(query.issueOnly) === 'true';
     const where: Prisma.PaymentWhereInput = {};
 
     if (search) {
@@ -1432,34 +1460,45 @@ export const mollieExportPaymentsController = async (req: Request, res: Response
     }
 
     if (issueOnly) where.status = { in: [...molliePaymentIssueStatuses] };
-    else if (status && status !== 'all') where.status = status;
-    if (method && method !== 'all') where.method = method;
-    const createdAt = paymentDateRangeWhere(dateFrom, dateTo);
+    else if (queryString(query.status) && queryString(query.status) !== 'all') where.status = queryString(query.status);
+    if (queryString(query.method) && queryString(query.method) !== 'all') where.method = queryString(query.method);
+    const createdAt = paymentDateRangeWhere(queryString(query.dateFrom), queryString(query.dateTo));
     if (createdAt) where.createdAt = createdAt;
 
-    const payments = await prisma.payment.findMany({
-        where,
-        include: {
-            customer: true,
-            subscription: true,
-        },
-        orderBy: { createdAt: 'desc' },
-    });
+    return { where, issueOnly };
+};
+
+const paymentsExportQuery = (where: Prisma.PaymentWhereInput) => prisma.payment.findMany({
+    where,
+    include: {
+        customer: true,
+        subscription: true,
+    },
+    orderBy: { createdAt: 'desc' },
+});
+
+type ExportPayment = Awaited<ReturnType<typeof paymentsExportQuery>>[number];
+
+const paymentExportRow = (payment: ExportPayment): unknown[] => [
+    payment.mollieId,
+    payment.status,
+    payment.method,
+    payment.amountValue,
+    payment.amountCurrency,
+    payment.description,
+    payment.customer?.payerName || [payment.customer?.givenName, payment.customer?.familyName].filter(Boolean).join(' '),
+    payment.customer?.email,
+    payment.subscription?.mollieId,
+    payment.createdAt,
+    payment.paidAt,
+];
+
+export const mollieExportPaymentsController = async (req: Request, res: Response) => {
+    const { where, issueOnly } = paymentsExportFilter(req.query);
+    const payments = await paymentsExportQuery(where);
     const csv = createCsv(
         ['Mollie ID', 'Status', 'Method', 'Amount', 'Currency', 'Description', 'Payer', 'Email', 'Subscription', 'Created at', 'Paid at'],
-        payments.map((payment) => [
-            payment.mollieId,
-            payment.status,
-            payment.method,
-            payment.amountValue,
-            payment.amountCurrency,
-            payment.description,
-            payment.customer?.payerName || [payment.customer?.givenName, payment.customer?.familyName].filter(Boolean).join(' '),
-            payment.customer?.email,
-            payment.subscription?.mollieId,
-            payment.createdAt,
-            payment.paidAt,
-        ]),
+        payments.map(paymentExportRow),
     );
 
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
