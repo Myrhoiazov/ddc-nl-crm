@@ -215,12 +215,8 @@ for why.
 
 ## Development Workflow
 
-`feature/*`/`fix/*` branches off `develop`, PR into `develop`; a Release PR then merges
-`develop → main` (merge commit, so release boundaries stay visible). `hotfix/*` branches off `main`
-for production emergencies, still via PR, then gets back-merged into `develop`. Direct pushes to
-`main` are not part of the normal workflow. Run `npm run ci` before pushing — it mirrors what CI
-checks. See `docs/adr/0001-develop-main-branch-protection-no-bypass.md` (gitignored, local only)
-for the full rationale.
+Branch model, PR process, and commit conventions are documented in [AGENTS.md](AGENTS.md#git-and-pull-requests).
+Run `npm run ci` before pushing — it mirrors what CI checks.
 
 ## Documentation
 
