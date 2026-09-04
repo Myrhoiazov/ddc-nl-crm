@@ -1383,61 +1383,70 @@ export const mollieGetOrganizationsController = async (req: Request, res: Respon
     }
 }
 
+const paymentsListFilter = (query: Request['query']) => {
+    const search = queryString(query._q)?.trim();
+    const status = queryString(query.status);
+    const issueOnly = queryString(query.issueOnly) === 'true';
+    const method = queryString(query.method);
+
+    const where: Prisma.PaymentWhereInput = {};
+
+    const or = paymentSearchWhere(search);
+    if (or) where.OR = or;
+
+    if (status && status !== 'all') {
+        where.status = status;
+    } else if (issueOnly) {
+        where.status = { in: [...molliePaymentIssueStatuses] };
+    }
+
+    if (method && method !== 'all') {
+        where.method = method;
+    }
+
+    const createdAt = paymentDateRangeWhere(queryString(query.dateFrom), queryString(query.dateTo));
+    if (createdAt) where.createdAt = createdAt;
+
+    return where;
+};
+
+const paymentsListPage = async (where: Prisma.PaymentWhereInput, page: number, limit: number) => {
+    const [payments, total] = await Promise.all([
+        prisma.payment.findMany({
+            where,
+            include: {
+                customer: {
+                    select: mollieCustomerSelect,
+                },
+                subscription: {
+                    select: {
+                        id: true,
+                        mollieId: true,
+                        status: true,
+                        description: true,
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: 'desc',
+            },
+            skip: (page - 1) * limit,
+            take: limit,
+        }),
+        prisma.payment.count({ where }),
+    ]);
+
+    return paginatedResponse(payments, total, page, limit);
+};
+
 export const mollieGetPaymentsController = async (req: Request, res: Response) => {
     try {
-        const search = queryString(req.query._q)?.trim();
-        const status = queryString(req.query.status);
-        const issueOnly = queryString(req.query.issueOnly) === 'true';
-        const dateFrom = queryString(req.query.dateFrom);
-        const dateTo = queryString(req.query.dateTo);
         const page = Math.max(Number(queryString(req.query._page) ?? 1), 1);
         const limit = Math.min(Math.max(Number(queryString(req.query._limit) ?? 25), 1), 100);
-        const method = queryString(req.query.method);
 
-        const where: Prisma.PaymentWhereInput = {};
+        const payments = await paymentsListPage(paymentsListFilter(req.query), page, limit);
 
-        const or = paymentSearchWhere(search);
-        if (or) where.OR = or;
-
-        if (status && status !== 'all') {
-            where.status = status;
-        } else if (issueOnly) {
-            where.status = { in: [...molliePaymentIssueStatuses] };
-        }
-
-        if (method && method !== 'all') {
-            where.method = method;
-        }
-
-        const createdAt = paymentDateRangeWhere(dateFrom, dateTo);
-        if (createdAt) where.createdAt = createdAt;
-
-        const [payments, total] = await Promise.all([
-            prisma.payment.findMany({
-                where,
-                include: {
-                    customer: {
-                        select: mollieCustomerSelect,
-                    },
-                    subscription: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            status: true,
-                            description: true,
-                        },
-                    },
-                },
-                orderBy: {
-                    createdAt: 'desc',
-                },
-                skip: (page - 1) * limit,
-                take: limit,
-            }),
-            prisma.payment.count({ where }),
-        ]);
-
-        return res.status(200).json(paginatedResponse(payments, total, page, limit));
+        return res.status(200).json(payments);
     } catch (error) {
         console.error('Error fetching Mollie payments:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
