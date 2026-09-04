@@ -10,6 +10,8 @@ import { ListBox } from '@/shared/ui/Popups';
 import { TransactionSortField } from '@/entities/Transaction';
 import { Month } from '@/entities/Month';
 
+type Translate = (key: string) => string;
+
 interface TransactionSortSelectorProps {
     className?: string;
     sort: TransactionSortField;
@@ -20,103 +22,62 @@ interface TransactionSortSelectorProps {
     onChangeMonth: (month: Month) => void;
 }
 
+const buildOrderOptions = (t: Translate): SelectOption<SortOrder>[] => [
+    {
+        value: '',
+        content: t('Выбрать значение'),
+    },
+    {
+        value: 'asc',
+        content: t('возрастанию'),
+    },
+    {
+        value: 'desc',
+        content: t('убыванию'),
+    },
+];
+
+const buildSortFieldOptions = (t: Translate): SelectOption<TransactionSortField>[] => [
+    {
+        value: TransactionSortField.ID,
+        content: t('По номерации'),
+    },
+    {
+        value: TransactionSortField.DATE,
+        content: t('дате создания'),
+    },
+    {
+        value: TransactionSortField.CATEGORY,
+        content: t('по категории'),
+    },
+];
+
+const MONTH_OPTIONS: { value: Month; label: string }[] = [
+    { value: Month.ALL, label: 'Все месяцы' },
+    { value: Month.JANUARY, label: 'Январь' },
+    { value: Month.FEBRUARY, label: 'Февраль' },
+    { value: Month.MARCH, label: 'Март' },
+    { value: Month.APRIL, label: 'Апрель' },
+    { value: Month.MAY, label: 'Май' },
+    { value: Month.JUNE, label: 'Июнь' },
+    { value: Month.JULY, label: 'Июль' },
+    { value: Month.AUGUST, label: 'Август' },
+    { value: Month.SEPTEMBER, label: 'Сентябрь' },
+    { value: Month.OCTOBER, label: 'Октябрь' },
+    { value: Month.NOVEMBER, label: 'Ноябрь' },
+    { value: Month.DECEMBER, label: 'Декабрь' },
+];
+
+const buildMonthOptions = (t: Translate): SelectOption<Month>[] =>
+    MONTH_OPTIONS.map(({ value, label }) => ({ value, content: t(label) }));
+
 export const TransactionSortSelector = memo((props: TransactionSortSelectorProps) => {
     const { className, onChangeOrder, onChangeMonth, onChangeSort, order, sort, month } = props;
     const { t } = useTranslation();
 
-    const orderOptions = useMemo<SelectOption<SortOrder>[]>(
-        () => [
-            {
-                value: '',
-                content: t('Выбрать значение'),
-            },
-            {
-                value: 'asc',
-                content: t('возрастанию'),
-            },
-            {
-                value: 'desc',
-                content: t('убыванию'),
-            },
-        ],
-        [t]
-    );
-
-    const sortFieldOptions = useMemo<SelectOption<TransactionSortField>[]>(
-        () => [
-            {
-                value: TransactionSortField.ID,
-                content: t('По номерации'),
-            },
-            {
-                value: TransactionSortField.DATE,
-                content: t('дате создания'),
-            },
-            {
-                value: TransactionSortField.CATEGORY,
-                content: t('по категории'),
-            },
-        ],
-        [t]
-    );
-
-    const sortMonthOptions = useMemo<SelectOption<Month>[]>(
-        () => [
-            {
-                value: Month.ALL,
-                content: t('Все месяцы'),
-            },
-            {
-                value: Month.JANUARY,
-                content: t('Январь'),
-            },
-            {
-                value: Month.FEBRUARY,
-                content: t('Февраль'),
-            },
-            {
-                value: Month.MARCH,
-                content: t('Март'),
-            },
-            {
-                value: Month.APRIL,
-                content: t('Апрель'),
-            },
-            {
-                value: Month.MAY,
-                content: t('Май'),
-            },
-            {
-                value: Month.JUNE,
-                content: t('Июнь'),
-            },
-            {
-                value: Month.JULY,
-                content: t('Июль'),
-            },
-            {
-                value: Month.AUGUST,
-                content: t('Август'),
-            },
-            {
-                value: Month.SEPTEMBER,
-                content: t('Сентябрь'),
-            },
-            {
-                value: Month.OCTOBER,
-                content: t('Октябрь'),
-            },
-            {
-                value: Month.NOVEMBER,
-                content: t('Ноябрь'),
-            },
-            {
-                value: Month.DECEMBER,
-                content: t('Декабрь'),
-            },
-        ],
-        [t]
-    );
+    const orderOptions = useMemo<SelectOption<SortOrder>[]>(() => buildOrderOptions(t), [t]);
+    const sortFieldOptions = useMemo<SelectOption<TransactionSortField>[]>(() => buildSortFieldOptions(t), [t]);
+    const sortMonthOptions = useMemo<SelectOption<Month>[]>(() => buildMonthOptions(t), [t]);
 
     return (
         <div className={classNames(s.TransactionSortSelector, {}, [className])}>
