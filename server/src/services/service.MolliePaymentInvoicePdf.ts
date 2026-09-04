@@ -15,47 +15,51 @@ const customerName = (customer: {
     || 'Mollie customer'
 );
 
-export const createMolliePaymentInvoicePdf = async (paymentId: number) => {
-    const payment = await prisma.payment.findUnique({
-        where: { id: paymentId },
-        include: {
-            invoice: {
-                include: {
-                    items: { orderBy: { id: 'asc' } },
-                },
-            },
-            customer: {
-                select: {
-                    payerName: true,
-                    givenName: true,
-                    familyName: true,
-                    email: true,
-                },
-            },
-        },
-    });
-    if (!payment) return null;
+interface MolliePaymentForPdf {
+    id: number;
+    mollieId: string | null;
+    amountValue: string;
+    amountCurrency: string;
+    method: string | null;
+    status: string;
+    description: string | null;
+    paidAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    refundedAmount: string;
+    chargedBackAmount: string;
+    invoice: Parameters<typeof createInvoicePdf>[0] | null;
+    customer: {
+        payerName: string | null;
+        givenName: string | null;
+        familyName: string | null;
+        email: string | null;
+    } | null;
+}
 
-    if (payment.invoice) {
-        return {
-            filename: `${payment.invoice.number}.pdf`,
-            document: await createInvoicePdf(payment.invoice),
-        };
+const paymentStatusFor = (
+    payment: MolliePaymentForPdf,
+    paidAmountCents: number,
+    balanceDueCents: number,
+): InvoiceStatus => {
+    if (paidAmountCents > 0) {
+        return balanceDueCents === 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID;
     }
+    return payment.status === 'canceled' || payment.status === 'cancelled'
+        ? InvoiceStatus.CANCELLED
+        : InvoiceStatus.ISSUED;
+};
 
-    const totalCents = Math.round(Number(payment.amountValue) * 100);
-    const paidAmountCents = getMolliePaymentNetCents(payment);
-    const balanceDueCents = Math.max(0, totalCents - paidAmountCents);
-    const number = `MOLLIE-${payment.mollieId ?? payment.id}`;
-    const status = paidAmountCents > 0
-        ? balanceDueCents === 0 ? InvoiceStatus.PAID : InvoiceStatus.PARTIALLY_PAID
-        : payment.status === 'canceled' || payment.status === 'cancelled'
-            ? InvoiceStatus.CANCELLED
-            : InvoiceStatus.ISSUED;
+const buildMollieInvoiceDraft = (
+    payment: MolliePaymentForPdf,
+    totals: { totalCents: number; paidAmountCents: number; balanceDueCents: number },
+    status: InvoiceStatus,
+): Parameters<typeof createInvoicePdf>[0] => {
+    const { totalCents, paidAmountCents, balanceDueCents } = totals;
 
-    const document = await createInvoicePdf({
+    return {
         id: -payment.id,
-        number,
+        number: `MOLLIE-${payment.mollieId ?? payment.id}`,
         documentType: InvoiceDocumentType.INVOICE,
         status,
         clientId: null,
@@ -106,7 +110,44 @@ export const createMolliePaymentInvoicePdf = async (paymentId: number) => {
             unitPriceCents: totalCents,
             totalCents,
         }],
-    });
+    };
+};
 
-    return { filename: `${number}.pdf`, document };
+export const createMolliePaymentInvoicePdf = async (paymentId: number) => {
+    const payment = await prisma.payment.findUnique({
+        where: { id: paymentId },
+        include: {
+            invoice: {
+                include: {
+                    items: { orderBy: { id: 'asc' } },
+                },
+            },
+            customer: {
+                select: {
+                    payerName: true,
+                    givenName: true,
+                    familyName: true,
+                    email: true,
+                },
+            },
+        },
+    });
+    if (!payment) return null;
+
+    const pdfPayment = payment as unknown as MolliePaymentForPdf;
+
+    if (pdfPayment.invoice) {
+        return {
+            filename: `${pdfPayment.invoice.number}.pdf`,
+            document: await createInvoicePdf(pdfPayment.invoice),
+        };
+    }
+
+    const totalCents = Math.round(Number(pdfPayment.amountValue) * 100);
+    const paidAmountCents = getMolliePaymentNetCents(pdfPayment);
+    const balanceDueCents = Math.max(0, totalCents - paidAmountCents);
+    const status = paymentStatusFor(pdfPayment, paidAmountCents, balanceDueCents);
+    const document = await createInvoicePdf(buildMollieInvoiceDraft(pdfPayment, { totalCents, paidAmountCents, balanceDueCents }, status));
+
+    return { filename: `MOLLIE-${pdfPayment.mollieId ?? pdfPayment.id}.pdf`, document };
 };
