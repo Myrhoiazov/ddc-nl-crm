@@ -87,6 +87,26 @@ export const defaultFilters: PaymentFilters = {
 
 export const issueStatuses = ['failed', 'canceled', 'expired', 'charged_back', 'chargeback'];
 
+const buildPaymentParams = (filters: PaymentFilters, page: number) => ({
+    _page: page,
+    _limit: PAGE_SIZE,
+    _q: filters._q.trim() || undefined,
+    status: filters.status === 'all' ? undefined : filters.status,
+    method: filters.method === 'all' ? undefined : filters.method,
+    issueOnly: filters.issueOnly || undefined,
+    dateFrom: filters.dateFrom || undefined,
+    dateTo: filters.dateTo || undefined,
+});
+
+const downloadBlob = (data: Blob, filename: string) => {
+    const url = URL.createObjectURL(data);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+};
+
 export const useMolliePayments = () => {
     const [filters, setFilters] = useState<PaymentFilters>(defaultFilters);
     const [payments, setPayments] = useState<MolliePayment[]>([]);
@@ -104,16 +124,7 @@ export const useMolliePayments = () => {
 
         try {
             const { data } = await $apiPrivate.get<MolliePaymentsResponse>('/mollie/payments', {
-                params: {
-                    _page: nextPage,
-                    _limit: PAGE_SIZE,
-                    _q: nextFilters._q.trim() || undefined,
-                    status: nextFilters.status === 'all' ? undefined : nextFilters.status,
-                    method: nextFilters.method === 'all' ? undefined : nextFilters.method,
-                    issueOnly: nextFilters.issueOnly || undefined,
-                    dateFrom: nextFilters.dateFrom || undefined,
-                    dateTo: nextFilters.dateTo || undefined,
-                },
+                params: buildPaymentParams(nextFilters, nextPage),
             });
 
             setPayments(data.items);
@@ -164,12 +175,7 @@ export const useMolliePayments = () => {
             },
             responseType: 'blob',
         });
-        const url = URL.createObjectURL(response.data);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = issueOnly ? 'mollie-payment-issues.csv' : 'mollie-payments.csv';
-        link.click();
-        URL.revokeObjectURL(url);
+        downloadBlob(response.data, issueOnly ? 'mollie-payment-issues.csv' : 'mollie-payments.csv');
     }, [filters]);
 
     const onPreviousPage = useCallback(() => {
