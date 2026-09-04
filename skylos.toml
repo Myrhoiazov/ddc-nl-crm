@@ -1,0 +1,36 @@
+# Skylos configuration for DDC CRM.
+#
+# Read via `skylos --config-file skylos.toml` in scripts/check-skylos.sh.
+# Auto-discovery is not used because the repo deliberately has no
+# pyproject.toml (npm/TypeScript monorepo).
+
+[tool.skylos]
+
+# SKY-L012 (symbol used but not exported from the module's static API surface)
+# is a systematic false positive in `client/`: cross-module imports go through
+# the `@/`-alias and FSD barrel `index.ts` re-exports (see CONTEXT.md,
+# Feature-Sliced Design), which Skylos cannot resolve without an alias-aware
+# resolver — the barrels DO export these symbols. 325/326 findings were in
+# client/src; the single remaining one (client/config/storybook/preview.ts) is
+# the same alias pattern. Server imports are relative and stay covered, but the
+# ignore list cannot be scoped per-path in Skylos, so the rule is ignored
+# repo-wide. See docs/spec/SKYLOS_FINDINGS_CHECKLIST.md.
+ignore = ["SKY-L012"]
+
+# SKY-D260 (homoglyph) fires on natural Russian markdown mixed with Latin
+# identifiers/code. Those files are intentionally bilingual (docs, AGENTS,
+# CONTEXT, README); the rule's purpose is hiding AI instructions inside
+# ordinary-looking text, and the wording has been visually reviewed once
+# (see docs/spec/SKYLOS_FINDINGS_CHECKLIST.md). Whitelist documentation
+# paths only — source files keep full SKY-D260 coverage.
+[tool.skylos.overrides."docs/**"]
+whitelist = ["SKY-D260"]
+
+[tool.skylos.overrides."CONTEXT.md"]
+whitelist = ["SKY-D260"]
+
+[tool.skylos.overrides."AGENTS.md"]
+whitelist = ["SKY-D260"]
+
+[tool.skylos.overrides."README.md"]
+whitelist = ["SKY-D260"]

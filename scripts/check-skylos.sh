@@ -15,6 +15,7 @@ cd "$ROOT_DIR"
 export SKYLOS_GREP_BUDGET="${SKYLOS_GREP_BUDGET:-120}"
 
 EXCLUDES=(--exclude coverage --exclude graphify-out)
+CONFIG=(--config-file "$ROOT_DIR/skylos.toml")
 
 # --format и --github взаимоисключающие флаги Skylos (нельзя запросить и читаемый лог,
 # и GitHub PR-аннотации одной командой) — гоняем анализ дважды: один раз для читаемого
@@ -22,11 +23,11 @@ EXCLUDES=(--exclude coverage --exclude graphify-out)
 # inline-аннотаций прямо на diff в PR.
 echo "==> Skylos audit (readable log)"
 concise_status=0
-skylos . -a --format concise "${EXCLUDES[@]}" || concise_status=$?
+skylos . -a --format concise "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
 
 echo
 echo "==> Skylos audit (GitHub PR annotations)"
 github_status=0
-skylos . -a --github "${EXCLUDES[@]}" || github_status=$?
+skylos . -a --github "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
 
 exit "$concise_status"
