@@ -137,12 +137,27 @@ const upsertCustomerClientLink = async (
     });
 };
 
+const updateCustomerData = (existing: { id: number; email: string | null; givenName: string | null; familyName: string | null; payerName: string | null; payerRelation: string | null; linkSource: string | null; clientId: number | null }, mollieCustomer: Customer, matchedClientId: number | null) => {
+    const shouldApplyEmailMatch = !existing.clientId && matchedClientId;
+    const { givenName, familyName } = splitCustomerName(mollieCustomer.name);
+
+    return {
+        mollieId: mollieCustomer.id,
+        email: mollieCustomer.email ?? existing.email,
+        givenName: givenName ?? existing.givenName,
+        familyName: familyName ?? existing.familyName,
+        payerName: mollieCustomer.name ?? existing.payerName,
+        payerRelation: existing.payerRelation ?? 'unknown',
+        linkSource: shouldApplyEmailMatch ? 'email_match' : existing.linkSource,
+        clientId: existing.clientId ?? matchedClientId ?? undefined,
+    };
+};
+
 export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'created' | 'updated' | 'skipped'> => {
     if (!mollieCustomer.id) {
         return 'skipped';
     }
 
-    const { givenName, familyName } = splitCustomerName(mollieCustomer.name);
     const matchedClientId = await findClientIdByEmail(mollieCustomer.email);
     const existing = await prisma.customer.findFirst({
         where: {
@@ -154,20 +169,9 @@ export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'cre
     });
 
     if (existing) {
-        const shouldApplyEmailMatch = !existing.clientId && matchedClientId;
-
         await prisma.customer.update({
             where: { id: existing.id },
-            data: {
-                mollieId: mollieCustomer.id,
-                email: mollieCustomer.email ?? existing.email,
-                givenName: givenName ?? existing.givenName,
-                familyName: familyName ?? existing.familyName,
-                payerName: mollieCustomer.name ?? existing.payerName,
-                payerRelation: existing.payerRelation ?? 'unknown',
-                linkSource: shouldApplyEmailMatch ? 'email_match' : existing.linkSource,
-                clientId: existing.clientId ?? matchedClientId ?? undefined,
-            },
+            data: updateCustomerData(existing, mollieCustomer, matchedClientId),
         });
         await upsertCustomerClientLink(existing.id, matchedClientId, 'email_match');
 
@@ -178,8 +182,8 @@ export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'cre
         data: {
             mollieId: mollieCustomer.id,
             email: mollieCustomer.email,
-            givenName,
-            familyName,
+            givenName: splitCustomerName(mollieCustomer.name).givenName,
+            familyName: splitCustomerName(mollieCustomer.name).familyName,
             payerName: mollieCustomer.name ?? null,
             payerRelation: 'unknown',
             linkSource: matchedClientId ? 'email_match' : 'unlinked',
@@ -208,23 +212,78 @@ export const syncMollieCustomers = async (): Promise<SyncResult> => {
     return result;
 };
 
+const ensureCustomerSynced = async (payment: Payment) => {
+    if (!payment.customerId) return null;
+
+    const existingCustomer = await prisma.customer.findUnique({
+        where: { mollieId: payment.customerId },
+    });
+
+    if (!existingCustomer) {
+        const mollieCustomer = await mollieService.getCustomerById(payment.customerId);
+        await syncMollieCustomer(mollieCustomer);
+    }
+
+    return prisma.customer.findUnique({ where: { mollieId: payment.customerId } });
+};
+
+const resolvePaymentInvoiceId = async (payment: Payment, existingInvoiceId: number | null, invoiceIdHint?: number | null) => {
+    const metadataInvoiceId = getInvoiceIdFromMetadata(payment.metadata);
+    const metadataInvoice = metadataInvoiceId
+        ? await prisma.invoice.findUnique({ where: { id: metadataInvoiceId }, select: { id: true } })
+        : null;
+    const hintedInvoice = invoiceIdHint
+        ? await prisma.invoice.findUnique({ where: { id: invoiceIdHint }, select: { id: true } })
+        : null;
+
+    return metadataInvoice?.id ?? existingInvoiceId ?? hintedInvoice?.id ?? null;
+};
+
+const paymentUpsertPayload = (
+    payment: Payment,
+    context: { status: string; adjustmentAt: Date | null },
+    customerId: number | null,
+    subscriptionId: number | null,
+    invoiceId: number | null,
+) => {
+    const shared = {
+        amountValue: payment.amount.value,
+        amountCurrency: payment.amount.currency,
+        refundedAmount: payment.amountRefunded?.value ?? '0',
+        chargedBackAmount: payment.amountChargedBack?.value ?? '0',
+        adjustmentAt: context.adjustmentAt,
+        description: payment.description,
+        method: payment.method ?? 'unknown',
+        status: context.status,
+        checkoutUrl: payment.getCheckoutUrl(),
+        isCancelable: payment.isCancelable,
+        paidAt: toDate(payment.paidAt),
+    };
+
+    return {
+        update: {
+            ...shared,
+            customerId: customerId ?? undefined,
+            subscriptionId: subscriptionId ?? undefined,
+            invoiceId,
+        },
+        create: {
+            ...shared,
+            mollieId: payment.id,
+            createdAt: toDate(payment.createdAt) ?? new Date(),
+            customerId,
+            subscriptionId,
+            invoiceId,
+        },
+    };
+};
+
 export const syncMolliePayment = async (
     payment: Payment,
     invoiceIdHint?: number | null,
 ): Promise<'created' | 'updated' | 'skipped'> => {
     if (!payment.id) {
         return 'skipped';
-    }
-
-    if (payment.customerId) {
-        const existingCustomer = await prisma.customer.findUnique({
-            where: { mollieId: payment.customerId },
-        });
-
-        if (!existingCustomer) {
-            const mollieCustomer = await mollieService.getCustomerById(payment.customerId);
-            await syncMollieCustomer(mollieCustomer);
-        }
     }
 
     const subscription = payment.subscriptionId
@@ -235,56 +294,14 @@ export const syncMolliePayment = async (
             },
         })
         : null;
-    const customer = payment.customerId
-        ? await prisma.customer.findUnique({ where: { mollieId: payment.customerId } })
-        : subscription?.customer ?? null;
+    const customer = await ensureCustomerSynced(payment) ?? subscription?.customer ?? null;
     const existing = await prisma.payment.findUnique({ where: { mollieId: payment.id } });
     const { status, adjustmentAt } = await getPaymentAdjustmentData(payment);
-    const metadataInvoiceId = getInvoiceIdFromMetadata(payment.metadata);
-    const metadataInvoice = metadataInvoiceId
-        ? await prisma.invoice.findUnique({ where: { id: metadataInvoiceId }, select: { id: true } })
-        : null;
-    const hintedInvoice = invoiceIdHint
-        ? await prisma.invoice.findUnique({ where: { id: invoiceIdHint }, select: { id: true } })
-        : null;
-    const invoiceId = metadataInvoice?.id ?? existing?.invoiceId ?? hintedInvoice?.id ?? null;
+    const invoiceId = await resolvePaymentInvoiceId(payment, existing?.invoiceId ?? null, invoiceIdHint);
 
     const syncedPayment = await prisma.payment.upsert({
         where: { mollieId: payment.id },
-        update: {
-            amountValue: payment.amount.value,
-            amountCurrency: payment.amount.currency,
-            refundedAmount: payment.amountRefunded?.value ?? '0',
-            chargedBackAmount: payment.amountChargedBack?.value ?? '0',
-            adjustmentAt,
-            description: payment.description,
-            method: payment.method ?? 'unknown',
-            status,
-            checkoutUrl: payment.getCheckoutUrl(),
-            isCancelable: payment.isCancelable,
-            paidAt: toDate(payment.paidAt),
-            customerId: customer?.id ?? undefined,
-            subscriptionId: subscription?.id ?? undefined,
-            invoiceId,
-        },
-        create: {
-            mollieId: payment.id,
-            amountValue: payment.amount.value,
-            amountCurrency: payment.amount.currency,
-            refundedAmount: payment.amountRefunded?.value ?? '0',
-            chargedBackAmount: payment.amountChargedBack?.value ?? '0',
-            adjustmentAt,
-            description: payment.description,
-            method: payment.method ?? 'unknown',
-            status,
-            checkoutUrl: payment.getCheckoutUrl(),
-            isCancelable: payment.isCancelable,
-            paidAt: toDate(payment.paidAt),
-            createdAt: toDate(payment.createdAt) ?? new Date(),
-            customerId: customer?.id ?? null,
-            subscriptionId: subscription?.id ?? null,
-            invoiceId,
-        },
+        ...paymentUpsertPayload(payment, { status, adjustmentAt }, customer?.id ?? null, subscription?.id ?? null, invoiceId),
     });
 
     if (syncedPayment.invoiceId) {
