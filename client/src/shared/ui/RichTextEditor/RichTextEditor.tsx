@@ -73,14 +73,12 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
         editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
-    if (!editor) return null;
-
-    const formatActions: { label: string; content: ReactNode; isActive: () => boolean; run: () => void }[] = [
-        { label: 'Жирный', content: <b>B</b>, isActive: () => editor.isActive('bold'), run: () => editor.chain().focus().toggleBold().run() },
-        { label: 'Курсив', content: <i>I</i>, isActive: () => editor.isActive('italic'), run: () => editor.chain().focus().toggleItalic().run() },
-        { label: 'Маркированный список', content: <span>•≡</span>, isActive: () => editor.isActive('bulletList'), run: () => editor.chain().focus().toggleBulletList().run() },
-        { label: 'Нумерованный список', content: <span>{t('1≡')}</span>, isActive: () => editor.isActive('orderedList'), run: () => editor.chain().focus().toggleOrderedList().run() },
-        { label: 'Ссылка', content: <span>🔗</span>, isActive: () => editor.isActive('link'), run: onSetLink },
+const formatActions: { label: string; content: ReactNode; isActive: () => boolean; run: () => void }[] = [
+        { label: t('Жирный'), content: <b>B</b>, isActive: () => !!editor?.isActive('bold'), run: () => editor?.chain().focus().toggleBold().run() },
+        { label: t('Курсив'), content: <i>I</i>, isActive: () => !!editor?.isActive('italic'), run: () => editor?.chain().focus().toggleItalic().run() },
+        { label: t('Маркированный список'), content: <span>•≡</span>, isActive: () => !!editor?.isActive('bulletList'), run: () => editor?.chain().focus().toggleBulletList().run() },
+        { label: t('Нумерованный список'), content: <span>{t('1≡')}</span>, isActive: () => !!editor?.isActive('orderedList'), run: () => editor?.chain().focus().toggleOrderedList().run() },
+        { label: t('Ссылка'), content: <span>🔗</span>, isActive: () => !!editor?.isActive('link'), run: onSetLink },
     ];
 
     return (
