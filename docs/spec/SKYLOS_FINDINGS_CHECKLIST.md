@@ -898,7 +898,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (27/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (55/185)
 
 > Разбить на более мелкие функции/хуки.
 
@@ -1075,42 +1075,96 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
   строго behavior-preserving extraction.** `check:skylos` informational (Phase A),
   не блокирует merge.
 
-- [ ] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:38` — Function 'anonymous' is 82 lines long (limit: 50)
-- [ ] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.tsx:27` — Function 'anonymous' is 63 lines long (limit: 50)
-- [ ] `client/src/entities/Client/ui/ClientCard/ClientCard.tsx:28` — Function 'anonymous' is 94 lines long (limit: 50)
-- [ ] `client/src/entities/Client/ui/ClientDetails/ClientDetails.tsx:53` — Function 'anonymous' is 58 lines long (limit: 50)
-- [ ] `client/src/entities/Client/ui/ClientListItem/ClientListItem.tsx:16` — Function 'anonymous' is 68 lines long (limit: 50)
+**Волна 8 (client-компоненты/страницы, раунды 8–30):** закрыто 28 находок
+`SKY-C304`. Рядом с этим блоком чекбоксы ниже помечены `[x]` только там, где
+декомпозиция доведена до функций <50 строк; остальные (тестовые файлы, большие
+модалки `ClientPaymentBlock`/`CreateInvoiceModal`/`ChoreographerModal`, хуки с
+инлайн-state) остаются открытыми. Обработано (каждый раунд — отдельный
+behavior-preserving коммит, `refactor: ... (Skylos round N)`):
+- `EmailComposer.tsx:34` (179) — `useEmailComposer` + `useEmailAttachments` +
+  `EmailComposerAttachments`/`EmailComposerFooter`/`EmailComposerToolbar` (round 8).
+- `BranchModal.tsx:16` (111) — `useBranchModal` + `BranchFormFields` (round 8).
+- `PaymentLinkModal.tsx:33` (142) — `usePaymentLinkModal` + `createPaymentLink` +
+  `PaymentLinkFormFields`/`PaymentLinkActions` (round 8).
+- `CrmSettingsPage.tsx:21` (120) — `useMollieConnection` +
+  `MollieConnectionCard`/`MollieConnectionDetails`/`MollieConnectionActions` (round 8).
+- `MollieCustomers.tsx:74` (185) — `useMollieCustomers` + `useMollieCustomersFilters` +
+  `MollieCustomersFiltersBar`/`MollieCustomersPagination` (round 8).
+- `EmailAccountsPanel.tsx:47` (117) — `EmailAccountCreateForm` +
+  `EmailAccountsList` + `useEmailAccountForm` (round 9).
+- `MollieClient/ui/ClientDetails.tsx:51` (116) — `MollieClientProfileCard` +
+  `MollieClientEventsTimeline` (round 10).
+- `MollieClientForm.tsx:33` (86) — `useMollieClientForm` + `MollieClientFormSkeleton` (round 11).
+- `Sidebar/ui/Sidebar.tsx:22` (114) — `useSidebarState` (round 12).
+- `TransactionSortSelector.tsx:24` (109) и `:65` (54) — `buildOrderOptions`/
+  `buildSortFieldOptions`/`buildMonthOptions` + константа `MONTH_OPTIONS` (round 13).
+- `Navbar.tsx:28` (100) — `useUnreadEmailCount` + `NavbarActions` (round 14).
+- `SchedulePage.tsx:46` (126) — `lib/scheduleUtils` + `useScheduleGroups` +
+  `ScheduleToolbar`/`ScheduleSummary`/`ScheduleGrid`/`ScheduleLesson` (round 15).
+- `ProfileCard.tsx:23` (102) — `ProfileCardFields` + `ProfileCardSkeleton` (round 16).
+- `ArticleDetails.tsx:38` (82) — `ArticleDetailsContent` + `ArticleDetailsSkeleton` (round 17).
+- `MollieMain.tsx:25` (104) — `useMollieOrganizations` + `MollieOrganizationCard` +
+  `MollieOrganizationDetails` (round 18).
+- `ClientCard.tsx:28` (94) — `ClientCardIdentityFields`/`ClientCardContactFields`/
+  `ClientCardEnrollmentFields` (round 19).
+- `MollieClientCard.tsx:24` (96) — `MollieClientCardProfileFields`/
+  `MollieClientCardAccountFields`/`MollieClientCardContactFields` (round 20).
+- `UserCard.tsx:24` (91) — `UserCardSkeleton` + `UserIdentityFields`/`UserAccessFields` (round 21).
+- `ComposeEmailModal.tsx:22` (77) — `useComposeEmailForm` (round 22).
+- `BranchesPage.tsx:11` (87) — `useBranches` + `BranchesHeader`/`BranchesEmptyState` (round 23).
+- `ClientListItem.tsx:16` (68) — `ClientListItemSmall`/`ClientListItemBig` (round 24).
+- `SummaryCards.tsx:16` (52) — `SummaryStatCard` + `SummaryCardsSkeleton` (round 25).
+- `MollieClientListItem.tsx:16` (72) — `MollieCustomerBadges` (round 26).
+- `ArticleListItem.tsx:27` (63) — `ArticleListItemSmall`/`ArticleListItemBig` (round 27).
+- `SidebarItemGroup.tsx:16` (59) — `SidebarItemGroupCollapsed`/`SidebarItemGroupExpanded` (round 28).
+- `ClientDetails.tsx:53` (58) — `ClientDetailRow` (round 29).
+- `TransactionCard.tsx:25` (55) — `TransactionCategoryFields`/`TransactionAmountFields` (round 30).
+Каждый раунд проверялся: `rtk eslint` (0 errors/0 warnings на затронутых файлах),
+targeted Jest-наборы (все зелёные), `rtk tsc --noEmit` (baseline — 19 ошибок в
+`node_modules`/`@types`, не связанных с рефакторингом). Ограничение: локальный
+`npm run check:skylos` заблокирован (архитектурный mismatch tree_sitter
+arm64/x86_64) — закрытие подтверждено построчно (каждая извлечённая функция
+<50 строк), полная верификация — на CI (`skylos-check`, informational). Остались
+открытыми крупные модалки и тестовые файлы (см. чекбоксы со `[ ]` ниже), плюс
+страницы ~77–79 строк: `UserForm` (77), `ChoreographersPage` (79), `ClientsPage`
+(79), `AddTransactionForm` (79).
+
+- [x] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:38` — Function 'anonymous' is 82 lines long (limit: 50) → волна 8 (round 17): `ArticleDetailsContent` + `ArticleDetailsSkeleton`
+- [x] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.tsx:27` — Function 'anonymous' is 63 lines long (limit: 50) → волна 8 (round 27): `ArticleListItemSmall`/`ArticleListItemBig`
+- [x] `client/src/entities/Client/ui/ClientCard/ClientCard.tsx:28` — Function 'anonymous' is 94 lines long (limit: 50) → волна 8 (round 19): `ClientCardIdentityFields`/`ClientCardContactFields`/`ClientCardEnrollmentFields`
+- [x] `client/src/entities/Client/ui/ClientDetails/ClientDetails.tsx:53` — Function 'anonymous' is 58 lines long (limit: 50) → волна 8 (round 29): `ClientDetailRow`
+- [x] `client/src/entities/Client/ui/ClientListItem/ClientListItem.tsx:16` — Function 'anonymous' is 68 lines long (limit: 50) → волна 8 (round 24): `ClientListItemSmall`/`ClientListItemBig`
 - [ ] `client/src/entities/EmailMessage/model/services/emailMessageApi.test.ts:20` — Function 'anonymous' is 98 lines long (limit: 50)
 - [ ] `client/src/entities/EmailMessage/ui/EmailComposer/EmailComposer.test.tsx:4` — Function 'anonymous' is 53 lines long (limit: 50)
-- [ ] `client/src/entities/EmailMessage/ui/EmailComposer/EmailComposer.tsx:34` — Function 'anonymous' is 179 lines long (limit: 50)
+- [x] `client/src/entities/EmailMessage/ui/EmailComposer/EmailComposer.tsx:34` — Function 'anonymous' is 179 lines long (limit: 50) → волна 8 (round 8): `useEmailComposer` + `useEmailAttachments` + `EmailComposerAttachments`/`EmailComposerFooter`/`EmailComposerToolbar`
 - [ ] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.test.tsx:30` — Function 'anonymous' is 67 lines long (limit: 50)
 - [x] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.tsx:60` — Function 'anonymous' is 125 lines long (limit: 50)
-- [ ] `client/src/entities/MollieClient/ui/ClientDetails/ClientDetails.tsx:51` — Function 'anonymous' is 116 lines long (limit: 50)
-- [ ] `client/src/entities/MollieClient/ui/MollieClientCard/MollieClientCard.tsx:24` — Function 'anonymous' is 96 lines long (limit: 50)
+- [x] `client/src/entities/MollieClient/ui/ClientDetails/ClientDetails.tsx:51` — Function 'anonymous' is 116 lines long (limit: 50) → волна 8 (round 10): `MollieClientProfileCard` + `MollieClientEventsTimeline`
+- [x] `client/src/entities/MollieClient/ui/MollieClientCard/MollieClientCard.tsx:24` — Function 'anonymous' is 96 lines long (limit: 50) → волна 8 (round 20): `MollieClientCardProfileFields`/`MollieClientCardAccountFields`/`MollieClientCardContactFields`
 - [ ] `client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx:37` — Function 'anonymous' is 52 lines long (limit: 50)
 - [ ] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx:14` — Function 'anonymous' is 55 lines long (limit: 50)
-- [ ] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.tsx:16` — Function 'anonymous' is 72 lines long (limit: 50)
+- [x] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.tsx:16` — Function 'anonymous' is 72 lines long (limit: 50) → волна 8 (round 26): `MollieCustomerBadges`
 - [ ] `client/src/entities/MollieSubscription/ui/MollieSubscriptionCard/MollieSubscriptionCard.tsx:23` — Function 'anonymous' is 76 lines long (limit: 50)
 - [ ] `client/src/entities/Profile/model/services/updateProfileData/updateProfileData.test.tsx:22` — Function 'anonymous' is 59 lines long (limit: 50)
 - [ ] `client/src/entities/Profile/model/slice/profileSlice.test.ts:6` — Function 'anonymous' is 110 lines long (limit: 50)
-- [ ] `client/src/entities/Profile/ui/ProfileCard/ProfileCard.tsx:23` — Function 'anonymous' is 102 lines long (limit: 50)
-- [ ] `client/src/entities/Summary/ui/SummaryCards/SummaryCards.tsx:16` — Function 'anonymous' is 52 lines long (limit: 50)
-- [ ] `client/src/entities/Transaction/ui/TransactionCard/TransactionCard.tsx:25` — Function 'anonymous' is 55 lines long (limit: 50)
+- [x] `client/src/entities/Profile/ui/ProfileCard/ProfileCard.tsx:23` — Function 'anonymous' is 102 lines long (limit: 50) → волна 8 (round 16): `ProfileCardFields` + `ProfileCardSkeleton`
+- [x] `client/src/entities/Summary/ui/SummaryCards/SummaryCards.tsx:16` — Function 'anonymous' is 52 lines long (limit: 50) → волна 8 (round 25): `SummaryStatCard` + `SummaryCardsSkeleton`
+- [x] `client/src/entities/Transaction/ui/TransactionCard/TransactionCard.tsx:25` — Function 'anonymous' is 55 lines long (limit: 50) → волна 8 (round 30): `TransactionCategoryFields`/`TransactionAmountFields`
 - [ ] `client/src/entities/Transaction/ui/TransactionListItem/TransactionListItem.test.tsx:6` — Function 'anonymous' is 60 lines long (limit: 50)
-- [ ] `client/src/entities/User/ui/UserCard/UserCard.tsx:24` — Function 'anonymous' is 91 lines long (limit: 50)
+- [x] `client/src/entities/User/ui/UserCard/UserCard.tsx:24` — Function 'anonymous' is 91 lines long (limit: 50) → волна 8 (round 21): `UserCardSkeleton` + `UserIdentityFields`/`UserAccessFields`
 - [ ] `client/src/features/Auth/model/services/loginByUsername/loginByUsername.test.ts:21` — Function 'anonymous' is 54 lines long (limit: 50)
 - [ ] `client/src/features/Auth/model/slice/authSlice.test.ts:5` — Function 'anonymous' is 53 lines long (limit: 50)
 - [x] `client/src/features/Auth/ui/LoginForm/LoginForm.tsx:39` — Function 'anonymous' is 138 lines long (limit: 50) → разложен (хук `useLoginForm` + подкомпоненты `LoginFormHeader`/`LoginFormFields`/`LoginFormError`/`LoginFormActions`); компонент и хук <50 строк, проверено `check:skylos`
 - [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.test.tsx:33` — Function 'anonymous' is 62 lines long (limit: 50)
 - [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.tsx:24` — Function 'anonymous' is 132 lines long (limit: 50) → рендер разложен на подкомпоненты (`TwoFactorFormHeader`/`TwoFactorFormFields`/`TwoFactorFormActions`), но функция компонента всё ещё 91 строка (инлайн state+обработчики) — НЕ закрыто
 - [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.test.tsx:6` — Function 'anonymous' is 56 lines long (limit: 50)
-- [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:24` — Function 'anonymous' is 109 lines long (limit: 50)
-- [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:65` — Function 'anonymous' is 54 lines long (limit: 50)
+- [x] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:24` — Function 'anonymous' is 109 lines long (limit: 50) → волна 8 (round 13): `buildOrderOptions`/`buildSortFieldOptions`/`buildMonthOptions` + `MONTH_OPTIONS`
+- [x] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:65` — Function 'anonymous' is 54 lines long (limit: 50) → волна 8 (round 13)
 - [ ] `client/src/features/addClientForm/model/services/addClientData/addClientData.ts:13` — Function 'anonymous' is 60 lines long (limit: 50)
 - [ ] `client/src/features/addClientForm/model/slices/clientSlice.test.ts:6` — Function 'anonymous' is 63 lines long (limit: 50)
 - [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.test.tsx:42` — Function 'anonymous' is 68 lines long (limit: 50)
 - [x] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' is 282 lines long (limit: 50)
-- [ ] `client/src/features/addMollieClientForm/ui/MollieClientForm/MollieClientForm.tsx:33` — Function 'anonymous' is 86 lines long (limit: 50)
+- [x] `client/src/features/addMollieClientForm/ui/MollieClientForm/MollieClientForm.tsx:33` — Function 'anonymous' is 86 lines long (limit: 50) → волна 8 (round 11): `useMollieClientForm` + `MollieClientFormSkeleton`
 - [ ] `client/src/features/addMollieSubscriptionForm/model/slices/addMollieSubscriptionSlice.test.ts:7` — Function 'anonymous' is 78 lines long (limit: 50)
 - [ ] `client/src/features/addMollieSubscriptionForm/ui/AddMollieSubscriptionForm/AddMollieSubscriptionForm.tsx:38` — Function 'anonymous' is 105 lines long (limit: 50)
 - [ ] `client/src/features/addTransactionForm/model/slices/addTransactionFormSlice.test.ts:5` — Function 'anonymous' is 59 lines long (limit: 50)
@@ -1130,8 +1184,8 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
 - [ ] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.test.tsx:46` — Function 'anonymous' is 65 lines long (limit: 50)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:35` — Function 'anonymous' is 66 lines long (limit: 50)
 - [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' is 192 lines long (limit: 50)
-- [ ] `client/src/pages/BranchesPage/ui/BranchModal/BranchModal.tsx:16` — Function 'anonymous' is 111 lines long (limit: 50)
-- [ ] `client/src/pages/BranchesPage/ui/BranchesPage/BranchesPage.tsx:11` — Function 'anonymous' is 87 lines long (limit: 50)
+- [x] `client/src/pages/BranchesPage/ui/BranchModal/BranchModal.tsx:16` — Function 'anonymous' is 111 lines long (limit: 50) → волна 8 (round 8): `useBranchModal` + `BranchFormFields`
+- [x] `client/src/pages/BranchesPage/ui/BranchesPage/BranchesPage.tsx:11` — Function 'anonymous' is 87 lines long (limit: 50) → волна 8 (round 23): `useBranches` + `BranchesHeader`/`BranchesEmptyState`
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.test.tsx:19` — Function 'anonymous' is 54 lines long (limit: 50)
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — Function 'anonymous' is 322 lines long (limit: 50)
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographersPage/ChoreographersPage.tsx:11` — Function 'anonymous' is 79 lines long (limit: 50)
@@ -1139,15 +1193,15 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
 - [ ] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — Function 'anonymous' is 570 lines long (limit: 50)
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' is 214 lines long (limit: 50)
 - [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' is 55 lines long (limit: 50)
-- [ ] `client/src/pages/ClientsDetailsPage/ui/PaymentLinkModal/PaymentLinkModal.tsx:33` — Function 'anonymous' is 142 lines long (limit: 50)
+- [x] `client/src/pages/ClientsDetailsPage/ui/PaymentLinkModal/PaymentLinkModal.tsx:33` — Function 'anonymous' is 142 lines long (limit: 50) → волна 8 (round 8): `usePaymentLinkModal` + `createPaymentLink` + `PaymentLinkFormFields`/`PaymentLinkActions`
 - [ ] `client/src/pages/ClientsPage/lib/hooks/useClientFilters.ts:18` — Function 'useClientFilters' is 72 lines long (limit: 50)
 - [ ] `client/src/pages/ClientsPage/model/slices/clientsPageSlice.test.ts:6` — Function 'anonymous' is 83 lines long (limit: 50)
 - [ ] `client/src/pages/ClientsPage/ui/ClientsPage/ClientsPage.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50)
-- [ ] `client/src/pages/CrmSettingsPage/ui/CrmSettingsPage/CrmSettingsPage.tsx:21` — Function 'anonymous' is 120 lines long (limit: 50)
+- [x] `client/src/pages/CrmSettingsPage/ui/CrmSettingsPage/CrmSettingsPage.tsx:21` — Function 'anonymous' is 120 lines long (limit: 50) → волна 8 (round 8): `useMollieConnection` + `MollieConnectionCard`/`MollieConnectionDetails`/`MollieConnectionActions`
 - [x] `client/src/pages/DanceStylesPage/ui/DanceStylesPage/DanceStylesPage.tsx:51` — Function 'anonymous' is 157 lines long (limit: 50)
-- [ ] `client/src/pages/EmailPage/ui/ComposeEmailModal/ComposeEmailModal.tsx:22` — Function 'anonymous' is 77 lines long (limit: 50)
+- [x] `client/src/pages/EmailPage/ui/ComposeEmailModal/ComposeEmailModal.tsx:22` — Function 'anonymous' is 77 lines long (limit: 50) → волна 8 (round 22): `useComposeEmailForm`
 - [ ] `client/src/pages/EmailPage/ui/EmailAccountsPanel/EmailAccountsPanel.test.tsx:31` — Function 'anonymous' is 60 lines long (limit: 50)
-- [ ] `client/src/pages/EmailPage/ui/EmailAccountsPanel/EmailAccountsPanel.tsx:47` — Function 'anonymous' is 117 lines long (limit: 50)
+- [x] `client/src/pages/EmailPage/ui/EmailAccountsPanel/EmailAccountsPanel.tsx:47` — Function 'anonymous' is 117 lines long (limit: 50) → волна 8 (round 9): `EmailAccountCreateForm` + `EmailAccountsList` + `useEmailAccountForm`
 - [x] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' is 328 lines long (limit: 50)
 - [ ] `client/src/pages/HomePage/ui/HomePage.test.tsx:57` — Function 'anonymous' is 52 lines long (limit: 50)
 - [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' is 295 lines long (limit: 50)
@@ -1168,11 +1222,11 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
 - [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' is 153 lines long (limit: 50)
 - [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:448` — Function 'anonymous' is 103 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.test.tsx:40` — Function 'anonymous' is 71 lines long (limit: 50)
-- [ ] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:74` — Function 'anonymous' is 185 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:74` — Function 'anonymous' is 185 lines long (limit: 50) → волна 8 (round 8): `useMollieCustomers` + `useMollieCustomersFilters` + `MollieCustomersFiltersBar`/`MollieCustomersPagination`
 - [ ] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.test.tsx:52` — Function 'anonymous' is 78 lines long (limit: 50)
 - [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:388` — Function 'anonymous' is 75 lines long (limit: 50)
 - [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:191` — Function 'anonymous' is 279 lines long (limit: 50)
-- [ ] `client/src/pages/MolliePage/ui/MollieMain/MollieMain.tsx:25` — Function 'anonymous' is 104 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MollieMain/MollieMain.tsx:25` — Function 'anonymous' is 104 lines long (limit: 50) → волна 8 (round 18): `useMollieOrganizations` + `MollieOrganizationCard`/`MollieOrganizationDetails`
 - [ ] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.test.tsx:43` — Function 'anonymous' is 88 lines long (limit: 50)
 - [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:173` — Function 'anonymous' is 262 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.test.tsx:82` — Function 'anonymous' is 53 lines long (limit: 50)
@@ -1184,7 +1238,7 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
 - [x] `client/src/pages/ProfilePage/ui/ProfilePage.tsx:38` — Function 'anonymous' is 90 lines long (limit: 50) → разложен (хук `useProfilePage` + `ProfileValidateErrors`); компонент и хук <50 строк, проверено `check:skylos`
 - [x] `client/src/pages/ProfilePage/ui/ProfilePageHeader/ProfilePageHeader.tsx:20` — Function 'anonymous' is 88 lines long (limit: 50) → разложен (подкомпоненты `ProfileHeaderInfo`/`ProfileHeaderActions`); компонент <50 строк, проверено `check:skylos`
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.test.tsx:65` — Function 'anonymous' is 62 lines long (limit: 50)
-- [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.tsx:46` — Function 'anonymous' is 126 lines long (limit: 50)
+- [x] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.tsx:46` — Function 'anonymous' is 126 lines long (limit: 50) → волна 8 (round 15): `lib/scheduleUtils` + `useScheduleGroups` + `ScheduleToolbar`/`ScheduleSummary`/`ScheduleGrid`/`ScheduleLesson`
 - [ ] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.test.tsx:25` — Function 'anonymous' is 66 lines long (limit: 50)
 - [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/CreateGroupModal.tsx:26` — Function 'anonymous' is 284 lines long (limit: 50)
 - [x] `client/src/pages/ScheduleSettingsPage/ui/GroupCard/GroupCard.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50) → волна 6: hall-строка вынесена в `GroupCardMeta`, блок «активные/неактивные ученики» — в `GroupCardStudents`; сам компонент <50 строк, подтверждено `check:skylos`
@@ -1205,10 +1259,9 @@ round4/round5: перенос в `useXxx.ts`-хук не закрывает на
 - [ ] `client/src/shared/ui/RichTextEditor/RichTextEditor.tsx:18` — Function 'anonymous' is 91 lines long (limit: 50)
 - [ ] `client/src/shared/ui/Textarea/Textarea.tsx:23` — Function 'anonymous' is 60 lines long (limit: 50)
 - [ ] `client/src/widgets/ClientFilters/ui/ClientFilters/ClientFilters.tsx:27` — Function 'anonymous' is 53 lines long (limit: 50)
-- [ ] `client/src/widgets/Navbar/ui/Navbar.tsx:28` — Function 'anonymous' is 100 lines long (limit: 50)
-- [ ] `client/src/widgets/Page/Page.test.tsx:29` — Function 'anonymous' is 60 lines long (limit: 50)
-- [ ] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.tsx:22` — Function 'anonymous' is 114 lines long (limit: 50)
-- [ ] `client/src/widgets/Sidebar/ui/SidebarItemGroup/SidebarItemGroup.tsx:16` — Function 'anonymous' is 59 lines long (limit: 50)
+- [x] `client/src/widgets/Navbar/ui/Navbar.tsx:28` — Function 'anonymous' is 100 lines long (limit: 50) → волна 8 (round 14): `useUnreadEmailCount` + `NavbarActions`
+- [x] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.tsx:22` — Function 'anonymous' is 114 lines long (limit: 50) → волна 8 (round 12): `useSidebarState`
+- [x] `client/src/widgets/Sidebar/ui/SidebarItemGroup/SidebarItemGroup.tsx:16` — Function 'anonymous' is 59 lines long (limit: 50) → волна 8 (round 28): `SidebarItemGroupCollapsed`/`SidebarItemGroupExpanded`
 - [ ] `client/src/widgets/TransactionFilters/ui/TransactionFilters/TransactionFilters.tsx:30` — Function 'anonymous' is 56 lines long (limit: 50)
 - [ ] `server/src/controllers/conteroller.Mollie.ts:2496` — Function 'anonymous' is 96 lines long (limit: 50)
 - [ ] `server/src/controllers/conteroller.Mollie.ts:273` — Function 'anonymous' is 51 lines long (limit: 50)

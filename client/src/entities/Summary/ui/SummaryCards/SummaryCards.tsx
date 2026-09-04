@@ -3,9 +3,9 @@ import cls from './Summary.module.scss';
 import { memo } from 'react';
 import { Summary } from '../../model/types/summary';
 import { HStack } from '@/shared/ui/Stack';
-import { Card } from '@/shared/ui/Card/Card';
 import { Text } from '@/shared/ui/Text/Text';
-import { Skeleton } from '@/shared/ui/Skeleton/Skeleton';
+import { SummaryCardsSkeleton } from './SummaryCardsSkeleton';
+import { SummaryStatCard } from './SummaryStatCard';
 
 interface SummaryCardsProps {
     className?: string;
@@ -21,15 +21,7 @@ export const SummaryCards = memo((props: SummaryCardsProps) => {
     }).format(value ?? 0);
 
     if (isLoading) {
-        return (
-            <div className={classNames(cls.Summary, {}, [className])}>
-                <HStack justify="between" align="center" gap="16" max>
-                    <Skeleton width={600} height={120} border="12px" />
-                    <Skeleton width={600} height={120} border="12px" />
-                    <Skeleton width={600} height={120} border="12px" />
-                </HStack>
-            </div>
-        );
+        return <SummaryCardsSkeleton className={className} />;
     }
 
     if (!summary) {
@@ -43,24 +35,9 @@ export const SummaryCards = memo((props: SummaryCardsProps) => {
     return (
         <div className={classNames(cls.Summary, {}, [className])}>
             <HStack justify="between" align="center" gap="16">
-                <Card className={classNames(cls.card, {}, [cls.incomeCard])} padding="16">
-                    <HStack justify="between">
-                        <Text className={cls.title} title="Приход" />
-                        <Text className={cls.title} title={formatMoney(summary?.income)} />
-                    </HStack>
-                </Card>
-                <Card className={classNames(cls.card, {}, [cls.expenseCard])} padding="16">
-                    <HStack justify="between">
-                        <Text className={cls.title} title="Расход" />
-                        <Text className={cls.title} title={formatMoney(summary?.expense)} />
-                    </HStack>
-                </Card>
-                <Card className={classNames(cls.card, {}, [cls.balanceCard])} padding="16">
-                    <HStack justify="between">
-                        <Text className={cls.title} title="Баланс" />
-                        <Text className={cls.title} title={formatMoney(summary?.balance)} />
-                    </HStack>
-                </Card>
+                <SummaryStatCard title="Приход" value={formatMoney(summary.income)} cardClassName={cls.incomeCard} />
+                <SummaryStatCard title="Расход" value={formatMoney(summary.expense)} cardClassName={cls.expenseCard} />
+                <SummaryStatCard title="Баланс" value={formatMoney(summary.balance)} cardClassName={cls.balanceCard} />
             </HStack>
         </div>
     );
