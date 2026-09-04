@@ -113,6 +113,100 @@ const getCustomerName = (customer?: {
     return fullName || customer?.consumerName || customer?.email || null;
 };
 
+const mapManualTransaction = (transaction: TTransaction): FinancialTransaction => ({
+    ...transaction,
+    id: String(transaction.id),
+    currency: 'EUR',
+    source: 'MANUAL',
+    status: 'completed',
+});
+
+interface MolliePaymentWithCustomer {
+    id: number;
+    mollieId: string | null;
+    amountValue: string | number;
+    refundedAmount: string | number;
+    chargedBackAmount: string | number;
+    status: string;
+    method: string;
+    amountCurrency: string;
+    description: string | null;
+    paidAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    adjustmentAt: Date | null;
+    customer: {
+        givenName: string | null;
+        familyName: string | null;
+        consumerName: string | null;
+        email: string | null;
+    } | null;
+}
+
+const molliePaymentCommon = (payment: MolliePaymentWithCustomer) => {
+    const customerName = getCustomerName(payment.customer);
+
+    return {
+        category: ExpenseCategory.OTHER,
+        createdAt: payment.createdAt,
+        updatedAt: payment.updatedAt,
+        paymentMethod: mapMolliePaymentMethod(payment.method),
+        currency: payment.amountCurrency,
+        source: 'MOLLIE' as const,
+        externalId: payment.mollieId,
+        customerName,
+        description: customerName
+            ? `${payment.description ?? 'Mollie payment'} · ${customerName}`
+            : payment.description ?? 'Mollie payment',
+    };
+};
+
+const mapIncomePayment = (payment: MolliePaymentWithCustomer): FinancialTransaction | null => {
+    if (!payment.paidAt) return null;
+    const common = molliePaymentCommon(payment);
+
+    return {
+        ...common,
+        id: `mollie:${payment.mollieId ?? payment.id}`,
+        type: TransactionType.INCOME,
+        amount: Number(payment.amountValue),
+        date: payment.paidAt,
+        status: 'paid',
+    };
+};
+
+const mapReversalPayment = (payment: MolliePaymentWithCustomer): FinancialTransaction | null => {
+    const amount = Number(payment.amountValue);
+    const refundedAmount = Number(payment.refundedAmount);
+    const chargedBackAmount = Number(payment.chargedBackAmount);
+    const isChargedBack = REVERSAL_STATUSES.includes(payment.status);
+    const reversalAmount = refundedAmount + (chargedBackAmount || (isChargedBack ? amount : 0));
+
+    if (reversalAmount <= 0) return null;
+
+    const common = molliePaymentCommon(payment);
+
+    return {
+        ...common,
+        id: `mollie-reversal:${payment.mollieId ?? payment.id}`,
+        type: TransactionType.EXPENSE,
+        amount: reversalAmount,
+        description: `Возврат/отмена Mollie · ${common.description}`,
+        date: payment.adjustmentAt ?? payment.paidAt ?? payment.createdAt,
+        status: chargedBackAmount > 0 || isChargedBack ? 'charged_back' : 'refunded',
+    };
+};
+
+const mapMolliePayments = (payments: MolliePaymentWithCustomer[]): FinancialTransaction[] =>
+    payments.flatMap((payment) => {
+        const entries: FinancialTransaction[] = [];
+        const income = mapIncomePayment(payment);
+        if (income) entries.push(income);
+        const reversal = mapReversalPayment(payment);
+        if (reversal) entries.push(reversal);
+        return entries;
+    });
+
 const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
     const [manualTransactions, molliePayments] = await Promise.all([
         Transaction.findMany(),
@@ -138,61 +232,8 @@ const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
         }),
     ]);
 
-    const manual: FinancialTransaction[] = manualTransactions.map((transaction) => ({
-        ...transaction,
-        id: String(transaction.id),
-        currency: 'EUR',
-        source: 'MANUAL',
-        status: 'completed',
-    }));
-
-    const mollie: FinancialTransaction[] = [];
-
-    molliePayments.forEach((payment) => {
-        const amount = Number(payment.amountValue);
-        const refundedAmount = Number(payment.refundedAmount);
-        const chargedBackAmount = Number(payment.chargedBackAmount);
-        const isChargedBack = REVERSAL_STATUSES.includes(payment.status);
-        const reversalAmount = refundedAmount + (chargedBackAmount || (isChargedBack ? amount : 0));
-        const customerName = getCustomerName(payment.customer);
-        const description = customerName
-            ? `${payment.description ?? 'Mollie payment'} · ${customerName}`
-            : payment.description ?? 'Mollie payment';
-        const common = {
-            category: ExpenseCategory.OTHER,
-            createdAt: payment.createdAt,
-            updatedAt: payment.updatedAt,
-            paymentMethod: mapMolliePaymentMethod(payment.method),
-            currency: payment.amountCurrency,
-            source: 'MOLLIE' as const,
-            externalId: payment.mollieId,
-            customerName,
-        };
-
-        if (payment.paidAt) {
-            mollie.push({
-                ...common,
-                id: `mollie:${payment.mollieId ?? payment.id}`,
-                type: TransactionType.INCOME,
-                amount,
-                description,
-                date: payment.paidAt,
-                status: 'paid',
-            });
-        }
-
-        if (reversalAmount > 0) {
-            mollie.push({
-                ...common,
-                id: `mollie-reversal:${payment.mollieId ?? payment.id}`,
-                type: TransactionType.EXPENSE,
-                amount: reversalAmount,
-                description: `Возврат/отмена Mollie · ${description}`,
-                date: payment.adjustmentAt ?? payment.paidAt ?? payment.createdAt,
-                status: chargedBackAmount > 0 || isChargedBack ? 'charged_back' : 'refunded',
-            });
-        }
-    });
+    const manual = manualTransactions.map(mapManualTransaction);
+    const mollie = mapMolliePayments(molliePayments as unknown as MolliePaymentWithCustomer[]);
 
     return manual.concat(mollie);
 };
@@ -355,6 +396,24 @@ export const getTransactionsSummary = async (params: GetTransactionsParams) => {
     };
 };
 
+const bucketTotals = (transactions: FinancialTransaction[], bucket: { start: dayjs.Dayjs; end: dayjs.Dayjs }) => {
+    const bucketTransactions = transactions.filter((transaction) => {
+        const transactionDate = dayjs(transaction.date);
+
+        return transactionDate.isAfter(bucket.start.subtract(1, 'millisecond'))
+            && transactionDate.isBefore(bucket.end.add(1, 'millisecond'));
+    });
+    const income = bucketTransactions
+        .filter((transaction) => transaction.type === TransactionType.INCOME)
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+    const expense = bucketTransactions
+        .filter((transaction) => transaction.type === TransactionType.EXPENSE)
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
+
+    return { income, expense };
+};
+
 export const getTransactionsChart = async (period: TransactionChartPeriod = 'week') => {
     triggerMolliePaymentsRefresh();
     const safePeriod: TransactionChartPeriod = ['week', 'month', 'threeMonths', 'year'].includes(period)
@@ -371,28 +430,11 @@ export const getTransactionsChart = async (period: TransactionChartPeriod = 'wee
             && date.isBefore(lastBucket.end.add(1, 'millisecond'));
     });
 
-    const items = buckets.map((bucket) => {
-        const bucketTransactions = transactions.filter((transaction) => {
-            const transactionDate = dayjs(transaction.date);
-
-            return transactionDate.isAfter(bucket.start.subtract(1, 'millisecond'))
-                && transactionDate.isBefore(bucket.end.add(1, 'millisecond'));
-        });
-        const income = bucketTransactions
-            .filter((transaction) => transaction.type === TransactionType.INCOME)
-            .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-        const expense = bucketTransactions
-            .filter((transaction) => transaction.type === TransactionType.EXPENSE)
-            .reduce((sum, transaction) => sum + transaction.amount, 0);
-
-        return {
-            key: bucket.key,
-            label: bucket.label,
-            income,
-            expense,
-        };
-    });
+    const items = buckets.map((bucket) => ({
+        key: bucket.key,
+        label: bucket.label,
+        ...bucketTotals(transactions, bucket),
+    }));
 
     const incomeTotal = items.reduce((sum, item) => sum + item.income, 0);
     const expenseTotal = items.reduce((sum, item) => sum + item.expense, 0);
