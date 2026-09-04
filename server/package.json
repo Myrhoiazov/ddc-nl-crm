@@ -6,7 +6,7 @@
     "scripts": {
         "prebuild": "npm run prisma:generate",
         "build": "tsc",
-        "test:auth": "node --test -r ts-node/register src/services/service.Password.test.ts src/services/service.Token.test.ts src/services/service.Csrf.test.ts src/services/service.AuthSecurityAudit.test.ts src/services/service.RateLimit.test.ts src/services/service.TwoFactorAuth.test.ts",
+        "test:auth": "node --test -r ts-node/register src/services/service.Password.test.ts src/services/service.Token.test.ts src/services/service.Csrf.test.ts src/services/service.AuthSecurityAudit.test.ts src/services/service.RateLimit.test.ts src/services/service.TwoFactorAuth.test.ts src/controllers/controller.Auth.test.ts",
         "test:mollie": "node --test -r ts-node/register src/services/service.MollieUtils.test.ts",
         "test:search": "node --test -r ts-node/register src/services/service.Search.test.ts",
         "test:email": "node --test -r ts-node/register src/services/service.EmailCrypto.test.ts src/services/service.EmailImap.test.ts src/services/service.EmailSmtp.test.ts",
