@@ -1,11 +1,10 @@
 import cls from './UserCard.module.scss';
-import { classNames, Mods } from '@/shared/lib/classNames/classNames';
-import { useTranslation } from 'react-i18next';
-import { Input } from '@/shared/ui/Input/Input';
-import { RoleKey, RoleSelect } from '@/entities/Role';
+import { RoleKey } from '@/entities/Role';
 import { IProfile, ServerError } from '@/entities/Profile';
 import { VStack } from '@/shared/ui/Stack';
-import { Skeleton } from '@/shared/ui/Skeleton/Skeleton';
+import { UserCardSkeleton } from './UserCardSkeleton';
+import { UserIdentityFields } from './UserIdentityFields';
+import { UserAccessFields } from './UserAccessFields';
 
 interface UserCardProps {
     className?: string;
@@ -34,79 +33,27 @@ export const UserCard = (props: UserCardProps) => {
         onChangeAvatar,
         onChangeUserRole,
     } = props;
-    const { t } = useTranslation('profile');
 
     if (isLoading) {
-        return (
-            <div className={classNames(cls.ProfileCard, { [cls.loading]: true }, [className])}>
-                <VStack gap="16" max>
-                    <Skeleton width="100%" height={72} border="14px" />
-                    <Skeleton width="100%" height={72} border="14px" />
-                    <Skeleton width="100%" height={72} border="14px" />
-                    <Skeleton width="100%" height={72} border="14px" />
-                    <Skeleton width="100%" height={72} border="14px" />
-                </VStack>
-            </div>
-        );
+        return <UserCardSkeleton className={className} />;
     }
-
-    const mods: Mods = {
-        [cls.editing]: !readonly,
-    };
 
     return (
         <>
             <VStack className={cls.UserCard} gap="16" max>
-                <Input
-                    value={data?.firstName}
-                    placeholder={t('Ваше Имя')}
-                    label={t('Имя')}
-                    className={cls.input}
-                    onChange={onChangeFirsttName}
+                <UserIdentityFields
+                    data={data}
                     readonly={readonly}
-                    fullWidth
+                    onChangeFirsttName={onChangeFirsttName}
+                    onChangeLastName={onChangeLastName}
+                    onChangeEmail={onChangeEmail}
                 />
-                <Input
-                    value={data?.lastName}
-                    placeholder={t('Ваша фамилия')}
-                    label={t('Фамилия')}
-                    className={cls.input}
-                    onChange={onChangeLastName}
+                <UserAccessFields
+                    data={data}
                     readonly={readonly}
-                    fullWidth
-                />
-                <Input
-                    value={data?.email}
-                    placeholder={t('Введите email')}
-                    label={t('Email')}
-                    className={cls.input}
-                    onChange={onChangeEmail}
-                    readonly={readonly}
-                    fullWidth
-                />
-                <Input
-                    value={data?.password}
-                    placeholder={t('Введите пароль')}
-                    label={t('Пароль')}
-                    className={cls.input}
-                    onChange={onChangePassword}
-                    readonly={readonly}
-                    fullWidth
-                />
-                <Input
-                    value={data?.avatar}
-                    label={t('Ссылка на аватар')}
-                    placeholder={t('Введите ссылку на аватар')}
-                    className={cls.input}
-                    onChange={onChangeAvatar}
-                    readonly={readonly}
-                    fullWidth
-                />
-                <RoleSelect
-                    className={cls.input}
-                    value={data?.role}
-                    onChange={onChangeUserRole}
-                    readonly={readonly}
+                    onChangePassword={onChangePassword}
+                    onChangeAvatar={onChangeAvatar}
+                    onChangeUserRole={onChangeUserRole}
                 />
             </VStack>
         </>

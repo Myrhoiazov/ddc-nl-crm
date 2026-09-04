@@ -1,11 +1,10 @@
-import { useTranslation } from 'react-i18next';
 import { memo } from 'react';
-import { Input } from '@/shared/ui/Input/Input';
-import Textarea from '@/shared/ui/Textarea/Textarea';
-import { TransactionSelect, TransactionType } from '@/entities/TransactionType';
+import { TransactionType } from '@/entities/TransactionType';
 import { Transaction } from '@/entities/Transaction';
-import { PaymentMethod, PaymentMethodSelect } from '@/entities/PaymentMethod';
-import { TransactionCategory, TransactionCategorySelect } from '@/entities/TransactionCategory';
+import { PaymentMethod } from '@/entities/PaymentMethod';
+import { TransactionCategory } from '@/entities/TransactionCategory';
+import { TransactionCategoryFields } from './TransactionCategoryFields';
+import { TransactionAmountFields } from './TransactionAmountFields';
 
 export interface TransactionCardProps {
     className?: string;
@@ -23,7 +22,6 @@ export interface TransactionCardProps {
 
 export const TransactionCard = memo((props: TransactionCardProps) => {
     const {
-        className,
         data,
         readonly,
         onChangeDate,
@@ -33,45 +31,21 @@ export const TransactionCard = memo((props: TransactionCardProps) => {
         onChangePaymentMethod,
         onChangeTransactionCategory,
     } = props;
-    const { t } = useTranslation();
 
     return (
         <>
-            <TransactionSelect
-                onChange={onChangeTransactionType}
-                value={data?.type}
+            <TransactionCategoryFields
+                data={data}
                 readonly={readonly}
+                onChangeTransactionType={onChangeTransactionType}
+                onChangePaymentMethod={onChangePaymentMethod}
+                onChangeTransactionCategory={onChangeTransactionCategory}
             />
-            <PaymentMethodSelect
-                onChange={onChangePaymentMethod}
-                value={data?.paymentMethod}
-                readonly={readonly}
-            />
-            <TransactionCategorySelect
-                onChange={onChangeTransactionCategory}
-                value={data?.category}
-            />
-            <Input
-                fullWidth
-                label="Дата:"
-                type="date"
-                placeholder={t('12.02.2025')}
-                onChange={onChangeDate}
-                value={data?.date ?? ''}
-            />
-            <Input
-                fullWidth
-                label="Сумма:"
-                type="text"
-                placeholder={t('100.00')}
-                onChange={onChangeSum}
-                value={data?.amount ?? ''}
-            />
-            <Textarea
-                placeholder="Дополнительная информация:"
-                fullWidth
-                value={data?.description}
-                onChange={onChangeDescription}
+            <TransactionAmountFields
+                data={data}
+                onChangeDate={onChangeDate}
+                onChangeSum={onChangeSum}
+                onChangeDescription={onChangeDescription}
             />
         </>
     );

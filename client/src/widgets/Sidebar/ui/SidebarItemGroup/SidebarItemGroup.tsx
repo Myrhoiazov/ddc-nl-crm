@@ -1,10 +1,8 @@
 import { memo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { classNames } from '@/shared/lib/classNames/classNames';
-import { Icon } from '@/shared/ui/Icon/Icon';
 import { SidebarItemType } from '../../model/types/sidebar';
-import { SidebarItem } from '../SidebarItem/SidebarItem';
-import cls from './SidebarItemGroup.module.scss';
+import { SidebarItemGroupCollapsed } from './SidebarItemGroupCollapsed';
+import { SidebarItemGroupExpanded } from './SidebarItemGroupExpanded';
 
 interface SidebarItemGroupProps {
     item: SidebarItemType;
@@ -21,54 +19,15 @@ export const SidebarItemGroup = memo(({ item, collapsed, isOpen, onToggle }: Sid
     ) ?? false;
 
     if (collapsed) {
-        return (
-            <div className={cls.collapsedGroup}>
-                <div className={classNames(cls.trigger, { [cls.active]: isChildActive })}>
-                    <Icon
-                        Svg={item.Icon}
-                        width={20}
-                        height={20}
-                        className={cls.icon}
-                        color={item.iconColor ?? 'fill'}
-                    />
-                </div>
-            </div>
-        );
+        return <SidebarItemGroupCollapsed item={item} isChildActive={isChildActive} />;
     }
 
     return (
-        <div className={cls.group}>
-            <button
-                className={classNames(cls.trigger, { [cls.active]: isChildActive, [cls.open]: isOpen })}
-                onClick={() => onToggle(item.text)}
-                type="button"
-            >
-                <Icon
-                    Svg={item.Icon}
-                    width={20}
-                    height={20}
-                    className={cls.icon}
-                    color={item.iconColor ?? 'fill'}
-                />
-                <span className={cls.label}>{item.text}</span>
-                <span className={classNames(cls.arrow, { [cls.arrowOpen]: isOpen })}>›</span>
-            </button>
-
-            <div
-                className={classNames(cls.childrenWrapper, { [cls.childrenOpen]: isOpen })}
-                aria-hidden={!isOpen}
-            >
-                <div className={cls.children}>
-                    {item.children?.map((child) => (
-                        <SidebarItem
-                            key={child.path}
-                            item={child}
-                            collapsed={false}
-                            nested
-                        />
-                    ))}
-                </div>
-            </div>
-        </div>
+        <SidebarItemGroupExpanded
+            item={item}
+            isOpen={isOpen}
+            isChildActive={isChildActive}
+            onToggle={onToggle}
+        />
     );
 });
