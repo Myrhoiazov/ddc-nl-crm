@@ -160,26 +160,28 @@ export const paymentCustomerName = (customer: {
         || null;
 };
 
-const searchPayments = async (q: string): Promise<GlobalSearchResponse['payments']> => {
+const paymentSearchWhere = (q: string): Prisma.PaymentWhereInput => ({
     // Платёж без customerId некуда открыть (нет отдельной detail-страницы платежа) —
     // такие записи исключаются из результатов поиска.
-    const where: Prisma.PaymentWhereInput = {
-        customerId: { not: null },
-        OR: [
-            { mollieId: { contains: q } },
-            { description: { contains: q } },
-            { customer: { email: { contains: q } } },
-            { customer: { givenName: { contains: q } } },
-            { customer: { familyName: { contains: q } } },
-            { customer: { payerName: { contains: q } } },
-            { customer: { client: { firstName: { contains: q } } } },
-            { customer: { client: { lastName: { contains: q } } } },
-            { customer: { client: { email: { contains: q } } } },
-            { customer: { clientLinks: { some: { client: { firstName: { contains: q } } } } } },
-            { customer: { clientLinks: { some: { client: { lastName: { contains: q } } } } } },
-            { customer: { clientLinks: { some: { client: { email: { contains: q } } } } } },
-        ],
-    };
+    customerId: { not: null },
+    OR: [
+        { mollieId: { contains: q } },
+        { description: { contains: q } },
+        { customer: { email: { contains: q } } },
+        { customer: { givenName: { contains: q } } },
+        { customer: { familyName: { contains: q } } },
+        { customer: { payerName: { contains: q } } },
+        { customer: { client: { firstName: { contains: q } } } },
+        { customer: { client: { lastName: { contains: q } } } },
+        { customer: { client: { email: { contains: q } } } },
+        { customer: { clientLinks: { some: { client: { firstName: { contains: q } } } } } },
+        { customer: { clientLinks: { some: { client: { lastName: { contains: q } } } } } },
+        { customer: { clientLinks: { some: { client: { email: { contains: q } } } } } },
+    ],
+});
+
+const searchPayments = async (q: string): Promise<GlobalSearchResponse['payments']> => {
+    const where = paymentSearchWhere(q);
 
     const [rows, total] = await Promise.all([
         prisma.payment.findMany({
