@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { createClient, deleteClient, getAllClients, getClientById, updateClient } from '../services/service.Clients';
-import { Client } from '@prisma/client';
+import { Client, Prisma } from '@prisma/client';
 import { imageUpload } from '../services/service.Files';
 import prisma from '../../prisma/prisma-client';
 import { z } from 'zod';
@@ -103,6 +103,100 @@ const validateGroupSelection = async (branchId: number | null | undefined, selec
     });
     return matchingGroups === new Set(selectedGroupIds).size;
 };
+
+const customerBasicSelect = {
+    id: true,
+    mollieId: true,
+    email: true,
+    payerName: true,
+    givenName: true,
+    familyName: true,
+} satisfies Prisma.CustomerSelect;
+
+const customerPayerSelect = {
+    ...customerBasicSelect,
+    payerRelation: true,
+    linkSource: true,
+} satisfies Prisma.CustomerSelect;
+
+const findPayerLinks = async (clientId: number) => prisma.customerClientLink.findMany({
+    where: { clientId },
+    include: {
+        customer: { select: customerPayerSelect },
+    },
+    orderBy: [
+        { isPrimary: 'desc' },
+        { createdAt: 'asc' },
+    ],
+});
+
+const findLatestPayments = async (clientId: number) => prisma.payment.findMany({
+    where: {
+        customer: {
+            clientLinks: {
+                some: { clientId },
+            },
+        },
+    },
+    include: {
+        customer: { select: customerBasicSelect },
+        subscription: {
+            select: {
+                id: true,
+                mollieId: true,
+                status: true,
+                description: true,
+            },
+        },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 8,
+});
+
+const findPaymentLinks = async (clientId: number) => prisma.payment.findMany({
+    where: {
+        checkoutUrl: { not: null },
+        customer: {
+            clientLinks: {
+                some: { clientId },
+            },
+        },
+    },
+    include: {
+        customer: { select: customerBasicSelect },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+});
+
+const findSubscriptions = async (clientId: number) => prisma.subscription.findMany({
+    where: {
+        customer: {
+            clientLinks: {
+                some: { clientId },
+            },
+        },
+    },
+    include: {
+        mandate: true,
+        customer: { select: customerBasicSelect },
+    },
+    orderBy: { updatedAt: 'desc' },
+});
+
+const findMandates = async (clientId: number) => prisma.mandate.findMany({
+    where: {
+        customer: {
+            clientLinks: {
+                some: { clientId },
+            },
+        },
+    },
+    include: {
+        customer: { select: customerBasicSelect },
+    },
+    orderBy: { updatedAt: 'desc' },
+});
 
 export const fetchAllClientsController = async (req: Request, res: Response) => {
 
@@ -227,127 +321,11 @@ export const getClientPaymentSummaryController = async (req: Request, res: Respo
         }
 
         const [payerLinks, latestPayments, paymentLinks, subscriptions, mandates] = await Promise.all([
-            prisma.customerClientLink.findMany({
-                where: { clientId },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            email: true,
-                            givenName: true,
-                            familyName: true,
-                            payerName: true,
-                            payerRelation: true,
-                            linkSource: true,
-                        },
-                    },
-                },
-                orderBy: [
-                    { isPrimary: 'desc' },
-                    { createdAt: 'asc' },
-                ],
-            }),
-            prisma.payment.findMany({
-                where: {
-                    customer: {
-                        clientLinks: {
-                            some: { clientId },
-                        },
-                    },
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            email: true,
-                            payerName: true,
-                            givenName: true,
-                            familyName: true,
-                        },
-                    },
-                    subscription: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            status: true,
-                            description: true,
-                        },
-                    },
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 8,
-            }),
-            prisma.payment.findMany({
-                where: {
-                    checkoutUrl: { not: null },
-                    customer: {
-                        clientLinks: {
-                            some: { clientId },
-                        },
-                    },
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            email: true,
-                            payerName: true,
-                            givenName: true,
-                            familyName: true,
-                        },
-                    },
-                },
-                orderBy: { createdAt: 'desc' },
-                take: 20,
-            }),
-            prisma.subscription.findMany({
-                where: {
-                    customer: {
-                        clientLinks: {
-                            some: { clientId },
-                        },
-                    },
-                },
-                include: {
-                    mandate: true,
-                    customer: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            email: true,
-                            payerName: true,
-                            givenName: true,
-                            familyName: true,
-                        },
-                    },
-                },
-                orderBy: { updatedAt: 'desc' },
-            }),
-            prisma.mandate.findMany({
-                where: {
-                    customer: {
-                        clientLinks: {
-                            some: { clientId },
-                        },
-                    },
-                },
-                include: {
-                    customer: {
-                        select: {
-                            id: true,
-                            mollieId: true,
-                            email: true,
-                            payerName: true,
-                            givenName: true,
-                            familyName: true,
-                        },
-                    },
-                },
-                orderBy: { updatedAt: 'desc' },
-            }),
+            findPayerLinks(clientId),
+            findLatestPayments(clientId),
+            findPaymentLinks(clientId),
+            findSubscriptions(clientId),
+            findMandates(clientId),
         ]);
 
         const issueStatuses = ['failed', 'canceled', 'expired', 'charged_back'];

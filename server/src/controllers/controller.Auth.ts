@@ -51,13 +51,33 @@ const trustedDeviceCookieOptions = {
 
 // "d***@gmail.com" — enough for the user to recognize their own address without
 // showing it in full on an unauthenticated screen.
-const maskEmail = (email: string) => {
+export const maskEmail = (email: string) => {
     const [local, domain] = email.split('@');
     if (!domain) return email;
     return `${local[0] ?? ''}***@${domain}`;
 };
 
 type AuthenticatedUser = NonNullable<Awaited<ReturnType<typeof getUserByEmail>>>;
+
+// Why login failed, surfaced as an audit reason. Distinct so security tooling
+// can tell a disabled account from wrong credentials.
+export const describeLoginFailure = (user: AuthenticatedUser | null) => ({
+    targetUserId: user?.id,
+    reason: user && !user.isEnabled ? 'ACCOUNT_DISABLED' : 'INVALID_CREDENTIALS',
+} as const);
+
+// The exact user profile the SPA receives on successful auth. Never leaks
+// password hash, salt, or internal columns.
+export const buildAuthenticatedUserData = (user: AuthenticatedUser, lastLogin: Date) => ({
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    role: user.role,
+    email: user.email,
+    isEnabled: user.isEnabled,
+    isActive: user.isActive,
+    lastLogin,
+});
 
 // Shared by the trusted-device bypass and by 2fa/verify's success path — both
 // end in exactly the same "you are now logged in" outcome as today's direct login.
@@ -91,16 +111,7 @@ const issueSession = async (
         metadata,
     });
 
-    const userData = {
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-        email: user.email,
-        isEnabled: user.isEnabled,
-        isActive: user.isActive,
-        lastLogin: new Date(),
-    };
+    const userData = buildAuthenticatedUserData(user, new Date());
 
     res.cookie(cookieName(), sessionToken, cookieOptions);
 
@@ -128,11 +139,11 @@ export const login = async (req: Request<{}, {}, loginType>, res: Response, next
         if (!user || !passwordCheck.valid || !user.isEnabled) {
             await recordAuthSecurityEvent({
                 type: AuthSecurityEventType.LOGIN_FAILED,
-                targetUserId: user?.id,
+                ...describeLoginFailure(user),
                 req,
                 metadata: {
                     email,
-                    reason: user && !user.isEnabled ? 'ACCOUNT_DISABLED' : 'INVALID_CREDENTIALS',
+                    reason: describeLoginFailure(user).reason,
                 },
             });
             throw new ApiError(401, 'Неверный email или пароль');
@@ -208,6 +219,22 @@ const TWO_FACTOR_FAILURE_MESSAGE: Record<string, string> = {
 // doesn't keep retrying against a cookie that can never succeed.
 const isTerminalTwoFactorReason = (reason: string) => reason !== 'INVALID_CODE';
 
+const createTrustedDeviceIfRequested = async (req: Request, res: Response, userId: number) => {
+    if (!req.body.trustDevice) return;
+    const device = await createTrustedDevice({
+        userId,
+        ipAddress: req.ip,
+        userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+    });
+    res.cookie(TRUSTED_DEVICE_COOKIE, device.rawToken, trustedDeviceCookieOptions);
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.TRUSTED_DEVICE_CREATED,
+        actorUserId: userId,
+        targetUserId: userId,
+        req,
+    });
+};
+
 export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>, res: Response, next: NextFunction) => {
     const pendingToken = req.cookies[TWO_FACTOR_PENDING_COOKIE];
     const { code, trustDevice } = req.body;
@@ -245,20 +272,7 @@ export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>,
         const userData = await issueSession(user, req, res, { twoFactor: 'VERIFIED' });
         res.clearCookie(TWO_FACTOR_PENDING_COOKIE, twoFactorPendingCookieOptions);
 
-        if (trustDevice) {
-            const device = await createTrustedDevice({
-                userId: user.id,
-                ipAddress: req.ip,
-                userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
-            });
-            res.cookie(TRUSTED_DEVICE_COOKIE, device.rawToken, trustedDeviceCookieOptions);
-            await recordAuthSecurityEvent({
-                type: AuthSecurityEventType.TRUSTED_DEVICE_CREATED,
-                actorUserId: user.id,
-                targetUserId: user.id,
-                req,
-            });
-        }
+        await createTrustedDeviceIfRequested(req, res, user.id);
 
         return res.status(200).json(userData);
     } catch (error) {
