@@ -113,23 +113,17 @@ export const selectSubscriptionsDueForReminder = async (offsetDays: number, now 
 
 export type DueSubscription = Awaited<ReturnType<typeof selectSubscriptionsDueForReminder>>[number];
 
-export const sendReminderForSubscription = async (
-    subscription: DueSubscription,
+const createReminderDelivery = async (
+    subscriptionId: number,
     targetPaymentDate: Date,
+    language: ClientLanguage,
+    recipientEmail: string | null,
     triggeredById?: number,
 ) => {
-    const client = subscription.customer.client;
-    const recipientEmail = subscription.customer.email;
-    // The Mollie Customer is who actually pays (e.g. a parent paying for their child's
-    // Client record) — their own language preference takes priority over the linked
-    // Client's, which is only a fallback for customers that never got their own set.
-    const language: ClientLanguage = subscription.customer.preferredLanguage ?? client?.preferredLanguage ?? ClientLanguage.RU;
-
-    let delivery;
     try {
-        delivery = await prisma.paymentReminderDelivery.create({
+        return await prisma.paymentReminderDelivery.create({
             data: {
-                subscriptionId: subscription.id,
+                subscriptionId,
                 targetPaymentDate,
                 language,
                 recipientEmail: recipientEmail ?? '',
@@ -142,15 +136,22 @@ export const sendReminderForSubscription = async (
         if (isUniqueConstraintViolation(error)) return null;
         throw error;
     }
+};
 
-    if (!recipientEmail) return delivery;
-
+const sendReminderEmail = async (
+    delivery: { id: number },
+    subscription: DueSubscription,
+    language: ClientLanguage,
+    recipientEmail: string,
+    targetPaymentDate: Date,
+) => {
     try {
         const settings = await getPaymentReminderSettings();
         if (!settings.senderEmailAccountId) {
             throw new Error('Не настроен email-ящик отправителя для напоминаний об оплате');
         }
 
+        const client = subscription.customer.client;
         const recipientName = client
             ? `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim()
             : (subscription.customer.givenName ?? '');
@@ -185,6 +186,31 @@ export const sendReminderForSubscription = async (
             },
         });
     }
+};
+
+export const sendReminderForSubscription = async (
+    subscription: DueSubscription,
+    targetPaymentDate: Date,
+    triggeredById?: number,
+) => {
+    const client = subscription.customer.client;
+    const recipientEmail = subscription.customer.email;
+    // The Mollie Customer is who actually pays (e.g. a parent paying for their child's
+    // Client record) — their own language preference takes priority over the linked
+    // Client's, which is only a fallback for customers that never got their own set.
+    const language: ClientLanguage = subscription.customer.preferredLanguage ?? client?.preferredLanguage ?? ClientLanguage.RU;
+
+    const delivery = await createReminderDelivery(
+        subscription.id,
+        targetPaymentDate,
+        language,
+        recipientEmail,
+        triggeredById,
+    );
+    if (!delivery) return null;
+    if (!recipientEmail) return delivery;
+
+    return sendReminderEmail(delivery, subscription, language, recipientEmail, targetPaymentDate);
 };
 
 export interface RunPaymentRemindersResult {
