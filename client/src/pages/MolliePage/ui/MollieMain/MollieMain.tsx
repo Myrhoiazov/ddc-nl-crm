@@ -1,50 +1,16 @@
-import { memo, useEffect, useState } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { $apiPrivate } from '@/shared/api/api';
 import { HStack, VStack } from '@/shared/ui/Stack';
 import { Card } from '@/shared/ui/Card/Card';
 import { Text } from '@/shared/ui/Text/Text';
 import { Skeleton } from '@/shared/ui/Skeleton/Skeleton';
 import s from './MollieMain.module.scss';
-
-export interface OrganizationProfile {
-    id: string;
-    businessCategory: string;
-    categoryCode: number;
-    countriesOfActivity: string[];
-    createdAt: string;
-    description: string;
-    email: string;
-    mode: 'live' | 'test';
-    name: string;
-    phone: string;
-    status: 'verified' | 'unverified' | string;
-    website?: string;
-}
+import { useMollieOrganizations } from './useMollieOrganizations';
+import { MollieOrganizationCard } from './MollieOrganizationCard';
 
 export const MollieMain = memo(() => {
-    const [organizations, setOrganizations] = useState<OrganizationProfile[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(false);
+    const { organizations, isLoading, error } = useMollieOrganizations();
     const { t } = useTranslation('home');
-
-    useEffect(() => {
-        const loadData = async () => {
-            setIsLoading(true);
-            setError(false);
-
-            try {
-                const response = await $apiPrivate.get<OrganizationProfile>('/mollie/organizations');
-                setOrganizations([response.data]);
-            } catch {
-                setError(true);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        loadData();
-    }, []);
 
     return (
         <VStack gap="16" max className={s.MollieMain}>
@@ -74,55 +40,8 @@ export const MollieMain = memo(() => {
             )}
 
             {!isLoading && !error && organizations.map((org) => (
-                <Card key={org.id} padding="24" fullWidth className={s.companyCard}>
-                    <VStack gap="16" max>
-                        <div className={s.companyHeader}>
-                            <div>
-                                <Text title={org.name} size="m" bold />
-                                <Text text={org.description || org.id} size="s" className={s.subtitle} />
-                            </div>
-                            <span className={`${s.badge} ${org.status === 'verified' ? s.verified : ''}`}>
-                                {org.status}
-                            </span>
-                        </div>
-                        <div className={s.detailsGrid}>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Email')}</span>
-                                <span className={s.value}>{org.email || '—'}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Phone')}</span>
-                                <span className={s.value}>{org.phone || '—'}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Mode')}</span>
-                                <span className={s.value}>{org.mode}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Business category')}</span>
-                                <span className={s.value}>{org.businessCategory || '—'}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Category code')}</span>
-                                <span className={s.value}>{org.categoryCode || '—'}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Countries')}</span>
-                                <span className={s.value}>{org.countriesOfActivity?.join(', ') || '—'}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Created')}</span>
-                                <span className={s.value}>{new Date(org.createdAt).toLocaleDateString('nl-NL')}</span>
-                            </div>
-                            <div className={s.detailItem}>
-                                <span className={s.label}>{t('Website')}</span>
-                                <span className={s.value}>{org.website || '—'}</span>
-                            </div>
-                        </div>
-                    </VStack>
-                </Card>
+                <MollieOrganizationCard key={org.id} org={org} />
             ))}
-
         </VStack>
     );
 });
