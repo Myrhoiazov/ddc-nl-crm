@@ -1,7 +1,7 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { useTranslation } from 'react-i18next';
 import cls from './MollieClientForm.module.scss';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { VStack } from '@/shared/ui/Stack';
 import { Text } from '@/shared/ui/Text/Text';
 import { Button, ButtonTheme } from '@/shared/ui/Button';
@@ -30,68 +30,43 @@ const initialReducers: ReducersList = {
     addMollieClientForm: addMollieClientReducer,
 };
 
+type ProfileField = 'consumerAccount' | 'consumerName' | 'consumerBic' | 'givenName' | 'familyName' | 'email' | 'city';
+
 const MollieClientForm = memo((props: MollieClientFormProps) => {
     const { className, onSuccess, reloadPage } = props;
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const formData = useSelector(getAddClientForm);
 
-    const cleanForm = useCallback(() => {
-        onChangeEmail('');
-    }, [onSuccess]);
+    // One stable updater per profile field instead of seven near-identical
+    // useCallback blocks; each closure only writes its own slice field.
+    const profileUpdaters = useMemo(() => {
+        const updater = (field: ProfileField) => (value?: string) => {
+            dispatch(addMollieClientActions.updateProfile({ [field]: value }));
+        };
 
-    const onChangeConsumerAccount = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ consumerAccount: value }));
-        },
-        [dispatch]
-    );
-    const onChangeConsumerName = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ consumerName: value }));
-        },
-        [dispatch]
-    );
-    const onChangeConsumerBic = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ consumerBic: value }));
-        },
-        [dispatch]
-    );
-    const onChangeFirstName = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ givenName: value }));
-        },
-        [dispatch]
-    );
-    const onChangeLastName = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ familyName: value }));
-        },
-        [dispatch]
-    );
-    const onChangeEmail = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ email: value }));
-        },
-        [dispatch]
-    );
-    const onChangeCity = useCallback(
-        (value?: string) => {
-            dispatch(addMollieClientActions.updateProfile({ city: value }));
-        },
-        [dispatch]
-    );
+        return {
+            consumerAccount: updater('consumerAccount'),
+            consumerName: updater('consumerName'),
+            consumerBic: updater('consumerBic'),
+            givenName: updater('givenName'),
+            familyName: updater('familyName'),
+            email: updater('email'),
+            city: updater('city'),
+        };
+    }, [dispatch]);
+
+    const { email: clearEmail } = profileUpdaters;
 
     const onSave = useCallback(async () => {
         const result = await dispatch(addMolieClientData());
         if (result.meta.requestStatus === 'fulfilled') {
             onSuccess();
             reloadPage?.();
-            cleanForm();
+            clearEmail('');
             toast.success(t('Клиент успешно добавлен'));
         }
-    }, [onSuccess, cleanForm, dispatch, reloadPage]);
+    }, [onSuccess, clearEmail, dispatch, reloadPage, t]);
 
     return (
         <DynamicModuleLoader reducers={initialReducers}>
@@ -99,13 +74,13 @@ const MollieClientForm = memo((props: MollieClientFormProps) => {
                 <VStack gap="24" align="center" className={cls.header}>
                     <Text size="m" title={t('Добавление нового клиента')} bold />
                     <MollieClientCard
-                        onChangeLastName={onChangeLastName}
-                        onChangeFirstName={onChangeFirstName}
-                        onChangeEmail={onChangeEmail}
-                        onChangeCity={onChangeCity}
-                        onChangeConsumerAccount={onChangeConsumerAccount}
-                        onChangeConsumerName={onChangeConsumerName}
-                        onChangeConsumerBic={onChangeConsumerBic}
+                        onChangeLastName={profileUpdaters.familyName}
+                        onChangeFirstName={profileUpdaters.givenName}
+                        onChangeEmail={profileUpdaters.email}
+                        onChangeCity={profileUpdaters.city}
+                        onChangeConsumerAccount={profileUpdaters.consumerAccount}
+                        onChangeConsumerName={profileUpdaters.consumerName}
+                        onChangeConsumerBic={profileUpdaters.consumerBic}
                         data={formData}
                     />
                     <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
