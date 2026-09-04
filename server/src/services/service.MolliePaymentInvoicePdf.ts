@@ -1,4 +1,4 @@
-import { InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
+import { InvoiceDocumentType, InvoiceStatus, Prisma } from '@prisma/client';
 import prisma from '../../prisma/prisma-client';
 import { createInvoicePdf } from './service.InvoicePdf';
 import { getMolliePaymentNetCents } from './service.InvoiceMollie';
@@ -15,27 +15,25 @@ const customerName = (customer: {
     || 'Mollie customer'
 );
 
-interface MolliePaymentForPdf {
-    id: number;
-    mollieId: string | null;
-    amountValue: string;
-    amountCurrency: string;
-    method: string | null;
-    status: string;
-    description: string | null;
-    paidAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-    refundedAmount: string;
-    chargedBackAmount: string;
-    invoice: Parameters<typeof createInvoicePdf>[0] | null;
+const PAYMENT_QUERY_INCLUDE = {
+    invoice: {
+        include: {
+            items: { orderBy: { id: 'asc' } },
+        },
+    },
     customer: {
-        payerName: string | null;
-        givenName: string | null;
-        familyName: string | null;
-        email: string | null;
-    } | null;
-}
+        select: {
+            payerName: true,
+            givenName: true,
+            familyName: true,
+            email: true,
+        },
+    },
+} as const;
+
+type MolliePaymentForPdf = Prisma.PaymentGetPayload<{
+    include: typeof PAYMENT_QUERY_INCLUDE;
+}>;
 
 const paymentStatusFor = (
     payment: MolliePaymentForPdf,
@@ -116,38 +114,22 @@ const buildMollieInvoiceDraft = (
 export const createMolliePaymentInvoicePdf = async (paymentId: number) => {
     const payment = await prisma.payment.findUnique({
         where: { id: paymentId },
-        include: {
-            invoice: {
-                include: {
-                    items: { orderBy: { id: 'asc' } },
-                },
-            },
-            customer: {
-                select: {
-                    payerName: true,
-                    givenName: true,
-                    familyName: true,
-                    email: true,
-                },
-            },
-        },
+        include: PAYMENT_QUERY_INCLUDE,
     });
     if (!payment) return null;
 
-    const pdfPayment = payment as unknown as MolliePaymentForPdf;
-
-    if (pdfPayment.invoice) {
+    if (payment.invoice) {
         return {
-            filename: `${pdfPayment.invoice.number}.pdf`,
-            document: await createInvoicePdf(pdfPayment.invoice),
+            filename: `${payment.invoice.number}.pdf`,
+            document: await createInvoicePdf(payment.invoice),
         };
     }
 
-    const totalCents = Math.round(Number(pdfPayment.amountValue) * 100);
-    const paidAmountCents = getMolliePaymentNetCents(pdfPayment);
+    const totalCents = Math.round(Number(payment.amountValue) * 100);
+    const paidAmountCents = getMolliePaymentNetCents(payment);
     const balanceDueCents = Math.max(0, totalCents - paidAmountCents);
-    const status = paymentStatusFor(pdfPayment, paidAmountCents, balanceDueCents);
-    const document = await createInvoicePdf(buildMollieInvoiceDraft(pdfPayment, { totalCents, paidAmountCents, balanceDueCents }, status));
+    const status = paymentStatusFor(payment, paidAmountCents, balanceDueCents);
+    const document = await createInvoicePdf(buildMollieInvoiceDraft(payment, { totalCents, paidAmountCents, balanceDueCents }, status));
 
-    return { filename: `MOLLIE-${pdfPayment.mollieId ?? pdfPayment.id}.pdf`, document };
+    return { filename: `MOLLIE-${payment.mollieId ?? payment.id}.pdf`, document };
 };
