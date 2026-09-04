@@ -263,6 +263,132 @@ const isFinanciallyLocked = (invoice: {
     || invoice.creditedAmountCents > 0
 );
 
+type InvoiceItemInput = z.infer<typeof invoiceItemSchema>;
+type CreateInvoiceData = z.infer<typeof createInvoiceSchema>;
+
+const calculateTotalCents = (items: InvoiceItemInput[]) =>
+    items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+
+const mapInvoiceItemCreates = (items: InvoiceItemInput[]) =>
+    items.map((item) => ({
+        groupId: item.groupId ?? null,
+        description: item.description,
+        period: item.period ?? null,
+        quantity: item.quantity,
+        unitPriceCents: item.unitPriceCents,
+        totalCents: item.quantity * item.unitPriceCents,
+    }));
+
+// Archives Mollie payment links before a financial mutation. Returns true on success,
+// or writes the 502 response and returns false — the caller must stop and return.
+const archivePaymentLinksSafe = async (
+    id: number,
+    res: Response,
+    logSuffix: string,
+    userMessage: string,
+): Promise<boolean> => {
+    try {
+        await archiveInvoicePaymentLinks(id);
+        return true;
+    } catch (error) {
+        console.error(`Unable to archive Mollie payment links ${logSuffix}:`, error);
+        res.status(502).json({ message: userMessage });
+        return false;
+    }
+};
+
+const buildPaidInvoiceCreateData = (params: {
+    number: string;
+    data: z.infer<typeof paidInvoiceSchema>;
+    totalCents: number;
+    issuerSnapshot: IssuerSnapshot;
+    issuerAddress: string | null;
+    actorId?: number;
+}) => ({
+    number: params.number,
+    status: InvoiceStatus.PAID,
+    clientId: params.data.clientId ?? null,
+    businessBrandId: params.data.businessBrandId ?? null,
+    billToName: params.data.billToName,
+    billToEmail: params.data.billToEmail || null,
+    issueDate: params.data.issueDate,
+    dueDate: params.data.dueDate ?? null,
+    paidAt: params.data.payment.paidAt,
+    totalCents: params.totalCents,
+    paidAmountCents: params.totalCents,
+    balanceDueCents: 0,
+    issuerName: params.data.issuerName,
+    issuerEmail: params.data.issuerEmail || null,
+    bankName: params.data.bankName ?? null,
+    iban: params.data.iban ?? null,
+    paymentReference: params.number,
+    note: params.data.note ?? null,
+    showPaymentButton: false,
+    showPaymentQr: false,
+    ...params.issuerSnapshot,
+    issuerAddress: params.issuerAddress,
+    createdById: params.actorId,
+    updatedById: params.actorId,
+    items: { create: mapInvoiceItemCreates(params.data.items) },
+    payments: {
+        create: {
+            amountCents: params.totalCents,
+            paidAt: params.data.payment.paidAt,
+            method: params.data.payment.method,
+            reference: params.data.payment.reference || null,
+            note: params.data.payment.note || null,
+            createdById: params.actorId,
+        },
+    },
+});
+
+const buildInvoiceUpdateData = (params: {
+    data: CreateInvoiceData;
+    totalCents: number;
+    issuerSnapshot: IssuerSnapshot;
+    issuerAddress: string | null;
+    existing: { paidAmountCents: number; creditedAmountCents: number };
+    actorId?: number;
+}) => ({
+    status: params.data.status,
+    clientId: params.data.clientId ?? null,
+    businessBrandId: params.data.businessBrandId ?? null,
+    billToName: params.data.billToName,
+    billToEmail: params.data.billToEmail || null,
+    issueDate: params.data.issueDate,
+    dueDate: params.data.dueDate ?? null,
+    totalCents: params.totalCents,
+    balanceDueCents: Math.max(0, params.totalCents - params.existing.paidAmountCents - params.existing.creditedAmountCents),
+    issuerName: params.data.issuerName,
+    issuerEmail: params.data.issuerEmail || null,
+    bankName: params.data.bankName ?? null,
+    iban: params.data.iban ?? null,
+    note: params.data.note ?? null,
+    showPaymentButton: params.data.showPaymentButton,
+    showPaymentQr: params.data.showPaymentQr,
+    ...params.issuerSnapshot,
+    issuerAddress: params.issuerAddress,
+    updatedById: params.actorId,
+    items: { create: mapInvoiceItemCreates(params.data.items) },
+});
+
+const calculatePaymentResult = (existing: {
+    status: InvoiceStatus;
+    dueDate: Date | null;
+    paidAmountCents: number;
+    creditedAmountCents: number;
+    balanceDueCents: number;
+    totalCents: number;
+}, amountCents: number) => {
+    const paidAmountCents = existing.paidAmountCents + amountCents;
+    const balanceDueCents = existing.totalCents - paidAmountCents - existing.creditedAmountCents;
+    return {
+        paidAmountCents,
+        balanceDueCents,
+        nextStatus: calculateStatus({ ...existing, paidAmountCents, balanceDueCents }),
+    };
+};
+
 const markOverdueInvoices = async () => {
     const overdueInvoices = await prisma.invoice.findMany({
         where: {
@@ -346,7 +472,7 @@ export const createInvoice = async (req: Request, res: Response) => {
     const issuerSnapshot = await getIssuerSnapshot(data.businessBrandId);
     const invoice = await prisma.$transaction(async (transaction) => {
         const number = await nextDocumentNumber(transaction, data.issueDate);
-        const totalCents = data.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+        const totalCents = calculateTotalCents(data.items);
         const created = await transaction.invoice.create({
             data: {
                 number,
@@ -371,16 +497,7 @@ export const createInvoice = async (req: Request, res: Response) => {
                 issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
                 createdById: actorId,
                 updatedById: actorId,
-                items: {
-                    create: data.items.map((item) => ({
-                        groupId: item.groupId ?? null,
-                        description: item.description,
-                        period: item.period ?? null,
-                        quantity: item.quantity,
-                        unitPriceCents: item.unitPriceCents,
-                        totalCents: item.quantity * item.unitPriceCents,
-                    })),
-                },
+                items: { create: mapInvoiceItemCreates(data.items) },
             },
             include: invoiceInclude,
         });
@@ -407,55 +524,17 @@ export const createPaidInvoice = async (req: Request, res: Response) => {
     const issuerSnapshot = await getIssuerSnapshot(data.businessBrandId);
     const invoice = await prisma.$transaction(async (transaction) => {
         const number = await nextDocumentNumber(transaction, data.issueDate);
-        const totalCents = data.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+        const totalCents = calculateTotalCents(data.items);
         if (totalCents <= 0) throw new Error('Сумма оплаченного инвойса должна быть больше нуля');
         const created = await transaction.invoice.create({
-            data: {
+            data: buildPaidInvoiceCreateData({
                 number,
-                status: InvoiceStatus.PAID,
-                clientId: data.clientId ?? null,
-                businessBrandId: data.businessBrandId ?? null,
-                billToName: data.billToName,
-                billToEmail: data.billToEmail || null,
-                issueDate: data.issueDate,
-                dueDate: data.dueDate ?? null,
-                paidAt: data.payment.paidAt,
+                data,
                 totalCents,
-                paidAmountCents: totalCents,
-                balanceDueCents: 0,
-                issuerName: data.issuerName,
-                issuerEmail: data.issuerEmail || null,
-                bankName: data.bankName ?? null,
-                iban: data.iban ?? null,
-                paymentReference: number,
-                note: data.note ?? null,
-                showPaymentButton: false,
-                showPaymentQr: false,
-                ...issuerSnapshot,
+                issuerSnapshot,
                 issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
-                createdById: actorId,
-                updatedById: actorId,
-                items: {
-                    create: data.items.map((item) => ({
-                        groupId: item.groupId ?? null,
-                        description: item.description,
-                        period: item.period ?? null,
-                        quantity: item.quantity,
-                        unitPriceCents: item.unitPriceCents,
-                        totalCents: item.quantity * item.unitPriceCents,
-                    })),
-                },
-                payments: {
-                    create: {
-                        amountCents: totalCents,
-                        paidAt: data.payment.paidAt,
-                        method: data.payment.method,
-                        reference: data.payment.reference || null,
-                        note: data.payment.note || null,
-                        createdById: actorId,
-                    },
-                },
-            },
+                actorId,
+            }),
             include: invoiceInclude,
         });
         await createAuditLog(transaction, {
@@ -546,55 +625,31 @@ export const updateInvoice = async (req: Request, res: Response) => {
     const data = parsed.data;
     const actorId = getActorId(req);
     const issuerSnapshot = await getIssuerSnapshot(data.businessBrandId);
-    const totalCents = data.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+    const totalCents = calculateTotalCents(data.items);
     const paymentTermsChanged = totalCents !== existing.totalCents
         || data.status !== existing.status
         || (data.dueDate?.getTime() ?? null) !== (existing.dueDate?.getTime() ?? null);
     if (paymentTermsChanged) {
-        try {
-            await archiveInvoicePaymentLinks(id);
-        } catch (error) {
-            console.error(`Unable to archive Mollie payment links before editing invoice ${id}:`, error);
-            return res.status(502).json({
-                message: 'Не удалось обновить ссылку оплаты в Mollie. Инвойс не был изменён.',
-            });
-        }
+        const archived = await archivePaymentLinksSafe(
+            id,
+            res,
+            `before editing invoice ${id}`,
+            'Не удалось обновить ссылку оплаты в Mollie. Инвойс не был изменён.',
+        );
+        if (!archived) return;
     }
     const invoice = await prisma.$transaction(async (transaction) => {
         await transaction.invoiceItem.deleteMany({ where: { invoiceId: id } });
         const updated = await transaction.invoice.update({
             where: { id },
-            data: {
-                status: data.status,
-                clientId: data.clientId ?? null,
-                businessBrandId: data.businessBrandId ?? null,
-                billToName: data.billToName,
-                billToEmail: data.billToEmail || null,
-                issueDate: data.issueDate,
-                dueDate: data.dueDate ?? null,
+            data: buildInvoiceUpdateData({
+                data,
                 totalCents,
-                balanceDueCents: Math.max(0, totalCents - existing.paidAmountCents - existing.creditedAmountCents),
-                issuerName: data.issuerName,
-                issuerEmail: data.issuerEmail || null,
-                bankName: data.bankName ?? null,
-                iban: data.iban ?? null,
-                note: data.note ?? null,
-                showPaymentButton: data.showPaymentButton,
-                showPaymentQr: data.showPaymentQr,
-                ...issuerSnapshot,
+                issuerSnapshot,
                 issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
-                updatedById: actorId,
-                items: {
-                    create: data.items.map((item) => ({
-                        groupId: item.groupId ?? null,
-                        description: item.description,
-                        period: item.period ?? null,
-                        quantity: item.quantity,
-                        unitPriceCents: item.unitPriceCents,
-                        totalCents: item.quantity * item.unitPriceCents,
-                    })),
-                },
-            },
+                existing,
+                actorId,
+            }),
             include: invoiceInclude,
         });
         await createAuditLog(transaction, {
@@ -708,14 +763,13 @@ export const updateInvoiceStatus = async (req: Request, res: Response) => {
     }
 
     if (parsed.data.status === InvoiceStatus.CANCELLED) {
-        try {
-            await archiveInvoicePaymentLinks(id);
-        } catch (error) {
-            console.error(`Unable to archive Mollie payment links for invoice ${id}:`, error);
-            return res.status(502).json({
-                message: 'Не удалось отключить ссылку оплаты в Mollie. Инвойс не был отменён.',
-            });
-        }
+        const archived = await archivePaymentLinksSafe(
+            id,
+            res,
+            `for invoice ${id}`,
+            'Не удалось отключить ссылку оплаты в Mollie. Инвойс не был отменён.',
+        );
+        if (!archived) return;
     }
 
     if (isFinanciallyLocked(existing)) {
@@ -776,19 +830,16 @@ export const recordInvoicePayment = async (req: Request, res: Response) => {
     const eligibilityError = validateInvoicePaymentEligibility(existing, parsed.data.amountCents);
     if (eligibilityError) return res.status(409).json({ message: eligibilityError });
 
-    try {
-        await archiveInvoicePaymentLinks(id);
-    } catch (error) {
-        console.error(`Unable to archive Mollie payment links before recording payment for invoice ${id}:`, error);
-        return res.status(502).json({
-            message: 'Не удалось обновить ссылку оплаты в Mollie. Оплата не была зарегистрирована.',
-        });
-    }
+    const archived = await archivePaymentLinksSafe(
+        id,
+        res,
+        `before recording payment for invoice ${id}`,
+        'Не удалось обновить ссылку оплаты в Mollie. Оплата не была зарегистрирована.',
+    );
+    if (!archived) return;
     const actorId = getActorId(req);
     const invoice = await prisma.$transaction(async (transaction) => {
-        const paidAmountCents = existing.paidAmountCents + parsed.data.amountCents;
-        const balanceDueCents = existing.totalCents - paidAmountCents - existing.creditedAmountCents;
-        const nextStatus = calculateStatus({ ...existing, paidAmountCents, balanceDueCents });
+        const { paidAmountCents, balanceDueCents, nextStatus } = calculatePaymentResult(existing, parsed.data.amountCents);
         await transaction.invoicePayment.create({
             data: {
                 invoiceId: id,
