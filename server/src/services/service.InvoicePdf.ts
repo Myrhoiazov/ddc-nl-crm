@@ -63,78 +63,68 @@ const fitSingleLineFontSize = (
     return fontSize;
 };
 
-export const createInvoicePdf = async (invoice: InvoiceWithItems) => {
-    const doc = new PDFDocument({ size: 'A4', margin: 55 });
-    const left = 55;
-    const right = 540;
-    const width = right - left;
+const documentTitle = (invoice: InvoiceWithItems) => {
+    if (invoice.documentType === 'CREDIT_NOTE') return 'CREDIT NOTE';
+    if (invoice.documentType === 'DEBIT_NOTE') return 'DEBIT NOTE';
+    return 'INVOICE';
+};
 
-    const documentTitle = invoice.documentType === 'CREDIT_NOTE'
-        ? 'CREDIT NOTE'
-        : invoice.documentType === 'DEBIT_NOTE'
-            ? 'DEBIT NOTE'
-            : 'INVOICE';
+const renderHeader = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number) => {
     const primaryColor = invoice.issuerPrimaryColor || '#1d1d33';
     const logoPath = resolveLogoPath(invoice.issuerLogoUrl);
     const logoTop = 50;
     const logoHeight = logoPath ? 65 : 0;
     if (logoPath) doc.image(logoPath, left, logoTop, { fit: [100, logoHeight] });
     const titleTop = logoPath ? logoTop + logoHeight + 8 : 65;
-    doc.font(boldFont).fontSize(26).fillColor(primaryColor).text(documentTitle, left, titleTop);
+    doc.font(boldFont).fontSize(26).fillColor(primaryColor).text(documentTitle(invoice), left, titleTop);
+
     const issuerTextLeft = 300;
     const issuerTextWidth = right - issuerTextLeft;
     const issuerNameFontSize = fitSingleLineFontSize(doc, invoice.issuerName, issuerTextWidth, 15, 9);
     doc.font(boldFont).fontSize(issuerNameFontSize).text(invoice.issuerName, issuerTextLeft, 55, {
-        width: issuerTextWidth,
-        height: 18,
-        align: 'right',
-        ellipsis: true,
-        lineBreak: false,
+        width: issuerTextWidth, height: 18, align: 'right', ellipsis: true, lineBreak: false,
     });
     doc.font(regularFont).fontSize(9).fillColor('#6b7280');
-    const contactLeft = issuerTextLeft;
-    const contactWidth = right - contactLeft;
+    const contactWidth = right - issuerTextLeft;
     const addressTop = 82;
     const addressHeight = invoice.issuerAddress
         ? Math.min(24, doc.heightOfString(invoice.issuerAddress, { width: contactWidth, align: 'right' }))
         : 0;
-    if (invoice.issuerAddress) doc.text(invoice.issuerAddress, contactLeft, addressTop, {
-        width: contactWidth,
-        height: addressHeight,
-        align: 'right',
-        ellipsis: true,
+    if (invoice.issuerAddress) doc.text(invoice.issuerAddress, issuerTextLeft, addressTop, {
+        width: contactWidth, height: addressHeight, align: 'right', ellipsis: true,
     });
     const emailTop = invoice.issuerAddress ? addressTop + addressHeight + 3 : addressTop;
-    if (invoice.issuerEmail) doc.text(invoice.issuerEmail, contactLeft, emailTop, {
-        width: contactWidth,
-        height: 11,
-        align: 'right',
-        ellipsis: true,
-        lineBreak: false,
+    if (invoice.issuerEmail) doc.text(invoice.issuerEmail, issuerTextLeft, emailTop, {
+        width: contactWidth, height: 11, align: 'right', ellipsis: true, lineBreak: false,
     });
 
     const leftHeaderBottom = titleTop + 31;
     const contactBottom = invoice.issuerEmail ? emailTop + 11 : addressTop + addressHeight;
     const headerDividerY = Math.max(132, Math.max(leftHeaderBottom, contactBottom) + 16);
-    const headerOffset = headerDividerY - 132;
     doc.moveTo(left, headerDividerY).lineTo(right, headerDividerY).lineWidth(2).strokeColor(primaryColor).stroke();
+    return { headerDividerY, primaryColor };
+};
+
+const renderInvoiceInfo = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, headerDividerY: number) => {
+    const headerOffset = headerDividerY - 132;
     doc.font(boldFont).fontSize(10).fillColor('#111111').text('Invoice No:', left, 158 + headerOffset);
     doc.font(regularFont).text(invoice.number, 120, 158 + headerOffset);
     doc.font(boldFont).text('Date:', 430, 158 + headerOffset);
     doc.font(regularFont).text(date(invoice.issueDate), 465, 158 + headerOffset, { width: 75, align: 'right' });
-
     doc.font(boldFont).text('Bill To:', left, 195 + headerOffset);
     doc.font(regularFont).text(invoice.billToName, left, 213 + headerOffset);
     if (invoice.billToEmail) doc.fillColor('#6b7280').text(invoice.billToEmail, left, 228 + headerOffset);
+    return 265 + headerOffset;
+};
 
-    let y = 265 + headerOffset;
+const renderItemsTable = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, width: number, startY: number, primaryColor: string) => {
+    let y = startY;
     doc.rect(left, y, width, 30).fill(primaryColor);
     doc.font(boldFont).fontSize(9).fillColor('#ffffff');
     doc.text('#', left + 14, y + 10, { width: 24 });
     doc.text('Description', left + 52, y + 10, { width: 215 });
     doc.text('Period', left + 285, y + 10, { width: 95 });
     doc.text('Amount', left + 390, y + 10, { width: 80, align: 'right' });
-
     y += 30;
     invoice.items.forEach((item, index) => {
         const rowHeight = 35;
@@ -146,24 +136,20 @@ export const createInvoicePdf = async (invoice: InvoiceWithItems) => {
         doc.text(money(item.totalCents, invoice.currency), left + 390, y + 12, { width: 80, align: 'right' });
         y += rowHeight;
     });
+    return y;
+};
 
+const renderTotals = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, width: number, y: number) => {
     doc.moveTo(left, y).lineTo(right, y).lineWidth(1).strokeColor('#1d1d33').stroke();
     doc.rect(left, y, width, 36).fill('#f7f7f8');
     const hasPaymentActivity = invoice.paidAmountCents > 0 || invoice.creditedAmountCents > 0;
     doc.font(boldFont).fontSize(11).fillColor('#111111').text(
         invoice.documentType !== 'CREDIT_NOTE' && !hasPaymentActivity ? 'TOTAL DUE' : 'TOTAL',
-        left + 300,
-        y + 12,
-        {
-        width: 100,
-        align: 'right',
-        },
+        left + 300, y + 12, { width: 100, align: 'right' },
     );
     doc.fillColor('#ef4056').text(money(invoice.totalCents, invoice.currency), left + 405, y + 12, {
-        width: 65,
-        align: 'right',
+        width: 65, align: 'right',
     });
-
     y += 48;
     if (invoice.documentType !== 'CREDIT_NOTE' && hasPaymentActivity) {
         doc.font(boldFont).fontSize(9).fillColor('#111111').text('Paid:', left + 300, y, { width: 100, align: 'right' });
@@ -174,6 +160,10 @@ export const createInvoicePdf = async (invoice: InvoiceWithItems) => {
         y += 28;
     }
     doc.moveTo(left, y).lineTo(right, y).lineWidth(1).strokeColor('#e5e7eb').stroke();
+    return y;
+};
+
+const renderPaymentDetails = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, y: number) => {
     y += 25;
     doc.font(boldFont).fontSize(11).fillColor('#1d1d33').text('Payment Details', left, y);
     y += 25;
@@ -195,69 +185,91 @@ export const createInvoicePdf = async (invoice: InvoiceWithItems) => {
         y += 4;
         doc.font(boldFont).fontSize(9).fillColor('#1d1d33').text(
             `Bank transfer: always include reference ${invoice.paymentReference}.`,
-            left,
-            y,
-            { width: 360 },
+            left, y, { width: 360 },
         );
         y += 18;
         doc.font(regularFont).fontSize(8).fillColor('#6b7280').text(
             'Without this reference, your payment may not be matched to this invoice automatically.',
-            left,
-            y,
-            { width: 360 },
+            left, y, { width: 360 },
         );
         y += 18;
     }
+    return y;
+};
 
-    if (invoice.paymentUrl && invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)) {
-        y += 8;
-        const paymentSectionTop = y;
-        if (invoice.showPaymentButton) {
-            doc.roundedRect(left, y, 180, 30, 6).fill('#b5d63d');
-            doc.font(boldFont).fontSize(10).fillColor('#1d1d33').text('PAY ONLINE WITH MOLLIE', left, y + 10, {
-                width: 180,
-                align: 'center',
-                link: invoice.paymentUrl,
-                underline: false,
-            });
-            y += 40;
-            doc.font(regularFont).fontSize(8).fillColor('#6b7280').text(invoice.paymentUrl, left, y, {
-                width: 300,
-                link: invoice.paymentUrl,
-                ellipsis: true,
-            });
-        }
-        if (invoice.showPaymentQr) {
-            const qrCode = await QRCode.toBuffer(invoice.paymentUrl, {
-                type: 'png',
-                errorCorrectionLevel: 'M',
-                margin: 1,
-                width: 120,
-                color: { dark: '#1d1d33', light: '#ffffff' },
-            });
-            doc.image(qrCode, right - 110, paymentSectionTop, { width: 100, height: 100, link: invoice.paymentUrl });
-            doc.font(boldFont).fontSize(8).fillColor('#1d1d33').text('SCAN TO PAY', right - 110, paymentSectionTop + 104, {
-                width: 100,
-                align: 'center',
-            });
-        }
-        y = Math.max(y + (invoice.showPaymentButton ? 48 : 0), paymentSectionTop + (invoice.showPaymentQr ? 125 : 0));
+const renderPaymentButton = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, y: number) => {
+    doc.roundedRect(left, y, 180, 30, 6).fill('#b5d63d');
+    doc.font(boldFont).fontSize(10).fillColor('#1d1d33').text('PAY ONLINE WITH MOLLIE', left, y + 10, {
+        width: 180, align: 'center', link: invoice.paymentUrl, underline: false,
+    });
+    y += 40;
+    doc.font(regularFont).fontSize(8).fillColor('#6b7280').text(invoice.paymentUrl, left, y, {
+        width: 300, link: invoice.paymentUrl, ellipsis: true,
+    });
+    return y;
+};
+
+const renderQrCode = async (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, right: number, paymentSectionTop: number) => {
+    const qrCode = await QRCode.toBuffer(invoice.paymentUrl!, {
+        type: 'png',
+        errorCorrectionLevel: 'M',
+        margin: 1,
+        width: 120,
+        color: { dark: '#1d1d33', light: '#ffffff' },
+    });
+    doc.image(qrCode, right - 110, paymentSectionTop, { width: 100, height: 100, link: invoice.paymentUrl! });
+    doc.font(boldFont).fontSize(8).fillColor('#1d1d33').text('SCAN TO PAY', right - 110, paymentSectionTop + 104, {
+        width: 100, align: 'center',
+    });
+};
+
+const renderOnlinePayment = async (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, y: number) => {
+    y += 8;
+    const paymentSectionTop = y;
+    if (invoice.showPaymentButton) {
+        y = await renderPaymentButton(doc, invoice, left, y) + 48;
     }
-
-    if (invoice.note) {
-        y += 8;
-        doc.font(regularFont).fontSize(9).fillColor('#6b7280').text(invoice.note, left, y, { width });
+    if (invoice.showPaymentQr) {
+        await renderQrCode(doc, invoice, right, paymentSectionTop);
     }
+    return Math.max(y, paymentSectionTop + (invoice.showPaymentQr ? 125 : 0));
+};
 
+const renderNote = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, width: number, y: number) => {
+    if (!invoice.note) return y;
+    y += 8;
+    doc.font(regularFont).fontSize(9).fillColor('#6b7280').text(invoice.note, left, y, { width });
+    return y;
+};
+
+const renderFooter = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, width: number) => {
     doc.moveTo(left, 745).lineTo(right, 745).lineWidth(1).strokeColor('#e5e7eb').stroke();
     doc.font(regularFont).fontSize(8).fillColor('#6b7280').text(
         invoice.issuerEmail
             ? `If you have any questions regarding this invoice, please contact us at ${invoice.issuerEmail}`
             : 'Thank you for dancing with us.',
-        left,
-        765,
-        { width, align: 'center' },
+        left, 765, { width, align: 'center' },
     );
+};
+
+export const createInvoicePdf = async (invoice: InvoiceWithItems) => {
+    const doc = new PDFDocument({ size: 'A4', margin: 55 });
+    const left = 55;
+    const right = 540;
+    const width = right - left;
+
+    const { headerDividerY, primaryColor } = renderHeader(doc, invoice, left, right);
+    let y = renderInvoiceInfo(doc, invoice, left, right, headerDividerY);
+    y = renderItemsTable(doc, invoice, left, right, width, y, primaryColor);
+    y = renderTotals(doc, invoice, left, right, width, y);
+    y = renderPaymentDetails(doc, invoice, left, y);
+
+    if (invoice.paymentUrl && invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)) {
+        y = await renderOnlinePayment(doc, invoice, left, right, y);
+    }
+
+    renderNote(doc, invoice, left, width, y);
+    renderFooter(doc, invoice, left, right, width);
 
     return doc;
 };
