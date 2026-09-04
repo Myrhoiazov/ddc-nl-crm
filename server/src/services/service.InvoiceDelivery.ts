@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
-import { InvoiceDeliveryStatus, InvoiceDeliveryType, InvoiceStatus } from '@prisma/client';
+import { InvoiceDeliveryStatus, InvoiceDeliveryType, InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
 import prisma from '../../prisma/prisma-client';
 import { createInvoicePdf } from './service.InvoicePdf';
 import { ensureInvoicePaymentLink } from './service.InvoicePaymentLink';
@@ -59,6 +59,71 @@ const subjectFor = (invoiceNumber: string, type: InvoiceDeliveryType) => {
     return `Invoice ${invoiceNumber} from Talent Center DDC`;
 };
 
+interface EmailInvoiceFields {
+    id: number;
+    number: string;
+    billToName: string | null;
+    billToEmail: string | null;
+    balanceDueCents: number;
+    currency: string;
+    iban: string | null;
+    paymentReference: string | null;
+    showPaymentButton: boolean;
+    showPaymentQr: boolean;
+    documentType: InvoiceDocumentType;
+    status: InvoiceStatus;
+    dueDate: Date | null;
+}
+
+const bankTransferInstructionsFor = (invoice: EmailInvoiceFields) => {
+    if (invoice.balanceDueCents <= 0 || !invoice.iban || !invoice.paymentReference) {
+        return { text: '', html: '' };
+    }
+    return {
+        text: `\n\nBank transfer:\nIBAN: ${invoice.iban}\nReference: ${invoice.paymentReference}\nAlways include this reference so we can match your payment to the invoice.`,
+        html: `<div style="margin:20px 0;padding:16px;background:#f5f6f8;border-radius:8px">
+            <strong>Pay by bank transfer</strong>
+            <p style="margin:8px 0 4px">IBAN: ${escapeHtml(invoice.iban)}</p>
+            <p style="margin:4px 0">Reference: <strong>${escapeHtml(invoice.paymentReference)}</strong></p>
+            <p style="margin:8px 0 0;color:#6b7280;font-size:13px">Always include this reference so we can match your payment to the invoice.</p>
+        </div>`,
+    };
+};
+
+const resolvePaymentUrlsFor = async (invoice: EmailInvoiceFields) => {
+    const paymentLink = invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)
+        ? await ensureInvoicePaymentLink(invoice)
+        : null;
+    const paymentUrl = paymentLink?.paymentUrl ?? null;
+    return { paymentUrl, emailPaymentUrl: invoice.showPaymentButton ? paymentUrl : null };
+};
+
+const buildEmailText = (
+    invoice: EmailInvoiceFields,
+    subject: string,
+    viewUrl: string,
+    emailPaymentUrl: string | null,
+    bankTransferText: string,
+) => `Hello ${invoice.billToName},\n\nInvoice ${invoice.number}: ${money(invoice.balanceDueCents, invoice.currency)} due.\nView: ${viewUrl}${emailPaymentUrl ? `\nPay online: ${emailPaymentUrl}` : ''}${bankTransferText}`;
+
+const buildEmailHtml = (
+    invoice: EmailInvoiceFields,
+    subject: string,
+    viewUrl: string,
+    emailPaymentUrl: string | null,
+    bankTransferHtml: string,
+) => `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1d1d33">
+        <h2>${escapeHtml(subject)}</h2>
+        <p>Hello ${escapeHtml(invoice.billToName)},</p>
+        <p>Balance due: <strong>${money(invoice.balanceDueCents, invoice.currency)}</strong></p>
+        <p><a href="${escapeHtml(viewUrl)}" style="display:inline-block;padding:12px 18px;background:#1d1d33;color:#fff;text-decoration:none;border-radius:8px">View invoice</a></p>
+        ${emailPaymentUrl ? `<p><a href="${escapeHtml(emailPaymentUrl)}" style="display:inline-block;padding:12px 18px;background:#b5d63d;color:#1d1d33;text-decoration:none;border-radius:8px;font-weight:bold">Pay with Mollie</a></p>` : ''}
+        ${bankTransferHtml}
+        <p style="color:#6b7280;font-size:12px">The invoice PDF is attached to this email.</p>
+    </div>
+`;
+
 export const sendInvoiceEmail = async ({
     invoiceId,
     type,
@@ -80,33 +145,10 @@ export const sendInvoiceEmail = async ({
         throw new Error('Draft or cancelled invoice cannot be sent');
     }
 
-    const resolvePaymentUrls = async () => {
-        const paymentLink = invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)
-            ? await ensureInvoicePaymentLink(invoice)
-            : null;
-        const paymentUrl = paymentLink?.paymentUrl ?? null;
-        return { paymentUrl, emailPaymentUrl: invoice.showPaymentButton ? paymentUrl : null };
-    };
-
-    const bankTransferInstructions = () => {
-        if (invoice.balanceDueCents <= 0 || !invoice.iban || !invoice.paymentReference) {
-            return { text: '', html: '' };
-        }
-        return {
-            text: `\n\nBank transfer:\nIBAN: ${invoice.iban}\nReference: ${invoice.paymentReference}\nAlways include this reference so we can match your payment to the invoice.`,
-            html: `<div style="margin:20px 0;padding:16px;background:#f5f6f8;border-radius:8px">
-                <strong>Pay by bank transfer</strong>
-                <p style="margin:8px 0 4px">IBAN: ${escapeHtml(invoice.iban)}</p>
-                <p style="margin:4px 0">Reference: <strong>${escapeHtml(invoice.paymentReference)}</strong></p>
-                <p style="margin:8px 0 0;color:#6b7280;font-size:13px">Always include this reference so we can match your payment to the invoice.</p>
-            </div>`,
-        };
-    };
-
-    const publicToken = crypto.randomBytes(32).toString('hex');
-    const { paymentUrl, emailPaymentUrl } = await resolvePaymentUrls();
-    const { text: bankTransferText, html: bankTransferHtml } = bankTransferInstructions();
     const subject = subjectFor(invoice.number, type);
+    const publicToken = crypto.randomBytes(32).toString('hex');
+    const { paymentUrl, emailPaymentUrl } = await resolvePaymentUrlsFor(invoice);
+    const { text: bankTransferText, html: bankTransferHtml } = bankTransferInstructionsFor(invoice);
     const delivery = await prisma.invoiceDelivery.create({
         data: {
             invoiceId,
@@ -127,18 +169,8 @@ export const sendInvoiceEmail = async ({
             from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
             to: invoice.billToEmail,
             subject,
-            text: `Hello ${invoice.billToName},\n\nInvoice ${invoice.number}: ${money(invoice.balanceDueCents, invoice.currency)} due.\nView: ${viewUrl}${emailPaymentUrl ? `\nPay online: ${emailPaymentUrl}` : ''}${bankTransferText}`,
-            html: `
-                <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1d1d33">
-                    <h2>${escapeHtml(subject)}</h2>
-                    <p>Hello ${escapeHtml(invoice.billToName)},</p>
-                    <p>Balance due: <strong>${money(invoice.balanceDueCents, invoice.currency)}</strong></p>
-                    <p><a href="${escapeHtml(viewUrl)}" style="display:inline-block;padding:12px 18px;background:#1d1d33;color:#fff;text-decoration:none;border-radius:8px">View invoice</a></p>
-                    ${emailPaymentUrl ? `<p><a href="${escapeHtml(emailPaymentUrl)}" style="display:inline-block;padding:12px 18px;background:#b5d63d;color:#1d1d33;text-decoration:none;border-radius:8px;font-weight:bold">Pay with Mollie</a></p>` : ''}
-                    ${bankTransferHtml}
-                    <p style="color:#6b7280;font-size:12px">The invoice PDF is attached to this email.</p>
-                </div>
-            `,
+            text: buildEmailText(invoice, subject, viewUrl, emailPaymentUrl, bankTransferText),
+            html: buildEmailHtml(invoice, subject, viewUrl, emailPaymentUrl, bankTransferHtml),
             attachments: [{ filename: `${invoice.number}.pdf`, content: attachment, contentType: 'application/pdf' }],
         });
         return prisma.invoiceDelivery.update({
