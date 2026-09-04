@@ -20,6 +20,7 @@ import { Skeleton } from '@/shared/ui/Skeleton/Skeleton';
 import s from './ClientDetails.module.scss';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ClientDetailRow } from './ClientDetailRow';
 
 interface ClientDetailsProps {
     // className?: string;
@@ -58,43 +59,22 @@ const ClientElement = () => {
         <Card padding="32" fullWidth>
             <HStack gap="32" max align="start" justify="between">
                 <VStack gap="16">
-                    <HStack gap="32" align="start">
-                        <Text title="Имя и Фамилия:" size="s" bold className={s.title} />
-                        <Text title={`${client?.firstName} ${client?.lastName}`} size="s" />
-                    </HStack>
-                    <HStack gap="32" align="start">
-                        <Text title="День Рождения:" size="s" bold className={s.title} />
-                        <Text title={`${client?.birthday}`} size="s" />
-                    </HStack>
-                    <HStack gap="32" align="start">
-                        <Text title="Email:" size="s" bold className={s.title} />
-                        <Text title={`${client?.email}`} size="s" />
-                    </HStack>
-                    <HStack gap="32" align="start">
-                        <Text title="Тел:" size="s" bold className={s.title} />
-                        <Text title={client?.phoneNumber || '-'} size="s" />
-                    </HStack>
-                    <HStack gap="32" align="start">
-                        <Text title="Социальные сети:" size="s" bold className={s.title} />
+                    <ClientDetailRow label="Имя и Фамилия:" value={`${client?.firstName} ${client?.lastName}`} />
+                    <ClientDetailRow label="День Рождения:" value={`${client?.birthday}`} />
+                    <ClientDetailRow label="Email:" value={`${client?.email}`} />
+                    <ClientDetailRow label="Тел:" value={client?.phoneNumber || '-'} />
+                    <ClientDetailRow label="Социальные сети:">
                         {client?.social ? (
                             <Link to={client.social} target="_blank">
                                 {t('link')}
                             </Link>
-                        ) : (
-                            <Text title="-" size="s" />
-                        )}
-                    </HStack>
-                    <HStack gap="32" align="start">
-                        <Text title="Филиал:" size="s" bold className={s.title} />
-                        <Text title={client?.branch?.name || '-'} size="s" />
-                    </HStack>
-                    <HStack gap="32" align="start">
-                        <Text title="Группы:" size="s" bold className={s.title} />
-                        <Text
-                            title={client?.groupMemberships?.map((membership) => membership.group.name).join(', ') || '-'}
-                            size="s"
-                        />
-                    </HStack>
+                        ) : undefined}
+                    </ClientDetailRow>
+                    <ClientDetailRow label="Филиал:" value={client?.branch?.name || '-'} />
+                    <ClientDetailRow
+                        label="Группы:"
+                        value={client?.groupMemberships?.map((membership) => membership.group.name).join(', ') || '-'}
+                    />
                 </VStack>
                 <span className={s.imageWrapper}>
                     <AppImage
