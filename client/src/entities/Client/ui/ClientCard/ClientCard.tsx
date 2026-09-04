@@ -1,10 +1,11 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
-import { useTranslation } from 'react-i18next';
 import { memo } from 'react';
-import { Input } from '@/shared/ui/Input/Input';
-import { Client, ClientLanguage, CLIENT_LANGUAGE_OPTIONS } from '@/entities/Client';
-import { Select, SelectOption } from '@/shared/ui/Select/Select';
+import { Client, ClientLanguage } from '@/entities/Client';
+import { SelectOption } from '@/shared/ui/Select/Select';
 import s from './ClientCard.module.scss';
+import { ClientCardIdentityFields } from './ClientCardIdentityFields';
+import { ClientCardContactFields } from './ClientCardContactFields';
+import { ClientCardEnrollmentFields } from './ClientCardEnrollmentFields';
 
 export interface ClientCardProps {
     className?: string;
@@ -29,7 +30,6 @@ export const ClientCard = memo((props: ClientCardProps) => {
     const {
         className,
         data,
-        readonly,
         onChangeFirstName,
         onChangeLastName,
         onChangeBirthday,
@@ -41,79 +41,28 @@ export const ClientCard = memo((props: ClientCardProps) => {
         onChangePreferredLanguage,
         branchOptions = [],
     } = props;
-    const { t } = useTranslation();
 
     return (
         <div className={classNames(s.ClientCard, {}, [className])}>
             <div className={s.grid}>
-                <Input
-                    fullWidth
-                    label="Имя"
-                    autofocus
-                    type="text"
-                    placeholder={t('Имя')}
-                    onChange={onChangeFirstName}
-                    value={data?.firstName ?? ''}
+                <ClientCardIdentityFields
+                    data={data}
+                    onChangeFirstName={onChangeFirstName}
+                    onChangeLastName={onChangeLastName}
+                    onChangeBirthday={onChangeBirthday}
                 />
-                <Input
-                    fullWidth
-                    label="Фамилия"
-                    type="text"
-                    placeholder={t('Фамилия')}
-                    onChange={onChangeLastName}
-                    value={data?.lastName}
+                <ClientCardContactFields
+                    data={data}
+                    onChangePhoneNumber={onChangePhoneNumber}
+                    onChangeEmail={onChangeEmail}
+                    onChangeSocial={onChangeSocial}
                 />
-                <Input
-                    fullWidth
-                    label="Дата рождения"
-                    type="date"
-                    onChange={onChangeBirthday}
-                    value={data?.birthday ?? ''}
-                />
-                <Input
-                    fullWidth
-                    label="Телефон"
-                    type="tel"
-                    placeholder={t('097-123-45-67')}
-                    onChange={onChangePhoneNumber}
-                    value={data?.phoneNumber ?? ''}
-                />
-                <Input
-                    fullWidth
-                    label="E-mail (необязательно)"
-                    type="email"
-                    placeholder={t('example@gmail.com')}
-                    onChange={onChangeEmail}
-                    value={data?.email ?? ''}
-                />
-                <Input
-                    fullWidth
-                    label="Социальные сети"
-                    type="text"
-                    placeholder={t('Instagram, WhatsApp или другая ссылка')}
-                    onChange={onChangeSocial}
-                    value={data?.social ?? ''}
-                />
-                <Select
-                    label="Филиал"
-                    options={branchOptions}
-                    value={data?.branchId ? String(data.branchId) : ''}
-                    onChange={onChangeBranchId}
-                />
-                <Select<ClientLanguage>
-                    label="Язык клиента"
-                    options={CLIENT_LANGUAGE_OPTIONS}
-                    value={data?.preferredLanguage ?? 'RU'}
-                    onChange={onChangePreferredLanguage}
-                />
-                <Input
-                    fullWidth
-                    label="Фото ученика"
-                    type="file"
-                    placeholder={t('Загрузите фото')}
-                    onChange={(file) => {
-                        onChangeImage?.(file as File);
-                    }}
+                <ClientCardEnrollmentFields
+                    data={data}
+                    branchOptions={branchOptions}
+                    onChangeBranchId={onChangeBranchId}
+                    onChangePreferredLanguage={onChangePreferredLanguage}
+                    onChangeImage={onChangeImage}
                 />
             </div>
         </div>
