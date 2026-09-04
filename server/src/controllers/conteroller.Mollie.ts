@@ -28,6 +28,18 @@ const customerClientSelect = {
     preferredLanguage: true,
 };
 
+const customerClientLinksSelect = {
+    select: {
+        id: true,
+        payerRelation: true,
+        linkSource: true,
+        isPrimary: true,
+        client: {
+            select: customerClientSelect,
+        },
+    },
+} satisfies Prisma.CustomerClientLinkFindManyArgs;
+
 const mollieCustomerSelect = {
     id: true,
     mollieId: true,
@@ -40,17 +52,7 @@ const mollieCustomerSelect = {
     client: {
         select: customerClientSelect,
     },
-    clientLinks: {
-        select: {
-            id: true,
-            payerRelation: true,
-            linkSource: true,
-            isPrimary: true,
-            client: {
-                select: customerClientSelect,
-            },
-        },
-    },
+    clientLinks: customerClientLinksSelect,
 };
 
 const findClientIdByEmail = async (email?: string | null) => {
@@ -1077,19 +1079,47 @@ const buildMatrixUnlinkedRow = (
     };
 };
 
+const parsePaginationParams = (req: Request) => {
+    const requestedPage = Number(queryString(req.query._page));
+    const requestedLimit = Number(queryString(req.query._limit));
+    const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+    const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
+        ? Math.min(requestedLimit, 100)
+        : 15;
+    const shouldPaginate = Boolean(req.query._page || req.query._limit);
+
+    return { page, limit, shouldPaginate };
+};
+
+const loadCustomerEvents = async (customerId: number) => prisma.mollieEvent.findMany({
+    where: {
+        payment: {
+            customerId,
+        },
+    },
+    select: {
+        id: true,
+        molliePaymentId: true,
+        eventType: true,
+        paymentStatus: true,
+        processingStatus: true,
+        errorMessage: true,
+        receivedAt: true,
+        processedAt: true,
+    },
+    orderBy: {
+        receivedAt: 'desc',
+    },
+    take: 30,
+});
+
 export const mollieGetCustomersController = async (req: Request, res: Response) => {
     try {
         const search = queryString(req.query._q)?.trim();
         const hasSubscriptions = queryString(req.query.hasSubscriptions);
         const hasMandates = queryString(req.query.hasMandates);
         const subscriptionStatus = queryString(req.query.subscriptionStatus);
-        const requestedPage = Number(queryString(req.query._page));
-        const requestedLimit = Number(queryString(req.query._limit));
-        const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-        const limit = Number.isFinite(requestedLimit) && requestedLimit > 0
-            ? Math.min(requestedLimit, 100)
-            : 15;
-        const shouldPaginate = Boolean(req.query._page || req.query._limit);
+        const { page, limit, shouldPaginate } = parsePaginationParams(req);
 
         const where: Prisma.CustomerWhereInput = {};
 
@@ -1125,17 +1155,7 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
                 client: {
                     select: customerClientSelect,
                 },
-                clientLinks: {
-                    select: {
-                        id: true,
-                        payerRelation: true,
-                        linkSource: true,
-                        isPrimary: true,
-                        client: {
-                            select: customerClientSelect,
-                        },
-                    },
-                },
+                clientLinks: customerClientLinksSelect,
             },
             orderBy: {
                 updatedAt: 'desc',
@@ -1184,40 +1204,10 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
                     client: {
                         select: customerClientSelect,
                     },
-                    clientLinks: {
-                        select: {
-                            id: true,
-                            payerRelation: true,
-                            linkSource: true,
-                            isPrimary: true,
-                            client: {
-                                select: customerClientSelect,
-                            },
-                        },
-                    },
+                    clientLinks: customerClientLinksSelect,
                 },
             }),
-            prisma.mollieEvent.findMany({
-                where: {
-                    payment: {
-                        customerId: parsedCustomerId,
-                    },
-                },
-                select: {
-                    id: true,
-                    molliePaymentId: true,
-                    eventType: true,
-                    paymentStatus: true,
-                    processingStatus: true,
-                    errorMessage: true,
-                    receivedAt: true,
-                    processedAt: true,
-                },
-                orderBy: {
-                    receivedAt: 'desc',
-                },
-                take: 30,
-            }),
+            loadCustomerEvents(parsedCustomerId),
         ]);
 
         if (!customerFullInfo) {
