@@ -1,14 +1,11 @@
-import { memo, useCallback, useEffect, useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { toast } from 'react-toastify';
-import { $apiPrivate } from '@/shared/api/api';
-import { Button, ButtonTheme } from '@/shared/ui/Button';
-import { Input } from '@/shared/ui/Input/Input';
+import { memo } from 'react';
 import { Modal } from '@/shared/ui/Modal/Modal';
-import { Select, SelectOption } from '@/shared/ui/Select/Select';
-import { HStack, VStack } from '@/shared/ui/Stack';
+import { VStack } from '@/shared/ui/Stack';
 import { Text } from '@/shared/ui/Text/Text';
 import s from './PaymentLinkModal.module.scss';
+import { PaymentLinkActions } from './PaymentLinkActions';
+import { PaymentLinkFormFields } from './PaymentLinkFormFields';
+import { usePaymentLinkModal } from './usePaymentLinkModal';
 
 export interface PaymentLinkPayer {
     id: number;
@@ -24,76 +21,9 @@ interface PaymentLinkModalProps {
     onCreated?: () => void;
 }
 
-interface PaymentLinkResponse {
-    paymentId: string;
-    checkoutUrl: string;
-    status: string;
-}
-
 export const PaymentLinkModal = memo((props: PaymentLinkModalProps) => {
     const { clientId, payers, isOpen, onClose, onCreated } = props;
-    const { t } = useTranslation();
-    const [payerId, setPayerId] = useState('');
-    const [amount, setAmount] = useState('');
-    const [description, setDescription] = useState('Оплата занятий');
-    const [checkoutUrl, setCheckoutUrl] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
-
-    useEffect(() => {
-        if (isOpen) {
-            setPayerId(String(payers[0]?.id ?? ''));
-            setAmount('');
-            setDescription('Оплата занятий');
-            setCheckoutUrl('');
-        }
-    }, [isOpen, payers]);
-
-    const payerOptions = useMemo<SelectOption<string>[]>(() => payers.map((payer) => ({
-        value: String(payer.id),
-        content: payer.email ? `${payer.name} · ${payer.email}` : payer.name,
-    })), [payers]);
-
-    const onCreate = useCallback(async () => {
-        const amountValue = Number(amount.replace(',', '.'));
-
-        if (!payerId || !Number.isFinite(amountValue) || amountValue <= 0 || !description.trim()) {
-            toast.error('Выберите плательщика, сумму и описание');
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            const { data } = await $apiPrivate.post<PaymentLinkResponse>(
-                `/mollie/customers/${payerId}/payment-link`,
-                {
-                    clientId: Number(clientId),
-                    amountValue,
-                    description: description.trim(),
-                },
-            );
-            setCheckoutUrl(data.checkoutUrl);
-            onCreated?.();
-            toast.success('Payment link создан');
-        } catch {
-            toast.error('Не удалось создать payment link');
-        } finally {
-            setIsLoading(false);
-        }
-    }, [amount, clientId, description, onCreated, payerId]);
-
-    const onCopy = useCallback(async () => {
-        try {
-            await navigator.clipboard.writeText(checkoutUrl);
-            toast.success('Payment link скопирован');
-        } catch {
-            toast.error('Не удалось скопировать ссылку');
-        }
-    }, [checkoutUrl]);
-
-    const onOpen = useCallback(() => {
-        window.open(checkoutUrl, '_blank', 'noopener,noreferrer');
-    }, [checkoutUrl]);
+    const form = usePaymentLinkModal({ clientId, payers, isOpen, onCreated });
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} lazy>
@@ -110,64 +40,36 @@ export const PaymentLinkModal = memo((props: PaymentLinkModalProps) => {
                         size="s"
                     />
                 ) : (
-                    <>
-                        <Select
-                            label="Плательщик"
-                            options={payerOptions}
-                            value={payerId}
-                            onChange={setPayerId}
-                            readonly={isLoading || Boolean(checkoutUrl)}
-                        />
-                        <Input
-                            fullWidth
-                            label="Сумма, EUR"
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={amount}
-                            onChange={setAmount}
-                            readonly={isLoading || Boolean(checkoutUrl)}
-                        />
-                        <Input
-                            fullWidth
-                            label="Описание"
-                            value={description}
-                            onChange={setDescription}
-                            readonly={isLoading || Boolean(checkoutUrl)}
-                        />
-                    </>
+                    <PaymentLinkFormFields
+                        payers={payers}
+                        payerOptions={form.payerOptions}
+                        payerId={form.payerId}
+                        amount={form.amount}
+                        description={form.description}
+                        isLoading={form.isLoading}
+                        checkoutUrl={form.checkoutUrl}
+                        onPayerChange={form.setPayerId}
+                        onAmountChange={form.setAmount}
+                        onDescriptionChange={form.setDescription}
+                    />
                 )}
 
-                {checkoutUrl && (
+                {form.checkoutUrl && (
                     <div className={s.result}>
                         <Text text="Ссылка готова" size="s" bold />
-                        <span>{checkoutUrl}</span>
+                        <span>{form.checkoutUrl}</span>
                     </div>
                 )}
 
-                <HStack className={s.actions} gap="16" justify="end" wrap="wrap">
-                    <Button theme={ButtonTheme.OUTLINE} onClick={onClose} disabled={isLoading}>
-                        {t('Закрыть')}
-                    </Button>
-                    {checkoutUrl ? (
-                        <>
-                            <Button theme={ButtonTheme.OUTLINE} onClick={onCopy}>
-                                {t('Скопировать')}
-                            </Button>
-                            <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onOpen}>
-                                {t('Открыть')}
-                            </Button>
-                        </>
-                    ) : (
-                        <Button
-                            theme={ButtonTheme.BACKGROUND_INVERTED}
-                            onClick={onCreate}
-                            disabled={isLoading || !payers.length}
-                        >
-                            {isLoading ? 'Создание...' : 'Создать ссылку'}
-                        </Button>
-                    )}
-                </HStack>
+                <PaymentLinkActions
+                    payersCount={payers.length}
+                    checkoutUrl={form.checkoutUrl}
+                    isLoading={form.isLoading}
+                    onClose={onClose}
+                    onCreate={form.onCreate}
+                    onCopy={form.onCopy}
+                    onOpen={form.onOpen}
+                />
             </VStack>
         </Modal>
     );
