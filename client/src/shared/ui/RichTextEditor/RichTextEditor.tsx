@@ -1,4 +1,4 @@
-import { memo, useEffect } from 'react';
+import { memo, ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -14,6 +14,22 @@ interface RichTextEditorProps {
     placeholder?: string;
     readonly?: boolean;
 }
+
+const ToolbarButton = memo(({ active, label, onClick, children }: {
+    active: boolean;
+    label: string;
+    onClick: () => void;
+    children: ReactNode;
+}) => (
+    <button
+        type="button"
+        className={classNames(cls.toolbarBtn, { [cls.toolbarBtnActive]: active })}
+        onClick={onClick}
+        aria-label={label}
+    >
+        {children}
+    </button>
+));
 
 export const RichTextEditor = memo((props: RichTextEditorProps) => {
     const { className, value, onChange, placeholder, readonly } = props;
@@ -37,7 +53,6 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
         if (editor && value !== editor.getHTML()) {
             editor.commands.setContent(value, { emitUpdate: false });
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value, editor]);
 
     useEffect(() => {
@@ -58,49 +73,29 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
         editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
+    if (!editor) return null;
+
+    const formatActions: { label: string; content: ReactNode; isActive: () => boolean; run: () => void }[] = [
+        { label: 'Жирный', content: <b>B</b>, isActive: () => editor.isActive('bold'), run: () => editor.chain().focus().toggleBold().run() },
+        { label: 'Курсив', content: <i>I</i>, isActive: () => editor.isActive('italic'), run: () => editor.chain().focus().toggleItalic().run() },
+        { label: 'Маркированный список', content: <span>•≡</span>, isActive: () => editor.isActive('bulletList'), run: () => editor.chain().focus().toggleBulletList().run() },
+        { label: 'Нумерованный список', content: <span>{t('1≡')}</span>, isActive: () => editor.isActive('orderedList'), run: () => editor.chain().focus().toggleOrderedList().run() },
+        { label: 'Ссылка', content: <span>🔗</span>, isActive: () => editor.isActive('link'), run: onSetLink },
+    ];
+
     return (
         <div className={classNames(cls.wrapper, {}, [className])}>
             <div className={cls.toolbar}>
-                <button
-                    type="button"
-                    className={classNames(cls.toolbarBtn, { [cls.toolbarBtnActive]: !!editor?.isActive('bold') })}
-                    onClick={() => editor?.chain().focus().toggleBold().run()}
-                    aria-label="Жирный"
-                >
-                    <b>B</b>
-                </button>
-                <button
-                    type="button"
-                    className={classNames(cls.toolbarBtn, { [cls.toolbarBtnActive]: !!editor?.isActive('italic') })}
-                    onClick={() => editor?.chain().focus().toggleItalic().run()}
-                    aria-label="Курсив"
-                >
-                    <i>I</i>
-                </button>
-                <button
-                    type="button"
-                    className={classNames(cls.toolbarBtn, { [cls.toolbarBtnActive]: !!editor?.isActive('bulletList') })}
-                    onClick={() => editor?.chain().focus().toggleBulletList().run()}
-                    aria-label="Маркированный список"
-                >
-                    •≡
-                </button>
-                <button
-                    type="button"
-                    className={classNames(cls.toolbarBtn, { [cls.toolbarBtnActive]: !!editor?.isActive('orderedList') })}
-                    onClick={() => editor?.chain().focus().toggleOrderedList().run()}
-                    aria-label="Нумерованный список"
-                >
-                    {t('1≡')}
-                </button>
-                <button
-                    type="button"
-                    className={classNames(cls.toolbarBtn, { [cls.toolbarBtnActive]: !!editor?.isActive('link') })}
-                    onClick={onSetLink}
-                    aria-label="Ссылка"
-                >
-                    🔗
-                </button>
+                {formatActions.map((action) => (
+                    <ToolbarButton
+                        key={action.label}
+                        active={action.isActive()}
+                        label={action.label}
+                        onClick={action.run}
+                    >
+                        {action.content}
+                    </ToolbarButton>
+                ))}
             </div>
             <EditorContent editor={editor} className={cls.editor} />
         </div>
