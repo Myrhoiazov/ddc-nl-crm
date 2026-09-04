@@ -1,6 +1,34 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { RichTextEditor } from './RichTextEditor';
 
+// jsdom has no layout engine: ProseMirror calls Range#getClientRects() and
+// Range#getBoundingClientRect() while scrolling the selection into view after
+// transactions. jsdom does not implement these on Range, so provide empty
+// geometry to keep the editor usable under test.
+beforeAll(() => {
+    const emptyRectList = () => ({
+        length: 0,
+        item: () => null,
+        [Symbol.iterator]: function* emptyRectsIterator() {},
+    });
+    const emptyRect = () => ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON: () => ({}) });
+
+    if (typeof Range !== 'undefined') {
+        if (!Range.prototype.getClientRects) {
+            Object.defineProperty(Range.prototype, 'getClientRects', {
+                configurable: true,
+                value: emptyRectList,
+            });
+        }
+        if (!Range.prototype.getBoundingClientRect) {
+            Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+                configurable: true,
+                value: emptyRect,
+            });
+        }
+    }
+});
+
 describe('RichTextEditor', () => {
     test('renders the toolbar buttons', async () => {
         render(<RichTextEditor value="<p>hello</p>" onChange={() => {}} />);
