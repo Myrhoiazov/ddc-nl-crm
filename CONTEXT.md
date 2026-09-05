@@ -81,7 +81,7 @@ routes/router.X.ts -> controllers/controller.X.ts -> services/service.X.ts
 - 2FA email flow on login
 - Endpoint-specific rate limiting
 - Security audit event log
-- See `docs/roadmap/AUTH_SECURITY_ROADMAP.md` for planned security hardening.
+- Planned security hardening is tracked locally (gitignored `docs/roadmap/AUTH_SECURITY_ROADMAP.md`), not part of the repo.
 
 ## Infrastructure Context
 
@@ -109,6 +109,3 @@ routes/router.X.ts -> controllers/controller.X.ts -> services/service.X.ts
 - [Docker Production Deployment](docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md)
 - [Graphify Workflow](docs/spec/GRAPHIFY_WORKFLOW.md)
 - [Schema docs](docs/schema.md)
-- [Auth / Security Roadmap](docs/roadmap/AUTH_SECURITY_ROADMAP.md)
-- [Invoices Roadmap](docs/roadmap/INVOICES_MODULE_ROADMAP.md)
-- [Organizations and Brands Roadmap](docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md)
