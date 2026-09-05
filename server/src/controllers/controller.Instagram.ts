@@ -61,6 +61,50 @@ interface IGEntry {
 interface IGWebhookBody {
     entry?: IGEntry[];
 }
+const handleFollowerChange = (change: IGMessageChange) => {
+    const followerId = change.value?.user_id;
+
+    if (followerId) {
+        console.log("followerId: ", followerId);
+        // await sendMessage(followerId, "Привет! Спасибо за подписку 🙌");
+    }
+};
+
+const handleIncomingMessage = (change: IGMessageChange) => {
+    const message = change.value;
+
+    console.log("🔥 New message from user:", message);
+
+    const senderId = message.from?.id;
+    const text = message.text;
+
+    if (senderId) {
+        console.log("Sender ID:", senderId);
+        console.log("Message text:", text);
+
+        // Отправляем автоответ
+        // await instagramSendMessage(senderId, "Спасибо за сообщение! ❤️");
+    }
+};
+
+const handleIncomingComment = (change: IGMessageChange) => {
+    const comment = change.value;
+
+    const userId = comment.from?.id;
+    const username = comment.from?.username;
+    const text = comment.text;
+    const mediaId = comment.media_id;
+    const commentId = comment.comment_id;
+
+    console.log("💬 Новый комментарий!");
+    console.log("Автор:", username, "ID:", userId);
+    console.log("Комментарий:", text);
+    console.log("Пост ID:", mediaId);
+    console.log("Комментарий ID:", commentId);
+
+    // 👇 Авто-ответ на комментарий (если хочешь)
+    // await instagramReplyToComment(commentId, "Спасибо за ваш комментарий! ❤️");
+};
 // ------------------------
 // 2) RECEIVE MESSAGES (POST)
 // ------------------------
@@ -77,48 +121,15 @@ export const instagramReceiveMessageController = async (req: Request<{}, {}, IGW
 
         // Новый подписчик
         if (changes?.field === "followers") {
-            const followerId = changes.value?.user_id;
-
-            if (followerId) {
-                console.log("followerId: ", followerId);
-                // await sendMessage(followerId, "Привет! Спасибо за подписку 🙌");
-            }
+            handleFollowerChange(changes);
         }
 
         if (changes?.field === "messages") {
-            const message = changes.value;
-
-            console.log("🔥 New message from user:", message);
-
-            const senderId = message.from?.id;
-            const text = message.text;
-
-            if (senderId) {
-                console.log("Sender ID:", senderId);
-                console.log("Message text:", text);
-
-                // Отправляем автоответ
-                // await instagramSendMessage(senderId, "Спасибо за сообщение! ❤️");
-            }
+            handleIncomingMessage(changes);
         }
 
         if (changes?.field === "comments") {
-            const comment = changes.value;
-
-            const userId = comment.from?.id;
-            const username = comment.from?.username;
-            const text = comment.text;
-            const mediaId = comment.media_id;
-            const commentId = comment.comment_id;
-
-            console.log("💬 Новый комментарий!");
-            console.log("Автор:", username, "ID:", userId);
-            console.log("Комментарий:", text);
-            console.log("Пост ID:", mediaId);
-            console.log("Комментарий ID:", commentId);
-
-            // 👇 Авто-ответ на комментарий (если хочешь)
-            // await instagramReplyToComment(commentId, "Спасибо за ваш комментарий! ❤️");
+            handleIncomingComment(changes);
         }
 
     } catch (e) {

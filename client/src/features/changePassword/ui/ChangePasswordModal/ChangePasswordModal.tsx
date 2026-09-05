@@ -26,9 +26,34 @@ const getErrorText = (err: ChangePasswordError, t: (key: string) => string): str
     return '';
 };
 
-export const ChangePasswordModal = memo((props: ChangePasswordModalProps) => {
-    const { className, isOpen, onClose, profileId } = props;
+const ErrorsList = ({ errors }: { errors: ChangePasswordError[] }) => {
     const { t } = useTranslation('profile');
+    if (!errors.length) {
+        return null;
+    }
+    return (
+        <>
+            {errors.map((err) => (
+                <Text key={err} text={getErrorText(err, t)} variant="error" />
+            ))}
+        </>
+    );
+};
+
+interface ChangePasswordModalProps {
+    className?: string;
+    isOpen: boolean;
+    onClose: () => void;
+    profileId: string;
+}
+
+const useChangePasswordSubmit = ({
+    profileId,
+    onClose,
+}: {
+    profileId: string;
+    onClose: () => void;
+}) => {
     const dispatch = useAppDispatch();
 
     const [currentPassword, setCurrentPassword] = useState('');
@@ -71,6 +96,27 @@ export const ChangePasswordModal = memo((props: ChangePasswordModalProps) => {
         onClose();
     }, [onClose]);
 
+    return {
+        currentPassword, setCurrentPassword,
+        newPassword, setNewPassword,
+        confirmPassword, setConfirmPassword,
+        errors, isLoading, isSuccess,
+        onSubmit, handleClose,
+    };
+};
+
+export const ChangePasswordModal = memo((props: ChangePasswordModalProps) => {
+    const { className, isOpen, onClose, profileId } = props;
+    const { t } = useTranslation('profile');
+
+    const {
+        currentPassword, setCurrentPassword,
+        newPassword, setNewPassword,
+        confirmPassword, setConfirmPassword,
+        errors, isLoading, isSuccess,
+        onSubmit, handleClose,
+    } = useChangePasswordSubmit({ profileId, onClose });
+
     return (
         <Modal
             isOpen={isOpen}
@@ -81,9 +127,7 @@ export const ChangePasswordModal = memo((props: ChangePasswordModalProps) => {
             <VStack gap="24" className={cls.content}>
                 <Text title={t('Изменить пароль')} className={cls.title} />
 
-                {errors.map((err) => (
-                    <Text key={err} text={getErrorText(err, t)} variant="error" />
-                ))}
+                <ErrorsList errors={errors} />
 
                 {isSuccess && <Text text={t('Пароль успешно изменён')} variant="accent" />}
 

@@ -29,6 +29,22 @@ const reducers: ReducersList = {
     mollieClientForm: mollieClientReducer,
 };
 
+const CustomerHeader = ({ onOpenEditModal }: { onOpenEditModal: () => void }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.header}>
+            <Text title={t('Mollie Details Customer')} size="m" bold />
+            <Button
+                className={s.editButton}
+                theme={ButtonTheme.BACKGROUND_INVERTED}
+                onClick={onOpenEditModal}
+            >
+                {t('Редактировать')}
+            </Button>
+        </div>
+    );
+};
+
 export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsProps) => {
     const { t } = useTranslation();
     const { id: customerId } = useParams();
@@ -51,16 +67,7 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
     return (
         <DynamicModuleLoader reducers={reducers}>
             <VStack max gap="24" className={classNames(s.MollieCustomerDetails, {}, [className])}>
-                <div className={s.header}>
-                    <Text title={t('Mollie Details Customer')} size="m" bold />
-                    <Button
-                        className={s.editButton}
-                        theme={ButtonTheme.BACKGROUND_INVERTED}
-                        onClick={onOpenEditModal}
-                    >
-                        {t('Редактировать')}
-                    </Button>
-                </div>
+                <CustomerHeader onOpenEditModal={onOpenEditModal} />
                 <MollieClientDetails id={customerId} key={`${customerId}-${detailsVersion}`} />
                 <MollieStudentLinksManager
                     customerId={customerId}

@@ -17,6 +17,156 @@ const StudentLink = ({ student }: { student: GroupStudent }) => (
     </Link>
 );
 
+const StudentList = memo(({ label, students }: { label: string; students: GroupStudent[] }) => {
+    const { t } = useTranslation();
+    return (
+        <div>
+            <strong>{label}</strong>
+            {students.length ? (
+                <ul>
+                    {students.map((student) => (
+                        <li key={student.id}><StudentLink student={student} /></li>
+                    ))}
+                </ul>
+            ) : <span>{t('Нет учеников')}</span>}
+        </div>
+    );
+});
+
+const StudentGroupCard = ({
+    group,
+    highlightedGroupId,
+    groupCardRefs,
+}: {
+    group: GroupManagementStatistics['groups'][number];
+    highlightedGroupId: number | null;
+    groupCardRefs: RefObject<Record<number, HTMLDivElement | null>>;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <div
+            className={classNames(s.groupCard, {
+                [s.groupCardHighlighted]: highlightedGroupId === group.id,
+            }, [])}
+            ref={(node) => { groupCardRefs.current[group.id] = node; }}
+        >
+            <div className={s.groupCardHeader}>
+                <strong>{group.name}</strong>
+                <span>{group.activeCount}{t(' активных · ')}{group.inactiveCount}{t(' неактивных')}</span>
+            </div>
+            <div className={s.branchStudents}>
+                <StudentList label={t('Активные ({{count}})', { count: group.activeCount })} students={group.activeStudents} />
+                <StudentList label={t('Неактивные ({{count}})', { count: group.inactiveCount })} students={group.inactiveStudents} />
+            </div>
+        </div>
+    );
+};
+
+const BranchGroupsView = ({
+    groups,
+    branchId,
+    highlightedGroupId,
+    groupCardRefs,
+}: {
+    groups: GroupManagementStatistics['groups'];
+    branchId: number;
+    highlightedGroupId: number | null;
+    groupCardRefs: RefObject<Record<number, HTMLDivElement | null>>;
+}) => {
+    const { t } = useTranslation();
+    const branchGroups = groups.filter((group) => group.branchId === branchId);
+
+    if (!branchGroups.length) {
+        return <span>{t('В этом филиале нет групп')}</span>;
+    }
+
+    return (
+        <>
+            {branchGroups.map((group) => (
+                <StudentGroupCard
+                    key={group.id}
+                    group={group}
+                    highlightedGroupId={highlightedGroupId}
+                    groupCardRefs={groupCardRefs}
+                />
+            ))}
+        </>
+    );
+};
+
+const BranchCard = ({
+    branch,
+    groups,
+    viewMode,
+    onSetViewMode,
+    open,
+    onToggle,
+    highlightedGroupId,
+    groupCardRefs,
+}: {
+    branch: GroupManagementStatistics['branches'][number];
+    groups: GroupManagementStatistics['groups'];
+    viewMode: BranchViewMode;
+    onSetViewMode: (mode: BranchViewMode) => void;
+    open: boolean;
+    onToggle: (event: SyntheticEvent<HTMLDetailsElement>) => void;
+    highlightedGroupId: number | null;
+    groupCardRefs: RefObject<Record<number, HTMLDivElement | null>>;
+}) => {
+    const { t } = useTranslation();
+
+    return (
+        <details className={s.branchCard} open={open} onToggle={onToggle}>
+            <summary>
+                <span>
+                    <strong>{branch.name}</strong>
+                    <small>{[branch.city, branch.address].filter(Boolean).join(' · ')}</small>
+                </span>
+                <span className={s.branchNumbers}>
+                    {branch.groupCount}{t(' гр. · ')}{branch.activeCount}{t(' активных · ')}{branch.inactiveCount}{t(' неактивных')}
+                </span>
+            </summary>
+            <div className={s.branchDetails}>
+                <span>{t('Вместимость групп: {{capacity}}', { capacity: branch.capacity })}</span>
+                <span>{t('Без группы: {{count}}', { count: branch.unassignedCount })}</span>
+            </div>
+
+            <div className={s.viewToggle}>
+                <button
+                    type="button"
+                    className={viewMode === 'flat' ? s.viewToggleActive : ''}
+                    onClick={() => onSetViewMode('flat')}
+                >
+                    {t('Общий список')}
+                </button>
+                <button
+                    type="button"
+                    className={viewMode === 'groups' ? s.viewToggleActive : ''}
+                    onClick={() => onSetViewMode('groups')}
+                >
+                    {t('По группам')}
+                </button>
+            </div>
+
+            {viewMode === 'flat' ? (
+                <div className={s.branchStudents}>
+                    <StudentList label={t('Активные ({{count}})', { count: branch.activeCount })} students={branch.activeStudents} />
+                    <StudentList label={t('Неактивные ({{count}})', { count: branch.inactiveCount })} students={branch.inactiveStudents} />
+                </div>
+            ) : (
+                <div className={s.branchGroups}>
+                    <BranchGroupsView
+                        groups={groups}
+                        branchId={branch.id}
+                        highlightedGroupId={highlightedGroupId}
+                        groupCardRefs={groupCardRefs}
+                    />
+                </div>
+            )}
+        </details>
+    );
+};
+
 interface GroupStatisticsSectionProps {
     statistics: GroupManagementStatistics;
     getBranchView: (branchId: number) => BranchViewMode;
@@ -48,113 +198,17 @@ export const GroupStatisticsSection = memo((props: GroupStatisticsSectionProps) 
                 <div className={s.sectionTitle}>{t('Статистика по филиалам')}</div>
                 <div className={s.branchGrid}>
                     {statistics.branches.map((branch) => (
-                        <details
-                            className={s.branchCard}
+                        <BranchCard
                             key={branch.id}
+                            branch={branch}
+                            groups={statistics.groups}
+                            viewMode={getBranchView(branch.id)}
+                            onSetViewMode={(mode) => setBranchViewMode(branch.id, mode)}
                             open={openBranches.has(branch.id)}
                             onToggle={onToggleBranch(branch.id)}
-                        >
-                            <summary>
-                                <span>
-                                    <strong>{branch.name}</strong>
-                                    <small>{[branch.city, branch.address].filter(Boolean).join(' · ')}</small>
-                                </span>
-                                <span className={s.branchNumbers}>
-                                    {branch.groupCount}{t(' гр. · ')}{branch.activeCount}{t(' активных · ')}{branch.inactiveCount}{t(' неактивных')}
-                                </span>
-                            </summary>
-                            <div className={s.branchDetails}>
-                                <span>{t('Вместимость групп: {{capacity}}', { capacity: branch.capacity })}</span>
-                                <span>{t('Без группы: {{count}}', { count: branch.unassignedCount })}</span>
-                            </div>
-
-                            <div className={s.viewToggle}>
-                                <button
-                                    type="button"
-                                    className={getBranchView(branch.id) === 'flat' ? s.viewToggleActive : ''}
-                                    onClick={() => setBranchViewMode(branch.id, 'flat')}
-                                >
-                                    {t('Общий список')}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={getBranchView(branch.id) === 'groups' ? s.viewToggleActive : ''}
-                                    onClick={() => setBranchViewMode(branch.id, 'groups')}
-                                >
-                                    {t('По группам')}
-                                </button>
-                            </div>
-
-                            {getBranchView(branch.id) === 'flat' ? (
-                                <div className={s.branchStudents}>
-                                    <div>
-                                        <strong>{t('Активные ({{count}})', { count: branch.activeCount })}</strong>
-                                        {branch.activeStudents.length ? (
-                                            <ul>
-                                                {branch.activeStudents.map((student) => (
-                                                    <li key={student.id}><StudentLink student={student} /></li>
-                                                ))}
-                                            </ul>
-                                        ) : <span>{t('Нет учеников')}</span>}
-                                    </div>
-                                    <div>
-                                        <strong>{t('Неактивные ({{count}})', { count: branch.inactiveCount })}</strong>
-                                        {branch.inactiveStudents.length ? (
-                                            <ul>
-                                                {branch.inactiveStudents.map((student) => (
-                                                    <li key={student.id}><StudentLink student={student} /></li>
-                                                ))}
-                                            </ul>
-                                        ) : <span>{t('Нет учеников')}</span>}
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className={s.branchGroups}>
-                                    {statistics.groups.filter((group) => group.branchId === branch.id).length === 0 ? (
-                                        <span>{t('В этом филиале нет групп')}</span>
-                                    ) : (
-                                        statistics.groups
-                                            .filter((group) => group.branchId === branch.id)
-                                            .map((group) => (
-                                                <div
-                                                    className={classNames(s.groupCard, {
-                                                        [s.groupCardHighlighted]: highlightedGroupId === group.id,
-                                                    }, [])}
-                                                    key={group.id}
-                                                    ref={(node) => { groupCardRefs.current[group.id] = node; }}
-                                                >
-                                                    <div className={s.groupCardHeader}>
-                                                        <strong>{group.name}</strong>
-                                                        <span>{group.activeCount}{t(' активных · ')}{group.inactiveCount}{t(' неактивных')}</span>
-                                                    </div>
-                                                    <div className={s.branchStudents}>
-                                                        <div>
-                                                            <strong>{t('Активные ({{count}})', { count: group.activeCount })}</strong>
-                                                            {group.activeStudents.length ? (
-                                                                <ul>
-                                                                    {group.activeStudents.map((student) => (
-                                                                        <li key={student.id}><StudentLink student={student} /></li>
-                                                                    ))}
-                                                                </ul>
-                                                            ) : <span>{t('Нет учеников')}</span>}
-                                                        </div>
-                                                        <div>
-                                                            <strong>{t('Неактивные ({{count}})', { count: group.inactiveCount })}</strong>
-                                                            {group.inactiveStudents.length ? (
-                                                                <ul>
-                                                                    {group.inactiveStudents.map((student) => (
-                                                                        <li key={student.id}><StudentLink student={student} /></li>
-                                                                    ))}
-                                                                </ul>
-                                                            ) : <span>{t('Нет учеников')}</span>}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))
-                                    )}
-                                </div>
-                            )}
-                        </details>
+                            highlightedGroupId={highlightedGroupId}
+                            groupCardRefs={groupCardRefs}
+                        />
                     ))}
                 </div>
             </div>

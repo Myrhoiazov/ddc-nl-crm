@@ -8,6 +8,13 @@ import { PaymentReminderTemplateCard } from './PaymentReminderTemplateCard';
 import { PaymentReminderDeliveriesCard } from './PaymentReminderDeliveriesCard';
 import s from './PaymentRemindersPage.module.scss';
 
+const PaymentRemindersHeader = () => (
+    <div>
+        <Text title="Напоминания об оплате" size="l" bold />
+        <Text text="Автоматическая рассылка клиентам о предстоящем списании по подписке." size="s" className={s.subtitle} />
+    </div>
+);
+
 const PaymentRemindersPage = memo(() => {
     const {
         settings, setSettings,
@@ -33,10 +40,7 @@ const PaymentRemindersPage = memo(() => {
     return (
         <Page>
             <VStack max gap="24" className={s.page}>
-                <div>
-                    <Text title="Напоминания об оплате" size="l" bold />
-                    <Text text="Автоматическая рассылка клиентам о предстоящем списании по подписке." size="s" className={s.subtitle} />
-                </div>
+                <PaymentRemindersHeader />
 
                 <PaymentReminderSettingsCard
                     isLoading={isSettingsLoading}

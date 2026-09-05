@@ -1,5 +1,5 @@
 import {
-    KeyboardEvent, memo, useCallback, useEffect, useMemo, useRef, useState,
+    Dispatch, KeyboardEvent, RefObject, memo, useCallback, useEffect, useMemo, useRef, useState,
 } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -107,54 +107,23 @@ const groupByCategory = (results: FlatResult[]) => {
     return sections;
 };
 
-export const GlobalSearch = memo(() => {
-    const { t } = useTranslation();
-    const navigate = useNavigate();
-    const containerRef = useRef<HTMLDivElement>(null);
-    const inputRef = useRef<HTMLInputElement>(null);
+const useDebouncedGlobalSearch = (trimmedQuery: string) => {
     const abortRef = useRef<AbortController | null>(null);
     const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [query, setQuery] = useState('');
     const [data, setData] = useState<GlobalSearchResponse | null>(null);
     const [loading, setLoading] = useState(false);
-    const [activeIndex, setActiveIndex] = useState(-1);
 
-    const flatResults = useMemo(() => buildFlatResults(data), [data]);
-    const sections = useMemo(() => groupByCategory(flatResults), [flatResults]);
-    const trimmedQuery = query.trim();
-    const showDropdown = trimmedQuery.length >= MIN_QUERY_LENGTH;
-
-    const closeSearch = useCallback(() => {
+    const reset = useCallback(() => {
         abortRef.current?.abort();
-        setIsExpanded(false);
-        setQuery('');
         setData(null);
-        setActiveIndex(-1);
         setLoading(false);
     }, []);
-
-    const openSearch = useCallback(() => {
-        setIsExpanded(true);
-    }, []);
-
-    const goTo = useCallback((route: string) => {
-        navigate(route);
-        closeSearch();
-    }, [navigate, closeSearch]);
-
-    useEffect(() => {
-        if (isExpanded) inputRef.current?.focus();
-    }, [isExpanded]);
 
     useEffect(() => {
         if (debounceRef.current) clearTimeout(debounceRef.current);
 
         if (trimmedQuery.length < MIN_QUERY_LENGTH) {
-            abortRef.current?.abort();
-            setData(null);
-            setLoading(false);
+            reset();
             return undefined;
         }
 
@@ -167,7 +136,6 @@ export const GlobalSearch = memo(() => {
             fetchGlobalSearch(trimmedQuery, controller.signal)
                 .then((response) => {
                     setData(response);
-                    setActiveIndex(-1);
                 })
                 .catch((error) => {
                     if (controller.signal.aborted) return;
@@ -185,39 +153,99 @@ export const GlobalSearch = memo(() => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [trimmedQuery]);
 
+    return { data, loading, reset };
+};
+
+const useSearchKeyboard = (
+    flatResults: FlatResult[],
+    activeIndex: number,
+    setActiveIndex: Dispatch<React.SetStateAction<number>>,
+    onNavigate: (route: string) => void,
+    onClose: () => void,
+) => useCallback((event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+        onClose();
+        return;
+    }
+
+    if (!flatResults.length) return;
+
+    if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        setActiveIndex((prev) => (prev + 1) % flatResults.length);
+    } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveIndex((prev) => (prev - 1 + flatResults.length) % flatResults.length);
+    } else if (event.key === 'Enter') {
+        event.preventDefault();
+        const target = flatResults[activeIndex >= 0 ? activeIndex : 0];
+        if (target) onNavigate(target.route);
+    }
+}, [flatResults, activeIndex, setActiveIndex, onNavigate, onClose]);
+
+const useSearchDismiss = (
+    containerRef: RefObject<HTMLDivElement | null>,
+    isExpanded: boolean,
+    onDismiss: () => void,
+) => {
     useEffect(() => {
         if (!isExpanded) return undefined;
 
         const onMouseDown = (event: MouseEvent) => {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-                closeSearch();
+                onDismiss();
             }
         };
 
         document.addEventListener('mousedown', onMouseDown);
         return () => document.removeEventListener('mousedown', onMouseDown);
-    }, [isExpanded, closeSearch]);
+    }, [isExpanded, onDismiss, containerRef]);
+};
 
-    const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-        if (event.key === 'Escape') {
-            closeSearch();
-            return;
-        }
+export const GlobalSearch = memo(() => {
+    const { t } = useTranslation();
+    const navigate = useNavigate();
+    const containerRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-        if (!flatResults.length) return;
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [query, setQuery] = useState('');
+    const [activeIndex, setActiveIndex] = useState(-1);
 
-        if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            setActiveIndex((prev) => (prev + 1) % flatResults.length);
-        } else if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setActiveIndex((prev) => (prev - 1 + flatResults.length) % flatResults.length);
-        } else if (event.key === 'Enter') {
-            event.preventDefault();
-            const target = flatResults[activeIndex >= 0 ? activeIndex : 0];
-            if (target) goTo(target.route);
-        }
-    };
+    const trimmedQuery = query.trim();
+    const { data, loading, reset } = useDebouncedGlobalSearch(trimmedQuery);
+
+    const flatResults = useMemo(() => buildFlatResults(data), [data]);
+    const sections = useMemo(() => groupByCategory(flatResults), [flatResults]);
+    const showDropdown = trimmedQuery.length >= MIN_QUERY_LENGTH;
+
+    const closeSearch = useCallback(() => {
+        reset();
+        setIsExpanded(false);
+        setQuery('');
+        setActiveIndex(-1);
+    }, [reset]);
+
+    const openSearch = useCallback(() => {
+        setIsExpanded(true);
+    }, []);
+
+    const goTo = useCallback((route: string) => {
+        navigate(route);
+        closeSearch();
+    }, [navigate, closeSearch]);
+
+    useEffect(() => {
+        if (isExpanded) inputRef.current?.focus();
+    }, [isExpanded]);
+
+    useSearchDismiss(containerRef, isExpanded, closeSearch);
+
+    const onKeyDown = useSearchKeyboard(flatResults, activeIndex, setActiveIndex, goTo, closeSearch);
+
+    useEffect(() => {
+        setActiveIndex(-1);
+    }, [data]);
 
     return (
         <div ref={containerRef} className={classNames(cls.GlobalSearch, { [cls.expanded]: isExpanded }, [])}>

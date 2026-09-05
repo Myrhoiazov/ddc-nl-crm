@@ -31,6 +31,36 @@ interface MolliePaymentsMatrixUpcomingProps {
     items: UpcomingSubscription[];
 }
 
+const UpcomingRow = ({ subscription }: { subscription: UpcomingSubscription }) => {
+    const { t } = useTranslation();
+    const student = getUpcomingStudent(subscription);
+
+    return (
+        <div className={s.upcomingRow} key={subscription.id}>
+            <div className={s.upcomingIdentity}>
+                {student?.id ? (
+                    <Link className={s.personLink} to={`/clients/${student.id}`}>
+                        {[student.firstName, student.lastName].filter(Boolean).join(' ') || `Ученик #${student.id}`}
+                    </Link>
+                ) : (
+                    <Link className={s.personLink} to={`/mollie/customers/${subscription.customer.id}`}>
+                        {getPayerName(subscription)}
+                    </Link>
+                )}
+                <Link className={s.personMetaLink} to={`/mollie/customers/${subscription.customer.id}`}>
+                    {t('Плательщик: {{name}}', { name: getPayerName(subscription) })}
+                </Link>
+            </div>
+            <span>{new Date(subscription.nextPaymentDate).toLocaleDateString('nl-NL')}</span>
+            <span className={s.upcomingAmount}>{formatCurrency(subscription.amountValue, subscription.amountCurrency)}</span>
+            <span className={s.personMeta}>{subscription.description}</span>
+            <span className={`${s.mandateStatus} ${subscription.mandate?.status === 'valid' ? s.valid : s.invalid}`}>
+                {subscription.mandate?.status || 'no mandate'}
+            </span>
+        </div>
+    );
+};
+
 export const MolliePaymentsMatrixUpcoming = memo((props: MolliePaymentsMatrixUpcomingProps) => {
     const {
         upcomingMonth, onUpcomingMonthChange, upcomingMonthOptions,
@@ -63,34 +93,9 @@ export const MolliePaymentsMatrixUpcoming = memo((props: MolliePaymentsMatrixUpc
                     <Skeleton width="100%" height={76} border="12px" />
                 ) : items.length ? (
                     <div className={s.upcomingList}>
-                        {items.map((subscription) => {
-                            const student = getUpcomingStudent(subscription);
-
-                            return (
-                                <div className={s.upcomingRow} key={subscription.id}>
-                                    <div className={s.upcomingIdentity}>
-                                        {student?.id ? (
-                                            <Link className={s.personLink} to={`/clients/${student.id}`}>
-                                                {[student.firstName, student.lastName].filter(Boolean).join(' ') || `Ученик #${student.id}`}
-                                            </Link>
-                                        ) : (
-                                            <Link className={s.personLink} to={`/mollie/customers/${subscription.customer.id}`}>
-                                                {getPayerName(subscription)}
-                                            </Link>
-                                        )}
-                                        <Link className={s.personMetaLink} to={`/mollie/customers/${subscription.customer.id}`}>
-                                            {t('Плательщик: {{name}}', { name: getPayerName(subscription) })}
-                                        </Link>
-                                    </div>
-                                    <span>{new Date(subscription.nextPaymentDate).toLocaleDateString('nl-NL')}</span>
-                                    <span className={s.upcomingAmount}>{formatCurrency(subscription.amountValue, subscription.amountCurrency)}</span>
-                                    <span className={s.personMeta}>{subscription.description}</span>
-                                    <span className={`${s.mandateStatus} ${subscription.mandate?.status === 'valid' ? s.valid : s.invalid}`}>
-                                        {subscription.mandate?.status || 'no mandate'}
-                                    </span>
-                                </div>
-                            );
-                        })}
+                        {items.map((subscription) => (
+                            <UpcomingRow subscription={subscription} key={subscription.id} />
+                        ))}
                     </div>
                 ) : (
                     <div className={s.empty}>{t('В выбранном месяце предстоящих списаний нет.')}</div>

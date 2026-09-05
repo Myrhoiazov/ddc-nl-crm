@@ -25,9 +25,46 @@ const initialReducers: ReducersList = {
     client: clientReducer,
 };
 
+const FormHeader = () => {
+    const { t } = useTranslation();
+    return (
+        <div className={cls.titleBlock}>
+            <Text size="m" title={t('Добавление ученика')} bold />
+            <Text size="s" text={t('Email необязателен. При необходимости сразу привяжите платёжный аккаунт.')} />
+        </div>
+    );
+};
+
+const ValidationErrors = ({ errors }: { errors: string[] }) => {
+    if (!errors.length) {
+        return null;
+    }
+    return (
+        <div className={cls.validationErrors}>
+            {errors.map((error) => (
+                <Text key={error} size="s" text={error} variant="error" />
+            ))}
+        </div>
+    );
+};
+
+const SubmitButton = ({ isSubmitting, onClick }: { isSubmitting: boolean; onClick: () => void }) => {
+    const { t } = useTranslation();
+    return (
+        <Button
+            className={cls.submitButton}
+            fullWidth
+            onClick={onClick}
+            theme={ButtonTheme.BACKGROUND_INVERTED}
+            disabled={isSubmitting}
+        >
+            {isSubmitting ? t('Добавление...') : t('Добавить')}
+        </Button>
+    );
+};
+
 const AddClientForm = memo((props: AddClientFormProps) => {
     const { className, onSuccess, reloadPage } = props;
-    const { t } = useTranslation();
     const {
         formData,
         branchOptions,
@@ -57,10 +94,7 @@ const AddClientForm = memo((props: AddClientFormProps) => {
         <DynamicModuleLoader reducers={initialReducers}>
             <div className={classNames(cls.AddClientForm, {}, [className])}>
                 <VStack gap="16" max className={cls.header}>
-                    <div className={cls.titleBlock}>
-                        <Text size="m" title={t('Добавление ученика')} bold />
-                        <Text size="s" text={t('Email необязателен. При необходимости сразу привяжите платёжный аккаунт.')} />
-                    </div>
+                    <FormHeader />
                     <ClientCard
                         onChangeLastName={onChangeLastName}
                         onChangeFirstName={onChangeFirstName}
@@ -88,22 +122,8 @@ const AddClientForm = memo((props: AddClientFormProps) => {
                         payerRelation={payerRelation}
                         setPayerRelation={setPayerRelation}
                     />
-                    {!!validationErrors.length && (
-                        <div className={cls.validationErrors}>
-                            {validationErrors.map((error) => (
-                                <Text key={error} size="s" text={error} variant="error" />
-                            ))}
-                        </div>
-                    )}
-                    <Button
-                        className={cls.submitButton}
-                        fullWidth
-                        onClick={onSave}
-                        theme={ButtonTheme.BACKGROUND_INVERTED}
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting ? t('Добавление...') : t('Добавить')}
-                    </Button>
+                    <ValidationErrors errors={validationErrors} />
+                    <SubmitButton isSubmitting={isSubmitting} onClick={onSave} />
                 </VStack>
             </div>
         </DynamicModuleLoader>

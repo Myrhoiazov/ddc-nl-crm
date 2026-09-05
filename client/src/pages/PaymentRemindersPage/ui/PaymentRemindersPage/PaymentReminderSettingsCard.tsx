@@ -27,6 +27,69 @@ interface PaymentReminderSettingsCardProps {
     onRunNow: () => void;
 }
 
+const SettingsFields = ({ settings, setSettings, emailAccountOptions }: {
+    settings: ReminderSettings;
+    setSettings: Dispatch<SetStateAction<ReminderSettings | undefined>>;
+    emailAccountOptions: SelectOption<string>[];
+}) => (
+    <>
+        <div className={s.grid}>
+            <Select
+                label="Отправлять"
+                options={offsetOptions}
+                value={String(settings.offsetDays)}
+                onChange={(value) => setSettings({ ...settings, offsetDays: Number(value) as 3 | 7 })}
+            />
+            <Input
+                fullWidth
+                label="Час отправки (0-23)"
+                type="number"
+                value={settings.sendHour}
+                onChange={(value) => setSettings({ ...settings, sendHour: Math.min(23, Math.max(0, Number(value) || 0)) })}
+            />
+            <Input
+                fullWidth
+                label="Минута отправки (0-59)"
+                type="number"
+                value={settings.sendMinute}
+                onChange={(value) => setSettings({ ...settings, sendMinute: Math.min(59, Math.max(0, Number(value) || 0)) })}
+            />
+            <Select
+                label="Ящик-отправитель"
+                options={emailAccountOptions}
+                value={settings.senderEmailAccountId ? String(settings.senderEmailAccountId) : ''}
+                onChange={(value) => setSettings({ ...settings, senderEmailAccountId: value ? Number(value) : null })}
+            />
+        </div>
+        <CheckBox label="Рассылка включена" value={settings.enabled} onChange={(checked) => setSettings({ ...settings, enabled: checked })} />
+    </>
+);
+
+const SettingsActions = ({ isSaving, onSaveSettings, isRunning, onRunNow, runResult }: {
+    isSaving: boolean;
+    onSaveSettings: () => void;
+    isRunning: boolean;
+    onRunNow: () => void;
+    runResult?: RunResult;
+}) => (
+    <>
+        <HStack gap="8" wrap="wrap">
+            <Button theme={ButtonTheme.BACKGROUND_INVERTED} disabled={isSaving} onClick={onSaveSettings}>
+                {isSaving ? 'Сохранение...' : 'Сохранить настройки'}
+            </Button>
+            <Button theme={ButtonTheme.OUTLINE} disabled={isRunning} onClick={onRunNow}>
+                {isRunning ? 'Запуск...' : 'Запустить сейчас'}
+            </Button>
+        </HStack>
+        {runResult && (
+            <Text
+                size="s"
+                text={`Последний запуск: отправлено ${runResult.sent}, пропущено ${runResult.skipped}, ошибок ${runResult.failed}, уже в очереди ${runResult.alreadyQueued}`}
+            />
+        )}
+    </>
+);
+
 export const PaymentReminderSettingsCard = memo((props: PaymentReminderSettingsCardProps) => {
     const { isLoading, settings, setSettings, emailAccountOptions, isSaving, isRunning, runResult, onSaveSettings, onRunNow } = props;
 
@@ -37,49 +100,14 @@ export const PaymentReminderSettingsCard = memo((props: PaymentReminderSettingsC
                 {isLoading && <Skeleton width="100%" height={160} border="12px" />}
                 {!isLoading && settings && (
                     <>
-                        <div className={s.grid}>
-                            <Select
-                                label="Отправлять"
-                                options={offsetOptions}
-                                value={String(settings.offsetDays)}
-                                onChange={(value) => setSettings({ ...settings, offsetDays: Number(value) as 3 | 7 })}
-                            />
-                            <Input
-                                fullWidth
-                                label="Час отправки (0-23)"
-                                type="number"
-                                value={settings.sendHour}
-                                onChange={(value) => setSettings({ ...settings, sendHour: Math.min(23, Math.max(0, Number(value) || 0)) })}
-                            />
-                            <Input
-                                fullWidth
-                                label="Минута отправки (0-59)"
-                                type="number"
-                                value={settings.sendMinute}
-                                onChange={(value) => setSettings({ ...settings, sendMinute: Math.min(59, Math.max(0, Number(value) || 0)) })}
-                            />
-                            <Select
-                                label="Ящик-отправитель"
-                                options={emailAccountOptions}
-                                value={settings.senderEmailAccountId ? String(settings.senderEmailAccountId) : ''}
-                                onChange={(value) => setSettings({ ...settings, senderEmailAccountId: value ? Number(value) : null })}
-                            />
-                        </div>
-                        <CheckBox label="Рассылка включена" value={settings.enabled} onChange={(checked) => setSettings({ ...settings, enabled: checked })} />
-                        <HStack gap="8" wrap="wrap">
-                            <Button theme={ButtonTheme.BACKGROUND_INVERTED} disabled={isSaving} onClick={onSaveSettings}>
-                                {isSaving ? 'Сохранение...' : 'Сохранить настройки'}
-                            </Button>
-                            <Button theme={ButtonTheme.OUTLINE} disabled={isRunning} onClick={onRunNow}>
-                                {isRunning ? 'Запуск...' : 'Запустить сейчас'}
-                            </Button>
-                        </HStack>
-                        {runResult && (
-                            <Text
-                                size="s"
-                                text={`Последний запуск: отправлено ${runResult.sent}, пропущено ${runResult.skipped}, ошибок ${runResult.failed}, уже в очереди ${runResult.alreadyQueued}`}
-                            />
-                        )}
+                        <SettingsFields settings={settings} setSettings={setSettings} emailAccountOptions={emailAccountOptions} />
+                        <SettingsActions
+                            isSaving={isSaving}
+                            onSaveSettings={onSaveSettings}
+                            isRunning={isRunning}
+                            onRunNow={onRunNow}
+                            runResult={runResult}
+                        />
                     </>
                 )}
             </VStack>

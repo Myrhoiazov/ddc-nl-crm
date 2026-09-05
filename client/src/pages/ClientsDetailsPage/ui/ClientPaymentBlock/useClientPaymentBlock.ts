@@ -13,6 +13,37 @@ import type {
     PaymentCustomer,
 } from './types';
 
+export interface MandateForm {
+    customerId: string;
+    consumerName: string;
+    consumerAccount: string;
+    consumerBic: string;
+    signatureDate: string;
+}
+
+export interface SubscriptionForm {
+    customerId: string;
+    mandateId: string;
+    amountValue: string;
+    interval: string;
+    startDate: string;
+    description: string;
+}
+
+export interface EditSubscriptionForm {
+    mandateId: string;
+    amountValue: string;
+    interval: string;
+    startDate: string;
+    description: string;
+    times: string;
+}
+
+export interface RestartForm {
+    mandateId: string;
+    startDate: string;
+}
+
 export interface UseClientPaymentBlockResult {
     id: string;
     data: ClientPaymentSummary | null;
@@ -56,42 +87,7 @@ export interface UseClientPaymentBlockResult {
     statusText: string;
 }
 
-export interface MandateForm {
-    customerId: string;
-    consumerName: string;
-    consumerAccount: string;
-    consumerBic: string;
-    signatureDate: string;
-}
-
-export interface SubscriptionForm {
-    customerId: string;
-    mandateId: string;
-    amountValue: string;
-    interval: string;
-    startDate: string;
-    description: string;
-}
-
-export interface EditSubscriptionForm {
-    mandateId: string;
-    amountValue: string;
-    interval: string;
-    startDate: string;
-    description: string;
-    times: string;
-}
-
-export interface RestartForm {
-    mandateId: string;
-    startDate: string;
-}
-
-export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentBlockResult => {
-    const [data, setData] = useState<ClientPaymentSummary | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(false);
-    const [reloadKey, setReloadKey] = useState(0);
+const usePaymentFormState = () => {
     const [isPaymentLinkOpen, setIsPaymentLinkOpen] = useState(false);
     const [isMandateOpen, setIsMandateOpen] = useState(false);
     const [isSubscriptionOpen, setIsSubscriptionOpen] = useState(false);
@@ -99,32 +95,37 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
     const [restartingSubscription, setRestartingSubscription] = useState<ClientSubscription | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [mandateForm, setMandateForm] = useState<MandateForm>({
-        customerId: '',
-        consumerName: '',
-        consumerAccount: '',
-        consumerBic: '',
-        signatureDate: today,
+        customerId: '', consumerName: '', consumerAccount: '', consumerBic: '', signatureDate: today,
     });
     const [subscriptionForm, setSubscriptionForm] = useState<SubscriptionForm>({
-        customerId: '',
-        mandateId: '',
-        amountValue: '',
-        interval: '1 month',
-        startDate: today,
-        description: '',
+        customerId: '', mandateId: '', amountValue: '', interval: '1 month', startDate: today, description: '',
     });
     const [editSubscriptionForm, setEditSubscriptionForm] = useState<EditSubscriptionForm>({
-        mandateId: '',
-        amountValue: '',
-        interval: '',
-        startDate: '',
-        description: '',
-        times: '',
+        mandateId: '', amountValue: '', interval: '', startDate: '', description: '', times: '',
     });
     const [restartForm, setRestartForm] = useState<RestartForm>({
-        mandateId: '',
-        startDate: today,
+        mandateId: '', startDate: today,
     });
+
+    return {
+        isPaymentLinkOpen, setIsPaymentLinkOpen,
+        isMandateOpen, setIsMandateOpen,
+        isSubscriptionOpen, setIsSubscriptionOpen,
+        editingSubscription, setEditingSubscription,
+        restartingSubscription, setRestartingSubscription,
+        isSaving, setIsSaving,
+        mandateForm, setMandateForm,
+        subscriptionForm, setSubscriptionForm,
+        editSubscriptionForm, setEditSubscriptionForm,
+        restartForm, setRestartForm,
+    };
+};
+
+const usePaymentData = (id: string) => {
+    const [data, setData] = useState<ClientPaymentSummary | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(false);
+    const [reloadKey, setReloadKey] = useState(0);
 
     useEffect(() => {
         setIsLoading(true);
@@ -142,6 +143,12 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
             });
     }, [id, reloadKey]);
 
+    const reload = useCallback(() => setReloadKey((prev) => prev + 1), []);
+
+    return { data, isLoading, error, reload };
+};
+
+const usePaymentDerivedState = (data: ClientPaymentSummary | null, subscriptionForm: SubscriptionForm) => {
     const payers = useMemo<PaymentLinkPayer[]>(() => data?.payers
         .filter((payer) => payer.customer?.id)
         .map((payer) => ({
@@ -181,12 +188,34 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
             .filter((option) => option.value) ?? []
     ), [data?.mandates]);
 
-    const reload = useCallback(() => setReloadKey((prev) => prev + 1), []);
+    const statusText = useMemo(() => {
+        if (data?.summary.paymentStatus === 'issue') return 'Есть проблема';
+        if (data?.summary.paymentStatus === 'active') return 'Активно';
+        return 'Не настроено';
+    }, [data?.summary.paymentStatus]);
+
+    return { payers, payerOptions, mandateOptions, getMandateOptionsForCustomer, statusText };
+};
+
+export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentBlockResult => {
+    const { data, isLoading, error, reload } = usePaymentData(id);
+    const {
+        isPaymentLinkOpen, setIsPaymentLinkOpen,
+        isMandateOpen, setIsMandateOpen,
+        isSubscriptionOpen, setIsSubscriptionOpen,
+        editingSubscription, setEditingSubscription,
+        restartingSubscription, setRestartingSubscription,
+        isSaving, setIsSaving,
+        mandateForm, setMandateForm,
+        subscriptionForm, setSubscriptionForm,
+        editSubscriptionForm, setEditSubscriptionForm,
+        restartForm, setRestartForm,
+    } = usePaymentFormState();
+    const { payers, payerOptions, mandateOptions, getMandateOptionsForCustomer, statusText } =
+        usePaymentDerivedState(data, subscriptionForm);
 
     const onCopyPaymentLink = useCallback(async (checkoutUrl?: string) => {
-        if (!checkoutUrl) {
-            return;
-        }
+        if (!checkoutUrl) return;
 
         try {
             await navigator.clipboard.writeText(checkoutUrl);
@@ -202,9 +231,7 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         }
 
         try {
-            await $apiPrivate.post(`/mollie/payments/${payment.id}/cancel`, {
-                clientId: Number(id),
-            });
+            await $apiPrivate.post(`/mollie/payments/${payment.id}/cancel`, { clientId: Number(id) });
             toast.success('Payment link отменён');
             reload();
         } catch {
@@ -214,14 +241,12 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
 
     const onCreateMandate = useCallback(async (form: MandateForm) => {
         const payer = data?.payers.find((item) => String(item.customer?.id) === form.customerId)?.customer;
-
         if (!payer?.mollieId || !form.consumerName.trim() || !form.consumerAccount.trim()) {
             toast.error('Выберите плательщика и заполните имя владельца и IBAN');
             return;
         }
 
         setIsSaving(true);
-
         try {
             await $apiPrivate.post('/mollie/mandates', {
                 customerId: payer.mollieId,
@@ -239,28 +264,22 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         } finally {
             setIsSaving(false);
         }
-    }, [data?.payers, reload]);
+    }, [data?.payers, reload, setIsSaving, setIsMandateOpen]);
 
     const onCreateSubscription = useCallback(async (form: SubscriptionForm) => {
         const payer = data?.payers.find((item) => String(item.customer?.id) === form.customerId)?.customer;
         const amount = Number(form.amountValue);
-
-        if (!payer?.mollieId || !form.mandateId || !Number.isFinite(amount) || amount <= 0
-            || !form.description.trim()) {
+        if (!payer?.mollieId || !form.mandateId || !Number.isFinite(amount) || amount <= 0 || !form.description.trim()) {
             toast.error('Заполните плательщика, valid mandate, сумму и описание');
             return;
         }
 
         setIsSaving(true);
-
         try {
             await $apiPrivate.post(`/mollie/mandates/${payer.mollieId}/subscriptions`, {
                 customerId: payer.mollieId,
                 mandateId: form.mandateId,
-                amount: {
-                    currency: 'EUR',
-                    value: amount.toFixed(2),
-                },
+                amount: { currency: 'EUR', value: amount.toFixed(2) },
                 interval: form.interval.trim(),
                 startDate: form.startDate,
                 description: form.description.trim(),
@@ -273,13 +292,11 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         } finally {
             setIsSaving(false);
         }
-    }, [data?.payers, reload]);
+    }, [data?.payers, reload, setIsSaving, setIsSubscriptionOpen]);
 
     const onCancelSubscription = useCallback(async (subscription: ClientSubscription) => {
         if (!subscription.mollieId || !subscription.customer?.id
-            || !window.confirm('Остановить активную подписку в Mollie?')) {
-            return;
-        }
+            || !window.confirm('Остановить активную подписку в Mollie?')) return;
 
         try {
             await $apiPrivate.delete(`/mollie/subscriptions/${subscription.mollieId}`, {
@@ -302,12 +319,10 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
             description: subscription.description ?? '',
             times: subscription.times ? String(subscription.times) : '',
         });
-    }, [getMandateOptionsForCustomer]);
+    }, [getMandateOptionsForCustomer, setEditingSubscription, setEditSubscriptionForm]);
 
     const onUpdateSubscription = useCallback(async (subscription: ClientSubscription, form: EditSubscriptionForm) => {
-        if (!subscription.mollieId || !subscription.customer?.id || !form.mandateId) {
-            return;
-        }
+        if (!subscription.mollieId || !subscription.customer?.id || !form.mandateId) return;
 
         setIsSaving(true);
         try {
@@ -329,7 +344,7 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         } finally {
             setIsSaving(false);
         }
-    }, [reload]);
+    }, [reload, setIsSaving, setEditingSubscription]);
 
     const onOpenRestartSubscription = useCallback((subscription: ClientSubscription) => {
         setRestartingSubscription(subscription);
@@ -337,7 +352,7 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
             mandateId: getMandateOptionsForCustomer(subscription.customer)[0]?.value ?? '',
             startDate: today,
         });
-    }, [getMandateOptionsForCustomer]);
+    }, [getMandateOptionsForCustomer, setRestartingSubscription, setRestartForm]);
 
     const onRestartSubscription = useCallback(async (subscription: ClientSubscription, form: RestartForm) => {
         if (!subscription.mollieId || !subscription.customer?.id || !form.mandateId) {
@@ -361,13 +376,11 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         } finally {
             setIsSaving(false);
         }
-    }, [reload]);
+    }, [reload, setIsSaving, setRestartingSubscription]);
 
     const onRevokeMandate = useCallback(async (mandate: ClientMandate) => {
         if (!mandate.mollieId || !mandate.customer?.id
-            || !window.confirm('Отозвать mandate? Mollie немедленно отменит все связанные активные подписки. Действие необратимо.')) {
-            return;
-        }
+            || !window.confirm('Отозвать mandate? Mollie немедленно отменит все связанные активные подписки. Действие необратимо.')) return;
 
         try {
             await $apiPrivate.delete(`/mollie/customers/${mandate.customer.id}/mandates/${mandate.mollieId}`);
@@ -379,23 +392,9 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         }
     }, [reload]);
 
-    const statusText = useMemo(() => {
-        if (data?.summary.paymentStatus === 'issue') {
-            return 'Есть проблема';
-        }
-
-        if (data?.summary.paymentStatus === 'active') {
-            return 'Активно';
-        }
-
-        return 'Не настроено';
-    }, [data?.summary.paymentStatus]);
-
     return {
         id,
-        data,
-        isLoading,
-        error,
+        data, isLoading, error,
         isPaymentLinkOpen, setIsPaymentLinkOpen,
         isMandateOpen, setIsMandateOpen,
         isSubscriptionOpen, setIsSubscriptionOpen,
@@ -406,21 +405,14 @@ export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentB
         subscriptionForm, setSubscriptionForm,
         editSubscriptionForm, setEditSubscriptionForm,
         restartForm, setRestartForm,
-        payers,
-        payerOptions,
-        mandateOptions,
+        payers, payerOptions, mandateOptions,
         getMandateOptionsForCustomer,
         reload,
         onPaymentLinkCreated: reload,
-        onCopyPaymentLink,
-        onCancelPaymentLink,
-        onCreateMandate,
-        onCreateSubscription,
-        onCancelSubscription,
-        onOpenEditSubscription,
-        onUpdateSubscription,
-        onOpenRestartSubscription,
-        onRestartSubscription,
+        onCopyPaymentLink, onCancelPaymentLink,
+        onCreateMandate, onCreateSubscription, onCancelSubscription,
+        onOpenEditSubscription, onUpdateSubscription,
+        onOpenRestartSubscription, onRestartSubscription,
         onRevokeMandate,
         statusText,
     };

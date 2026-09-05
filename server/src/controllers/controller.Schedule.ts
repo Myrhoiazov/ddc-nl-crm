@@ -137,66 +137,72 @@ const studentSummary = (student: {
     isActive: isStudentActive(student.expiresAt),
 });
 
-export const getGroupManagementStats = async (_req: Request, res: Response) => {
-    const branches = await prisma.branch.findMany({
-        include: {
-            clients: {
-                select: studentSelect,
-                orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
-            },
-            groups: {
-                include: {
-                    clientMemberships: {
-                        include: { client: { select: studentSelect } },
-                        orderBy: { createdAt: 'asc' },
-                    },
-                },
-                orderBy: { name: 'asc' },
-            },
+const loadManagementBranches = () => prisma.branch.findMany({
+    include: {
+        clients: {
+            select: studentSelect,
+            orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
         },
-        orderBy: { name: 'asc' },
-    });
+        groups: {
+            include: {
+                clientMemberships: {
+                    include: { client: { select: studentSelect } },
+                    orderBy: { createdAt: 'asc' },
+                },
+            },
+            orderBy: { name: 'asc' },
+        },
+    },
+    orderBy: { name: 'asc' },
+});
 
-    const branchStats = branches.map((branch) => {
-        const students = branch.clients.map(studentSummary);
-        const activeStudents = students.filter((student) => student.isActive);
-        const inactiveStudents = students.filter((student) => !student.isActive);
-        const assignedStudentIds = new Set(
-            branch.groups.flatMap((group) => group.clientMemberships.map((membership) => membership.clientId)),
-        );
+const buildBranchStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.map((branch) => {
+    const students = branch.clients.map(studentSummary);
+    const activeStudents = students.filter((student) => student.isActive);
+    const inactiveStudents = students.filter((student) => !student.isActive);
+    const assignedStudentIds = new Set(
+        branch.groups.flatMap((group) => group.clientMemberships.map((membership) => membership.clientId)),
+    );
 
-        return {
-            id: branch.id,
-            name: branch.name,
-            city: branch.city,
-            address: branch.address,
-            isActive: branch.isActive,
-            groupCount: branch.groups.length,
-            capacity: branch.groups.reduce((sum, group) => sum + group.maxParticipants, 0),
-            activeCount: activeStudents.length,
-            inactiveCount: inactiveStudents.length,
-            unassignedCount: students.filter((student) => !assignedStudentIds.has(student.id)).length,
-            activeStudents,
-            inactiveStudents,
-        };
-    });
+    return {
+        id: branch.id,
+        name: branch.name,
+        city: branch.city,
+        address: branch.address,
+        isActive: branch.isActive,
+        groupCount: branch.groups.length,
+        capacity: branch.groups.reduce((sum, group) => sum + group.maxParticipants, 0),
+        activeCount: activeStudents.length,
+        inactiveCount: inactiveStudents.length,
+        unassignedCount: students.filter((student) => !assignedStudentIds.has(student.id)).length,
+        activeStudents,
+        inactiveStudents,
+    };
+});
 
-    const groupStats = branches.flatMap((branch) => branch.groups.map((group) => {
-        const students = group.clientMemberships.map((membership) => studentSummary(membership.client));
-        const activeStudents = students.filter((student) => student.isActive);
-        const inactiveStudents = students.filter((student) => !student.isActive);
+const buildGroupStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.flatMap((branch) => branch.groups.map((group) => {
+    const students = group.clientMemberships.map((membership) => studentSummary(membership.client));
+    const activeStudents = students.filter((student) => student.isActive);
+    const inactiveStudents = students.filter((student) => !student.isActive);
 
-        return {
-            id: group.id,
-            name: group.name,
-            branchId: branch.id,
-            activeCount: activeStudents.length,
-            inactiveCount: inactiveStudents.length,
-            totalCount: students.length,
-            activeStudents,
-            inactiveStudents,
-        };
-    }));
+    return {
+        id: group.id,
+        name: group.name,
+        branchId: branch.id,
+        activeCount: activeStudents.length,
+        inactiveCount: inactiveStudents.length,
+        totalCount: students.length,
+        activeStudents,
+        inactiveStudents,
+    };
+}));
+
+export const getGroupManagementStats = async (_req: Request, res: Response) => {
+    const branches = await loadManagementBranches();
+
+    const branchStats = buildBranchStats(branches);
+
+    const groupStats = buildGroupStats(branches);
 
     const allStudents = branchStats.flatMap((branch) => [
         ...branch.activeStudents,

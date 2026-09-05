@@ -76,7 +76,6 @@ const mollieClientsPageSlice = createSlice({
                 action: PayloadAction<Mandate[]>,
             ) => {
                 state.isLoading = false;
-
                 state.mandates = action.payload;
             })
             .addCase(fetchAllMandates.rejected, (state, action) => {

@@ -31,6 +31,51 @@ export const getProfile = async (req: Request, res: Response) => {
     return res.json(data);
 }
 
+const changeUserPassword = async (
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+): Promise<{
+    error: number | null;
+    message?: string;
+}> => {
+    const user = await getUserWithCredentials(userId);
+    if (!user) {
+        return { error: 404, message: 'User not found' };
+    }
+
+    const passwordCheck = await verifyPassword(user.password, user.salt, currentPassword);
+    if (!passwordCheck.valid) {
+        return { error: 400, message: 'Current password is incorrect' };
+    }
+
+    const hashedNewPassword = await hashPassword(newPassword);
+    await updateUserPassword(userId, hashedNewPassword, null);
+    return { error: null };
+};
+
+const recordPasswordChangeAudit = async (
+    req: Request,
+    currentUserId: number,
+    userId: number,
+    byAdmin: boolean,
+) => {
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.PASSWORD_CHANGED,
+        actorUserId: currentUserId,
+        targetUserId: userId,
+        req,
+        metadata: { byAdmin },
+    });
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.SESSION_REVOKED,
+        actorUserId: currentUserId,
+        targetUserId: userId,
+        req,
+        metadata: { reason: 'PASSWORD_CHANGED' },
+    });
+};
+
 export const changePasswordController = async (req: Request, res: Response) => {
     const userId = Number(req.params.id);
     const { currentPassword, newPassword } = req.body;
@@ -52,32 +97,12 @@ export const changePasswordController = async (req: Request, res: Response) => {
     }
 
     try {
-        const user = await getUserWithCredentials(userId);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+        const result = await changeUserPassword(userId, currentPassword, newPassword);
+        if (result.error) {
+            return res.status(result.error).json({ message: result.message });
         }
 
-        const passwordCheck = await verifyPassword(user.password, user.salt, currentPassword);
-        if (!passwordCheck.valid) {
-            return res.status(400).json({ message: 'Current password is incorrect' });
-        }
-
-        const hashedNewPassword = await hashPassword(newPassword);
-        await updateUserPassword(userId, hashedNewPassword, null);
-        await recordAuthSecurityEvent({
-            type: AuthSecurityEventType.PASSWORD_CHANGED,
-            actorUserId: Number(currentUser.id),
-            targetUserId: userId,
-            req,
-            metadata: { byAdmin: String(currentUser.id) !== String(userId) },
-        });
-        await recordAuthSecurityEvent({
-            type: AuthSecurityEventType.SESSION_REVOKED,
-            actorUserId: Number(currentUser.id),
-            targetUserId: userId,
-            req,
-            metadata: { reason: 'PASSWORD_CHANGED' },
-        });
+        await recordPasswordChangeAudit(req, Number(currentUser.id), userId, String(currentUser.id) !== String(userId));
 
         return res.status(200).json({ message: 'Password updated successfully' });
     } catch (error) {

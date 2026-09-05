@@ -17,6 +17,28 @@ interface HomePageKpiCardsProps {
     isLoading: boolean;
 }
 
+const KpiCard = ({ label, value, accent }: { label: string; value: string; accent: string }) => (
+    <Card
+        className={`${cls.kpiCard} ${cls[accent]}`}
+        padding="24"
+        shadow="shadowLight"
+    >
+        <VStack gap="8">
+            <Text text={label} size="s" className={cls.kpiLabel} />
+            <Text title={value} size="m" bold />
+        </VStack>
+    </Card>
+);
+
+const KpiSkeleton = () => (
+    <HStack gap="16" wrap="wrap" max>
+        <Skeleton width={260} height={120} border="12px" />
+        <Skeleton width={260} height={120} border="12px" />
+        <Skeleton width={260} height={120} border="12px" />
+        <Skeleton width={260} height={120} border="12px" />
+    </HStack>
+);
+
 export const HomePageKpiCards = memo(({ summary, isLoading }: HomePageKpiCardsProps) => {
     const kpiCards = useMemo(
         () => [
@@ -55,30 +77,13 @@ export const HomePageKpiCards = memo(({ summary, isLoading }: HomePageKpiCardsPr
     );
 
     if (isLoading) {
-        return (
-            <HStack gap="16" wrap="wrap" max>
-                <Skeleton width={260} height={120} border="12px" />
-                <Skeleton width={260} height={120} border="12px" />
-                <Skeleton width={260} height={120} border="12px" />
-                <Skeleton width={260} height={120} border="12px" />
-            </HStack>
-        );
+        return <KpiSkeleton />;
     }
 
     return (
         <HStack gap="16" wrap="wrap" max align="stretch">
             {kpiCards.map((card) => (
-                <Card
-                    key={card.label}
-                    className={`${cls.kpiCard} ${cls[card.accent]}`}
-                    padding="24"
-                    shadow="shadowLight"
-                >
-                    <VStack gap="8">
-                        <Text text={card.label} size="s" className={cls.kpiLabel} />
-                        <Text title={card.value} size="m" bold />
-                    </VStack>
-                </Card>
+                <KpiCard key={card.label} label={card.label} value={card.value} accent={card.accent} />
             ))}
         </HStack>
     );
