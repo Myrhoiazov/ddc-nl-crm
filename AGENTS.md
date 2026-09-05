@@ -14,8 +14,8 @@ DDC CRM is a TypeScript monorepo — React 19 admin SPA (`client/`) + Express 5 
 | Human setup / project entry | README.md |
 | Project / domain knowledge | CONTEXT.md |
 | Feature / system contract | docs/spec/* |
-| Planned module evolution | docs/roadmap/* |
-| Architectural decisions | docs/adr/* |
+| Planned module evolution | docs/roadmap/* (gitignored, local only) |
+| Architectural decisions | docs/adr/* (gitignored, local only) |
 | Execution procedure | .agents/skills/*/SKILL.md |
 | End-to-end coordination | .agents/agents/dev-loop.md |
 
@@ -61,10 +61,10 @@ Validate
 | Domain terminology / project-specific behavior | CONTEXT.md |
 | Docker / production deployment | docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md |
 | Graphify changes | docs/spec/GRAPHIFY_WORKFLOW.md |
-| Auth / security changes | docs/roadmap/AUTH_SECURITY_ROADMAP.md |
-| Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md |
-| Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md |
-| Payment reminders | relevant roadmap in docs/roadmap/ |
+| Auth / security changes | docs/roadmap/AUTH_SECURITY_ROADMAP.md (gitignored, local only) |
+| Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md (gitignored, local only) |
+| Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md (gitignored, local only) |
+| Payment reminders | relevant roadmap in docs/roadmap/ (gitignored, local only) |
 | Large / risky task | .agents/skills/planning-and-task-breakdown/ |
 | Test-first implementation | .agents/skills/tdd/ |
 | Finished implementation review | .agents/skills/code-review/ |
@@ -94,7 +94,7 @@ Validate
 - Container names and ports driven by env values, not hardcoded compose values.
 
 ### When Documentation Changes
-- Prefer existing docs under `docs/spec/`, `docs/roadmap/`, `docs/security/`.
+- Prefer existing docs under `docs/spec/` (committed). `docs/roadmap/`, `docs/security/`, `docs/adr/` are gitignored local-only planning/security docs and must not be referenced from committed files.
 - Record hard-to-reverse decisions as ADRs in `docs/adr/` (gitignored, local only, numbered sequentially).
 - Run `npm run graphify:specs` after significant structural changes.
 
