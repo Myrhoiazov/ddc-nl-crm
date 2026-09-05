@@ -9,8 +9,32 @@ import { HomePageRevenueChart } from './HomePageRevenueChart';
 import { HomePageFailedPayments } from './HomePageFailedPayments';
 import cls from './HomePage.module.scss';
 
-const HomePage = () => {
+const HomePageHeader = ({ syncMessage, isSyncing, isLoading, onSyncMollie }: {
+    syncMessage?: string;
+    isSyncing: boolean;
+    isLoading: boolean;
+    onSyncMollie: () => void;
+}) => {
     const { t } = useTranslation('home');
+    return (
+        <HStack justify="between" align="start" gap="16" max>
+            <VStack gap="8">
+                <Text title={t('CRM Dashboard')} size="l" bold />
+                <Text text="Обзор автосписаний Mollie и состояния учеников по оплатам." />
+                {syncMessage && <Text text={syncMessage} variant="accent" />}
+            </VStack>
+            <Button
+                onClick={onSyncMollie}
+                disabled={isSyncing || isLoading}
+                theme={ButtonTheme.BACKGROUND_INVERTED}
+            >
+                {isSyncing ? 'Синхронизация...' : 'Sync Mollie'}
+            </Button>
+        </HStack>
+    );
+};
+
+const HomePage = () => {
     const {
         summary,
         isLoading,
@@ -29,20 +53,12 @@ const HomePage = () => {
     return (
         <Page>
             <VStack gap="24" className={cls.HomePage} max>
-                <HStack justify="between" align="start" gap="16" max>
-                    <VStack gap="8">
-                        <Text title={t('CRM Dashboard')} size="l" bold />
-                        <Text text="Обзор автосписаний Mollie и состояния учеников по оплатам." />
-                        {syncMessage && <Text text={syncMessage} variant="accent" />}
-                    </VStack>
-                    <Button
-                        onClick={onSyncMollie}
-                        disabled={isSyncing || isLoading}
-                        theme={ButtonTheme.BACKGROUND_INVERTED}
-                    >
-                        {isSyncing ? 'Синхронизация...' : 'Sync Mollie'}
-                    </Button>
-                </HStack>
+                <HomePageHeader
+                    syncMessage={syncMessage}
+                    isSyncing={isSyncing}
+                    isLoading={isLoading}
+                    onSyncMollie={onSyncMollie}
+                />
 
                 <HomePageKpiCards summary={summary} isLoading={isLoading} />
 

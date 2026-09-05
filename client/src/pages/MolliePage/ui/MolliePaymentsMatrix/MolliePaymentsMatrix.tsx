@@ -10,6 +10,22 @@ import { MolliePaymentsMatrixUpcoming } from './MolliePaymentsMatrixUpcoming';
 import { MolliePaymentsMatrixTable } from './MolliePaymentsMatrixTable';
 import s from './MolliePaymentsMatrix.module.scss';
 
+const MatrixHeader = ({ isSyncing, onSync }: { isSyncing: boolean; onSync: () => void }) => (
+    <HStack max justify="between" align="center" gap="16" className={s.header}>
+        <div>
+            <Text title="Матрица платежей" size="m" bold />
+            <Text
+                text="Оплаты учеников по месяцам учебного года. Аналог DDC Payments Matrix."
+                size="s"
+                className={s.subtitle}
+            />
+        </div>
+        <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSync} disabled={isSyncing}>
+            {isSyncing ? 'Sync...' : 'Sync payments'}
+        </Button>
+    </HStack>
+);
+
 export const MolliePaymentsMatrix = memo(() => {
     const {
         data,
@@ -37,19 +53,7 @@ export const MolliePaymentsMatrix = memo(() => {
 
     return (
         <VStack gap="16" max className={s.matrixPage}>
-            <HStack max justify="between" align="center" gap="16" className={s.header}>
-                <div>
-                    <Text title="Матрица платежей" size="m" bold />
-                    <Text
-                        text="Оплаты учеников по месяцам учебного года. Аналог DDC Payments Matrix."
-                        size="s"
-                        className={s.subtitle}
-                    />
-                </div>
-                <Button theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSync} disabled={isSyncing}>
-                    {isSyncing ? 'Sync...' : 'Sync payments'}
-                </Button>
-            </HStack>
+            <MatrixHeader isSyncing={isSyncing} onSync={onSync} />
 
             <MolliePaymentsMatrixToolbar
                 startYear={startYear}

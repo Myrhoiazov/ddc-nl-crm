@@ -40,6 +40,31 @@ const reducers: ReducersList = {
     transactionPage: transactionsPageReducer,
 };
 
+const TransactionsPagination = ({ page, totalPages, isLoading, onPreviousPage, onNextPage }: {
+    page: number;
+    totalPages: number;
+    isLoading: boolean;
+    onPreviousPage: () => void;
+    onNextPage: () => void;
+}) => {
+    if (totalPages <= 0) {
+        return null;
+    }
+    return (
+        <div className={s.pagination}>
+            <span>{page} / {totalPages}</span>
+            <div className={s.paginationActions}>
+                <Button theme={ButtonTheme.CLEAR} className={s.pageButton} onClick={onPreviousPage} disabled={isLoading || page <= 1}>
+                    ←
+                </Button>
+                <Button theme={ButtonTheme.CLEAR} className={s.pageButton} onClick={onNextPage} disabled={isLoading || page >= totalPages}>
+                    →
+                </Button>
+            </div>
+        </div>
+    );
+};
+
 const TransactionsPage = ({ className }: TransactionsPageProps) => {
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
@@ -71,17 +96,13 @@ const TransactionsPage = ({ className }: TransactionsPageProps) => {
     }, [dispatch, page, totalPages]);
 
     const pagination = total > 0 ? (
-        <div className={s.pagination}>
-            <span>{page} / {totalPages}</span>
-            <div className={s.paginationActions}>
-                <Button theme={ButtonTheme.CLEAR} className={s.pageButton} onClick={onPreviousPage} disabled={isLoading || page <= 1}>
-                    ←
-                </Button>
-                <Button theme={ButtonTheme.CLEAR} className={s.pageButton} onClick={onNextPage} disabled={isLoading || page >= totalPages}>
-                    →
-                </Button>
-            </div>
-        </div>
+        <TransactionsPagination
+            page={page}
+            totalPages={totalPages}
+            isLoading={isLoading}
+            onPreviousPage={onPreviousPage}
+            onNextPage={onNextPage}
+        />
     ) : null;
 
     return (

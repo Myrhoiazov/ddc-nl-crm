@@ -111,12 +111,7 @@ const normalizeClientData = (data: Partial<TClient> & { status?: unknown }) => {
 
 type TransactionClient = Prisma.TransactionClient;
 
-const linkMollieCustomer = async (
-    transaction: TransactionClient,
-    clientId: number,
-    mollieCustomerId: number,
-    payerRelation?: string,
-) => {
+const assertCustomerExists = async (transaction: TransactionClient, mollieCustomerId: number) => {
     const customer = await transaction.customer.findUnique({
         where: { id: mollieCustomerId },
     });
@@ -124,8 +119,15 @@ const linkMollieCustomer = async (
     if (!customer) {
         throw new Error('MOLLIE_CUSTOMER_NOT_FOUND');
     }
+    return customer;
+};
 
-    const relation = payerRelation || 'unknown';
+const upsertCustomerClientLink = async (
+    transaction: TransactionClient,
+    customer: Awaited<ReturnType<typeof assertCustomerExists>>,
+    clientId: number,
+    relation: string,
+) => {
     const existingLinksCount = await transaction.customerClientLink.count({
         where: { customerId: customer.id },
     });
@@ -162,6 +164,18 @@ const linkMollieCustomer = async (
             },
         });
     }
+};
+
+const linkMollieCustomer = async (
+    transaction: TransactionClient,
+    clientId: number,
+    mollieCustomerId: number,
+    payerRelation?: string,
+) => {
+    const customer = await assertCustomerExists(transaction, mollieCustomerId);
+    const relation = payerRelation || 'unknown';
+
+    await upsertCustomerClientLink(transaction, customer, clientId, relation);
 };
 
 export const createClient = async (data: TClient, options: CreateClientOptions = {}) => {

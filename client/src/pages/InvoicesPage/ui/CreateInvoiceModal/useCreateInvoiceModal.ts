@@ -103,11 +103,7 @@ export interface UseCreateInvoiceModalResult {
     paidMode: boolean;
 }
 
-export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, paidMode = false }: Props): UseCreateInvoiceModalResult => {
-    const [clients, setClients] = useState<InvoiceClient[]>([]);
-    const [groups, setGroups] = useState<InvoiceGroup[]>([]);
-    const [brands, setBrands] = useState<InvoiceBusinessBrand[]>([]);
-    const [branches, setBranches] = useState<InvoiceBranch[]>([]);
+const useInvoiceFormState = () => {
     const [businessBrandId, setBusinessBrandId] = useState('');
     const [addressSource, setAddressSource] = useState('manual');
     const [clientId, setClientId] = useState('');
@@ -126,6 +122,33 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
     const [showPaymentQr, setShowPaymentQr] = useState(true);
     const [items, setItems] = useState<FormItem[]>([emptyItem()]);
     const [saving, setSaving] = useState(false);
+    return {
+        businessBrandId, setBusinessBrandId,
+        addressSource, setAddressSource,
+        clientId, setClientId,
+        billToName, setBillToName,
+        billToEmail, setBillToEmail,
+        issueDate, setIssueDate,
+        dueDate, setDueDate,
+        status, setStatus,
+        issuerName, setIssuerName,
+        issuerAddress, setIssuerAddress,
+        issuerEmail, setIssuerEmail,
+        bankName, setBankName,
+        iban, setIban,
+        note, setNote,
+        showPaymentButton, setShowPaymentButton,
+        showPaymentQr, setShowPaymentQr,
+        items, setItems,
+        saving, setSaving,
+    };
+};
+
+const useInvoiceData = ({ isOpen }: { isOpen: boolean }) => {
+    const [clients, setClients] = useState<InvoiceClient[]>([]);
+    const [groups, setGroups] = useState<InvoiceGroup[]>([]);
+    const [brands, setBrands] = useState<InvoiceBusinessBrand[]>([]);
+    const [branches, setBranches] = useState<InvoiceBranch[]>([]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -142,8 +165,24 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
         });
     }, [isOpen]);
 
+    return { clients, groups, brands, branches };
+};
+
+const useInvoiceEditFill = ({ isOpen, editInvoice, paidMode, formState }: {
+    isOpen: boolean;
+    editInvoice?: Invoice | null;
+    paidMode: boolean;
+    formState: ReturnType<typeof useInvoiceFormState>;
+}) => {
     useEffect(() => {
         if (!isOpen) return;
+        const {
+            setClientId, setBusinessBrandId, setAddressSource,
+            setBillToName, setBillToEmail, setIssueDate, setDueDate,
+            setStatus, setIssuerName, setIssuerAddress, setIssuerEmail,
+            setBankName, setIban, setNote, setShowPaymentButton, setShowPaymentQr, setItems,
+        } = formState;
+
         if (editInvoice) {
             setClientId(editInvoice.client?.id ? String(editInvoice.client.id) : '');
             setBusinessBrandId(editInvoice.businessBrandId ? String(editInvoice.businessBrandId) : '');
@@ -170,7 +209,6 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
             })));
             return;
         }
-
         setClientId('');
         setBusinessBrandId('');
         setAddressSource('manual');
@@ -188,74 +226,83 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
         setShowPaymentButton(true);
         setShowPaymentQr(true);
         setItems([emptyItem()]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editInvoice, isOpen, paidMode]);
+};
 
-    useEffect(() => {
-        if (!isOpen || editInvoice || businessBrandId) return;
-        const defaultBrand = brands.find((brand) => brand.isDefault);
-        if (defaultBrand) {
-            setBusinessBrandId(String(defaultBrand.id));
-            setIssuerAddress(brandAddress(defaultBrand));
-            setAddressSource('brand');
-        }
-    }, [brands, businessBrandId, editInvoice, isOpen]);
+const useInvoiceSubmit = ({ formState, clients, groups, brands, branches, editInvoice, paidMode, onSaved, onClose }: {
+    formState: ReturnType<typeof useInvoiceFormState>;
+    clients: InvoiceClient[];
+    groups: InvoiceGroup[];
+    brands: InvoiceBusinessBrand[];
+    branches: InvoiceBranch[];
+    editInvoice?: Invoice | null;
+    paidMode: boolean;
+    onSaved: () => void;
+    onClose: () => void;
+}) => {
+    const {
+        businessBrandId, clientId, billToName, billToEmail, issueDate, dueDate,
+        status, issuerName, issuerAddress, issuerEmail, bankName, iban, note,
+        showPaymentButton, showPaymentQr, items, setSaving,
+    } = formState;
 
     const totalCents = useMemo(() => items.reduce((sum, item) => (
         sum + Math.round(Number(item.price || 0) * 100) * Number(item.quantity || 0)
     ), 0), [items]);
 
     const updateItem = useCallback((index: number, patch: Partial<FormItem>) => {
-        setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
-    }, []);
+        formState.setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+    }, [formState]);
 
     const addItem = useCallback(() => {
-        setItems((current) => [...current, emptyItem()]);
-    }, []);
+        formState.setItems((current) => [...current, emptyItem()]);
+    }, [formState]);
 
     const removeItem = useCallback((index: number) => {
-        setItems((current) => current.filter((_, i) => i !== index));
-    }, []);
+        formState.setItems((current) => current.filter((_, i) => i !== index));
+    }, [formState]);
 
     const selectClient = useCallback((value: string) => {
-        setClientId(value);
+        formState.setClientId(value);
         const client = clients.find((item) => item.id === Number(value));
         if (client) {
-            setBillToName([client.firstName, client.lastName].filter(Boolean).join(' '));
-            setBillToEmail(client.email ?? '');
+            formState.setBillToName([client.firstName, client.lastName].filter(Boolean).join(' '));
+            formState.setBillToEmail(client.email ?? '');
         }
-    }, [clients]);
+    }, [clients, formState]);
 
     const selectGroup = useCallback((index: number, value: string) => {
         const group = groups.find((item) => item.id === Number(value));
         if (group?.branch && branchAddress(group.branch)) {
-            setIssuerAddress(branchAddress(group.branch));
-            setAddressSource(`branch:${group.branch.id}`);
+            formState.setIssuerAddress(branchAddress(group.branch));
+            formState.setAddressSource(`branch:${group.branch.id}`);
         }
         updateItem(index, group ? {
             groupId: value,
             description: `Dance classes — ${group.name}`,
             price: ((group.lessonPriceCents ?? 0) / 100).toFixed(2),
         } : { groupId: value });
-    }, [groups, updateItem]);
+    }, [groups, updateItem, formState]);
 
     const selectBusinessBrand = useCallback((value: string) => {
-        setBusinessBrandId(value);
+        formState.setBusinessBrandId(value);
         const brand = brands.find((item) => item.id === Number(value));
         if (brand) {
-            setIssuerAddress(brandAddress(brand));
-            setAddressSource('brand');
+            formState.setIssuerAddress(brandAddress(brand));
+            formState.setAddressSource('brand');
         }
-    }, [brands]);
+    }, [brands, formState]);
 
     const selectAddressSource = useCallback((value: string) => {
-        setAddressSource(value);
+        formState.setAddressSource(value);
         if (value === 'brand') {
-            setIssuerAddress(brandAddress(brands.find((brand) => brand.id === Number(businessBrandId))));
+            formState.setIssuerAddress(brandAddress(brands.find((brand) => brand.id === Number(businessBrandId))));
         } else if (value.startsWith('branch:')) {
             const branch = branches.find((item) => item.id === Number(value.slice('branch:'.length)));
-            if (branch) setIssuerAddress(branchAddress(branch));
+            if (branch) formState.setIssuerAddress(branchAddress(branch));
         }
-    }, [brands, branches, businessBrandId]);
+    }, [brands, branches, businessBrandId, formState]);
 
     const submit = useCallback(async () => {
         if (!billToName.trim() || items.some((item) => !item.description.trim())) {
@@ -271,16 +318,9 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
             const payload = {
                 clientId: clientId ? Number(clientId) : null,
                 businessBrandId: businessBrandId ? Number(businessBrandId) : null,
-                billToName,
-                billToEmail,
-                issueDate,
+                billToName, billToEmail, issueDate,
                 dueDate: paidMode ? null : dueDate || null,
-                status,
-                issuerName,
-                issuerAddress,
-                issuerEmail,
-                bankName,
-                iban,
+                status, issuerName, issuerAddress, issuerEmail, bankName, iban,
                 note: note || null,
                 showPaymentButton: paidMode ? false : showPaymentButton,
                 showPaymentQr: paidMode ? false : showPaymentQr,
@@ -297,11 +337,7 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
                 toast.success('Инвойс обновлён');
             } else if (paidMode) {
                 await $apiPrivate.post('/invoices', {
-                    ...payload,
-                    status: 'DRAFT',
-                    dueDate: null,
-                    showPaymentButton: false,
-                    showPaymentQr: false,
+                    ...payload, status: 'DRAFT', dueDate: null, showPaymentButton: false, showPaymentQr: false,
                 });
                 toast.success('Черновик сохранён. Проверьте его и подтвердите оплату в списке.');
             } else {
@@ -319,42 +355,61 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
     }, [
         billToName, items, paidMode, totalCents, clientId, businessBrandId, billToEmail,
         issueDate, dueDate, status, issuerName, issuerAddress, issuerEmail, bankName,
-        iban, note, showPaymentButton, showPaymentQr, editInvoice, onSaved, onClose,
+        iban, note, showPaymentButton, showPaymentQr, editInvoice, onSaved, onClose, setSaving,
     ]);
 
     return {
-        clients,
-        brands,
-        branches,
-        groups,
-        businessBrandId, setBusinessBrandId,
-        addressSource, setAddressSource,
-        clientId,
-        billToName, setBillToName,
-        billToEmail, setBillToEmail,
-        issueDate, setIssueDate,
-        dueDate, setDueDate,
-        status, setStatus,
-        issuerName, setIssuerName,
-        issuerAddress, setIssuerAddress,
-        issuerEmail, setIssuerEmail,
-        bankName, setBankName,
-        iban, setIban,
-        note, setNote,
-        showPaymentButton, setShowPaymentButton,
-        showPaymentQr, setShowPaymentQr,
-        items, setItems,
-        saving,
+        totalCents, updateItem, addItem, removeItem,
+        selectClient, selectGroup, selectBusinessBrand, selectAddressSource, submit,
+    };
+};
+
+export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, paidMode = false }: Props): UseCreateInvoiceModalResult => {
+    const formState = useInvoiceFormState();
+    const { clients, groups, brands, branches } = useInvoiceData({ isOpen });
+    useInvoiceEditFill({ isOpen, editInvoice, paidMode, formState });
+
+    useEffect(() => {
+        if (!isOpen || editInvoice || formState.businessBrandId) return;
+        const defaultBrand = brands.find((brand) => brand.isDefault);
+        if (defaultBrand) {
+            formState.setBusinessBrandId(String(defaultBrand.id));
+            formState.setIssuerAddress(brandAddress(defaultBrand));
+            formState.setAddressSource('brand');
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [brands, formState.businessBrandId, editInvoice, isOpen]);
+
+    const {
+        totalCents, updateItem, addItem, removeItem,
+        selectClient, selectGroup, selectBusinessBrand, selectAddressSource, submit,
+    } = useInvoiceSubmit({
+        formState, clients, groups, brands, branches, editInvoice, paidMode, onSaved, onClose,
+    });
+
+    return {
+        clients, brands, branches, groups,
+        businessBrandId: formState.businessBrandId, setBusinessBrandId: formState.setBusinessBrandId,
+        addressSource: formState.addressSource, setAddressSource: formState.setAddressSource,
+        clientId: formState.clientId,
+        billToName: formState.billToName, setBillToName: formState.setBillToName,
+        billToEmail: formState.billToEmail, setBillToEmail: formState.setBillToEmail,
+        issueDate: formState.issueDate, setIssueDate: formState.setIssueDate,
+        dueDate: formState.dueDate, setDueDate: formState.setDueDate,
+        status: formState.status, setStatus: formState.setStatus,
+        issuerName: formState.issuerName, setIssuerName: formState.setIssuerName,
+        issuerAddress: formState.issuerAddress, setIssuerAddress: formState.setIssuerAddress,
+        issuerEmail: formState.issuerEmail, setIssuerEmail: formState.setIssuerEmail,
+        bankName: formState.bankName, setBankName: formState.setBankName,
+        iban: formState.iban, setIban: formState.setIban,
+        note: formState.note, setNote: formState.setNote,
+        showPaymentButton: formState.showPaymentButton, setShowPaymentButton: formState.setShowPaymentButton,
+        showPaymentQr: formState.showPaymentQr, setShowPaymentQr: formState.setShowPaymentQr,
+        items: formState.items, setItems: formState.setItems,
+        saving: formState.saving,
         totalCents,
-        updateItem,
-        addItem,
-        removeItem,
-        selectClient,
-        selectGroup,
-        selectBusinessBrand,
-        selectAddressSource,
-        submit,
-        editInvoice,
-        paidMode,
+        updateItem, addItem, removeItem,
+        selectClient, selectGroup, selectBusinessBrand, selectAddressSource, submit,
+        editInvoice, paidMode,
     };
 };

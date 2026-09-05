@@ -42,34 +42,70 @@ const buildResponsiveEmailHtml = (html: string) => `
     ${html}
 `;
 
+// The iframe never auto-sizes to its srcDoc content, so without this it's
+// stuck at a fixed height and shows its own internal scrollbar instead of
+// just being as tall as the email actually is. `allow-same-origin` (without
+// allow-scripts) only lets us read that height from the parent — the email
+// HTML still can't execute any script either way.
+const EmailBodyFrame = ({ bodyHtml, bodyText, resetKey }: { bodyHtml: string | null; bodyText: string | null; resetKey: number }) => {
+    const [height, setHeight] = useState(260);
+    const frameRef = useRef<HTMLIFrameElement>(null);
+    const responsiveBodyHtml = useMemo(
+        () => (bodyHtml ? buildResponsiveEmailHtml(bodyHtml) : undefined),
+        [bodyHtml],
+    );
+
+    useEffect(() => {
+        setHeight(260);
+    }, [resetKey]);
+
+    const onLoad = () => {
+        const doc = frameRef.current?.contentDocument;
+        if (doc?.body) {
+            setHeight(Math.max(doc.body.scrollHeight, 120));
+        }
+    };
+
+    if (!responsiveBodyHtml) {
+        return <pre className={cls.bodyText}>{bodyText || '(пустое письмо)'}</pre>;
+    }
+
+    return (
+        <iframe
+            ref={frameRef}
+            title="email-body"
+            sandbox="allow-same-origin"
+            srcDoc={responsiveBodyHtml}
+            onLoad={onLoad}
+            style={{ height }}
+            className={cls.bodyFrame}
+        />
+    );
+};
+
+const ReplyBox = ({ isSendingReply, onReply }: {
+    isSendingReply?: boolean;
+    onReply: (html: string, files?: File[]) => Promise<boolean>;
+}) => {
+    const onComposerReply = async ({ html, files }: EmailComposerSendPayload) => onReply(html, files);
+
+    return (
+        <VStack gap="8" max className={cls.replyBox}>
+            <Text title="Ответить" size="s" bold />
+            <EmailComposer
+                onSend={onComposerReply}
+                isSending={isSendingReply}
+                sendLabel="Отправить"
+                placeholder="Текст ответа..."
+            />
+        </VStack>
+    );
+};
+
 export const EmailMessageDetail = memo((props: EmailMessageDetailProps) => {
     const {
         message, isSendingReply, isDeleting, isMarkingAsSpam, onReply, onDelete, onMarkAsSpam,
     } = props;
-    const [bodyFrameHeight, setBodyFrameHeight] = useState(260);
-    const bodyFrameRef = useRef<HTMLIFrameElement>(null);
-    const responsiveBodyHtml = useMemo(
-        () => (message.bodyHtml ? buildResponsiveEmailHtml(message.bodyHtml) : undefined),
-        [message.bodyHtml],
-    );
-
-    useEffect(() => {
-        setBodyFrameHeight(260);
-    }, [message.id]);
-
-    // The iframe never auto-sizes to its srcDoc content, so without this it's
-    // stuck at a fixed height and shows its own internal scrollbar instead of
-    // just being as tall as the email actually is. `allow-same-origin` (without
-    // allow-scripts) only lets us read that height from the parent — the email
-    // HTML still can't execute any script either way.
-    const onBodyFrameLoad = () => {
-        const doc = bodyFrameRef.current?.contentDocument;
-        if (doc?.body) {
-            setBodyFrameHeight(Math.max(doc.body.scrollHeight, 120));
-        }
-    };
-
-    const onComposerReply = async ({ html, files }: EmailComposerSendPayload) => onReply(html, files);
 
     const onDeleteClick = () => {
         if (window.confirm('Удалить это письмо? Оно будет перемещено в корзину на почтовом сервере.')) {
@@ -95,32 +131,16 @@ export const EmailMessageDetail = memo((props: EmailMessageDetailProps) => {
                 />
 
                 <div className={cls.body}>
-                    {responsiveBodyHtml ? (
-                        <iframe
-                            ref={bodyFrameRef}
-                            title="email-body"
-                            sandbox="allow-same-origin"
-                            srcDoc={responsiveBodyHtml}
-                            onLoad={onBodyFrameLoad}
-                            style={{ height: bodyFrameHeight }}
-                            className={cls.bodyFrame}
-                        />
-                    ) : (
-                        <pre className={cls.bodyText}>{message.bodyText || '(пустое письмо)'}</pre>
-                    )}
+                    <EmailBodyFrame
+                        bodyHtml={message.bodyHtml}
+                        bodyText={message.bodyText}
+                        resetKey={message.id}
+                    />
                 </div>
 
                 <EmailMessageAttachments attachments={message.attachments} />
 
-                <VStack gap="8" max className={cls.replyBox}>
-                    <Text title="Ответить" size="s" bold />
-                    <EmailComposer
-                        onSend={onComposerReply}
-                        isSending={isSendingReply}
-                        sendLabel="Отправить"
-                        placeholder="Текст ответа..."
-                    />
-                </VStack>
+                <ReplyBox isSendingReply={isSendingReply} onReply={onReply} />
             </VStack>
         </Card>
     );

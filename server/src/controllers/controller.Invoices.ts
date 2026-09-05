@@ -461,6 +461,52 @@ export const getInvoices = async (req: Request, res: Response) => {
     });
 };
 
+const createInvoiceInTransaction = async (
+    transaction: Prisma.TransactionClient,
+    data: z.infer<typeof createInvoiceSchema>,
+    actorId: number,
+    issuerSnapshot: IssuerSnapshot,
+) => {
+    const number = await nextDocumentNumber(transaction, data.issueDate);
+    const totalCents = calculateTotalCents(data.items);
+    const created = await transaction.invoice.create({
+        data: {
+            number,
+            status: data.status,
+            clientId: data.clientId ?? null,
+            businessBrandId: data.businessBrandId ?? null,
+            billToName: data.billToName,
+            billToEmail: data.billToEmail || null,
+            issueDate: data.issueDate,
+            dueDate: data.dueDate ?? null,
+            totalCents,
+            balanceDueCents: totalCents,
+            issuerName: data.issuerName,
+            issuerEmail: data.issuerEmail || null,
+            bankName: data.bankName ?? null,
+            iban: data.iban ?? null,
+            paymentReference: number,
+            note: data.note ?? null,
+            showPaymentButton: data.showPaymentButton,
+            showPaymentQr: data.showPaymentQr,
+            ...issuerSnapshot,
+            issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
+            createdById: actorId,
+            updatedById: actorId,
+            items: { create: mapInvoiceItemCreates(data.items) },
+        },
+        include: invoiceInclude,
+    });
+    await createAuditLog(transaction, {
+        invoiceId: created.id,
+        action: 'CREATED',
+        actorId,
+        oldValues: undefined,
+        newValues: created,
+    });
+    return created;
+};
+
 export const createInvoice = async (req: Request, res: Response) => {
     const parsed = createInvoiceSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -470,46 +516,9 @@ export const createInvoice = async (req: Request, res: Response) => {
     const data = parsed.data;
     const actorId = getActorId(req);
     const issuerSnapshot = await getIssuerSnapshot(data.businessBrandId);
-    const invoice = await prisma.$transaction(async (transaction) => {
-        const number = await nextDocumentNumber(transaction, data.issueDate);
-        const totalCents = calculateTotalCents(data.items);
-        const created = await transaction.invoice.create({
-            data: {
-                number,
-                status: data.status,
-                clientId: data.clientId ?? null,
-                businessBrandId: data.businessBrandId ?? null,
-                billToName: data.billToName,
-                billToEmail: data.billToEmail || null,
-                issueDate: data.issueDate,
-                dueDate: data.dueDate ?? null,
-                totalCents,
-                balanceDueCents: totalCents,
-                issuerName: data.issuerName,
-                issuerEmail: data.issuerEmail || null,
-                bankName: data.bankName ?? null,
-                iban: data.iban ?? null,
-                paymentReference: number,
-                note: data.note ?? null,
-                showPaymentButton: data.showPaymentButton,
-                showPaymentQr: data.showPaymentQr,
-                ...issuerSnapshot,
-                issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
-                createdById: actorId,
-                updatedById: actorId,
-                items: { create: mapInvoiceItemCreates(data.items) },
-            },
-            include: invoiceInclude,
-        });
-        await createAuditLog(transaction, {
-            invoiceId: created.id,
-            action: 'CREATED',
-            actorId,
-            oldValues: undefined,
-            newValues: created,
-        });
-        return created;
-    });
+    const invoice = await prisma.$transaction((transaction) =>
+        createInvoiceInTransaction(transaction, data, actorId, issuerSnapshot),
+    );
     return res.status(201).json(invoice);
 };
 
@@ -549,6 +558,47 @@ export const createPaidInvoice = async (req: Request, res: Response) => {
     return res.status(201).json(invoice);
 };
 
+const confirmPaidInvoiceInTransaction = async (
+    transaction: Prisma.TransactionClient,
+    id: number,
+    existing: NonNullable<Awaited<ReturnType<typeof prisma.invoice.findUnique>>>,
+    data: z.infer<typeof confirmPaidInvoiceSchema>,
+    actorId: number,
+) => {
+    await transaction.invoicePayment.create({
+        data: {
+            invoiceId: id,
+            amountCents: existing.totalCents,
+            paidAt: data.paidAt,
+            method: data.method,
+            reference: data.reference || null,
+            note: data.note ?? null,
+            createdById: actorId,
+        },
+    });
+    const updated = await transaction.invoice.update({
+        where: { id },
+        data: {
+            status: InvoiceStatus.PAID,
+            paidAt: data.paidAt,
+            paidAmountCents: existing.totalCents,
+            balanceDueCents: 0,
+            showPaymentButton: false,
+            showPaymentQr: false,
+            updatedById: actorId,
+        },
+        include: invoiceInclude,
+    });
+    await createAuditLog(transaction, {
+        invoiceId: id,
+        action: 'DRAFT_CONFIRMED_PAID',
+        actorId,
+        oldValues: existing,
+        newValues: updated,
+    });
+    return updated;
+};
+
 export const confirmPaidInvoice = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const parsed = confirmPaidInvoiceSchema.safeParse(req.body);
@@ -569,41 +619,42 @@ export const confirmPaidInvoice = async (req: Request, res: Response) => {
     }
 
     const actorId = getActorId(req);
-    const invoice = await prisma.$transaction(async (transaction) => {
-        await transaction.invoicePayment.create({
-            data: {
-                invoiceId: id,
-                amountCents: existing.totalCents,
-                paidAt: parsed.data.paidAt,
-                method: parsed.data.method,
-                reference: parsed.data.reference || null,
-                note: parsed.data.note ?? null,
-                createdById: actorId,
-            },
-        });
-        const updated = await transaction.invoice.update({
-            where: { id },
-            data: {
-                status: InvoiceStatus.PAID,
-                paidAt: parsed.data.paidAt,
-                paidAmountCents: existing.totalCents,
-                balanceDueCents: 0,
-                showPaymentButton: false,
-                showPaymentQr: false,
-                updatedById: actorId,
-            },
-            include: invoiceInclude,
-        });
-        await createAuditLog(transaction, {
-            invoiceId: id,
-            action: 'DRAFT_CONFIRMED_PAID',
-            actorId,
-            oldValues: existing,
-            newValues: updated,
-        });
-        return updated;
-    });
+    const invoice = await prisma.$transaction((transaction) =>
+        confirmPaidInvoiceInTransaction(transaction, id, existing, parsed.data, actorId),
+    );
     return res.json(invoice);
+};
+
+const updateInvoiceInTransaction = async (
+    transaction: Prisma.TransactionClient,
+    id: number,
+    data: z.infer<typeof createInvoiceSchema>,
+    existing: NonNullable<Awaited<ReturnType<typeof prisma.invoice.findUnique>>>,
+    issuerSnapshot: IssuerSnapshot,
+    actorId: number,
+) => {
+    const totalCents = calculateTotalCents(data.items);
+    await transaction.invoiceItem.deleteMany({ where: { invoiceId: id } });
+    const updated = await transaction.invoice.update({
+        where: { id },
+        data: buildInvoiceUpdateData({
+            data,
+            totalCents,
+            issuerSnapshot,
+            issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
+            existing,
+            actorId,
+        }),
+        include: invoiceInclude,
+    });
+    await createAuditLog(transaction, {
+        invoiceId: id,
+        action: 'UPDATED',
+        actorId,
+        oldValues: existing,
+        newValues: updated,
+    });
+    return updated;
 };
 
 export const updateInvoice = async (req: Request, res: Response) => {
@@ -638,29 +689,9 @@ export const updateInvoice = async (req: Request, res: Response) => {
         );
         if (!archived) return;
     }
-    const invoice = await prisma.$transaction(async (transaction) => {
-        await transaction.invoiceItem.deleteMany({ where: { invoiceId: id } });
-        const updated = await transaction.invoice.update({
-            where: { id },
-            data: buildInvoiceUpdateData({
-                data,
-                totalCents,
-                issuerSnapshot,
-                issuerAddress: data.issuerAddress ?? issuerSnapshot.issuerAddress ?? null,
-                existing,
-                actorId,
-            }),
-            include: invoiceInclude,
-        });
-        await createAuditLog(transaction, {
-            invoiceId: id,
-            action: 'UPDATED',
-            actorId,
-            oldValues: existing,
-            newValues: updated,
-        });
-        return updated;
-    });
+    const invoice = await prisma.$transaction((transaction) =>
+        updateInvoiceInTransaction(transaction, id, data, existing, issuerSnapshot, actorId),
+    );
 
     return res.json(invoice);
 };
@@ -765,6 +796,32 @@ const cancelInvoiceMolliePayments = async (
     }
 };
 
+const updateStatusInTransaction = async (
+    transaction: Prisma.TransactionClient,
+    id: number,
+    status: InvoiceStatus,
+    existing: InvoiceForStatusUpdate,
+    actorId: number,
+) => {
+    const updated = await transaction.invoice.update({
+        where: { id },
+        data: {
+            status,
+            balanceDueCents: status === InvoiceStatus.CANCELLED ? 0 : existing.totalCents,
+            updatedById: actorId,
+        },
+        include: invoiceInclude,
+    });
+    await createAuditLog(transaction, {
+        invoiceId: id,
+        action: status === InvoiceStatus.CANCELLED ? 'CANCELLED' : 'STATUS_CHANGED',
+        actorId,
+        oldValues: existing,
+        newValues: updated,
+    });
+    return updated;
+};
+
 export const updateInvoiceStatus = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const parsed = z.object({ status: z.enum([InvoiceStatus.DRAFT, InvoiceStatus.ISSUED, InvoiceStatus.CANCELLED]) }).safeParse(req.body);
@@ -797,25 +854,9 @@ export const updateInvoiceStatus = async (req: Request, res: Response) => {
 
     const actorId = getActorId(req);
     const status = parsed.data.status;
-    const invoice = await prisma.$transaction(async (transaction) => {
-        const updated = await transaction.invoice.update({
-            where: { id },
-            data: {
-                status,
-                balanceDueCents: status === InvoiceStatus.CANCELLED ? 0 : existing.totalCents,
-                updatedById: actorId,
-            },
-            include: invoiceInclude,
-        });
-        await createAuditLog(transaction, {
-            invoiceId: id,
-            action: status === InvoiceStatus.CANCELLED ? 'CANCELLED' : 'STATUS_CHANGED',
-            actorId,
-            oldValues: existing,
-            newValues: updated,
-        });
-        return updated;
-    });
+    const invoice = await prisma.$transaction((transaction) =>
+        updateStatusInTransaction(transaction, id, status, existing, actorId),
+    );
     return res.json(invoice);
 };
 
@@ -956,6 +997,78 @@ type AdjustmentSourceInvoice = {
     showPaymentQr: boolean;
 };
 
+const buildAdjustmentInvoiceData = (
+    number: string,
+    isCredit: boolean,
+    issueDate: Date,
+    original: AdjustmentSourceInvoice,
+    data: z.infer<typeof adjustmentSchema>,
+    actorId: number,
+) => ({
+    number,
+    documentType: isCredit ? InvoiceDocumentType.CREDIT_NOTE : InvoiceDocumentType.DEBIT_NOTE,
+    parentInvoiceId: original.id,
+    status: isCredit ? InvoiceStatus.PAID : InvoiceStatus.ISSUED,
+    clientId: original.clientId,
+    billToName: original.billToName,
+    billToEmail: original.billToEmail,
+    issueDate,
+    dueDate: isCredit ? null : original.dueDate,
+    paidAt: isCredit ? issueDate : null,
+    currency: original.currency,
+    totalCents: data.amountCents,
+    balanceDueCents: isCredit ? 0 : data.amountCents,
+    issuerName: original.issuerName,
+    issuerAddress: original.issuerAddress,
+    issuerEmail: original.issuerEmail,
+    bankName: original.bankName,
+    iban: original.iban,
+    paymentReference: number,
+    note: data.reason,
+    showPaymentButton: isCredit ? false : original.showPaymentButton,
+    showPaymentQr: isCredit ? false : original.showPaymentQr,
+    createdById: actorId,
+    updatedById: actorId,
+    items: {
+        create: {
+            description: `${isCredit ? 'Кредит-нота' : 'Корректировка'} к ${original.number}: ${data.reason}`,
+            quantity: 1,
+            unitPriceCents: data.amountCents,
+            totalCents: data.amountCents,
+        },
+    },
+});
+
+const applyCreditAdjustment = async (
+    transaction: Prisma.TransactionClient,
+    original: AdjustmentSourceInvoice,
+    creditNote: Awaited<ReturnType<typeof createAdjustmentDocument>>,
+    data: z.infer<typeof adjustmentSchema>,
+    actorId: number,
+) => {
+    const creditedAmountCents = original.creditedAmountCents + data.amountCents;
+    const balanceDueCents = Math.max(0, original.totalCents - original.paidAmountCents - creditedAmountCents);
+    const updatedOriginal = await transaction.invoice.update({
+        where: { id: original.id },
+        data: {
+            creditedAmountCents,
+            balanceDueCents,
+            status: calculateStatus({ ...original, creditedAmountCents, balanceDueCents }),
+            updatedById: actorId,
+        },
+    });
+    await createAuditLog(transaction, {
+        invoiceId: original.id,
+        action: 'CREDIT_NOTE_APPLIED',
+        actorId,
+        oldValues: original,
+        newValues: {
+            creditNoteId: creditNote.id,
+            invoice: updatedOriginal,
+        },
+    });
+};
+
 const createAdjustmentDocument = async (
     transaction: Prisma.TransactionClient,
     original: AdjustmentSourceInvoice,
@@ -966,65 +1079,12 @@ const createAdjustmentDocument = async (
     const issueDate = new Date();
     const number = await nextDocumentNumber(transaction, issueDate, isCredit ? 'CRN' : 'DBN');
     const created = await transaction.invoice.create({
-        data: {
-            number,
-            documentType: isCredit ? InvoiceDocumentType.CREDIT_NOTE : InvoiceDocumentType.DEBIT_NOTE,
-            parentInvoiceId: original.id,
-            status: isCredit ? InvoiceStatus.PAID : InvoiceStatus.ISSUED,
-            clientId: original.clientId,
-            billToName: original.billToName,
-            billToEmail: original.billToEmail,
-            issueDate,
-            dueDate: isCredit ? null : original.dueDate,
-            paidAt: isCredit ? issueDate : null,
-            currency: original.currency,
-            totalCents: data.amountCents,
-            balanceDueCents: isCredit ? 0 : data.amountCents,
-            issuerName: original.issuerName,
-            issuerAddress: original.issuerAddress,
-            issuerEmail: original.issuerEmail,
-            bankName: original.bankName,
-            iban: original.iban,
-            paymentReference: number,
-            note: data.reason,
-            showPaymentButton: isCredit ? false : original.showPaymentButton,
-            showPaymentQr: isCredit ? false : original.showPaymentQr,
-            createdById: actorId,
-            updatedById: actorId,
-            items: {
-                create: {
-                    description: `${isCredit ? 'Кредит-нота' : 'Корректировка'} к ${original.number}: ${data.reason}`,
-                    quantity: 1,
-                    unitPriceCents: data.amountCents,
-                    totalCents: data.amountCents,
-                },
-            },
-        },
+        data: buildAdjustmentInvoiceData(number, isCredit, issueDate, original, data, actorId),
         include: invoiceInclude,
     });
 
     if (isCredit) {
-        const creditedAmountCents = original.creditedAmountCents + data.amountCents;
-        const balanceDueCents = Math.max(0, original.totalCents - original.paidAmountCents - creditedAmountCents);
-        const updatedOriginal = await transaction.invoice.update({
-            where: { id: original.id },
-            data: {
-                creditedAmountCents,
-                balanceDueCents,
-                status: calculateStatus({ ...original, creditedAmountCents, balanceDueCents }),
-                updatedById: actorId,
-            },
-        });
-        await createAuditLog(transaction, {
-            invoiceId: original.id,
-            action: 'CREDIT_NOTE_APPLIED',
-            actorId,
-            oldValues: original,
-            newValues: {
-                creditNoteId: created.id,
-                invoice: updatedOriginal,
-            },
-        });
+        await applyCreditAdjustment(transaction, original, created, data, actorId);
     } else {
         await createAuditLog(transaction, {
             invoiceId: original.id,
