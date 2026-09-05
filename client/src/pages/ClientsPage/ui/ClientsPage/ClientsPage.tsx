@@ -1,34 +1,19 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
-import { memo, useCallback, useEffect, useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import cls from './ClientsPage.module.scss';
-import { Client, ClientList, ClientView, ClientViewSelector } from '@/entities/Client';
+import { Client, ClientList, ClientViewSelector } from '@/entities/Client';
 import {
     DynamicModuleLoader,
     ReducersList,
 } from '@/shared/lib/components/DynamicModuleLoader/DynamicModuleLoader';
-import {
-    clientsPageActions,
-    clientsPageReducer,
-    getClients,
-} from '../../model/slices/clientsPageSlice';
-import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
-import { useSelector } from 'react-redux';
-import { useInitialEffect } from '@/shared/lib/hooks/useInitialEffect/useInitialEffect';
-import {
-    getClientsPageIsLoading,
-    getClientsPageView,
-} from '../../model/selectors/clientsPageSelectors';
-import { fetchNextClientsPage } from '../../model/services/fetchNextClientsPage/fetchNextClientsPage';
-import { initClientsPage } from '../../model/services/initClientsPage/initClientsPage';
+import { clientsPageReducer } from '../../model/slices/clientsPageSlice';
 import { FiltersContainer } from '../FiltersContainer/FiltersContainer';
-import { fetchClientsList } from '../../model/services/fetchClientsList/fetchClientsList';
 import { EditClientDropdown } from '@/features/editClientDropdown';
 import { Text } from '@/shared/ui/Text/Text';
 import { HStack } from '@/shared/ui/Stack';
 import { Page } from '@/widgets/Page/Page';
-import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { CLIENT_CREATED_EVENT } from '@/shared/const/events';
+import { useClientsPage } from './useClientsPage';
 
 interface ClientsPageProps {
     className?: string;
@@ -66,38 +51,8 @@ const ClientsStatsGrid = ({ clients }: { clients: Client[] }) => {
 
 const ClientsPage = (props: ClientsPageProps) => {
     const { className } = props;
-    const dispatch = useAppDispatch();
-    const clients = useSelector(getClients.selectAll);
-    const isLoading = useSelector(getClientsPageIsLoading);
-    const view = useSelector(getClientsPageView);
     const { t } = useTranslation();
-    const [searchParams] = useSearchParams();
-
-    const onChangeView = useCallback(
-        (view: ClientView) => {
-            dispatch(clientsPageActions.setView(view));
-        },
-        [dispatch]
-    );
-
-    const onLoadNextPart = useCallback(() => {
-        dispatch(fetchNextClientsPage());
-    }, [dispatch]);
-
-    useInitialEffect(() => {
-        dispatch(initClientsPage(searchParams));
-    });
-
-    const fetchAllClients = useCallback(() => {
-        dispatch(fetchClientsList({ replace: true, noQuery: true }));
-    }, [dispatch]);
-
-    // A client can also be created from the global "Добавить клиента" button in Navbar,
-    // which lives outside this page — it signals us via a DOM event instead of a prop.
-    useEffect(() => {
-        window.addEventListener(CLIENT_CREATED_EVENT, fetchAllClients);
-        return () => window.removeEventListener(CLIENT_CREATED_EVENT, fetchAllClients);
-    }, [fetchAllClients]);
+    const { clients, isLoading, view, onChangeView, onLoadNextPart, fetchAllClients } = useClientsPage();
 
     return (
         <DynamicModuleLoader reducers={reducers} removeAfterUnmount={false}>

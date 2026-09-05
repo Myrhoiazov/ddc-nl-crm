@@ -114,17 +114,8 @@ const AddStudentForm = ({
 
 export const MollieStudentLinksManager = memo(({ customerId, version, onChanged }: MollieStudentLinksManagerProps) => {
     const {
-        customer,
-        selectedClientId,
-        setSelectedClientId,
-        payerRelation,
-        setPayerRelation,
-        isLoading,
-        isSaving,
-        error,
-        availableClientOptions,
-        onAddStudent,
-        onDeleteLink,
+        customer, selectedClientId, setSelectedClientId, payerRelation, setPayerRelation,
+        isLoading, isSaving, error, availableClientOptions, onAddStudent, onDeleteLink,
     } = useStudentLinksManager(customerId, version, onChanged);
 
     return (
@@ -151,13 +142,9 @@ export const MollieStudentLinksManager = memo(({ customerId, version, onChanged 
                         <LinkedStudents customer={customer} isSaving={isSaving} onDeleteLink={onDeleteLink} />
 
                         <AddStudentForm
-                            selectedClientId={selectedClientId}
-                            setSelectedClientId={setSelectedClientId}
-                            payerRelation={payerRelation}
-                            setPayerRelation={setPayerRelation}
-                            availableClientOptions={availableClientOptions}
-                            isSaving={isSaving}
-                            onAddStudent={onAddStudent}
+                            selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId}
+                            payerRelation={payerRelation} setPayerRelation={setPayerRelation}
+                            availableClientOptions={availableClientOptions} isSaving={isSaving} onAddStudent={onAddStudent}
                         />
                     </>
                 )}

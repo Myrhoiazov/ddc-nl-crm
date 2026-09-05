@@ -625,14 +625,23 @@ export const confirmPaidInvoice = async (req: Request, res: Response) => {
     return res.json(invoice);
 };
 
-const updateInvoiceInTransaction = async (
-    transaction: Prisma.TransactionClient,
-    id: number,
-    data: z.infer<typeof createInvoiceSchema>,
-    existing: NonNullable<Awaited<ReturnType<typeof prisma.invoice.findUnique>>>,
-    issuerSnapshot: IssuerSnapshot,
-    actorId: number,
-) => {
+type UpdateInvoiceTransactionParams = {
+    transaction: Prisma.TransactionClient;
+    id: number;
+    data: z.infer<typeof createInvoiceSchema>;
+    existing: NonNullable<Awaited<ReturnType<typeof prisma.invoice.findUnique>>>;
+    issuerSnapshot: IssuerSnapshot;
+    actorId: number | undefined;
+};
+
+const updateInvoiceInTransaction = async ({
+    transaction,
+    id,
+    data,
+    existing,
+    issuerSnapshot,
+    actorId,
+}: UpdateInvoiceTransactionParams) => {
     const totalCents = calculateTotalCents(data.items);
     await transaction.invoiceItem.deleteMany({ where: { invoiceId: id } });
     const updated = await transaction.invoice.update({
@@ -690,7 +699,14 @@ export const updateInvoice = async (req: Request, res: Response) => {
         if (!archived) return;
     }
     const invoice = await prisma.$transaction((transaction) =>
-        updateInvoiceInTransaction(transaction, id, data, existing, issuerSnapshot, actorId),
+        updateInvoiceInTransaction({
+            transaction,
+            id,
+            data,
+            existing,
+            issuerSnapshot,
+            actorId,
+        }),
     );
 
     return res.json(invoice);
@@ -997,14 +1013,23 @@ type AdjustmentSourceInvoice = {
     showPaymentQr: boolean;
 };
 
-const buildAdjustmentInvoiceData = (
-    number: string,
-    isCredit: boolean,
-    issueDate: Date,
-    original: AdjustmentSourceInvoice,
-    data: z.infer<typeof adjustmentSchema>,
-    actorId: number,
-) => ({
+type AdjustmentInvoiceDataParams = {
+    number: string;
+    isCredit: boolean;
+    issueDate: Date;
+    original: AdjustmentSourceInvoice;
+    data: z.infer<typeof adjustmentSchema>;
+    actorId: number | undefined;
+};
+
+export const buildAdjustmentInvoiceData = ({
+    number,
+    isCredit,
+    issueDate,
+    original,
+    data,
+    actorId,
+}: AdjustmentInvoiceDataParams) => ({
     number,
     documentType: isCredit ? InvoiceDocumentType.CREDIT_NOTE : InvoiceDocumentType.DEBIT_NOTE,
     parentInvoiceId: original.id,
@@ -1079,7 +1104,14 @@ const createAdjustmentDocument = async (
     const issueDate = new Date();
     const number = await nextDocumentNumber(transaction, issueDate, isCredit ? 'CRN' : 'DBN');
     const created = await transaction.invoice.create({
-        data: buildAdjustmentInvoiceData(number, isCredit, issueDate, original, data, actorId),
+        data: buildAdjustmentInvoiceData({
+            number,
+            isCredit,
+            issueDate,
+            original,
+            data,
+            actorId,
+        }),
         include: invoiceInclude,
     });
 

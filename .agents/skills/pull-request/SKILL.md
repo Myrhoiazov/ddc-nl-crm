@@ -14,7 +14,7 @@ Publish DDC CRM changes as a GitHub pull request into `develop`. This skill stop
 - `gh` CLI installed and authenticated.
 - Remote `origin` points to `https://github.com/Myrhoiazov/ddc-nl-crm.git`.
 - Relevant checks from `AGENTS.md` have passed or blockers are documented.
-- Work is on a `feature/*` or `fix/*` branch off `develop` (see AGENTS.md branching model).
+- Work is on a `feat/*` or `fix/*` branch off `develop` (see AGENTS.md branching model).
 
 ## Process
 
@@ -40,7 +40,7 @@ Completion criterion: the change set is understood and safe to publish.
 
 Choose:
 
-- A short feature branch name (`feature/...` or `fix/...`).
+- A short branch name (`feat/...` or `fix/...`).
 - One Conventional Commit message.
 - A PR title and body that describe behavior and verification, targeting `develop`.
 

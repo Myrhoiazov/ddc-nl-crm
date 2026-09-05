@@ -1,9 +1,6 @@
 import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-    createMollieMandateFormActions,
-    createMollieMandateFormReducer,
-} from '../../model/slices/createMollieMandateFormSlice';
+import { createMollieMandateFormReducer } from '../../model/slices/createMollieMandateFormSlice';
 import {
     DynamicModuleLoader,
     ReducersList,
@@ -11,7 +8,6 @@ import {
 import { MandateCard } from '@/entities/Mandate';
 import { Text } from '@/shared/ui/Text/Text';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
-import { MandateMethod } from '@/entities/MandateMethod';
 import { useSelector } from 'react-redux';
 import {
     getMollieMandateData,
@@ -25,7 +21,7 @@ import { Skeleton } from '@/shared/ui/Skeleton';
 import { useInitialEffect } from '@/shared/lib/hooks/useInitialEffect/useInitialEffect';
 import { fetchMollieClientsList } from '../../model/services/fetchMollieClientsList/fetchMollieClientsList';
 import { VStack } from '@/shared/ui/Stack';
-import { MollieClient } from '@/entities/MollieClient';
+import { useMollieMandateUpdaters } from './useMollieMandateUpdaters';
 
 interface CreateMollieMandateFormProps {
     className?: string;
@@ -59,26 +55,7 @@ const CreateMollieMandateForm = (props: CreateMollieMandateFormProps) => {
         dispatch(fetchMollieClientsList({}));
     });
 
-    const onChangeDate = useCallback(
-        (value: string) => {
-            dispatch(createMollieMandateFormActions.updateFotm({ signatureDate: value }));
-        },
-        [dispatch]
-    );
-
-    const onChangeCustomer = useCallback(
-        (customer?: MollieClient) => {
-            dispatch(createMollieMandateFormActions.updateFotm({ customerId: customer?.mollieId }));
-        },
-        [dispatch]
-    );
-
-    const onChangeMandateMethod = useCallback(
-        (value: MandateMethod) => {
-            dispatch(createMollieMandateFormActions.updateFotm({ method: value }));
-        },
-        [dispatch]
-    );
+    const { onChangeDate, onChangeCustomer, onChangeMandateMethod } = useMollieMandateUpdaters();
 
     const onSave = useCallback(async () => {
         const result = await dispatch(addMandate());

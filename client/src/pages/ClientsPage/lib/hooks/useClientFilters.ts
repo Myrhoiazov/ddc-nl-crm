@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux';
 import { useCallback } from 'react';
+import { ActionCreatorWithPayload } from '@reduxjs/toolkit';
 import {
     getClientsPageBranchId,
     getClientsPageOrder,
@@ -9,11 +10,24 @@ import {
 } from '../../model/selectors/clientsPageSelectors';
 import { useDebounce } from '@/shared/lib/hooks/useDebounce/useDebounce';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
+import { AppDispatch } from '@/app/providers/StoreProvider';
 import { ClientSortField } from '@/entities/Client';
 import { SortOrder } from '@/shared/types/sort';
 import { clientsPageActions } from '../../model/slices/clientsPageSlice';
 import { fetchClientsList } from '../../model/services/fetchClientsList/fetchClientsList';
 import { ClientPaymentStatusFilter } from '../../model/types/ClientPageSchema';
+
+// Every filter change follows the same shape: set the field, re-fetch. Only
+// the action creator (and, for search, the debounce) differs.
+const applyFilterChange = <T,>(
+    dispatch: AppDispatch,
+    fetchData: () => void,
+    setAction: ActionCreatorWithPayload<T>,
+    value: T,
+) => {
+    dispatch(setAction(value));
+    fetchData();
+};
 
 export function useClientFilters() {
     const search = useSelector(getClientsPageSearch);
@@ -30,49 +44,25 @@ export function useClientFilters() {
 
     const debouncedFetchData = useDebounce(fetchData, 500);
 
-    const onChangeSearch = useCallback(
-        (search: string) => {
-            dispatch(clientsPageActions.setSearch(search));
-            // dispatch(articlesPageActions.setPage(1));
-            debouncedFetchData();
-        },
-        [dispatch, debouncedFetchData],
-    );
+    const onChangeSearch = useCallback((value: string) => (
+        applyFilterChange(dispatch, debouncedFetchData, clientsPageActions.setSearch, value)
+    ), [dispatch, debouncedFetchData]);
 
-    const onChangeSort = useCallback(
-        (newSort: ClientSortField) => {
-            dispatch(clientsPageActions.setSort(newSort));
-            // dispatch(articlesPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeSort = useCallback((value: ClientSortField) => (
+        applyFilterChange(dispatch, fetchData, clientsPageActions.setSort, value)
+    ), [dispatch, fetchData]);
 
-    const onChangeOrder = useCallback(
-        (newOrder: SortOrder) => {
-            dispatch(clientsPageActions.setOrder(newOrder));
-            // dispatch(articlesPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeOrder = useCallback((value: SortOrder) => (
+        applyFilterChange(dispatch, fetchData, clientsPageActions.setOrder, value)
+    ), [dispatch, fetchData]);
 
-    const onChangeBranch = useCallback(
-        (value: string) => {
-            dispatch(clientsPageActions.setBranchId(value));
-            // dispatch(articlesPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeBranch = useCallback((value: string) => (
+        applyFilterChange(dispatch, fetchData, clientsPageActions.setBranchId, value)
+    ), [dispatch, fetchData]);
 
-    const onChangePaymentStatus = useCallback(
-        (value: ClientPaymentStatusFilter) => {
-            dispatch(clientsPageActions.setPaymentStatus(value));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangePaymentStatus = useCallback((value: ClientPaymentStatusFilter) => (
+        applyFilterChange(dispatch, fetchData, clientsPageActions.setPaymentStatus, value)
+    ), [dispatch, fetchData]);
 
     return {
         search,

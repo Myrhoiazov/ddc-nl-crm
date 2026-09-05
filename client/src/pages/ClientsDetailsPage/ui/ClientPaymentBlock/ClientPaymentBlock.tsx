@@ -34,169 +34,97 @@ interface ContentProps {
 
 const Content = (props: ContentProps) => {
     const {
-        data,
-        statusText,
-        onOpenPaymentLink,
-        onOpenMandate,
-        onOpenSubscription,
-        onOpenEdit,
-        onCancel,
-        onOpenRestart,
-        onRevoke,
-        onCopy,
-        onCancelLink,
+        data, statusText, onOpenPaymentLink, onOpenMandate, onOpenSubscription,
+        onOpenEdit, onCancel, onOpenRestart, onRevoke, onCopy, onCancelLink,
     } = props;
 
     return (
         <VStack gap="16" max>
             <ClientPaymentHeader
-                statusText={statusText}
-                paymentStatus={data?.summary.paymentStatus ?? 'unknown'}
-                onOpenPaymentLink={onOpenPaymentLink}
-                onOpenMandate={onOpenMandate}
-                onOpenSubscription={onOpenSubscription}
+                statusText={statusText} paymentStatus={data?.summary.paymentStatus ?? 'unknown'}
+                onOpenPaymentLink={onOpenPaymentLink} onOpenMandate={onOpenMandate} onOpenSubscription={onOpenSubscription}
             />
-
             <ClientPaymentMetrics
-                payerCount={data?.summary.payerCount}
-                activeSubscriptionCount={data?.summary.activeSubscriptionCount}
+                payerCount={data?.summary.payerCount} activeSubscriptionCount={data?.summary.activeSubscriptionCount}
                 lastPayment={data?.summary.lastPayment}
             />
-
             <ClientPayersSection payers={data?.payers} />
-
             <ClientSubscriptionsSection
-                subscriptions={data?.subscriptions}
-                onOpenEdit={onOpenEdit}
-                onCancel={onCancel}
-                onOpenRestart={onOpenRestart}
+                subscriptions={data?.subscriptions} onOpenEdit={onOpenEdit} onCancel={onCancel} onOpenRestart={onOpenRestart}
             />
-
-            <ClientMandatesSection
-                mandates={data?.mandates}
-                onRevoke={onRevoke}
-            />
-
-            <ClientPaymentLinksSection
-                paymentLinks={data?.paymentLinks}
-                onCopy={onCopy}
-                onCancel={onCancelLink}
-            />
-
+            <ClientMandatesSection mandates={data?.mandates} onRevoke={onRevoke} />
+            <ClientPaymentLinksSection paymentLinks={data?.paymentLinks} onCopy={onCopy} onCancel={onCancelLink} />
             <ClientLatestPaymentsSection latestPayments={data?.latestPayments} />
         </VStack>
     );
 };
 
-export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
+const LoadingCard = () => (
+    <Card id="mollie-account" padding="24" fullWidth className={s.card}>
+        <VStack gap="16" max>
+            <Skeleton width={260} height={28} />
+            <Skeleton width="100%" height={72} border="12px" />
+            <Skeleton width="100%" height={72} border="12px" />
+        </VStack>
+    </Card>
+);
+
+const ErrorCard = () => (
+    <Card id="mollie-account" padding="24" fullWidth className={s.card}>
+        <Text title="Платежи ученика" text="Не удалось загрузить платежный блок." size="m" />
+    </Card>
+);
+
+type PaymentBlockState = ReturnType<typeof useClientPaymentBlock>;
+
+const ClientPaymentBlockBody = ({ id, state }: { id: string; state: PaymentBlockState }) => {
     const {
-        data,
-        isLoading,
-        error,
-        isPaymentLinkOpen,
-        setIsPaymentLinkOpen,
-        isMandateOpen,
-        setIsMandateOpen,
-        isSubscriptionOpen,
-        setIsSubscriptionOpen,
-        editingSubscription,
-        setEditingSubscription,
-        restartingSubscription,
-        setRestartingSubscription,
-        isSaving,
-        mandateForm,
-        setMandateForm,
-        subscriptionForm,
-        setSubscriptionForm,
-        editSubscriptionForm,
-        setEditSubscriptionForm,
-        restartForm,
-        setRestartForm,
-        payers,
-        payerOptions,
-        mandateOptions,
-        getMandateOptionsForCustomer,
-        onPaymentLinkCreated,
-        onCopyPaymentLink,
-        onCancelPaymentLink,
-        onCreateMandate,
-        onCreateSubscription,
-        onCancelSubscription,
-        onOpenEditSubscription,
-        onUpdateSubscription,
-        onOpenRestartSubscription,
-        onRestartSubscription,
+        data, statusText, isSaving,
+        isPaymentLinkOpen, setIsPaymentLinkOpen, isMandateOpen, setIsMandateOpen,
+        isSubscriptionOpen, setIsSubscriptionOpen, editingSubscription, setEditingSubscription,
+        restartingSubscription, setRestartingSubscription,
+        mandateForm, setMandateForm, subscriptionForm, setSubscriptionForm,
+        editSubscriptionForm, setEditSubscriptionForm, restartForm, setRestartForm,
+        payers, payerOptions, mandateOptions, getMandateOptionsForCustomer, onPaymentLinkCreated,
+        onCopyPaymentLink, onCancelPaymentLink, onCreateMandate, onCreateSubscription, onCancelSubscription,
+        onOpenEditSubscription, onUpdateSubscription, onOpenRestartSubscription, onRestartSubscription,
         onRevokeMandate,
-        statusText,
-    } = useClientPaymentBlock({ id });
-
-    if (isLoading) {
-        return (
-            <Card id="mollie-account" padding="24" fullWidth className={s.card}>
-                <VStack gap="16" max>
-                    <Skeleton width={260} height={28} />
-                    <Skeleton width="100%" height={72} border="12px" />
-                    <Skeleton width="100%" height={72} border="12px" />
-                </VStack>
-            </Card>
-        );
-    }
-
-    if (error) {
-        return (
-            <Card id="mollie-account" padding="24" fullWidth className={s.card}>
-                <Text title="Платежи ученика" text="Не удалось загрузить платежный блок." size="m" />
-            </Card>
-        );
-    }
+    } = state;
 
     return (
         <Card id="mollie-account" padding="24" fullWidth className={s.card}>
             <Content
-                data={data}
-                statusText={statusText}
-                onOpenPaymentLink={() => setIsPaymentLinkOpen(true)}
-                onOpenMandate={() => setIsMandateOpen(true)}
+                data={data} statusText={statusText}
+                onOpenPaymentLink={() => setIsPaymentLinkOpen(true)} onOpenMandate={() => setIsMandateOpen(true)}
                 onOpenSubscription={() => setIsSubscriptionOpen(true)}
-                onOpenEdit={onOpenEditSubscription}
-                onCancel={onCancelSubscription}
-                onOpenRestart={onOpenRestartSubscription}
-                onRevoke={onRevokeMandate}
-                onCopy={onCopyPaymentLink}
-                onCancelLink={onCancelPaymentLink}
+                onOpenEdit={onOpenEditSubscription} onCancel={onCancelSubscription}
+                onOpenRestart={onOpenRestartSubscription} onRevoke={onRevokeMandate}
+                onCopy={onCopyPaymentLink} onCancelLink={onCancelPaymentLink}
             />
 
             <ClientPaymentBlockModals
-                id={id}
-                payers={payers}
-                isSaving={isSaving}
-                isPaymentLinkOpen={isPaymentLinkOpen}
-                isMandateOpen={isMandateOpen}
-                isSubscriptionOpen={isSubscriptionOpen}
-                mandateForm={mandateForm}
-                subscriptionForm={subscriptionForm}
-                editSubscriptionForm={editSubscriptionForm}
-                editingSubscription={editingSubscription}
-                restartForm={restartForm}
-                restartingSubscription={restartingSubscription}
-                payerOptions={payerOptions}
-                mandateOptions={mandateOptions}
+                id={id} payers={payers} isSaving={isSaving}
+                isPaymentLinkOpen={isPaymentLinkOpen} isMandateOpen={isMandateOpen} isSubscriptionOpen={isSubscriptionOpen}
+                mandateForm={mandateForm} subscriptionForm={subscriptionForm} editSubscriptionForm={editSubscriptionForm}
+                editingSubscription={editingSubscription} restartForm={restartForm} restartingSubscription={restartingSubscription}
+                payerOptions={payerOptions} mandateOptions={mandateOptions}
                 getMandateOptionsForCustomer={getMandateOptionsForCustomer}
-                onClosePaymentLink={() => setIsPaymentLinkOpen(false)}
-                onCloseMandate={() => setIsMandateOpen(false)}
-                onCloseSubscription={() => setIsSubscriptionOpen(false)}
-                onCloseEdit={() => setEditingSubscription(null)}
-                onCloseRestart={() => setRestartingSubscription(null)}
-                onPaymentLinkCreated={onPaymentLinkCreated}
-                setMandateForm={setMandateForm}
-                setSubscriptionForm={setSubscriptionForm}
-                setEditSubscriptionForm={setEditSubscriptionForm}
-                setRestartForm={setRestartForm}
-                onCreateMandate={onCreateMandate}
-                onCreateSubscription={onCreateSubscription}
-                onUpdateSubscription={onUpdateSubscription}
-                onRestartSubscription={onRestartSubscription}
+                onClosePaymentLink={() => setIsPaymentLinkOpen(false)} onCloseMandate={() => setIsMandateOpen(false)}
+                onCloseSubscription={() => setIsSubscriptionOpen(false)} onCloseEdit={() => setEditingSubscription(null)}
+                onCloseRestart={() => setRestartingSubscription(null)} onPaymentLinkCreated={onPaymentLinkCreated}
+                setMandateForm={setMandateForm} setSubscriptionForm={setSubscriptionForm}
+                setEditSubscriptionForm={setEditSubscriptionForm} setRestartForm={setRestartForm}
+                onCreateMandate={onCreateMandate} onCreateSubscription={onCreateSubscription}
+                onUpdateSubscription={onUpdateSubscription} onRestartSubscription={onRestartSubscription}
             />
         </Card>
     );
+};
+
+export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
+    const state = useClientPaymentBlock({ id });
+
+    if (state.isLoading) return <LoadingCard />;
+    if (state.error) return <ErrorCard />;
+    return <ClientPaymentBlockBody id={id} state={state} />;
 });

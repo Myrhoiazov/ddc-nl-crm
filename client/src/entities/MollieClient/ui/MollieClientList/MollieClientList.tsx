@@ -34,55 +34,63 @@ const MollieClientListSkeleton = () => (
     </VStack>
 );
 
-export const MollieClientList = memo((props: MollieClientListProps) => {
-    const { className, isLoading, clients, error, renderAction } = props;
+const MollieClientListError = memo(({ className }: { className?: string }) => (
+    <StateView
+        className={classNames(s.MollieClientList, {}, [className])}
+        tone="error"
+        title="Не удалось загрузить платёжные профили"
+        text="Проверьте подключение к базе или попробуйте обновить страницу."
+    />
+));
 
-    if (error) {
-        return (
-            <StateView
-                className={classNames(s.MollieClientList, {}, [className])}
-                tone="error"
-                title="Не удалось загрузить платёжные профили"
-                text="Проверьте подключение к базе или попробуйте обновить страницу."
-            />
-        );
-    }
+const MollieClientListEmpty = memo(({ className }: { className?: string }) => (
+    <StateView
+        className={classNames(s.MollieClientList, {}, [className])}
+        title="Платёжные профили не найдены"
+        text="Нажмите Sync Mollie на главной странице, чтобы подтянуть клиентов из Mollie."
+    />
+));
 
-    if (isLoading && !clients.length) {
-        return (
-            <div className={classNames(s.MollieClientList, {}, [className])}>
-                <MollieClientListSkeleton />
-            </div>
-        );
-    }
+const MollieClientListLoading = memo(({ className }: { className?: string }) => (
+    <div className={classNames(s.MollieClientList, {}, [className])}>
+        <MollieClientListSkeleton />
+    </div>
+));
 
-    if (!isLoading && !clients.length) {
-        return (
-            <StateView
-                className={classNames(s.MollieClientList, {}, [className])}
-                title="Платёжные профили не найдены"
-                text="Нажмите Sync Mollie на главной странице, чтобы подтянуть клиентов из Mollie."
-            />
-        );
-    }
-
-    const renderClient = (client: MollieClient) => (
-        <MollieClientListItem
-            className={s.card}
-            client={client}
-            key={client.id}
-            renderAction={renderAction}
-        />
-    );
+const MollieClientListContent = memo((props: Omit<MollieClientListProps, 'error'>) => {
+    const { className, clients, isLoading, renderAction } = props;
 
     return (
         <div className={classNames(s.MollieClientList, {}, [className])}>
             <VStack gap="16" max>
-                {clients.length > 0 ? clients.map(renderClient) : null}
-                {isLoading && (
-                    <MollieClientListSkeleton />
-                )}
+                {clients.map((client) => (
+                    <MollieClientListItem
+                        className={s.card}
+                        client={client}
+                        key={client.id}
+                        renderAction={renderAction}
+                    />
+                ))}
+                {isLoading && <MollieClientListSkeleton />}
             </VStack>
         </div>
     );
+});
+
+export const MollieClientList = memo((props: MollieClientListProps) => {
+    const { className, isLoading, clients, error } = props;
+
+    if (error) {
+        return <MollieClientListError className={className} />;
+    }
+
+    if (isLoading && !clients.length) {
+        return <MollieClientListLoading className={className} />;
+    }
+
+    if (!isLoading && !clients.length) {
+        return <MollieClientListEmpty className={className} />;
+    }
+
+    return <MollieClientListContent {...props} />;
 });

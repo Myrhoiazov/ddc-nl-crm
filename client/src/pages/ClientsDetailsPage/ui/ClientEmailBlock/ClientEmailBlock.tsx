@@ -40,19 +40,9 @@ export const ClientEmailBlock = memo(({ id }: ClientEmailBlockProps) => {
     const isAdmin = authData?.role === RoleKey.ADMIN;
     const clientId = Number(id);
     const {
-        messages,
-        total,
-        isLoading,
-        isLoadingMore,
-        selectedMessage,
-        isSendingReply,
-        isDeleting,
-        isMarkingAsSpam,
-        onLoadMore,
-        onSelectMessage,
-        onReply,
-        onDeleteMessage,
-        onMarkMessageAsSpam,
+        messages, total, isLoading, isLoadingMore, selectedMessage,
+        isSendingReply, isDeleting, isMarkingAsSpam,
+        onLoadMore, onSelectMessage, onReply, onDeleteMessage, onMarkMessageAsSpam,
     } = useClientEmailBlock(clientId, isAdmin);
 
     // The whole email module is ADMIN-only (server enforces it too), so a client
@@ -72,10 +62,8 @@ export const ClientEmailBlock = memo(({ id }: ClientEmailBlockProps) => {
                     <HStack gap="16" align="start" max className={s.layout}>
                         <div className={s.list}>
                             <EmailMessageList
-                                messages={messages}
-                                selectedMessageId={selectedMessage?.id}
-                                isLoading={isLoading}
-                                onSelect={onSelectMessage}
+                                messages={messages} selectedMessageId={selectedMessage?.id}
+                                isLoading={isLoading} onSelect={onSelectMessage}
                             />
                             {!isLoading && messages.length < total && (
                                 <EmailLoadMoreButton isLoadingMore={isLoadingMore} onLoadMore={onLoadMore} />
@@ -83,13 +71,9 @@ export const ClientEmailBlock = memo(({ id }: ClientEmailBlockProps) => {
                         </div>
                         {selectedMessage ? (
                             <EmailMessageDetail
-                                message={selectedMessage}
-                                isSendingReply={isSendingReply}
-                                isDeleting={isDeleting}
-                                isMarkingAsSpam={isMarkingAsSpam}
-                                onReply={onReply}
-                                onDelete={onDeleteMessage}
-                                onMarkAsSpam={onMarkMessageAsSpam}
+                                message={selectedMessage} isSendingReply={isSendingReply}
+                                isDeleting={isDeleting} isMarkingAsSpam={isMarkingAsSpam}
+                                onReply={onReply} onDelete={onDeleteMessage} onMarkAsSpam={onMarkMessageAsSpam}
                             />
                         ) : (
                             <EmailEmptySelection />

@@ -21,12 +21,7 @@ const ModalTitle = ({ editInvoice, paidMode }: { editInvoice?: Invoice | null; p
     <h2>{editInvoice ? `РЕДАКТИРОВАТЬ ${editInvoice.number}` : paidMode ? 'ЧЕРНОВИК ОПЛАЧЕННОГО ИНВОЙСА' : 'НОВЫЙ ИНВОЙС'}</h2>
 );
 
-const InvoiceTopFields = ({
-    brands, clients, paidMode, businessBrandId, clientId, status,
-    billToName, billToEmail, issueDate, dueDate,
-    onSelectBrand, onSelectClient, onStatusChange,
-    onBillToNameChange, onBillToEmailChange, onIssueDateChange, onDueDateChange,
-}: {
+interface InvoiceTopFieldsProps {
     brands: ReturnType<typeof useCreateInvoiceModal>['brands'];
     clients: ReturnType<typeof useCreateInvoiceModal>['clients'];
     paidMode: boolean;
@@ -44,7 +39,14 @@ const InvoiceTopFields = ({
     onBillToEmailChange: ReturnType<typeof useCreateInvoiceModal>['setBillToEmail'];
     onIssueDateChange: ReturnType<typeof useCreateInvoiceModal>['setIssueDate'];
     onDueDateChange: ReturnType<typeof useCreateInvoiceModal>['setDueDate'];
-}) => (
+}
+
+const InvoiceTopFields = ({
+    brands, clients, paidMode, businessBrandId, clientId, status,
+    billToName, billToEmail, issueDate, dueDate,
+    onSelectBrand, onSelectClient, onStatusChange,
+    onBillToNameChange, onBillToEmailChange, onIssueDateChange, onDueDateChange,
+}: InvoiceTopFieldsProps) => (
     <InvoiceFormFields
         brands={brands}
         clients={clients}
@@ -66,16 +68,7 @@ const InvoiceTopFields = ({
     />
 );
 
-const InvoiceBottomFields = ({
-    branches, addressSource, businessBrandId, paidMode, showPaymentButton, showPaymentQr,
-    issuerName, issuerEmail, issuerAddress, bankName, iban, note,
-    items, groups, totalCents, saving,
-    onSelectAddressSource, onIssuerNameChange, onIssuerEmailChange, onIssuerAddressChange,
-    onBankNameChange, onIbanChange, onNoteChange,
-    onPaymentButtonChange, onPaymentQrChange,
-    addItem, removeItem, selectGroup, updateItem,
-    editInvoice, onSubmit,
-}: {
+interface InvoiceBottomFieldsProps {
     branches: ReturnType<typeof useCreateInvoiceModal>['branches'];
     addressSource: string;
     businessBrandId: string;
@@ -107,69 +100,53 @@ const InvoiceBottomFields = ({
     updateItem: ReturnType<typeof useCreateInvoiceModal>['updateItem'];
     editInvoice: boolean;
     onSubmit: ReturnType<typeof useCreateInvoiceModal>['submit'];
-}) => (
+}
+
+const InvoiceBottomFields = ({
+    branches, addressSource, businessBrandId, paidMode, showPaymentButton, showPaymentQr,
+    issuerName, issuerEmail, issuerAddress, bankName, iban, note,
+    items, groups, totalCents, saving,
+    onSelectAddressSource, onIssuerNameChange, onIssuerEmailChange, onIssuerAddressChange,
+    onBankNameChange, onIbanChange, onNoteChange,
+    onPaymentButtonChange, onPaymentQrChange,
+    addItem, removeItem, selectGroup, updateItem,
+    editInvoice, onSubmit,
+}: InvoiceBottomFieldsProps) => (
     <>
         <InvoiceItemsEditor
-            items={items}
-            groups={groups}
-            onAdd={addItem}
-            onRemove={removeItem}
-            onSelectGroup={selectGroup}
-            onUpdateItem={updateItem}
+            items={items} groups={groups} onAdd={addItem} onRemove={removeItem}
+            onSelectGroup={selectGroup} onUpdateItem={updateItem}
         />
 
         <InvoicePaymentOptions
-            paidMode={paidMode}
-            showPaymentButton={showPaymentButton}
-            showPaymentQr={showPaymentQr}
-            onPaymentButtonChange={onPaymentButtonChange}
-            onPaymentQrChange={onPaymentQrChange}
+            paidMode={paidMode} showPaymentButton={showPaymentButton} showPaymentQr={showPaymentQr}
+            onPaymentButtonChange={onPaymentButtonChange} onPaymentQrChange={onPaymentQrChange}
         />
 
         <InvoiceIssuerDetails
-            branches={branches}
-            addressSource={addressSource}
-            businessBrandId={businessBrandId}
-            issuerName={issuerName}
-            issuerEmail={issuerEmail}
-            issuerAddress={issuerAddress}
-            bankName={bankName}
-            iban={iban}
-            note={note}
-            onIssuerNameChange={onIssuerNameChange}
-            onIssuerEmailChange={onIssuerEmailChange}
-            onSelectAddressSource={onSelectAddressSource}
-            onIssuerAddressChange={onIssuerAddressChange}
-            onBankNameChange={onBankNameChange}
-            onIbanChange={onIbanChange}
-            onNoteChange={onNoteChange}
+            branches={branches} addressSource={addressSource} businessBrandId={businessBrandId}
+            issuerName={issuerName} issuerEmail={issuerEmail} issuerAddress={issuerAddress}
+            bankName={bankName} iban={iban} note={note}
+            onIssuerNameChange={onIssuerNameChange} onIssuerEmailChange={onIssuerEmailChange}
+            onSelectAddressSource={onSelectAddressSource} onIssuerAddressChange={onIssuerAddressChange}
+            onBankNameChange={onBankNameChange} onIbanChange={onIbanChange} onNoteChange={onNoteChange}
         />
 
         <InvoiceFooter
-            totalCents={totalCents}
-            saving={saving}
-            editInvoice={editInvoice}
-            paidMode={paidMode}
-            onSubmit={onSubmit}
+            totalCents={totalCents} saving={saving} editInvoice={editInvoice} paidMode={paidMode} onSubmit={onSubmit}
         />
     </>
 );
 
 export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice, paidMode = false }: Props) => {
     const {
-        clients, brands, branches, groups,
-        businessBrandId, addressSource, clientId,
-        billToName, setBillToName, billToEmail, setBillToEmail,
-        issueDate, setIssueDate, dueDate, setDueDate,
-        status, setStatus,
-        issuerName, setIssuerName, issuerAddress, setIssuerAddress, issuerEmail, setIssuerEmail,
+        clients, brands, branches, groups, businessBrandId, addressSource, clientId,
+        billToName, setBillToName, billToEmail, setBillToEmail, issueDate, setIssueDate, dueDate, setDueDate,
+        status, setStatus, issuerName, setIssuerName, issuerAddress, setIssuerAddress, issuerEmail, setIssuerEmail,
         bankName, setBankName, iban, setIban, note, setNote,
-        showPaymentButton, setShowPaymentButton, showPaymentQr, setShowPaymentQr,
-        items, saving, totalCents,
-        updateItem, addItem, removeItem,
-        selectClient, selectGroup, selectBusinessBrand, selectAddressSource,
-        setAddressSource,
-        submit,
+        showPaymentButton, setShowPaymentButton, showPaymentQr, setShowPaymentQr, items, saving, totalCents,
+        updateItem, addItem, removeItem, selectClient, selectGroup, selectBusinessBrand, selectAddressSource,
+        setAddressSource, submit,
     } = useCreateInvoiceModal({ isOpen, onClose, onSaved, editInvoice, paidMode });
 
     const onManualAddressChange = useCallback((value: string) => {
@@ -183,57 +160,26 @@ export const CreateInvoiceModal = memo(({ isOpen, onClose, onSaved, editInvoice,
                 <ModalTitle editInvoice={editInvoice} paidMode={paidMode} />
 
                 <InvoiceTopFields
-                    brands={brands}
-                    clients={clients}
-                    paidMode={paidMode}
-                    businessBrandId={businessBrandId}
-                    clientId={clientId}
-                    status={status}
-                    billToName={billToName}
-                    billToEmail={billToEmail}
-                    issueDate={issueDate}
-                    dueDate={dueDate}
-                    onSelectBrand={selectBusinessBrand}
-                    onSelectClient={selectClient}
-                    onStatusChange={setStatus}
-                    onBillToNameChange={setBillToName}
-                    onBillToEmailChange={setBillToEmail}
-                    onIssueDateChange={setIssueDate}
-                    onDueDateChange={setDueDate}
+                    brands={brands} clients={clients} paidMode={paidMode} businessBrandId={businessBrandId}
+                    clientId={clientId} status={status} billToName={billToName} billToEmail={billToEmail}
+                    issueDate={issueDate} dueDate={dueDate}
+                    onSelectBrand={selectBusinessBrand} onSelectClient={selectClient} onStatusChange={setStatus}
+                    onBillToNameChange={setBillToName} onBillToEmailChange={setBillToEmail}
+                    onIssueDateChange={setIssueDate} onDueDateChange={setDueDate}
                 />
 
                 <InvoiceBottomFields
-                    branches={branches}
-                    addressSource={addressSource}
-                    businessBrandId={businessBrandId}
-                    paidMode={paidMode}
-                    showPaymentButton={showPaymentButton}
-                    showPaymentQr={showPaymentQr}
-                    issuerName={issuerName}
-                    issuerEmail={issuerEmail}
-                    issuerAddress={issuerAddress}
-                    bankName={bankName}
-                    iban={iban}
-                    note={note}
-                    items={items}
-                    groups={groups}
-                    totalCents={totalCents}
-                    saving={saving}
-                    onSelectAddressSource={selectAddressSource}
-                    onIssuerNameChange={setIssuerName}
-                    onIssuerEmailChange={setIssuerEmail}
-                    onIssuerAddressChange={onManualAddressChange}
-                    onBankNameChange={setBankName}
-                    onIbanChange={setIban}
-                    onNoteChange={setNote}
-                    onPaymentButtonChange={setShowPaymentButton}
-                    onPaymentQrChange={setShowPaymentQr}
-                    addItem={addItem}
-                    removeItem={removeItem}
-                    selectGroup={selectGroup}
-                    updateItem={updateItem}
-                    editInvoice={Boolean(editInvoice)}
-                    onSubmit={submit}
+                    branches={branches} addressSource={addressSource} businessBrandId={businessBrandId}
+                    paidMode={paidMode} showPaymentButton={showPaymentButton} showPaymentQr={showPaymentQr}
+                    issuerName={issuerName} issuerEmail={issuerEmail} issuerAddress={issuerAddress}
+                    bankName={bankName} iban={iban} note={note}
+                    items={items} groups={groups} totalCents={totalCents} saving={saving}
+                    onSelectAddressSource={selectAddressSource} onIssuerNameChange={setIssuerName}
+                    onIssuerEmailChange={setIssuerEmail} onIssuerAddressChange={onManualAddressChange}
+                    onBankNameChange={setBankName} onIbanChange={setIban} onNoteChange={setNote}
+                    onPaymentButtonChange={setShowPaymentButton} onPaymentQrChange={setShowPaymentQr}
+                    addItem={addItem} removeItem={removeItem} selectGroup={selectGroup} updateItem={updateItem}
+                    editInvoice={Boolean(editInvoice)} onSubmit={submit}
                 />
             </div>
         </Modal>

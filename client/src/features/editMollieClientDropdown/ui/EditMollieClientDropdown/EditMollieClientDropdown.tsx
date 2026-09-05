@@ -1,16 +1,12 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
-import { memo, useCallback, useState } from 'react';
-import { getRouteMollieDetails } from '@/shared/const/router';
-import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
+import { memo } from 'react';
 import { Dropdown } from '@/shared/ui/Popups';
 import { Icon } from '@/shared/ui/Icon/Icon';
 import Edit from '@/shared/assets/icons/edit-icon.svg';
-import { deleteMollieClientById } from '../../model/services/deleteMollieClientById';
-import { toast } from 'react-toastify';
 import { MollieClientFormModal } from '../MollieClientFormModal/MollieClientFormModal';
-import { fetchMollieClientData } from '../../model/services/fetchMollieClientData/fetchMollieClientData';
 import { DynamicModuleLoader, ReducersList } from '@/shared/lib/components/DynamicModuleLoader/DynamicModuleLoader';
 import { mollieClientReducer } from '../../model/slices/mollieClientSlice';
+import { useEditMollieClientDropdown } from './useEditMollieClientDropdown';
 
 interface EditClientDropdownProps {
     className?: string;
@@ -24,41 +20,7 @@ const initialReducers: ReducersList = {
 
 export const EditMollieClientDropdown = memo((props: EditClientDropdownProps) => {
     const { className, clientId, reloadPage } = props;
-    const [isModalOpen, setIsModalOpen] = useState(false);
-
-    const dispatch = useAppDispatch();
-
-    const deleteClientGandler = useCallback(async () => {
-        const result = await dispatch(deleteMollieClientById(clientId));
-        if (result.meta.requestStatus === 'fulfilled') {
-            reloadPage?.();
-            toast.info('Клиент успешно удален');
-        }
-    }, [dispatch, clientId, reloadPage]);
-
-    const setIsModalOpenHandle = useCallback(async () => {
-        setIsModalOpen(true);
-        dispatch(fetchMollieClientData(clientId));
-    }, [dispatch, clientId]);
-
-    const setIsModalCloseHandle = useCallback(async () => {
-        setIsModalOpen(false);
-    }, []);
-
-    const items = [
-        {
-            content: 'Просмотреть',
-            href: getRouteMollieDetails(String(clientId)),
-        },
-        {
-            content: 'Обновить',
-            onClick: setIsModalOpenHandle,
-        },
-        {
-            content: 'Удалить',
-            onClick: deleteClientGandler,
-        },
-    ];
+    const { isModalOpen, items, setIsModalCloseHandle } = useEditMollieClientDropdown(clientId, reloadPage);
 
     return (
         <>
