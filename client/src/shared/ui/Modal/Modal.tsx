@@ -13,8 +13,7 @@ interface ModalProps {
 
 const ANIMATION_DELAY = 300;
 
-export const Modal = (props: ModalProps) => {
-    const { className, children, isOpen, onClose, lazy } = props;
+const useModal = (isOpen?: boolean, onClose?: () => void) => {
     const [isClosing, setIsClosing] = useState(false);
     const [isMounted, setIsMounted] = useState(false);
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -35,7 +34,6 @@ export const Modal = (props: ModalProps) => {
         }
     }, [onClose]);
 
-    // Новые ссылки!!!
     const onKeyDown = useCallback(
         (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
@@ -44,10 +42,6 @@ export const Modal = (props: ModalProps) => {
         },
         [closeHandler]
     );
-
-    const onContentClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-    };
 
     useEffect(() => {
         if (isOpen) {
@@ -63,6 +57,17 @@ export const Modal = (props: ModalProps) => {
             window.removeEventListener('keydown', onKeyDown);
         };
     }, [isOpen, onKeyDown]);
+
+    return { isClosing, isMounted, closeHandler };
+};
+
+export const Modal = (props: ModalProps) => {
+    const { className, children, isOpen, onClose, lazy } = props;
+    const { isClosing, isMounted, closeHandler } = useModal(isOpen, onClose);
+
+    const onContentClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+    };
 
     const mods: Mods = {
         [cls.opened]: isOpen,
