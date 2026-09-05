@@ -205,7 +205,7 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
 
     const { updateItem, addItem, removeItem } = useInvoiceItemActions(formState);
     const { selectClient, selectGroup, selectBusinessBrand, selectAddressSource } =
-        useInvoiceSelectionActions(formState, updateItem, clients, groups, brands, branches);
+        useInvoiceSelectionActions({ formState, updateItem, clients, groups, brands, branches });
     const { totalCents, submit } = useInvoiceSubmitAction(formState, editInvoice, paidMode, onSaved, onClose);
 
     return {
