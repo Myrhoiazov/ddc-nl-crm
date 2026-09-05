@@ -14,7 +14,7 @@ Read:
 - `AGENTS.md`
 - `CONTEXT.md` for domain language, architecture, and FSD details
 - `README.md`
-- Relevant roadmaps under `docs/roadmap/` when the area is covered
+- Relevant local roadmap docs (gitignored `docs/roadmap/`, available only on the owner's machine) when the area is covered
 - Relevant source: client slices under `client/src/**`, server routes/controllers/services, `server/prisma/schema/*.prisma`
 
 Completion criterion: the existing pattern and the risky surfaces are known.
@@ -36,9 +36,9 @@ Keep task scope small. Break tasks that touch unrelated areas, span client and s
 Call out risks when the work touches:
 
 - Domain terms from `CONTEXT.md` (client, student, group, schedule, choreographer, branch, invoice, Mollie payment, etc.).
-- Auth/security, sessions, CSRF, 2FA, or rate limiting — see `docs/roadmap/AUTH_SECURITY_ROADMAP.md`.
-- Invoices, Mollie payments, or payment reminders — see the invoices/payments roadmaps.
-- Organizations or brands — see `docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md`.
+- Auth/security, sessions, CSRF, 2FA, or rate limiting — see the local auth/security roadmap (gitignored `docs/roadmap/`, not part of the repo).
+- Invoices, Mollie payments, or payment reminders — see the local invoices/payments roadmaps (gitignored `docs/roadmap/`).
+- Organizations or brands — see the local organizations/brands roadmap (gitignored `docs/roadmap/`).
 - Prisma schema changes (require `npm run prisma:generate` and a migration).
 - `.env`, credentials, private uploads, or `node_modules/`.
 

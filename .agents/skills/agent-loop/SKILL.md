@@ -14,7 +14,7 @@ Before every loop, read:
 - `AGENTS.md` for repository guardrails, commands, and the completion bar.
 - `CONTEXT.md` for current domain language, architecture, and project-specific details.
 - `README.md` for setup, secrets, media, and operational notes.
-- The relevant roadmap under `docs/roadmap/` when auth/security, invoices, organizations, brands, or payment reminders are touched.
+- The relevant local roadmap (gitignored `docs/roadmap/`, machine-local only) when auth/security, invoices, organizations, brands, or payment reminders are touched.
 
 Treat `AGENTS.md` as the source of truth when another `.agents/` file disagrees with it.
 
@@ -57,7 +57,7 @@ Check:
 - Current branch and worktree: `git status --short --branch`.
 - Whether existing user changes overlap the task (AGENTS.md requires keeping unrelated user changes intact).
 - Whether the diff is purely client, purely server, or cross-cutting — this picks the check commands.
-- Which roadmaps under `docs/roadmap/` constrain the area.
+- Which local roadmaps (gitignored `docs/roadmap/`) constrain the area.
 
 Completion criterion: scope, risks, and required skills are known.
 
