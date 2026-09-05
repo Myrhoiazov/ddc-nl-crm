@@ -1,10 +1,7 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { useTranslation } from 'react-i18next';
 import { memo, useCallback } from 'react';
-import {
-    addTransactionFormActions,
-    addTransactionFormReducer,
-} from '../../model/slices/addTransactionFormSlice';
+import { addTransactionFormReducer } from '../../model/slices/addTransactionFormSlice';
 import {
     DynamicModuleLoader,
     ReducersList,
@@ -15,11 +12,9 @@ import { TransactionCard } from '@/entities/Transaction';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
 import { useSelector } from 'react-redux';
 import { getTransactionFormData } from '../../model/selectors/getTransactionFormData';
-import { TransactionType } from '@/entities/TransactionType';
 import { Button, ButtonTheme } from '@/shared/ui/Button';
 import { createTransaction } from '../../model/services/createTransaction/createTransaction';
-import { PaymentMethod } from '@/entities/PaymentMethod';
-import { TransactionCategory } from '@/entities/TransactionCategory';
+import { useTransactionFormUpdaters } from './useTransactionFormUpdaters';
 
 interface AddTransactionFormProps {
     className?: string;
@@ -49,49 +44,10 @@ const AddTransactionForm = memo((props: AddTransactionFormProps) => {
     const { className, onSuccess, reloadPage } = props;
     const dispatch = useAppDispatch();
     const formData = useSelector(getTransactionFormData);
-
-    const onChangeTransactionType = useCallback(
-        (type: TransactionType) => {
-            dispatch(
-                addTransactionFormActions.updateForm({ type: type || TransactionType.INCOME })
-            );
-        },
-        [dispatch]
-    );
-    const onChangeTransactionCategory = useCallback(
-        (category: TransactionCategory) => {
-            dispatch(addTransactionFormActions.updateForm({ category }));
-        },
-        [dispatch]
-    );
-    const onChangePaymentMethod = useCallback(
-        (type: PaymentMethod) => {
-            dispatch(
-                addTransactionFormActions.updateForm({
-                    paymentMethod: type || PaymentMethod.CASH,
-                })
-            );
-        },
-        [dispatch]
-    );
-    const onChangeSum = useCallback(
-        (value?: string) => {
-            dispatch(addTransactionFormActions.updateForm({ amount: value ?? '0' }));
-        },
-        [dispatch]
-    );
-    const onChangeDescription = useCallback(
-        (value?: string) => {
-            dispatch(addTransactionFormActions.updateForm({ description: value ?? '' }));
-        },
-        [dispatch]
-    );
-    const onChangeDate = useCallback(
-        (value?: string) => {
-            dispatch(addTransactionFormActions.updateForm({ date: value ?? '' }));
-        },
-        [dispatch]
-    );
+    const {
+        onChangeTransactionType, onChangeTransactionCategory, onChangePaymentMethod,
+        onChangeSum, onChangeDescription, onChangeDate,
+    } = useTransactionFormUpdaters();
 
     const onSave = useCallback(async () => {
         const result = await dispatch(createTransaction());

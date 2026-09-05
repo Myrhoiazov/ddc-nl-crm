@@ -58,38 +58,16 @@ const TabBar = ({ activeTab, onSelect }: { activeTab: EmailTab; onSelect: (tab: 
     );
 };
 
-const EmailPage = memo(() => {
-    const {
-        isAdmin,
-        activeTab, setActiveTab,
-        accounts,
-        selectedMailboxId, setSelectedMailboxId,
-        syncingAccountId,
-        searchInput, setSearchInput,
-        messages,
-        isLoadingMessages,
-        isLoadingMore,
-        selectedMessage,
-        isSendingReply,
-        isDeleting,
-        isMarkingAsSpam,
-        isComposeOpen, setIsComposeOpen,
-        isSendingCompose,
-        hasMore,
-        onCreateAccount,
-        onDeleteAccount,
-        onSyncAccount,
-        onSelectMessage,
-        onReply,
-        onDeleteMessage,
-        onMarkMessageAsSpam,
-        onSendCompose,
-        onLoadMore,
-    } = useEmailPage();
+type EmailPageState = ReturnType<typeof useEmailPage>;
 
-    if (!isAdmin) {
-        return <ForbiddenAccess />;
-    }
+const EmailPageBody = (state: EmailPageState) => {
+    const {
+        activeTab, setActiveTab, accounts, selectedMailboxId, setSelectedMailboxId, syncingAccountId,
+        searchInput, setSearchInput, messages, isLoadingMessages, isLoadingMore, selectedMessage,
+        isSendingReply, isDeleting, isMarkingAsSpam, isComposeOpen, setIsComposeOpen, isSendingCompose,
+        hasMore, onCreateAccount, onDeleteAccount, onSyncAccount, onSelectMessage, onReply,
+        onDeleteMessage, onMarkMessageAsSpam, onSendCompose, onLoadMore,
+    } = state;
 
     return (
         <Page>
@@ -100,47 +78,37 @@ const EmailPage = memo(() => {
 
                 {activeTab === 'accounts' && (
                     <EmailAccountsPanel
-                        accounts={accounts}
-                        syncingAccountId={syncingAccountId}
-                        onSync={onSyncAccount}
-                        onDelete={onDeleteAccount}
-                        onCreate={onCreateAccount}
+                        accounts={accounts} syncingAccountId={syncingAccountId}
+                        onSync={onSyncAccount} onDelete={onDeleteAccount} onCreate={onCreateAccount}
                     />
                 )}
 
                 {activeTab === 'messages' && (
                     <EmailPageMessagesTab
-                        accounts={accounts}
-                        selectedMailboxId={selectedMailboxId}
-                        onSelectMailbox={setSelectedMailboxId}
-                        searchInput={searchInput}
-                        onSearchInputChange={setSearchInput}
-                        messages={messages}
-                        selectedMessage={selectedMessage}
-                        isLoadingMessages={isLoadingMessages}
-                        isLoadingMore={isLoadingMore}
-                        hasMore={hasMore}
-                        onSelectMessage={onSelectMessage}
-                        onLoadMore={onLoadMore}
-                        isSendingReply={isSendingReply}
-                        isDeleting={isDeleting}
-                        isMarkingAsSpam={isMarkingAsSpam}
-                        onReply={onReply}
-                        onDeleteMessage={onDeleteMessage}
-                        onMarkMessageAsSpam={onMarkMessageAsSpam}
+                        accounts={accounts} selectedMailboxId={selectedMailboxId} onSelectMailbox={setSelectedMailboxId}
+                        searchInput={searchInput} onSearchInputChange={setSearchInput}
+                        messages={messages} selectedMessage={selectedMessage}
+                        isLoadingMessages={isLoadingMessages} isLoadingMore={isLoadingMore} hasMore={hasMore}
+                        onSelectMessage={onSelectMessage} onLoadMore={onLoadMore}
+                        isSendingReply={isSendingReply} isDeleting={isDeleting} isMarkingAsSpam={isMarkingAsSpam}
+                        onReply={onReply} onDeleteMessage={onDeleteMessage} onMarkMessageAsSpam={onMarkMessageAsSpam}
                     />
                 )}
             </VStack>
 
             <ComposeEmailModal
-                isOpen={isComposeOpen}
-                accounts={accounts}
-                isSending={isSendingCompose}
-                onClose={() => setIsComposeOpen(false)}
-                onSend={onSendCompose}
+                isOpen={isComposeOpen} accounts={accounts} isSending={isSendingCompose}
+                onClose={() => setIsComposeOpen(false)} onSend={onSendCompose}
             />
         </Page>
     );
+};
+
+const EmailPage = memo(() => {
+    const state = useEmailPage();
+
+    if (!state.isAdmin) return <ForbiddenAccess />;
+    return <EmailPageBody {...state} />;
 });
 
 export default EmailPage;

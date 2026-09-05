@@ -85,27 +85,76 @@ interface ActionsProps {
     onUpdateStatus: (invoice: Invoice, status: Extract<InvoiceStatus, 'ISSUED' | 'CANCELLED'>) => void;
 }
 
+const MollieAndPaymentActions = ({ invoice, onCreateMolliePaymentLink, onSetActiveAction }: {
+    invoice: Invoice;
+    onCreateMolliePaymentLink: (invoice: Invoice) => void;
+    onSetActiveAction: (action: InvoiceAction) => void;
+}) => {
+    const { t } = useTranslation();
+    if (invoice.documentType === 'CREDIT_NOTE' || invoice.balanceDueCents <= 0 || ['DRAFT', 'CANCELLED'].includes(invoice.status)) {
+        return null;
+    }
+    return (
+        <>
+            <button onClick={() => onCreateMolliePaymentLink(invoice)}>
+                {invoice.molliePaymentLinks.some((l) => !l.archived && !l.paidAt) ? 'Оплатить Mollie' : 'Mollie link'}
+            </button>
+            <button onClick={() => onSetActiveAction({ type: 'record-payment', invoice })}>
+                {t('Добавить оплату')}
+            </button>
+        </>
+    );
+};
+
+const AdjustmentActions = ({ invoice, onSetActiveAction }: {
+    invoice: Invoice;
+    onSetActiveAction: (action: InvoiceAction) => void;
+}) => {
+    const { t } = useTranslation();
+    if (invoice.documentType !== 'INVOICE' || ['DRAFT', 'CANCELLED'].includes(invoice.status)) return null;
+    return (
+        <>
+            <button onClick={() => onSetActiveAction({ type: 'create-credit', invoice })}>{t('Кредит-нота')}</button>
+            <button onClick={() => onSetActiveAction({ type: 'create-debit', invoice })}>{t('Корректировка')}</button>
+        </>
+    );
+};
+
+const LifecycleActions = ({ invoice, editable, onUpdateStatus, onSetActiveAction }: {
+    invoice: Invoice;
+    editable: boolean;
+    onUpdateStatus: (invoice: Invoice, status: Extract<InvoiceStatus, 'ISSUED' | 'CANCELLED'>) => void;
+    onSetActiveAction: (action: InvoiceAction) => void;
+}) => {
+    const { t } = useTranslation();
+    if (!editable) return null;
+    return (
+        <>
+            {invoice.status === 'DRAFT' && (
+                <button onClick={() => onUpdateStatus(invoice, 'ISSUED')}>{t('Выдать')}</button>
+            )}
+            {invoice.status === 'DRAFT' && (
+                <button className={s.confirmPaid} onClick={() => onSetActiveAction({ type: 'confirm-paid', invoice })}>
+                    {t('Подтвердить как оплаченный')}
+                </button>
+            )}
+            <button className={s.cancel} onClick={() => onSetActiveAction({ type: 'cancel', invoice })}>
+                {t('Отменить')}
+            </button>
+        </>
+    );
+};
+
 const ActionButtons = (props: ActionsProps) => {
     const {
-        invoice,
-        editable,
-        onEdit,
-        onPreviewPdf,
-        onDownloadPdf,
-        onSendEmail,
-        onCreateMolliePaymentLink,
-        onSetActiveAction,
-        onUpdateStatus,
+        invoice, editable, onEdit, onPreviewPdf, onDownloadPdf,
+        onSendEmail, onCreateMolliePaymentLink, onSetActiveAction, onUpdateStatus,
     } = props;
     const { t } = useTranslation();
 
     return (
         <div className={s.actions}>
-            {editable && (
-                <button onClick={() => onEdit(invoice)}>
-                    {t('Редактировать')}
-                </button>
-            )}
+            {editable && <button onClick={() => onEdit(invoice)}>{t('Редактировать')}</button>}
             <button onClick={() => onPreviewPdf(invoice)}>{t('Предпросмотр')}</button>
             <button onClick={() => onDownloadPdf(invoice)}>PDF</button>
 
@@ -115,49 +164,13 @@ const ActionButtons = (props: ActionsProps) => {
                 </button>
             )}
 
-            {invoice.documentType !== 'CREDIT_NOTE' && invoice.balanceDueCents > 0 && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
-                <>
-                    <button onClick={() => onCreateMolliePaymentLink(invoice)}>
-                        {invoice.molliePaymentLinks.some((l) => !l.archived && !l.paidAt)
-                            ? 'Оплатить Mollie'
-                            : 'Mollie link'}
-                    </button>
-                    <button onClick={() => onSetActiveAction({ type: 'record-payment', invoice })}>
-                        {t('Добавить оплату')}
-                    </button>
-                </>
-            )}
-
-            {invoice.documentType === 'INVOICE' && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
-                <>
-                    <button onClick={() => onSetActiveAction({ type: 'create-credit', invoice })}>
-                        {t('Кредит-нота')}
-                    </button>
-                    <button onClick={() => onSetActiveAction({ type: 'create-debit', invoice })}>
-                        {t('Корректировка')}
-                    </button>
-                </>
-            )}
-
-            {editable && invoice.status === 'DRAFT' && (
-                <button onClick={() => onUpdateStatus(invoice, 'ISSUED')}>{t('Выдать')}</button>
-            )}
-            {editable && invoice.status === 'DRAFT' && (
-                <button
-                    className={s.confirmPaid}
-                    onClick={() => onSetActiveAction({ type: 'confirm-paid', invoice })}
-                >
-                    {t('Подтвердить как оплаченный')}
-                </button>
-            )}
-            {editable && (
-                <button
-                    className={s.cancel}
-                    onClick={() => onSetActiveAction({ type: 'cancel', invoice })}
-                >
-                    {t('Отменить')}
-                </button>
-            )}
+            <MollieAndPaymentActions
+                invoice={invoice} onCreateMolliePaymentLink={onCreateMolliePaymentLink} onSetActiveAction={onSetActiveAction}
+            />
+            <AdjustmentActions invoice={invoice} onSetActiveAction={onSetActiveAction} />
+            <LifecycleActions
+                invoice={invoice} editable={editable} onUpdateStatus={onUpdateStatus} onSetActiveAction={onSetActiveAction}
+            />
         </div>
     );
 };
@@ -246,14 +259,8 @@ const HistorySection = ({ invoice }: { invoice: Invoice }) => {
 
 export const InvoiceListItem = memo((props: InvoiceListItemProps) => {
     const {
-        invoice,
-        onEdit,
-        onPreviewPdf,
-        onDownloadPdf,
-        onSendEmail,
-        onCreateMolliePaymentLink,
-        onSetActiveAction,
-        onUpdateStatus,
+        invoice, onEdit, onPreviewPdf, onDownloadPdf,
+        onSendEmail, onCreateMolliePaymentLink, onSetActiveAction, onUpdateStatus,
     } = props;
     const { t } = useTranslation();
     const editable = canEdit(invoice);
@@ -278,15 +285,10 @@ export const InvoiceListItem = memo((props: InvoiceListItemProps) => {
             <Amounts invoice={invoice} />
 
             <ActionButtons
-                invoice={invoice}
-                editable={editable}
-                onEdit={onEdit}
-                onPreviewPdf={onPreviewPdf}
-                onDownloadPdf={onDownloadPdf}
-                onSendEmail={onSendEmail}
+                invoice={invoice} editable={editable} onEdit={onEdit} onPreviewPdf={onPreviewPdf}
+                onDownloadPdf={onDownloadPdf} onSendEmail={onSendEmail}
                 onCreateMolliePaymentLink={onCreateMolliePaymentLink}
-                onSetActiveAction={onSetActiveAction}
-                onUpdateStatus={onUpdateStatus}
+                onSetActiveAction={onSetActiveAction} onUpdateStatus={onUpdateStatus}
             />
 
             {invoice.molliePayments.length > 0 && <MolliePaymentsSection invoice={invoice} />}

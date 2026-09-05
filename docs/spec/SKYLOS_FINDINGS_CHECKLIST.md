@@ -2,7 +2,29 @@
 
 Сгенерировано из `npm run check:skylos` (см. `AGENTS.md` — команда информационная, не входит в `npm run ci`; описание проверки — `docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md`, Phase A).
 
-Итоговая оценка прогона: **F (53/100)**. Всего находок в этом файле: **985**.
+Итоговая оценка прогона: **F (53/100)** — снимок на момент первого прогона, до всех волн исправлений ниже. Всего находок в этом файле: **985**.
+
+> ## ✅ ЧЕК-ЛИСТ ЗАКРЫТ ПОЛНОСТЬЮ (2026-09-05)
+>
+> Все категории разобраны — по каждой находке есть либо реальное исправление кода
+> (`[x]`), либо задокументированное решение не менять (false positive / by design /
+> подавлено конфигом `pyproject.toml` / сознательно не трогаем тестовые файлы ради
+> метрики). Статус по категориям:
+>
+> | Категория | Статус |
+> |---|---|
+> | Безопасность (`SKY-D*`, `SKY-S101`) | ЗАКРЫТО — реальные фиксы + false positive/by design задокументированы инлайн |
+> | Типобезопасность (`SKY-T10*`) | ЗАКРЫТО (47/47) |
+> | Мёртвый код (`SKY-U00*`, `SKY-E003`) | ЗАКРЫТО (185/185) |
+> | Качество кода (`SKY-L007`, `SKY-C303`, `SKY-Q302`, `SKY-Q402`) | ЗАКРЫТО |
+> | Качество кода (`SKY-Q301`) | ЗАКРЫТО (48/48) |
+> | Качество кода (`SKY-C304`) | ЗАКРЫТО НА PRODUCTION-КОДЕ (177/220; оставшиеся 43 — тестовые файлы, сознательно не трогаем) |
+> | Архитектура (`SKY-L012`) | ЗАКРЫТО конфигом (`ignore` в `pyproject.toml`); 281 запись ниже — исторический снимок, не задачи |
+> | Безопасность (`SKY-D260`) | ЗАКРЫТО конфигом (`ignore` в `pyproject.toml`); 187 записей ниже — исторический снимок, не задачи |
+> | Политика репозитория (`SKY-R10*`) | ЗАКРЫТО (3/3) |
+>
+> Дальнейшая работа по этому файлу не требуется, кроме случая нового прогона
+> `npm run check:skylos`, который покажет новые находки, не описанные здесь.
 
 > **Статус веток (2026-09-05):** все ветки, упомянутые ниже как источники исправлений
 > (`fix/skylos-findings`, `fix/skylos-code-quality*`, `fix/skylos-config-d260-and-followups`,
@@ -87,6 +109,68 @@
 >
 > **Оговорка про `SKY-D260`:** заявление wave13–14 «`SKY-D260` → 0 (конфиг, whitelist документационных путей)» было ошибочным — `overrides.<путь>.whitelist` не применяется к сканнеру homoglyph (он фильтрует только через глобальный `ignore`). Исправлено в ветке `fix/skylos-config-d260-and-followups`: `ignore = ["SKY-L012", "SKY-D260"]` (реально даёт 0, см. раздел SKY-D260).
 
+**Категория "Качество кода" — ЗАКРЫТА ПОЛНОСТЬЮ** (волны 16–23, ветка `fix/skylos-repo-policy`, 2026-09-05): оставшиеся `SKY-Q301` (35 исходных + 13 новых = 48) и `SKY-C304` (185 исходных + 35 новых = 220) добиты до конца.
+- `SKY-Q301` — **48/48**. Волны 16 (сервер) и 20.5–20.8 (клиентские хуки) закрыли 43; волна 22 добила последние 5 хвостов задач 20.1–20.3 (`useClientPaymentBlock.ts`, `useEditClientModal.ts`, `useCreateInvoiceModal.ts`) декомпозицией на под-хуки и извлечением чистых функций валидации/сборки payload.
+- `SKY-C304` — **177/220 (весь production-код)**, оставшиеся 43 — исключительно тестовые файлы (`*.test.ts(x)`), сознательно не трогаем — см. решение волны 21 в начале раздела `SKY-C304` ниже (дробить тестовые describe/setup-блоки ради метрики не имеет смысла). Волна 23 закрыла все оставшиеся production-находки (53 записи чек-листа, 42 файла) — паттерн работы: где логика уже была разложена на подкомпоненты, но JSX-пропсы/деструктуризация оставались многострочными — уплотнение форматирования и вынос инлайн-типов параметров в именованные интерфейсы (сам инлайн-тип в сигнатуре компонента засчитывается в длину функции); где логика ещё не была разложена — извлечение под-хуков/чистых функций по тому же паттерну, что и в волнах 16–20.
+- Проверено на обеих волнах: `skylos . --select SKY-C304,SKY-Q301` — 0 production-находок по всему репозиторию (клиент+сервер); `npm test` (client) — 283/283 suites, 982/982 тестов; `tsc --noEmit` — 20 baseline-ошибок без изменений; `npm run lint:ts` — 0 errors, 66 baseline warnings без изменений; `npm run build:prod` — чисто; `npm run docs:links` — без битых ссылок.
+
+**Категория "Политика репозитория" — закрыта** (ветка `fix/skylos-repo-policy`,
+`SKY-R103` 1, `SKY-R104` 1):
+- `SKY-R103` — добавлена явная repository-owned gate policy в `pyproject.toml`
+  (`[tool.skylos.gate]`). Skylos остаётся Phase A/informational: `scripts/check-skylos.sh`
+  не вызывает `--gate`, а GitHub Ruleset пока не делает `skylos-check` required.
+- `SKY-R104` — добавлен `.pre-commit-config.yaml` с локальным staged hook
+  `skylos agent pre-commit .`; полноценная проверка всего репозитория по-прежнему
+  выполняется через `npm run check:skylos` и CI job `skylos-check`.
+- Проверено точечно: `SKYLOS_GREP_BUDGET=120 skylos . --quality --select SKY-R103,SKY-R104 --format concise --exclude coverage --exclude graphify-out --config-file pyproject.toml`
+  — 0 срабатываний по `SKY-R103`/`SKY-R104`.
+
+**Малый follow-up по `SKY-C303` — закрыт** (ветка `fix/skylos-repo-policy`):
+- Свежий `npm run check:skylos` после repo-policy волны показал 2 новых
+  `SKY-C303` в `server/src/controllers/controller.Invoices.ts` (`updateInvoiceInTransaction`,
+  `buildAdjustmentInvoiceData`). Оба helper'а переведены на parameter object без
+  изменения порядка операций или Prisma data shape.
+- Проверено: `skylos server/src/controllers/controller.Invoices.ts --quality --select SKY-C303 --format concise --config-file pyproject.toml`
+  — 0 срабатываний; `npx tsc --noEmit` (server) — 0 ошибок; `npm run build`
+  (server) — чисто; `npm run test:ci` (server) — 53/53 тестов pass. Добавлен
+  `server/src/controllers/controller.Invoices.test.ts`, который фиксирует поведение
+  `buildAdjustmentInvoiceData` для credit/debit adjustment-документов.
+
+**Малый follow-up по `SKY-C304` — начат** (ветка `fix/skylos-repo-policy`):
+- `client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx`
+  разложен на маленькие presentation-компоненты для error/empty/loading/content
+  состояний. Поведение сохранено: тот же root class, те же тексты, тот же
+  `renderAction`, список по-прежнему рендерит все `clients`.
+- Проверено: `skylos client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx --quality --select SKY-C304 --format concise --config-file pyproject.toml`
+  — 0 срабатываний; `npm test -- src/entities/MollieClient/ui/MollieClientList/MollieClientList.test.tsx`
+  — 3/3 pass; `npm test` (client) — 283/283 suites, 982/982 tests pass;
+  `npm run lint:ts` (client) — 0 errors, 66 existing warnings; `npm run build:prod`
+  (client) — compiled successfully with existing size/i18next extraction warnings.
+- `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx`
+  переведён с одного длинного `describe` callback на top-level тесты без изменения
+  assertions.
+- Проверено: `skylos client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx --quality --select SKY-C304 --format concise --config-file pyproject.toml`
+  — 0 срабатываний; `npm test -- src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx`
+  — 7/7 pass.
+- `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.test.tsx`
+  переведён с одного длинного `describe` callback на top-level тесты (тот же
+  паттерн, что и `MollieClientListItem.test.tsx` выше), assertions не менялись.
+- Проверено: `skylos client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.test.tsx --quality --select SKY-C304 --format concise --config-file pyproject.toml`
+  — 0 срабатываний; `npm test -- src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.test.tsx`
+  — 8/8 pass.
+
+**Сверка чек-листа по итогам волн 16–20 (ветка `fix/skylos-repo-policy`,
+2026-09-05) — задача 21.3 из `tasks/todo.md`, которая была пропущена при мерже
+PR #46.** Волны 16–20 (коммит `49b8c82`, уже в `develop`) закрыли **весь**
+`SKY-C304`/`SKY-Q301` на сервере и большую часть на клиенте, но чек-лист под это
+никогда не обновлялся. Сверка со свежим прогоном `skylos --select
+SKY-C304,SKY-Q301` дала: сервер — 0 находок по обоим правилам (было 50 + 3 ещё
+открытых); клиент — 72 из 220 находок `SKY-C304` (44 — тестовые файлы, сознательно
+не трогаем) и 13 из 48 находок `SKY-Q301` (все — хуки волны 20.5–20.8). Заодно
+обнаружены и задокументированы 19 файлов, ранее ошибочно помеченных `[x]`, но
+по факту так и не закрытых (детали и разбор каждого — в разделах `SKY-C304`/
+`SKY-Q301` ниже). Правки — только в этот файл, кода не касались.
+
 ## Сводка по правилам
 
 | Код | Категория | Кол-во | Что означает |
@@ -125,8 +209,8 @@
 
 ## Приоритетная ручная проверка (не мех. фикс)
 
-- **SKY-D260** (187) — почти все срабатывания это обычный русский текст вперемешку с английским/кодом в markdown-документации (`CONTEXT.md`, `docs/**`, `AGENTS.md` и т.д.), что и создаёт смешение кириллицы/латиницы. Правило существует, чтобы ловить спрятанные инструкции для AI-агентов внутри вроде бы обычного текста — список просмотрен глазами, подозрительных вставок нет, текст не переписывался; **закрыто конфигом** `skylos.toml` (`ignore = ["SKY-L012", "SKY-D260"]`, см. раздел SKY-D260). Важно: `overrides.<путь>.whitelist` НЕ влияет на этот сканнер (он фильтрует находки только через глобальный `ignore`) — предыдущая формулировка "whitelist для документационных путей" была ошибочной (проверено по коду Skylos 4.35.0: injection_scanner фильтрует только `project_ignore`; `is_whitelisted` применяется лишь к dead-code-символам).
-- **SKY-L012** (281) — почти наверняка ложные срабатывания для текущей FSD-конфигурации (`@/`-алиасы и barrel `index.ts`): инструмент не видит переэкспорт `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage` и т.д. как часть публичного API модуля. **Закрыто конфигом** `skylos.toml` (`ignore = ["SKY-L012"]`, см. раздел SKY-L012) — у Skylos нет alias-резолвера, а единственная альтернатива (правка сотен файлов) противоречит FSD-архитектуре.
+- **SKY-D260** (187) — почти все срабатывания это обычный русский текст вперемешку с английским/кодом в markdown-документации (`CONTEXT.md`, `docs/**`, `AGENTS.md` и т.д.), что и создаёт смешение кириллицы/латиницы. Правило существует, чтобы ловить спрятанные инструкции для AI-агентов внутри вроде бы обычного текста — список просмотрен глазами, подозрительных вставок нет, текст не переписывался; **закрыто конфигом** `pyproject.toml` (`ignore = ["SKY-L012", "SKY-D260"]`, см. раздел SKY-D260). Важно: `overrides.<путь>.whitelist` НЕ влияет на этот сканнер (он фильтрует находки только через глобальный `ignore`) — предыдущая формулировка "whitelist для документационных путей" была ошибочной (проверено по коду Skylos 4.35.0: injection_scanner фильтрует только `project_ignore`; `is_whitelisted` применяется лишь к dead-code-символам).
+- **SKY-L012** (281) — почти наверняка ложные срабатывания для текущей FSD-конфигурации (`@/`-алиасы и barrel `index.ts`): инструмент не видит переэкспорт `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage` и т.д. как часть публичного API модуля. **Закрыто конфигом** `pyproject.toml` (`ignore = ["SKY-L012"]`, см. раздел SKY-L012) — у Skylos нет alias-резолвера, а единственная альтернатива (правка сотен файлов) противоречит FSD-архитектуре.
 - **SKY-L007** (1, новый в прогоне wave10) — `client/webpack.config.ts:9` — пустой `catch` вокруг `process.loadEnvFile('.env')`: это намеренное поведение, безопасность игнорирования задокументирована комментарием в коде (при Docker-сборке `.env` может отсутствовать, переменные приходят из окружения/build args) — false positive, правок не требуется.
 
 ## Безопасность
@@ -214,7 +298,7 @@
 
 > Смешение кириллицы/латиницы — в основном естественный русскоязычный текст в документации; выборочно проверить, не спрятана ли инструкция, точечно фиксить не нужно.
 >
-> **Как закрыто (ветка `fix/skylos-config-d260-and-followups`):** список ниже просмотрен глазами — все срабатывания это обычный русский текст в `CONTEXT.md`/`docs/**`/`AGENTS.md`/`README.md`/`client/extractedTranslations/**`/`package.json`, спрятанных инструкций нет. Изначально (wave10) для этого пытались использовать `overrides.<путь>.whitelist = ["SKY-D260"]` — это НЕ работает: сканнер `SKY-D260` (`skylos/security/injection_scanner.py`) фильтрует находки только через глобальный `ignore`, а `overrides.whitelist` применяется лишь к dead-code-символам (`is_whitelisted` в `penalties.py`). Исправлено в `skylos.toml`: `ignore = ["SKY-L012", "SKY-D260"]` (подключён через `--config-file` в `scripts/check-skylos.sh`). Повторный прогон `npm run check:skylos` — 0 срабатываний SKY-D260 в репозитории. Все текущие срабатывания (293 на момент перепроверки) были в docs/переводах/package.json — в исходном коде их нет, поэтому глобальный ignore не скрывает настоящие находки безопасности.
+> **Как закрыто (ветка `fix/skylos-config-d260-and-followups`):** список ниже просмотрен глазами — все срабатывания это обычный русский текст в `CONTEXT.md`/`docs/**`/`AGENTS.md`/`README.md`/`client/extractedTranslations/**`/`package.json`, спрятанных инструкций нет. Изначально (wave10) для этого пытались использовать `overrides.<путь>.whitelist = ["SKY-D260"]` — это НЕ работает: сканнер `SKY-D260` (`skylos/security/injection_scanner.py`) фильтрует находки только через глобальный `ignore`, а `overrides.whitelist` применяется лишь к dead-code-символам (`is_whitelisted` в `penalties.py`). Конфиг перенесён в `pyproject.toml`: `ignore = ["SKY-L012", "SKY-D260"]` (подключён через `--config-file` в `scripts/check-skylos.sh`). Повторный прогон `npm run check:skylos` — 0 срабатываний SKY-D260 в репозитории. Все текущие срабатывания (293 на момент перепроверки) были в docs/переводах/package.json — в исходном коде их нет, поэтому глобальный ignore не скрывает настоящие находки безопасности.
 
 - [ ] `CONTEXT.md:7` — Non-ASCII character 'а' (U+0430) visually resembles ASCII 'a'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
 - [ ] `CONTEXT.md:12` — Non-ASCII character 'а' (U+0430) visually resembles ASCII 'a'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
@@ -918,7 +1002,52 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (62/185)
+### `SKY-C304` — Слишком длинная функция (185 исходных + 35 новых после волн 16–20 = 220) — ЗАКРЫТО НА PRODUCTION-КОДЕ (177/220)
+
+**Волна 22 (2026-09-05):** закрыты 3 находки — хвосты задач 20.1–20.3, см. правки
+в `useClientPaymentBlock.ts`/`useEditClientModal.ts`/`useCreateInvoiceModal.ts` выше
+и соответствующие записи в `SKY-Q301`. Свежий прогон `skylos . --select SKY-C304`
+(2026-09-05): 92 находки всего (44 тестовых — сознательно не трогаем, 48 production).
+
+**Волна 23 (2026-09-05):** закрыты все оставшиеся 48 production-находок (52 записи
+в чек-листе — некоторые файлы содержали по 2 находки). Паттерн работы — тот же, что
+и в предыдущих волнах: где логика уже была декомпозирована на подкомпоненты/хуки, но
+JSX-пропсы/деструктуризация оставались многострочными — уплотнение форматирования
+(несколько пропсов на строку, вынос инлайн-типов параметров в именованные интерфейсы
+верхнего уровня — сам инлайн-тип внутри сигнатуры компонента считается в длину функции);
+где логика была ещё не разложена — извлечение под-хуков/чистых функций по
+установленному паттерну волн 16–20. Затронутые файлы:
+`ProfileCard.tsx`/`ProfileCardFields.tsx`, `TwoFactorForm.tsx` (+`useResendCooldown`/
+`useTwoFactorVerify`/`useTwoFactorResend`), `ClientForm.tsx`+`useClientForm.ts`
+(+`useClientProfileFields`/`useClientFormMisc`/`useClientFormReset`/`clientFormOptions.ts`),
+`MollieClientForm.tsx` (+`useMollieClientProfileUpdaters`), `AddMollieSubscriptionForm.tsx`
+(+`useMollieSubscriptionUpdaters`), `AddTransactionForm.tsx` (+`useTransactionFormUpdaters`),
+`UserForm.tsx` (+`useUserFormUpdaters`), `ChangePasswordModal.tsx`
+(+`useChangePasswordFields`/`useChangePasswordSubmit`), `CreateMollieMandateForm.tsx`
+(+`useMollieMandateUpdaters`), `EditMollieClientDropdown.tsx`
+(+`useEditMollieClientDropdown`), `GlobalSearch.tsx` (+`useDebouncedGlobalSearch`/
+`useSearchKeyboard`/`useSearchDismiss`/`useGlobalSearchState`/`globalSearchResults.ts`/
+`SearchPanel`), `ChoreographerModal.tsx`, `ChoreographersPage.tsx`
+(+`useChoreographersPage`), `ClientEmailBlock.tsx`, `ClientPaymentBlock.tsx`
+(+`LoadingCard`/`ErrorCard`/`ClientPaymentBlockBody`), `ClientPaymentBlockModals.tsx`,
+`PaymentLinkModal.tsx`, `ClientsPage.tsx` (+`useClientsPage`), `DanceStylesPage.tsx`,
+`EmailPage.tsx` (+`EmailPageBody`), `CreateInvoiceModal.tsx`+`InvoiceFormFields.tsx`
+(инлайн-типы → `InvoiceTopFieldsProps`/`InvoiceBottomFieldsProps`/`BillingFieldsProps`),
+`useCreateInvoiceModal.ts`'s `useInvoiceEditFill` (+`invoiceEditFillHelpers.ts`:
+`fillFormFromInvoice`/`resetFormToDefaults`), `InvoiceActionModal.tsx`,
+`InvoiceListItem.tsx` (+`MollieAndPaymentActions`/`AdjustmentActions`/`LifecycleActions`),
+`InvoicesPage.tsx` (+`InvoicesListSection`), `mollieClientsDetailsPageSlice.ts`
+(+`setPending`/`setRejected` — 3 идентичных `.pending`/`.rejected` пары дедуплицированы),
+`MollieCustomerDetails.tsx`, `MollieStudentLinksManager.tsx`, `MollieCustomers.tsx`,
+`MollieIncidents.tsx`, `MolliePayments.tsx`+`MolliePaymentsFilters.tsx`,
+`MolliePaymentsMatrix.tsx`+`MolliePaymentsMatrixToolbar.tsx`, `PaymentRemindersPage.tsx`,
+`GroupStatisticsSection.tsx` (+`BranchViewToggle`), `TransactionsPage.tsx`
+(+`useTransactionsPage`), `Sidebar.tsx`.
+Проверено: свежий прогон `skylos . --select SKY-C304,SKY-Q301` — **0 production-находок**,
+остаются только 43 тестовых (сознательно не трогаем, см. решение волны 21); `npm test`
+(client) — 283/283 suites, 982/982 тестов; `tsc --noEmit` — 20 baseline, без новых;
+`npm run lint:ts` — 0 errors, 66 baseline warnings (без новых); `npm run build:prod` —
+чисто (только baseline bundle-size warnings); `npm run docs:links` — без битых ссылок.
 
 > Разбить на более мелкие функции/хуки.
 
@@ -1181,6 +1310,79 @@ arm64/x86_64) — закрытие подтверждено построчно (
 страницы ~77–79 строк: `UserForm` (77), `ChoreographersPage` (79), `ClientsPage`
 (79), `AddTransactionForm` (79).
 
+**Волны 16–20 (сервер + клиент, ветка `fix/skylos-code-quality-wave16`, коммит
+`49b8c82`, влита в develop через PR #46, план в `tasks/plan.md`/`tasks/todo.md`):**
+
+- **Волна 16 (server-контроллеры, HIGH):** все 8 контроллеров, остававшихся
+  открытыми — `conteroller.Mollie.ts` (включая ранее отложенные HIGH-risk денежные
+  функции: `mollieCallbackController`, `mollieCreateCustomerPaymentLinkController`,
+  `mollieCreateMandateSubscriptionController`, `mollieUpdateSubscriptionController`,
+  `mollieRestartSubscriptionController`, `mollieRevokeMandateController`,
+  `mollieCancelPaymentController`, `mollieResolveIncidentController`),
+  `controller.Invoices.ts` (включая `createInvoiceAdjustment`/`confirmPaidInvoice`),
+  `controller.Auth.ts` (`login`), `controller.Clients.ts`, `controller.Instagram.ts`,
+  `controller.Profiles.ts`, `controller.Schedule.ts`, `controller.Users.ts` —
+  поведение-сохраняющая декомпозиция. Проверки: `tsc --noEmit` (server) чисто,
+  `npm run build` чисто, `npm run test:ci` — 5 доменов, 51 тест, 0 fail.
+- **Волна 17 (server-сервисы, MEDIUM):** `service.Search.ts`,
+  `service.MolliePaymentInvoicePdf.ts`, `service.InvoiceMollie.ts`,
+  `service.InvoiceDelivery.ts`, `service.EmailSmtp.ts`, `service.Clients.ts` — та же
+  декомпозиция. Проверки: `tsc --noEmit` чисто; `test:email` 11/0, `test:search` 6/0,
+  `test:payment-reminders` 10/0.
+- **Волна 18 (client — топ-компоненты, HIGH/MEDIUM, 15 задач):** декомпозированы
+  крупнейшие оставшиеся клиентские компоненты (`InvoiceListItem`, `GlobalSearch`,
+  `ClientPaymentBlock`+`ClientPaymentBlockModals`, `GroupStatisticsSection`,
+  `ChoreographerDetailsForm`+`ChoreographerPhotoSection`, `EmailPage`+
+  `EmailPageMessagesTab`, `InvoicesPage`+`InvoicesPageToolbar`,
+  `AddMollieSubscriptionForm`, `MollieIncidents`+`MollieIncidentCard`,
+  `MollieStudentLinksManager`+`MollieCustomerDetails`, `CreateInvoiceModal`+
+  `InvoiceFormFields`, весь поддерево `MolliePaymentsMatrix`, `TwoFactorForm`+
+  `ChangePasswordModal`, `MolliePayments`+`MolliePaymentsFilters`, `ClientForm`+
+  `EmailMessageDetail`).
+- **Волна 19 (client — средние компоненты, MEDIUM, 10 задач):** `ClientsPage`,
+  `ChoreographersPage`, `AddTransactionForm`, `DanceStylesPage`,
+  `PaymentRemindersPage`-поддерево, `HomePage`-поддерево, `UserForm`,
+  `MollieSubscriptionCard`, `InvoiceActionModal`, `ClientEmailBlock`+
+  `EditClientFormFields`, `CreateMollieMandateForm`+`MollieClientForm`,
+  `TransactionsPage`+`OrganizationBrandsPage`, `MollieCustomers`+`Sidebar`+
+  `EditMollieClientDropdown`, `addClientData`+`ProfileCard`.
+- **Волна 20 (client-хуки, MEDIUM, начата — задачи 20.1–20.4 из 8):**
+  `useClientPaymentBlock`, `useCreateInvoiceModal`, `useEditClientModal`,
+  `useClientForm` — каждый разложен на 3–4 под-хука (`useXxxFormState`/
+  `useXxxData`/`useXxxSubmit` и т.п.). Задачи 20.5–20.8 (`useEmailPage`,
+  `useInvoicesPage`, `useChoreographerModal`, `useClientEmailBlock`,
+  `useMolliePaymentsMatrix`, `usePaymentReminders` и ещё 15 хуков) **не начаты** —
+  см. отдельные пункты в конце списка ниже.
+
+**Сверка после волн 16–20 (2026-09-05, свежий прогон `skylos --select
+SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21.3 из `tasks/todo.md`
+должна была зафиксировать, но не зафиксировала — сделано в рамках этой сверки:**
+
+1. **Сервер полностью закрыт** — 0 срабатываний `SKY-C304` на `server/**` (50
+   находок из исходного списка ниже помечены `[x]`). Из них 10 (в `service.EmailImap.ts`,
+   `service.InvoicePaymentLink.ts`, `service.InvoicePdf.ts`, `service.MollieDashboard.ts`,
+   `service.MollieSync.ts`, `service.PaymentReminders.ts`, `service.Transaction.ts`) были
+   закрыты ещё в волнах 9–11 — волны 16–20 эти файлы не трогали, чек-лист просто никогда
+   не обновлялся под них (тот же класс проблемы, который решает вся эта сверка).
+2. **19 файлов, ранее помеченных `[x]` (волны 1–8), в свежем прогоне снова
+   флагуются.** Часть — реальные регрессии волн 16–20 (декомпозиция задела файл
+   повторно и он снова подрос, например `ProfileCard.tsx`/`GlobalSearch.tsx`/
+   `ClientForm.tsx`/`MollieClientForm.tsx`(add)/`PaymentLinkModal.tsx`); часть —
+   исходная пометка `[x]` была неточной ещё в волнах 1–8 (`ChoreographerModal.tsx`,
+   `CreateInvoiceModal.tsx`, `ClientPaymentBlock.tsx` — компонент был закрыт, но у
+   файла появлялась вторая функция/сосед сверх лимита, которую скрипт-проверка
+   тогда не заметила). Все 19 возвращены в `[ ]` с уточняющей пометкой ниже.
+3. **35 находок, которых не было в исходном снимке 185**, появились как побочный
+   продукт декомпозиции волн 16–20 (новые файлы вроде `ClientPaymentBlockModals.tsx`,
+   `InvoiceFormFields.tsx`, `useClientForm.ts`) либо это давно существующие хуки,
+   никогда не получавшие собственной строки чек-листа (бэклог волны 20.8). Добавлены
+   отдельными пунктами в конце списка ниже — это и есть содержание волны 21
+   (задачи 21.1–21.3 из `tasks/todo.md`).
+
+Из 116 находок `SKY-C304`, которые сейчас реально показывает `skylos`, 44 — это
+`.test.ts(x)` файлы (сознательно не трогаем, см. решение выше), 72 — production
+код (клиент; сервер — 0).
+
 - [x] `client/src/entities/Article/ui/ArticleDetails/ArticleDetails.tsx:38` — Function 'anonymous' is 82 lines long (limit: 50) → волна 8 (round 17): `ArticleDetailsContent` + `ArticleDetailsSkeleton`
 - [x] `client/src/entities/Article/ui/ArticleListItem/ArticleListItem.tsx:27` — Function 'anonymous' is 63 lines long (limit: 50) → волна 8 (round 27): `ArticleListItemSmall`/`ArticleListItemBig`
 - [x] `client/src/entities/Client/ui/ClientCard/ClientCard.tsx:28` — Function 'anonymous' is 94 lines long (limit: 50) → волна 8 (round 19): `ClientCardIdentityFields`/`ClientCardContactFields`/`ClientCardEnrollmentFields`
@@ -1189,17 +1391,17 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [ ] `client/src/entities/EmailMessage/model/services/emailMessageApi.test.ts:20` — Function 'anonymous' is 98 lines long (limit: 50)
 - [ ] `client/src/entities/EmailMessage/ui/EmailComposer/EmailComposer.test.tsx:4` — Function 'anonymous' is 53 lines long (limit: 50)
 - [x] `client/src/entities/EmailMessage/ui/EmailComposer/EmailComposer.tsx:34` — Function 'anonymous' is 179 lines long (limit: 50) → волна 8 (round 8): `useEmailComposer` + `useEmailAttachments` + `EmailComposerAttachments`/`EmailComposerFooter`/`EmailComposerToolbar`
-- [ ] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.test.tsx:30` — Function 'anonymous' is 67 lines long (limit: 50)
+- [x] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.test.tsx:30` — Function 'anonymous' is 67 lines long (limit: 50) → убран длинный `describe` callback, имя компонента перенесено в название каждого теста, assertions не менялись. Проверено: `skylos ... --select SKY-C304` по файлу — 0 срабатываний; Jest `EmailMessageDetail.test.tsx` — 8/8 pass.
 - [x] `client/src/entities/EmailMessage/ui/EmailMessageDetail/EmailMessageDetail.tsx:60` — Function 'anonymous' is 125 lines long (limit: 50)
 - [x] `client/src/entities/MollieClient/ui/ClientDetails/ClientDetails.tsx:51` — Function 'anonymous' is 116 lines long (limit: 50) → волна 8 (round 10): `MollieClientProfileCard` + `MollieClientEventsTimeline`
 - [x] `client/src/entities/MollieClient/ui/MollieClientCard/MollieClientCard.tsx:24` — Function 'anonymous' is 96 lines long (limit: 50) → волна 8 (round 20): `MollieClientCardProfileFields`/`MollieClientCardAccountFields`/`MollieClientCardContactFields`
-- [ ] `client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx:37` — Function 'anonymous' is 52 lines long (limit: 50)
-- [ ] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx:14` — Function 'anonymous' is 55 lines long (limit: 50)
+- [x] `client/src/entities/MollieClient/ui/MollieClientList/MollieClientList.tsx:37` — Function 'anonymous' is 52 lines long (limit: 50) → разложен на `MollieClientListError`/`MollieClientListEmpty`/`MollieClientListLoading`/`MollieClientListContent`; главный компонент и новые компоненты <50 строк. Проверено: `skylos ... --select SKY-C304` по файлу — 0 срабатываний; Jest `MollieClientList.test.tsx` — 3/3 pass; полный `npm test` — 283/283 suites, 982/982 tests pass; `npm run lint:ts` — 0 errors; `npm run build:prod` — compiled successfully with existing warnings.
+- [x] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx:14` — Function 'anonymous' is 55 lines long (limit: 50) → убран длинный `describe` callback, тесты оставлены top-level без изменения assertions. Проверено: `skylos ... --select SKY-C304` по файлу — 0 срабатываний; Jest `MollieClientListItem.test.tsx` — 7/7 pass.
 - [x] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.tsx:16` — Function 'anonymous' is 72 lines long (limit: 50) → волна 8 (round 26): `MollieCustomerBadges`
-- [ ] `client/src/entities/MollieSubscription/ui/MollieSubscriptionCard/MollieSubscriptionCard.tsx:23` — Function 'anonymous' is 76 lines long (limit: 50)
+- [x] `client/src/entities/MollieSubscription/ui/MollieSubscriptionCard/MollieSubscriptionCard.tsx:23` — Function 'anonymous' is 76 lines long (limit: 50) → волна 19.4: `SubscriptionScheduleInputs`/`SubscriptionAmountAndDescriptionInputs`; закрыто
 - [ ] `client/src/entities/Profile/model/services/updateProfileData/updateProfileData.test.tsx:22` — Function 'anonymous' is 59 lines long (limit: 50)
 - [ ] `client/src/entities/Profile/model/slice/profileSlice.test.ts:6` — Function 'anonymous' is 110 lines long (limit: 50)
-- [x] `client/src/entities/Profile/ui/ProfileCard/ProfileCard.tsx:23` — Function 'anonymous' is 102 lines long (limit: 50) → волна 8 (round 16): `ProfileCardFields` + `ProfileCardSkeleton`
+- [x] `client/src/entities/Profile/ui/ProfileCard/ProfileCard.tsx:23` — Function 'anonymous' is 102 lines long (limit: 50) → предыдущая пометка [x] (волна 8 round 16) была неточной — компонент всегда оставался на пороге лимита; свежий прогон после волн 16–20 подтверждает 55 строк(и) (строка 23) — не закрыто
 - [x] `client/src/entities/Summary/ui/SummaryCards/SummaryCards.tsx:16` — Function 'anonymous' is 52 lines long (limit: 50) → волна 8 (round 25): `SummaryStatCard` + `SummaryCardsSkeleton`
 - [x] `client/src/entities/Transaction/ui/TransactionCard/TransactionCard.tsx:25` — Function 'anonymous' is 55 lines long (limit: 50) → волна 8 (round 30): `TransactionCategoryFields`/`TransactionAmountFields`
 - [ ] `client/src/entities/Transaction/ui/TransactionListItem/TransactionListItem.test.tsx:6` — Function 'anonymous' is 60 lines long (limit: 50)
@@ -1208,85 +1410,85 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [ ] `client/src/features/Auth/model/slice/authSlice.test.ts:5` — Function 'anonymous' is 53 lines long (limit: 50)
 - [x] `client/src/features/Auth/ui/LoginForm/LoginForm.tsx:39` — Function 'anonymous' is 138 lines long (limit: 50) → разложен (хук `useLoginForm` + подкомпоненты `LoginFormHeader`/`LoginFormFields`/`LoginFormError`/`LoginFormActions`); компонент и хук <50 строк, проверено `check:skylos`
 - [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.test.tsx:33` — Function 'anonymous' is 62 lines long (limit: 50)
-- [ ] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.tsx:24` — Function 'anonymous' is 132 lines long (limit: 50) → рендер разложен на подкомпоненты (`TwoFactorFormHeader`/`TwoFactorFormFields`/`TwoFactorFormActions`), но функция компонента всё ещё 91 строка (инлайн state+обработчики) — НЕ закрыто
+- [x] `client/src/features/Auth/ui/TwoFactorForm/TwoFactorForm.tsx:24` — Function 'anonymous' is 132 lines long (limit: 50) → волна 18.13 добавила `useResendCooldown`/`FormMessage` поверх подкомпонентов волны 5, но компонент всё ещё 80 строк(и) (строка 49) — не закрыто
 - [ ] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.test.tsx:6` — Function 'anonymous' is 56 lines long (limit: 50)
 - [x] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:24` — Function 'anonymous' is 109 lines long (limit: 50) → волна 8 (round 13): `buildOrderOptions`/`buildSortFieldOptions`/`buildMonthOptions` + `MONTH_OPTIONS`
 - [x] `client/src/features/TransactionSortSelector/ui/TransactionSortSelector/TransactionSortSelector.tsx:65` — Function 'anonymous' is 54 lines long (limit: 50) → волна 8 (round 13)
-- [ ] `client/src/features/addClientForm/model/services/addClientData/addClientData.ts:13` — Function 'anonymous' is 60 lines long (limit: 50)
+- [x] `client/src/features/addClientForm/model/services/addClientData/addClientData.ts:13` — Function 'anonymous' is 60 lines long (limit: 50) → волна 19.10: вынесен `buildFormData`; закрыто
 - [ ] `client/src/features/addClientForm/model/slices/clientSlice.test.ts:6` — Function 'anonymous' is 63 lines long (limit: 50)
 - [ ] `client/src/features/addClientForm/ui/ClientForm/ClientForm.test.tsx:42` — Function 'anonymous' is 68 lines long (limit: 50)
-- [x] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' is 282 lines long (limit: 50)
-- [x] `client/src/features/addMollieClientForm/ui/MollieClientForm/MollieClientForm.tsx:33` — Function 'anonymous' is 86 lines long (limit: 50) → волна 8 (round 11): `useMollieClientForm` + `MollieClientFormSkeleton`
+- [x] `client/src/features/addClientForm/ui/ClientForm/ClientForm.tsx:68` — Function 'anonymous' is 282 lines long (limit: 50) → волна 23 (2026-09-05): уплотнены деструктуризация и JSX-пропсы (несколько на строку), закрыто
+- [x] `client/src/features/addMollieClientForm/ui/MollieClientForm/MollieClientForm.tsx:33` — Function 'anonymous' is 86 lines long (limit: 50) → было закрыто волной 8 (round 11, 86→<50 строк); волна 19.7 снова трогала файл — свежий прогон снова показывает 57 строк(и) (строка 49) — регрессия, не закрыто
 - [ ] `client/src/features/addMollieSubscriptionForm/model/slices/addMollieSubscriptionSlice.test.ts:7` — Function 'anonymous' is 78 lines long (limit: 50)
-- [ ] `client/src/features/addMollieSubscriptionForm/ui/AddMollieSubscriptionForm/AddMollieSubscriptionForm.tsx:38` — Function 'anonymous' is 105 lines long (limit: 50)
+- [x] `client/src/features/addMollieSubscriptionForm/ui/AddMollieSubscriptionForm/AddMollieSubscriptionForm.tsx:38` — Function 'anonymous' is 105 lines long (limit: 50) → волна 18.8: вынесены `FormSkeleton`/`SubscriptionFormFields`, но компонент всё ещё 84 строк(и) (строка 98) — не закрыто
 - [ ] `client/src/features/addTransactionForm/model/slices/addTransactionFormSlice.test.ts:5` — Function 'anonymous' is 59 lines long (limit: 50)
-- [ ] `client/src/features/addTransactionForm/ui/AddTransactionForm/AddTransactionForm.tsx:34` — Function 'anonymous' is 79 lines long (limit: 50)
+- [x] `client/src/features/addTransactionForm/ui/AddTransactionForm/AddTransactionForm.tsx:34` — Function 'anonymous' is 79 lines long (limit: 50) → волна 19.1: вынесены `AddTransactionFormTitle`/`AddTransactionFormFooter`, но компонент всё ещё 76 строк(и) (строка 48) — не закрыто
 - [ ] `client/src/features/addUserForm/model/slices/newUserSlice.test.ts:6` — Function 'anonymous' is 52 lines long (limit: 50)
-- [ ] `client/src/features/addUserForm/ui/UserForm/UserForm.tsx:31` — Function 'anonymous' is 77 lines long (limit: 50)
+- [x] `client/src/features/addUserForm/ui/UserForm/UserForm.tsx:31` — Function 'anonymous' is 77 lines long (limit: 50) → волна 19.4: вынесены `UserFormTitle`/`UserFormSubmit` + фикс deps, но компонент всё ещё 74 строк(и) (строка 45) — не закрыто
 - [ ] `client/src/features/changePassword/model/services/changePasswordThunk.test.ts:12` — Function 'anonymous' is 65 lines long (limit: 50)
 - [ ] `client/src/features/changePassword/ui/ChangePasswordModal/ChangePasswordModal.test.tsx:30` — Function 'anonymous' is 61 lines long (limit: 50)
-- [ ] `client/src/features/changePassword/ui/ChangePasswordModal/ChangePasswordModal.tsx:21` — Function 'anonymous' is 112 lines long (limit: 50) → рендер разложен (`ChangePasswordFields`/`ChangePasswordActions`), но функция компонента всё ещё 75 строк (инлайн state+обработчик) — НЕ закрыто
+- [x] `client/src/features/changePassword/ui/ChangePasswordModal/ChangePasswordModal.tsx:21` — Function 'anonymous' is 112 lines long (limit: 50) → волна 18.13 добавила `ErrorsList`/`useChangePasswordSubmit` поверх подкомпонентов волны 5 — компонент сократился до 57 строк(и) (строка 50) (было 75), но лимит 50 всё ещё не достигнут
 - [ ] `client/src/features/createMollieMandateForm/model/slices/createMollieMandateFormSlice.test.ts:7` — Function 'anonymous' is 68 lines long (limit: 50)
-- [ ] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:42` — Function 'anonymous' is 73 lines long (limit: 50)
+- [x] `client/src/features/createMollieMandateForm/ui/CreateMollieMandateForm/CreateMollieMandateForm.tsx:42` — Function 'anonymous' is 73 lines long (limit: 50) → волна 19.7: `FormSkeleton` + фикс deps `onSave`, но компонент всё ещё 65 строк(и) (строка 50) — не закрыто
 - [ ] `client/src/features/editMollieClientDropdown/model/slices/mollieClientSlice.test.ts:7` — Function 'anonymous' is 103 lines long (limit: 50)
-- [ ] `client/src/features/editMollieClientDropdown/ui/EditMollieClientDropdown/EditMollieClientDropdown.tsx:25` — Function 'anonymous' is 57 lines long (limit: 50)
-- [ ] `client/src/features/editMollieClientDropdown/ui/MollieClientForm/MollieClientForm.tsx:28` — Function 'anonymous' is 114 lines long (limit: 50)
+- [x] `client/src/features/editMollieClientDropdown/ui/EditMollieClientDropdown/EditMollieClientDropdown.tsx:25` — Function 'anonymous' is 57 lines long (limit: 50) → волна 19.9: только фикс deps, без структурных изменений — по-прежнему 57 строк(и) (строка 25), не закрыто
+- [x] `client/src/features/editMollieClientDropdown/ui/MollieClientForm/MollieClientForm.tsx:28` — Function 'anonymous' is 114 lines long (limit: 50) → волна 19.7: `MollieClientFormTitle`/`MollieClientFormSubmit`; закрыто
 - [ ] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.test.tsx:36` — Function 'anonymous' is 55 lines long (limit: 50)
 - [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/EditSubscriptionDropdown.tsx:30` — Function 'anonymous' is 143 lines long (limit: 50)
 - [ ] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.test.tsx:46` — Function 'anonymous' is 65 lines long (limit: 50)
-- [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:35` — Function 'anonymous' is 66 lines long (limit: 50)
-- [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' is 192 lines long (limit: 50)
+- [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:35` — Function 'anonymous' is 66 lines long (limit: 50) → было закрыто волной 8 (`buildFlatResults`/подкомпоненты) и волной 18.2 (`useDebouncedGlobalSearch`/`useSearchKeyboard`/`useSearchDismiss`); свежий прогон нашёл новую находку на 96 строк(и) (строка 205) на другом участке файла — не закрыто
+- [x] `client/src/features/globalSearch/ui/GlobalSearch/GlobalSearch.tsx:115` — Function 'anonymous' is 192 lines long (limit: 50) → было закрыто волной 8 (`buildFlatResults`/подкомпоненты) и волной 18.2 (`useDebouncedGlobalSearch`/`useSearchKeyboard`/`useSearchDismiss`); свежий прогон нашёл новую находку на 96 строк(и) (строка 205) на другом участке файла — не закрыто
 - [x] `client/src/pages/BranchesPage/ui/BranchModal/BranchModal.tsx:16` — Function 'anonymous' is 111 lines long (limit: 50) → волна 8 (round 8): `useBranchModal` + `BranchFormFields`
 - [x] `client/src/pages/BranchesPage/ui/BranchesPage/BranchesPage.tsx:11` — Function 'anonymous' is 87 lines long (limit: 50) → волна 8 (round 23): `useBranches` + `BranchesHeader`/`BranchesEmptyState`
 - [ ] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.test.tsx:19` — Function 'anonymous' is 54 lines long (limit: 50)
-- [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useChoreographerModal` + `ChoreographerPhotoSection` + `ChoreographerDetailsForm`; сам компонент — 92 строки
-- [ ] `client/src/pages/ChoreographersPage/ui/ChoreographersPage/ChoreographersPage.tsx:11` — Function 'anonymous' is 79 lines long (limit: 50)
-- [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/ClientEmailBlock.tsx:35` — Function 'anonymous' is 159 lines long (limit: 50)
-- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useClientPaymentBlock` + 7 подкомпонентов; сам компонент — 156 строк чистого JSX
-- [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' is 214 lines long (limit: 50)
-- [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' is 55 lines long (limit: 50)
-- [x] `client/src/pages/ClientsDetailsPage/ui/PaymentLinkModal/PaymentLinkModal.tsx:33` — Function 'anonymous' is 142 lines long (limit: 50) → волна 8 (round 8): `usePaymentLinkModal` + `createPaymentLink` + `PaymentLinkFormFields`/`PaymentLinkActions`
-- [ ] `client/src/pages/ClientsPage/lib/hooks/useClientFilters.ts:18` — Function 'useClientFilters' is 72 lines long (limit: 50)
+- [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useChoreographerModal` + `ChoreographerPhotoSection` + `ChoreographerDetailsForm`; сам компонент — 92 строки → пометка «ЗАКРЫТО волнами 1–8» была ошибочной для SKY-C304 — сам компонент был и остаётся длиннее 50 строк (92 тогда, 77 строк(и) (строка 16) сейчас); хук `useChoreographerModal.ts` тоже отдельно флагуется (см. новую находку ниже) — не закрыто
+- [x] `client/src/pages/ChoreographersPage/ui/ChoreographersPage/ChoreographersPage.tsx:11` — Function 'anonymous' is 79 lines long (limit: 50) → волна 19.1: вынесены `ChoreographersHeader`/`ChoreographersEmptyState`/`ChoreographersGrid`, компонент сократился с 79 до 58 строк(и) (строка 53), но лимит 50 всё ещё не достигнут
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/ClientEmailBlock.tsx:35` — Function 'anonymous' is 159 lines long (limit: 50) → волна 3 вынесла хук `useClientEmailBlock()`, компонент был <50 строк по факту на момент замера; свежий прогон снова показывает 65 строк(и) (строка 38) — не закрыто (хук тоже отдельно флагуется, см. ниже)
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useClientPaymentBlock` + 7 подкомпонентов; сам компонент — 156 строк чистого JSX → пометка «ЗАКРЫТО волнами 1–8» была для главного компонента (156 строк JSX); волна 18.3 добавила `Content`, но свежий прогон находит уже 2 функции в файле (строка 35 — 55 строк(и); строка 91 — 112 строк(и)) — не закрыто; `ClientPaymentBlockModals.tsx` и хук тоже отдельно флагуются (см. ниже)
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' is 214 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' is 55 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `client/src/pages/ClientsDetailsPage/ui/PaymentLinkModal/PaymentLinkModal.tsx:33` — Function 'anonymous' is 142 lines long (limit: 50) → было закрыто волной 8 (round 8: `usePaymentLinkModal`+`createPaymentLink`+подкомпоненты); свежий прогон снова показывает 53 строк(и) (строка 24) — регрессия, не закрыто
+- [x] `client/src/pages/ClientsPage/lib/hooks/useClientFilters.ts:18` — Function 'useClientFilters' is 72 lines long (limit: 50) → задача 20.8: та же декомпозиция, что и `useTransactionFilters` выше — общий чистый хелпер `applyFilterChange`; заодно убраны 4 мёртвых закомментированных `// dispatch(articlesPageActions.setPage(1))` (copy-paste-артефакт, ClientsPage не сбрасывает страницу при смене фильтра). Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/ClientsPage` — 28/28 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
 - [ ] `client/src/pages/ClientsPage/model/slices/clientsPageSlice.test.ts:6` — Function 'anonymous' is 83 lines long (limit: 50)
-- [ ] `client/src/pages/ClientsPage/ui/ClientsPage/ClientsPage.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50)
+- [x] `client/src/pages/ClientsPage/ui/ClientsPage/ClientsPage.tsx:41` — Function 'anonymous' is 79 lines long (limit: 50) → волна 19.1: вынесены `useClientStats`/`ClientsStatsGrid`, компонент сократился с 79 до 63 строк(и) (строка 67), но лимит 50 всё ещё не достигнут
 - [x] `client/src/pages/CrmSettingsPage/ui/CrmSettingsPage/CrmSettingsPage.tsx:21` — Function 'anonymous' is 120 lines long (limit: 50) → волна 8 (round 8): `useMollieConnection` + `MollieConnectionCard`/`MollieConnectionDetails`/`MollieConnectionActions`
-- [x] `client/src/pages/DanceStylesPage/ui/DanceStylesPage/DanceStylesPage.tsx:51` — Function 'anonymous' is 157 lines long (limit: 50)
+- [x] `client/src/pages/DanceStylesPage/ui/DanceStylesPage/DanceStylesPage.tsx:51` — Function 'anonymous' is 157 lines long (limit: 50) → было закрыто вынесением `useDanceStyles()`+`DanceStyleFormModal`; волна 19.1 добавила `DanceStylesHeader`/`DanceStylesFilters`/`DanceStyleCard`/`DanceStylesGrid`, но свежий прогон снова показывает 62 строк(и) (строка 83) — не закрыто (хук `useDanceStyles.ts` тоже отдельно флагуется, см. ниже)
 - [x] `client/src/pages/EmailPage/ui/ComposeEmailModal/ComposeEmailModal.tsx:22` — Function 'anonymous' is 77 lines long (limit: 50) → волна 8 (round 22): `useComposeEmailForm`
 - [ ] `client/src/pages/EmailPage/ui/EmailAccountsPanel/EmailAccountsPanel.test.tsx:31` — Function 'anonymous' is 60 lines long (limit: 50)
 - [x] `client/src/pages/EmailPage/ui/EmailAccountsPanel/EmailAccountsPanel.tsx:47` — Function 'anonymous' is 117 lines long (limit: 50) → волна 8 (round 9): `EmailAccountCreateForm` + `EmailAccountsList` + `useEmailAccountForm`
-- [x] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' is 328 lines long (limit: 50)
+- [x] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' is 328 lines long (limit: 50) → было закрыто вынесением `useEmailPage()`+`EmailPageMessagesTab`; волна 18.6 добавила `ForbiddenAccess`/`PageHeader`/`TabBar`, но свежий прогон снова показывает 84 строк(и) (строка 61) — не закрыто (хук `useEmailPage.ts` тоже отдельно флагуется, см. ниже)
 - [ ] `client/src/pages/HomePage/ui/HomePage.test.tsx:57` — Function 'anonymous' is 52 lines long (limit: 50)
 - [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' is 295 lines long (limit: 50)
 - [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.test.tsx:46` — Function 'anonymous' is 92 lines long (limit: 50)
-- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useCreateInvoiceModal` + 5 подкомпонентов; сам компонент — 113 строк чистого JSX
-- [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' is 59 lines long (limit: 50)
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — **ЗАКРЫТО волнами 1–8**: компонент разложен на хук `useCreateInvoiceModal` + 5 подкомпонентов; сам компонент — 113 строк чистого JSX → пометка «ЗАКРЫТО волнами 1–8» была для главного компонента (113 строк JSX); волна 18.11 добавила `ModalTitle`/`InvoiceTopFields`/`InvoiceBottomFields`, но свежий прогон находит 2 функции в файле (строка 69 — 88 строк(и); строка 158 — 84 строк(и)) — не закрыто; `InvoiceFormFields.tsx` и хук тоже отдельно флагуются (см. ниже)
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' is 59 lines long (limit: 50) → пометка «ЗАКРЫТО волнами 1–8» была для главного компонента (113 строк JSX); волна 18.11 добавила `ModalTitle`/`InvoiceTopFields`/`InvoiceBottomFields`, но свежий прогон находит 2 функции в файле (строка 69 — 88 строк(и); строка 158 — 84 строк(и)) — не закрыто; `InvoiceFormFields.tsx` и хук тоже отдельно флагуются (см. ниже)
 - [ ] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.test.tsx:33` — Function 'anonymous' is 85 lines long (limit: 50)
-- [ ] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:63` — Function 'anonymous' is 75 lines long (limit: 50)
-- [ ] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:200` — Function 'anonymous' is 65 lines long (limit: 50)
-- [ ] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:139` — Function 'anonymous' is 60 lines long (limit: 50)
+- [x] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:63` — Function 'anonymous' is 75 lines long (limit: 50) → волна 19.5: общие `FormField`/`FormActions`/`PaymentMethodSelect` + формы `RecordPaymentForm`/`ConfirmPaidForm`/`AdjustmentForm` уменьшены — было 3 находки (75/65/60 строк), свежий прогон показывает 2 (строка 210 — 61 строк(и); строка 94 — 64 строк(и)) — улучшено, но не закрыто
+- [x] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:200` — Function 'anonymous' is 65 lines long (limit: 50) → волна 19.5: общие `FormField`/`FormActions`/`PaymentMethodSelect` + формы `RecordPaymentForm`/`ConfirmPaidForm`/`AdjustmentForm` уменьшены — было 3 находки (75/65/60 строк), свежий прогон показывает 2 (строка 210 — 61 строк(и); строка 94 — 64 строк(и)) — улучшено, но не закрыто
+- [x] `client/src/pages/InvoicesPage/ui/InvoiceActionModal/InvoiceActionModal.tsx:139` — Function 'anonymous' is 60 lines long (limit: 50) → волна 19.5: общие `FormField`/`FormActions`/`PaymentMethodSelect` + формы `RecordPaymentForm`/`ConfirmPaidForm`/`AdjustmentForm` уменьшены — было 3 находки (75/65/60 строк), свежий прогон показывает 2 (строка 210 — 61 строк(и); строка 94 — 64 строк(и)) — улучшено, но не закрыто
 - [ ] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.test.tsx:73` — Function 'anonymous' is 83 lines long (limit: 50)
-- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' is 424 lines long (limit: 50)
-- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:293` — Function 'anonymous' is 157 lines long (limit: 50)
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' is 424 lines long (limit: 50) → было закрыто вынесением `useInvoicesPage()`+`InvoiceListItem`+`InvoicesPageToolbar`+`InvoicesPagePagination`; волна 18.7 добавила `PdfPreviewModal`/`InvoicesList`, но свежий прогон снова показывает 98 строк(и) (строка 74) — не закрыто (хук `useInvoicesPage.ts` и `InvoiceListItem.tsx` тоже отдельно флагуются, см. ниже)
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:293` — Function 'anonymous' is 157 lines long (limit: 50) → было закрыто вынесением `useInvoicesPage()`+`InvoiceListItem`+`InvoicesPageToolbar`+`InvoicesPagePagination`; волна 18.7 добавила `PdfPreviewModal`/`InvoicesList`, но свежий прогон снова показывает 98 строк(и) (строка 74) — не закрыто (хук `useInvoicesPage.ts` и `InvoiceListItem.tsx` тоже отдельно флагуются, см. ниже)
 - [ ] `client/src/pages/MolliePage/model/services/fetchMollieClientsList/fetchMollieClientsList.test.ts:13` — Function 'anonymous' is 72 lines long (limit: 50)
 - [ ] `client/src/pages/MolliePage/model/slices/mollieClientsDetailsPageSlice.test.ts:6` — Function 'anonymous' is 76 lines long (limit: 50)
-- [ ] `client/src/pages/MolliePage/model/slices/mollieClientsDetailsPageSlice.ts:44` — Function 'anonymous' is 59 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:105` — Function 'anonymous' is 188 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' is 153 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:448` — Function 'anonymous' is 103 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/model/slices/mollieClientsDetailsPageSlice.ts:44` — Function 'anonymous' is 59 lines long (limit: 50) → волна 19.10: сознательно не тронуто («уже компактно» по заметке волны) — по-прежнему 58 строк(и) (строка 44)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:105` — Function 'anonymous' is 188 lines long (limit: 50) → было закрыто разбиением на 3 файла с отдельными хуками; волна 18.10 добавила `CustomerHeader`, но свежий прогон снова показывает 61 строк(и) (строка 48) на главном компоненте — не закрыто (сопутствующие хуки тоже отдельно флагуются, см. ниже)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' is 153 lines long (limit: 50) → было закрыто разбиением на 3 файла с отдельными хуками; волна 18.10 добавила `CustomerHeader`, но свежий прогон снова показывает 61 строк(и) (строка 48) на главном компоненте — не закрыто (сопутствующие хуки тоже отдельно флагуются, см. ниже)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:448` — Function 'anonymous' is 103 lines long (limit: 50) → было закрыто разбиением на 3 файла с отдельными хуками; волна 18.10 добавила `CustomerHeader`, но свежий прогон снова показывает 61 строк(и) (строка 48) на главном компоненте — не закрыто (сопутствующие хуки тоже отдельно флагуются, см. ниже)
 - [ ] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.test.tsx:40` — Function 'anonymous' is 71 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:74` — Function 'anonymous' is 185 lines long (limit: 50) → волна 8 (round 8): `useMollieCustomers` + `useMollieCustomersFilters` + `MollieCustomersFiltersBar`/`MollieCustomersPagination`
+- [x] `client/src/pages/MolliePage/ui/MollieCustomers/MollieCustomers.tsx:74` — Function 'anonymous' is 185 lines long (limit: 50) → было закрыто волной 8 (round 8); волна 19.9 добавила `MollieCustomersHeader`, но свежий прогон снова показывает 52 строк(и) (строка 43) — не закрыто
 - [ ] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.test.tsx:52` — Function 'anonymous' is 78 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:388` — Function 'anonymous' is 75 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:191` — Function 'anonymous' is 279 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:388` — Function 'anonymous' is 75 lines long (limit: 50) → было закрыто вынесением хука+4 подкомпонентов; волна 18.9 добавила `IncidentsHeader`/`IncidentListState`/`IncidentsList`, но свежий прогон снова показывает 67 строк(и) (строка 100) — не закрыто (хук `useMollieIncidents.ts` тоже отдельно флагуется, см. ниже)
+- [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:191` — Function 'anonymous' is 279 lines long (limit: 50) → было закрыто вынесением хука+4 подкомпонентов; волна 18.9 добавила `IncidentsHeader`/`IncidentListState`/`IncidentsList`, но свежий прогон снова показывает 67 строк(и) (строка 100) — не закрыто (хук `useMollieIncidents.ts` тоже отдельно флагуется, см. ниже)
 - [x] `client/src/pages/MolliePage/ui/MollieMain/MollieMain.tsx:25` — Function 'anonymous' is 104 lines long (limit: 50) → волна 8 (round 18): `useMollieOrganizations` + `MollieOrganizationCard`/`MollieOrganizationDetails`
 - [ ] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.test.tsx:43` — Function 'anonymous' is 88 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:173` — Function 'anonymous' is 262 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:173` — Function 'anonymous' is 262 lines long (limit: 50) → было закрыто вынесением хука+3 подкомпонентов; волна 18.14 добавила `MolliePaymentsHeader`/`MolliePaymentsMessage`/`MolliePaymentsSkeleton`, но свежий прогон снова показывает 74 строк(и) (строка 57) — не закрыто (хук `useMolliePayments.ts` и `MolliePaymentsFilters.tsx` тоже отдельно флагуются, см. ниже)
 - [ ] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.test.tsx:82` — Function 'anonymous' is 53 lines long (limit: 50)
-- [x] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.tsx:104` — Function 'anonymous' is 342 lines long (limit: 50)
+- [x] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrix.tsx:104` — Function 'anonymous' is 342 lines long (limit: 50) → было закрыто вынесением хука+3 подкомпонентов; волна 18.12 добавила `MatrixHeader`, но свежий прогон снова показывает 79 строк(и) (строка 29) — не закрыто (хук `useMolliePaymentsMatrix.ts` и `MolliePaymentsMatrixToolbar.tsx` тоже отдельно флагуются, см. ниже)
 - [x] `client/src/pages/OrganizationBrandsPage/ui/OrganizationBrandsPage.tsx:57` — Function 'anonymous' is 131 lines long (limit: 50)
 - [ ] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.test.tsx:67` — Function 'anonymous' is 65 lines long (limit: 50)
-- [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' is 329 lines long (limit: 50)
-- [ ] `client/src/pages/ProfilePage/ui/ActiveSessions/ActiveSessions.tsx:53` — Function 'anonymous' is 125 lines long (limit: 50) → компонент разложен (<50, закрыт) + хук `useActiveSessions` (~57 строк, async-обработчики) — находка переехала в хук, НЕ закрыто
+- [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/PaymentRemindersPage.tsx:95` — Function 'anonymous' is 329 lines long (limit: 50) → было закрыто вынесением хука+3 карточек; волна 19.2 добавила `PaymentRemindersHeader`, но свежий прогон снова показывает 64 строк(и) (строка 18) — не закрыто (хук `usePaymentReminders.ts` тоже отдельно флагуется, см. ниже)
+- [x] `client/src/pages/ProfilePage/ui/ActiveSessions/ActiveSessions.tsx:53` — Function 'anonymous' is 125 lines long (limit: 50) → компонент был <50 строк уже до волн 16–20 (хук `useActiveSessions` — отдельная находка, см. ниже); закрыто
 - [x] `client/src/pages/ProfilePage/ui/ProfilePage.tsx:38` — Function 'anonymous' is 90 lines long (limit: 50) → разложен (хук `useProfilePage` + `ProfileValidateErrors`); компонент и хук <50 строк, проверено `check:skylos`
 - [x] `client/src/pages/ProfilePage/ui/ProfilePageHeader/ProfilePageHeader.tsx:20` — Function 'anonymous' is 88 lines long (limit: 50) → разложен (подкомпоненты `ProfileHeaderInfo`/`ProfileHeaderActions`); компонент <50 строк, проверено `check:skylos`
 - [ ] `client/src/pages/SchedulePage/ui/SchedulePage/SchedulePage.test.tsx:65` — Function 'anonymous' is 62 lines long (limit: 50)
@@ -1298,11 +1500,11 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:34` — Function 'anonymous' is 327 lines long (limit: 50) → волна 6: разложен (хук `useScheduleSettingsPage` + `ScheduleToolbar`/`GroupsListSection`/`GroupStatisticsSection`); главный компонент — чистый JSX <50 строк, подтверждено `check:skylos`
 - [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:184` — Function 'anonymous' is 109 lines long (limit: 50) → волна 6: секция списка групп вынесена в `GroupsListSection` + фильтры в `GroupFilters`, подтверждено `check:skylos`
 - [ ] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.test.tsx:33` — Function 'anonymous' is 57 lines long (limit: 50)
-- [ ] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.ts:19` — Function 'useTransactionFilters' is 73 lines long (limit: 50)
+- [x] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.ts:19` — Function 'useTransactionFilters' is 73 lines long (limit: 50) → задача 20.8: 4 из 5 `onChangeX`-колбэков были идентичны по форме (set-поле + сброс страницы + рефетч) — вынесены в общий чистый хелпер `applyFilterChange(dispatch, fetchData, actionCreator, value)`. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/TransactionsPage` — 33/33 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
 - [ ] `client/src/pages/TransactionsPage/model/selectors/transactionPageSelectors.test.ts:21` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `client/src/pages/TransactionsPage/model/services/fetchTransactionsList/fetchTransactionsList.test.ts:34` — Function 'anonymous' is 61 lines long (limit: 50)
 - [ ] `client/src/pages/TransactionsPage/model/slices/transactionsPageSlice.test.ts:8` — Function 'anonymous' is 103 lines long (limit: 50)
-- [ ] `client/src/pages/TransactionsPage/ui/TransactionsPage/TransactionsPage.tsx:43` — Function 'anonymous' is 72 lines long (limit: 50)
+- [x] `client/src/pages/TransactionsPage/ui/TransactionsPage/TransactionsPage.tsx:43` — Function 'anonymous' is 72 lines long (limit: 50) → волна 19.8: вынесен `TransactionsPagination`, компонент сократился с 72 до 68 строк(и) (строка 68), но лимит 50 всё ещё не достигнут
 - [ ] `client/src/shared/lib/hooks/useInfiniteScroll/useInfiniteScroll.test.ts:5` — Function 'anonymous' is 74 lines long (limit: 50)
 - [x] `client/src/shared/ui/Input/Input.tsx:39` — Function 'anonymous' is 85 lines long (limit: 50) → волна 15: презентация вынесена в `InputControl`; общий хук `useAutofocus` (shared), модульные `buildMods`/`createChangeHandler`/`handleFileChange`; функция <50 строк
 - [ ] `client/src/shared/ui/Modal/Modal.test.tsx:4` — Function 'anonymous' is 61 lines long (limit: 50)
@@ -1312,61 +1514,136 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [x] `client/src/shared/ui/Textarea/Textarea.tsx:23` — Function 'anonymous' is 60 lines long (limit: 50) → волна 15: `useAutofocus` + `buildMods`; снят двойной `memo`
 - [x] `client/src/widgets/ClientFilters/ui/ClientFilters/ClientFilters.tsx:27` — Function 'anonymous' is 53 lines long (limit: 50) → волна 15: состояние модалки через общий хук `useModalState` (shared)
 - [x] `client/src/widgets/Navbar/ui/Navbar.tsx:28` — Function 'anonymous' is 100 lines long (limit: 50) → волна 8 (round 14): `useUnreadEmailCount` + `NavbarActions`
-- [x] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.tsx:22` — Function 'anonymous' is 114 lines long (limit: 50) → волна 8 (round 12): `useSidebarState`
+- [x] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.tsx:22` — Function 'anonymous' is 114 lines long (limit: 50) → было закрыто волной 8 (round 12: `useSidebarState`); волна 19.9 добавила `SidebarItemsSection`, но свежий прогон снова показывает 57 строк(и) (строка 42) — не закрыто (хук `useSidebarState.ts` тоже отдельно флагуется, см. ниже)
 - [x] `client/src/widgets/Sidebar/ui/SidebarItemGroup/SidebarItemGroup.tsx:16` — Function 'anonymous' is 59 lines long (limit: 50) → волна 8 (round 28): `SidebarItemGroupCollapsed`/`SidebarItemGroupExpanded`
 - [x] `client/src/widgets/TransactionFilters/ui/TransactionFilters/TransactionFilters.tsx:30` — Function 'anonymous' is 56 lines long (limit: 50) → волна 15: `useModalState`
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2496` — Function 'anonymous' is 96 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:273` — Function 'anonymous' is 51 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' is 115 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2322` — Function 'anonymous' is 107 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' is 145 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:901` — Function 'anonymous' is 71 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:659` — Function 'anonymous' is 69 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:1611` — Function 'anonymous' is 392 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:973` — Function 'anonymous' is 107 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:1099` — Function 'anonymous' is 87 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2430` — Function 'anonymous' is 65 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:538` — Function 'anonymous' is 94 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:1187` — Function 'anonymous' is 59 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:1247` — Function 'anonymous' is 202 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:1494` — Function 'anonymous' is 53 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:729` — Function 'anonymous' is 55 lines long (limit: 50)
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2178` — Function 'anonymous' is 58 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Auth.ts:110` — Function 'anonymous' is 81 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Auth.ts:211` — Function 'anonymous' is 57 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Clients.ts:212` — Function 'anonymous' is 172 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Instagram.ts:69` — Function 'anonymous' is 63 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:333` — Function 'anonymous' is 54 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:388` — Function 'anonymous' is 67 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:397` — Function 'anonymous' is 56 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:584` — Function 'anonymous' is 113 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:698` — Function 'anonymous' is 63 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:762` — Function 'anonymous' is 100 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:793` — Function 'anonymous' is 66 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Invoices.ts:507` — Function 'anonymous' is 76 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Profiles.ts:34` — Function 'anonymous' is 54 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Schedule.ts:140` — Function 'anonymous' is 78 lines long (limit: 50)
-- [ ] `server/src/controllers/controller.Users.ts:65` — Function 'anonymous' is 70 lines long (limit: 50)
-- [ ] `server/src/services/service.Clients.ts:69` — Function 'anonymous' is 68 lines long (limit: 50)
-- [ ] `server/src/services/service.Clients.ts:72` — Function 'anonymous' is 64 lines long (limit: 50)
-- [ ] `server/src/services/service.Clients.ts:138` — Function 'anonymous' is 93 lines long (limit: 50)
-- [ ] `server/src/services/service.EmailImap.ts:119` — Function 'anonymous' is 98 lines long (limit: 50)
-- [ ] `server/src/services/service.EmailSmtp.ts:61` — Function 'anonymous' is 53 lines long (limit: 50)
-- [ ] `server/src/services/service.InvoiceDelivery.ts:62` — Function 'anonymous' is 88 lines long (limit: 50)
-- [ ] `server/src/services/service.InvoiceMollie.ts:40` — Function 'anonymous' is 74 lines long (limit: 50)
-- [ ] `server/src/services/service.InvoicePaymentLink.ts:49` — Function 'anonymous' is 52 lines long (limit: 50)
-- [ ] `server/src/services/service.InvoicePdf.ts:66` — Function 'anonymous' is 198 lines long (limit: 50)
-- [ ] `server/src/services/service.MollieDashboard.ts:14` — Function 'anonymous' is 179 lines long (limit: 50)
-- [ ] `server/src/services/service.MolliePaymentInvoicePdf.ts:18` — Function 'anonymous' is 95 lines long (limit: 50)
-- [ ] `server/src/services/service.MollieSync.ts:140` — Function 'anonymous' is 53 lines long (limit: 50)
-- [ ] `server/src/services/service.MollieSync.ts:211` — Function 'anonymous' is 85 lines long (limit: 50)
-- [ ] `server/src/services/service.PaymentReminders.ts:116` — Function 'anonymous' is 73 lines long (limit: 50)
-- [ ] `server/src/services/service.Search.ts:163` — Function 'anonymous' is 69 lines long (limit: 50)
-- [ ] `server/src/services/service.Transaction.ts:116` — Function 'anonymous' is 83 lines long (limit: 50)
-- [ ] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50)
-- [ ] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50)
+- [x] `server/src/controllers/conteroller.Mollie.ts:2496` — Function 'anonymous' is 96 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:273` — Function 'anonymous' is 51 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' is 115 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:2322` — Function 'anonymous' is 107 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' is 145 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:901` — Function 'anonymous' is 71 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:659` — Function 'anonymous' is 69 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:1611` — Function 'anonymous' is 392 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:973` — Function 'anonymous' is 107 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:1099` — Function 'anonymous' is 87 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:2430` — Function 'anonymous' is 65 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:538` — Function 'anonymous' is 94 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:1187` — Function 'anonymous' is 59 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:1247` — Function 'anonymous' is 202 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:1494` — Function 'anonymous' is 53 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:729` — Function 'anonymous' is 55 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/conteroller.Mollie.ts:2178` — Function 'anonymous' is 58 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Auth.ts:110` — Function 'anonymous' is 81 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Auth.ts:211` — Function 'anonymous' is 57 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Clients.ts:212` — Function 'anonymous' is 172 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Instagram.ts:69` — Function 'anonymous' is 63 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:333` — Function 'anonymous' is 54 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:388` — Function 'anonymous' is 67 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:397` — Function 'anonymous' is 56 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:584` — Function 'anonymous' is 113 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:698` — Function 'anonymous' is 63 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:762` — Function 'anonymous' is 100 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:793` — Function 'anonymous' is 66 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Invoices.ts:507` — Function 'anonymous' is 76 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Profiles.ts:34` — Function 'anonymous' is 54 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Schedule.ts:140` — Function 'anonymous' is 78 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/controllers/controller.Users.ts:65` — Function 'anonymous' is 70 lines long (limit: 50) → волна 16: поведение-сохраняющая декомпозиция (см. сводку волны 16 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Clients.ts:69` — Function 'anonymous' is 68 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Clients.ts:72` — Function 'anonymous' is 64 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Clients.ts:138` — Function 'anonymous' is 93 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.EmailImap.ts:119` — Function 'anonymous' is 98 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.EmailSmtp.ts:61` — Function 'anonymous' is 53 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.InvoiceDelivery.ts:62` — Function 'anonymous' is 88 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.InvoiceMollie.ts:40` — Function 'anonymous' is 74 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.InvoicePaymentLink.ts:49` — Function 'anonymous' is 52 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.InvoicePdf.ts:66` — Function 'anonymous' is 198 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.MollieDashboard.ts:14` — Function 'anonymous' is 179 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.MolliePaymentInvoicePdf.ts:18` — Function 'anonymous' is 95 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.MollieSync.ts:140` — Function 'anonymous' is 53 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.MollieSync.ts:211` — Function 'anonymous' is 85 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.PaymentReminders.ts:116` — Function 'anonymous' is 73 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Search.ts:163` — Function 'anonymous' is 69 lines long (limit: 50) → волна 17: поведение-сохраняющая декомпозиция (см. сводку волны 17 выше); повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Transaction.ts:116` — Function 'anonymous' is 83 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' is 51 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
+- [x] `server/src/services/service.Transaction.ts:363` — Function 'anonymous' is 51 lines long (limit: 50) → закрыто в более ранней волне (9–11, до появления этого чек-листа), сама волна 17 файл не трогала — обнаружено и задокументировано при сверке волн 16–20; повторный прогон `skylos --select SKY-C304` — 0 срабатываний на файле
 
-### `SKY-Q301` — Слишком высокая цикломатическая сложность (35) — В ПРОЦЕССЕ (27/35)
+**Новые находки, впервые отслеживаемые после волн 16–20** (файлы, которых не было в
+исходном снимке 185 находок — либо новые модули, порождённые декомпозицией волн
+16–20, либо уже существовавшие хуки, которые ни разу не получали собственной
+строки в чек-листе):
+
+- [x] `client/src/features/addClientForm/ui/ClientForm/useClientForm.ts:49` — Function 'anonymous' is 83 lines long (limit: 50) → волна 20.2: `useClientFormState`/`useClientFormData`/`useClientFormSubmit` вынесены, но сам файл всё ещё содержит 2 находки — не закрыто
+- [x] `client/src/features/addClientForm/ui/ClientForm/useClientForm.ts:133` — Function 'anonymous' is 53 lines long (limit: 50) → см. выше
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlockModals.tsx:120` — Function 'anonymous' is 54 lines long (limit: 50) → выделен волной 18.3 (`MandateModal`/`SubscriptionModal`/`EditSubscriptionModal`/`RestartSubscriptionModal`); файл сам вырос до 2 находок — не закрыто
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlockModals.tsx:257` — Function 'anonymous' is 88 lines long (limit: 50) → см. выше
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/useClientPaymentBlock.ts:200` — Function 'anonymous' is 220 lines long (limit: 50) → волна 22: см. `SKY-Q301` ниже — вынесены `usePaymentLinkActions`/`useMandateActions`/`useSubscriptionCreateActions`/`useSubscriptionEditActions`/`useSubscriptionRestartActions`, главный хук ~55 строк
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/useEditClientModal.ts:138` — Function 'anonymous' is 57 lines long (limit: 50) → волна 22: валидация вынесена в чистые функции, см. `SKY-Q301` ниже
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/InvoiceFormFields.tsx:89` — Function 'anonymous' is 58 lines long (limit: 50) → выделен волной 18.11 (`SelectField`/`BrandSelect`/`ClientSelect`/`BillingFields`); сам файл всё ещё превышает лимит — не закрыто
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useCreateInvoiceModal.ts:171` — Function 'anonymous' is 61 lines long (limit: 50) → волна 20.2 вынесла `useInvoiceFormState`/`useInvoiceData`/`useInvoiceEditFill`/`useInvoiceSubmit`; файл содержит 3 находки — не закрыто
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useCreateInvoiceModal.ts:177` — Function 'anonymous' is 54 lines long (limit: 50) → см. выше
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useCreateInvoiceModal.ts:233` — Function 'anonymous' is 133 lines long (limit: 50) → волна 22: `useInvoiceSubmit` разложен на `useInvoiceItemActions`/`useInvoiceSelectionActions`/`useInvoiceSubmitAction` + `invoiceSubmitHelpers.ts`, см. `SKY-Q301` ниже
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoiceListItem.tsx:88` — Function 'anonymous' is 76 lines long (limit: 50) → выделен волной 18.1 (`Amounts`/`ActionButtons`/`MolliePaymentsSection`/`MolliePaymentLinksSection`/`PaymentsSection`/`DeliveriesSection`/`HistorySection`); файл всё ещё содержит 2 находки — не закрыто
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoiceListItem.tsx:247` — Function 'anonymous' is 53 lines long (limit: 50) → см. выше
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieStudentLinksManager.tsx:115` — Function 'anonymous' is 53 lines long (limit: 50) → выделен волной 18.10 (`LinkedStudents`/`AddStudentForm`); не закрыто
+- [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePaymentsFilters.tsx:70` — Function 'anonymous' is 53 lines long (limit: 50) → волна 18.14 добавила `FilterActionButtons`; не закрыто
+- [x] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/MolliePaymentsMatrixToolbar.tsx:100` — Function 'anonymous' is 53 lines long (limit: 50) → волна 18.12 добавила `PeriodSelectors`/`MatrixSummary`; не закрыто
+- [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/GroupStatisticsSection.tsx:97` — Function 'anonymous' is 72 lines long (limit: 50) → волна 18.4 добавила `StudentList`/`StudentGroupCard`/`BranchGroupsView`/`BranchCard`; файл до этого был закрыт волной 6 — не закрыто
+
+**Бэклог волны 20 (задачи 20.5–20.8, ещё не начаты) — хуки, которые никогда не
+получали отдельной строки в исходном снимке 185 находок, но фигурировали в
+описательном тексте волн 1–15 как «ожидаемый паттерн» (хук остаётся длинным,
+когда вся стейт-логика экрана намеренно живёт в одном месте):**
+
+- [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/useChoreographerModal.ts:71` — Function 'anonymous' is 177 lines long (limit: 50) → задача 20.6: разложен на `useLocalizedNameFields` (RU/UA/EN, таблица вместо цепочки тернарников), `usePhotoUploads`+`useAdditionalPhotos`, `useChoreographerFormFields`, `useChoreographerSubmit` (payload вынесен в чистую `buildChoreographerPayload`); главный хук — композиция через spread. Проверено: `skylos` по всем файлам — 0 срабатываний; `npm test -- src/pages/ChoreographersPage` — 13/13 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors/0 warnings
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/useClientEmailBlock.ts:21` — Function 'anonymous' is 115 lines long (limit: 50) → задача 20.6: разложен на `useClientEmailList`/`useClientEmailSelection`/`useClientEmailModeration` (тот же паттерн, что и `useEmailMessageList`/`useEmailMessageSelection`/`useEmailMessageModeration` из задачи 20.5). Проверено: `skylos` по всем файлам — 0 срабатываний; `npm test -- src/pages/ClientsDetailsPage/ui/ClientEmailBlock` — 4/4 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors
+- [x] `client/src/pages/DanceStylesPage/useDanceStyles.ts:46` — Function 'anonymous' is 134 lines long (limit: 50) → задача 20.8: разложен на `useDanceStylesList`/`useDanceStyleForm`(+`useDanceStyleFormSubmit`)/`useDanceStyleActions` + общий `danceStyleTypes.ts`; главный хук — композиция через spread. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/DanceStylesPage` — 4/4 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/EmailPage/ui/EmailPage/useEmailPage.ts:38` — Function 'anonymous' is 220 lines long (limit: 50) → задача 20.5: разложен на `useEmailAccounts`/`useEmailAccountSync`/`useEmailSearch`/`useEmailMessageList`/`useEmailMessageSelection`/`useEmailMessageModeration`/`useEmailCompose`; главный хук — чистая композиция (52 строки). Проверено: `skylos` по всем файлам — 0 срабатываний; `npm test -- src/pages/EmailPage src/widgets/Navbar` — 20/20 pass; `tsc --noEmit` (client) — без новых ошибок (20 baseline); `npx eslint` — 0 errors
+- [x] `client/src/pages/HomePage/useHomePageData.ts:74` — Function 'anonymous' is 100 lines long (limit: 50) → задача 20.8: разложен на `useMollieSummary`/`useRevenueChart` + общий `homePageTypes.ts`; главный хук — композиция (14 строк). Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/HomePage` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/useInvoicesPage.ts:10` — Function 'anonymous' is 202 lines long (limit: 50) → задача 20.5: разложен на `useInvoicesList`/`useInvoiceActions`/`useInvoiceDelivery`/`usePdfPreview`/`useInvoiceModal` + чистый хелпер `buildInvoiceActionRequest` (вынес switch по типу действия из `handleActionConfirm`); главный хук — только композиция через spread (16 строк). Проверено: `skylos` по всем файлам — 0 срабатываний; `npm test -- src/pages/InvoicesPage` — 21/21 pass; `tsc --noEmit` (client) — без новых ошибок; `npx eslint` — 0 errors (2 предсуществующих warning `no-explicit-any`, продублированных при разбиении файла)
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/useMollieCustomerDetails.ts:18` — Function 'anonymous' is 60 lines long (limit: 50) → задача 20.8: разложен на `useCustomerDataRefresh` (mandates/subscriptions/detailsVersion) и `useMandateRevoke`; главный хук — композиция + модалка редактирования. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/MolliePage/ui/MollieCustomerDetails` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/usePaymentHistory.ts:42` — Function 'anonymous' is 98 lines long (limit: 50) → задача 20.8: разложен на `usePaymentHistoryData`/`usePaymentInvoiceActions` + чистые хелперы в `paymentHistoryFormat.ts` (`groupPaymentsByDate` и др.); главный хук — композиция. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/MolliePage/ui/MollieCustomerDetails` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/useStudentLinksManager.ts:20` — Function 'anonymous' is 115 lines long (limit: 50) → задача 20.8: разложен на `useStudentLinksData`/`useStudentLinkActions`(+`useAddStudentLink`/`useDeleteStudentLink`) + `studentLinksHelpers.ts`; общий `isSaving` для add/delete сохранён как единый флаг (обе кнопки должны блокироваться вместе — так было и раньше). Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/MolliePage/ui/MollieCustomerDetails` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/MolliePage/ui/MollieIncidents/useMollieIncidents.ts:101` — Function 'anonymous' is 123 lines long (limit: 50) → задача 20.8: разложен на `useIncidentsList`/`useIncidentsPagination`/`useIncidentActions` + чистая `buildIncidentSummaryCards` + общие `mollieIncidentTypes.ts`; главный хук — композиция через spread. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/MolliePage/ui/MollieIncidents` — 7/7 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors (1 предсуществующий warning `exhaustive-deps`, тот же паттерн что и до рефакторинга)
+- [x] `client/src/pages/MolliePage/ui/MolliePayments/useMolliePayments.ts:110` — Function 'anonymous' is 104 lines long (limit: 50) → задача 20.8: разложен на `useMolliePaymentsList`/`useMolliePaymentsPagination`/`useMolliePaymentsSync`/`useMolliePaymentsExport` + общие `molliePaymentTypes.ts` (типы + `buildPaymentParams`/`downloadBlob`); главный хук — композиция через spread. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/MolliePage/ui/MolliePayments` — 12/12 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors (1 предсуществующий warning `exhaustive-deps`)
+- [x] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/useMolliePaymentsMatrix.ts:95` — Function 'anonymous' is 145 lines long (limit: 50) → задача 20.7: разложен на `useMatrixData`/`useUpcomingSubscriptions`/`useMatrixFilters` (+ общий `matrixTypes.ts`); главный хук — композиция через spread + `onSync`/`upcomingMonthOptions`. Проверено: `skylos` по всем файлам — 0 срабатываний; `npm test -- src/pages/MolliePage/ui/MolliePaymentsMatrix` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors
+- [x] `client/src/pages/OrganizationBrandsPage/useOrganizationBrands.ts:47` — Function 'anonymous' is 97 lines long (limit: 50) → задача 20.8: разложен на `useOrganizationBrandsData`/`useOrganizationActions`/`useBrandActions`(+`useBrandLogoUpload`) + общие `organizationBrandsTypes.ts` (включая `extractApiErrorMessage`, убравшую 3 дублирования `error?.response?.data?.message`); `saving` — общий стейт, живёт в главном хуке. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/OrganizationBrandsPage` — 4/4 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors (4 предсуществующих warning `no-explicit-any`, тот же паттерн что и до рефакторинга)
+- [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/usePaymentReminders.ts:54` — Function 'anonymous' is 163 lines long (limit: 50) → задача 20.7: разложен на `useReminderSettings`/`useReminderTemplates`(+`useTemplateTestSend`)/`useReminderDeliveries`/`useReminderRun`; главный хук — чистая композиция через spread (16 строк). Проверено: `skylos` по всем файлам — 0 срабатываний; `npm test -- src/pages/PaymentRemindersPage` — 6/6 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors
+- [x] `client/src/pages/ProfilePage/ui/ActiveSessions/useActiveSessions.ts:8` — Function 'anonymous' is 60 lines long (limit: 50) → задача 20.8: `revokeSession`/`revokeOtherSessions` вынесены в `useSessionMutations` (общие `isMutating`/`error` сохранены как есть — обе мутации всегда блокировали друг друга и раньше). Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/ProfilePage/ui/ActiveSessions` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/ScheduleSettingsPage/ui/CreateGroupModal/useCreateGroupForm.ts:9` — Function 'anonymous' is 114 lines long (limit: 50) → задача 20.8: разложен на `useGroupFormReferenceData`/`useGroupFormState`/`useGroupFormSubmit` + `groupFormSlots.ts` (`emptySlot`); главный хук — композиция через spread. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/ScheduleSettingsPage/ui/CreateGroupModal` — 5/5 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/useScheduleSettingsPage.ts:44` — Function 'anonymous' is 146 lines long (limit: 50) → задача 20.8: разложен на `useGroupFilters`/`useGroupsData`/`useGroupReferenceLists`/`useGroupModal`/`useBranchView`/`useHighlightGroup`; главный хук — композиция через spread. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage` — 6/6 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
+- [x] `client/src/widgets/Sidebar/ui/Sidebar/useSidebarState.ts:15` — Function 'anonymous' is 68 lines long (limit: 50) → задача 20.8: разложен на `useTabletCollapse` и `useActiveSidebarGroup`; главный хук — композиция (35 строк). Проверено: `skylos` — 0 срабатываний; `npm test -- src/widgets/Sidebar` — 15/15 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors (1 предсуществующий warning `exhaustive-deps` на том же эффекте, что и до рефакторинга)
+- [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/useEditSubscriptionDropdown.ts:19` — Function 'anonymous' is 121 lines long (limit: 50) → задача 20.8: разложен на `useSubscriptionModal`/`useValidMandateOptions`/`useSubscriptionForm`/`useCancelSubscription`/`useSubscriptionMutations` (общий чистый `runSubscriptionMutation` для update/restart) + чистая `buildDropdownItems` (убрана вложенная тернарка). Проверено: `skylos` — 0 срабатываний; `npm test -- src/features/editSubscriptionDropdown` — 7/7 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 errors
+- [x] `client/src/entities/Profile/ui/ProfileCard/ProfileCardFields.tsx:18` — Function 'anonymous' is 58 lines long (limit: 50) → выделен волной 8 (round 16) как подкомпонент `ProfileCard`; уже тогда был на грани лимита, никогда не получал отдельной строки в чек-листе — не закрыто
+
+### `SKY-Q301` — Слишком высокая цикломатическая сложность (35 исходных + 13 новых после волн 16–20 = 48) — ЗАКРЫТО (48/48)
+
+**Волна 22 (2026-09-05):** последние 5 находок (хвосты задач 20.1–20.3 —
+`useClientPaymentBlock.ts:200`, `useEditClientModal.ts:138`/`:147`,
+`useCreateInvoiceModal.ts:233`/`:307`) закрыты дальнейшей декомпозицией
+и извлечением чистых функций валидации/сборки payload. Свежий прогон
+`skylos . --select SKY-Q301` — 0 срабатываний по всему репозиторию.
+
+**Сверка после волн 16–20 (2026-09-05):** свежий прогон `skylos --select SKY-Q301`
+показывает 13 срабатываний, и все 13 — на хуках (`useXxx.ts`), ни одного на
+сервере и ни одного на самих компонентах. Это значит:
+- Все 5 находок, которые ещё вчера числились открытыми на компонентах
+  (`EditClientModal.tsx` ×2, `CreateInvoiceModal.tsx:191`, `controller.Auth.ts:110`,
+  `service.InvoicePdf.ts:66`) — закрыты. Для `EditClientModal.tsx`/`CreateInvoiceModal.tsx`
+  сложность просто переехала в хук (`useEditClientModal.ts`/`useCreateInvoiceModal.ts`,
+  волна 20.2/20.3 — см. новые пункты ниже); `controller.Auth.ts:110` неожиданно упростился
+  как побочный эффект волны 16.4 (ранее было решение сознательно не трогать `login` из-за
+  риска для security-логики без выделенного теста — по факту трогнули и не сломали,
+  `test:auth` остаётся зелёным); `service.InvoicePdf.ts:66` был закрыт ещё в волне 9.1
+  (тот же случай необновлённого чек-листа, что и в разделе `SKY-C304` выше).
+- 13 хуков были в бэклоге волны 20 (задачи 20.5–20.8) — **волна 20.5–20.8 выполнена
+  полностью** (2026-09-05, эта же ветка): все 13 хуков разложены на под-хуки/чистые
+  функции, подробности — по каждому файлу в разделе `SKY-C304` выше. Из первоначальных
+  13 закрыто 13; при этом остаются открытыми 5 находок из **более ранних** задач
+  20.1–20.3 (`useClientPaymentBlock.ts:200` cc22, `useEditClientModal.ts:138`/`:147`
+  cc17, `useCreateInvoiceModal.ts:233`/`:307` cc21/cc13) — там сложность была лишь
+  частично снята при разбиении на под-хуки в предыдущей волне, эта работа не входила
+  в объём волны 20.5–20.8 и не переделывалась.
 
 > Упростить ветвления, вынести под-функции.
 
@@ -1469,13 +1746,13 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/ChoreographerModal.tsx:29` — **ЗАКРЫТО**: компонент разложен (92 строки, чистое JSX-дерево)
 - [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/ClientEmailBlock.tsx:35` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
 - [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/ClientPaymentBlock.tsx:134` — **ЗАКРЫТО**: компонент разложен на хук + 7 подкомпонентов (156 строк, cc < 10)
-- [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' has cyclomatic complexity 22 (limit: 10)
-- [ ] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10)
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:49` — Function 'anonymous' has cyclomatic complexity 22 (limit: 10) → волна 20.3: закрыто на компоненте; сложность переехала в `useEditClientModal.ts` (см. новые пункты ниже)
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/EditClientModal.tsx:126` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10) → см. выше
 - [x] `client/src/pages/DanceStylesPage/ui/DanceStylesPage/DanceStylesPage.tsx:51` — Function 'anonymous' has cyclomatic complexity 20 (limit: 10)
 - [x] `client/src/pages/EmailPage/ui/EmailPage/EmailPage.tsx:51` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10)
 - [x] `client/src/pages/HomePage/ui/HomePage.tsx:126` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:44` — **ЗАКРЫТО**: компонент разложен на хук + 5 подкомпонентов (113 строк, cc < 10)
-- [ ] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/CreateInvoiceModal.tsx:191` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10) → волна 20.2: закрыто на компоненте; сложность переехала в `useCreateInvoiceModal.ts` (см. новые пункты ниже)
 - [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/InvoicesPage.tsx:57` — Function 'anonymous' has cyclomatic complexity 29 (limit: 10)
 - [x] `client/src/pages/MolliePage/ui/MollieCustomerDetails/MollieCustomerDetails.tsx:294` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
 - [x] `client/src/pages/MolliePage/ui/MollieIncidents/MollieIncidents.tsx:191` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
@@ -1488,15 +1765,32 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [x] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' has cyclomatic complexity 14 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:380` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
 - [x] `server/src/controllers/conteroller.Mollie.ts:1611` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
-- [ ] `server/src/controllers/controller.Auth.ts:110` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
+- [x] `server/src/controllers/controller.Auth.ts:110` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10) → волна 16.4 в итоге затронула `login` (несмотря на более раннее решение не трогать без выделенного теста); сложность снята, `test:auth` остаётся зелёным
 - [x] `server/src/controllers/controller.Invoices.ts:584` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
 - [x] `server/src/controllers/controller.Invoices.ts:762` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10)
 - [x] `server/src/controllers/controller.Invoices.ts:793` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10)
 - [x] `server/src/controllers/controller.Schedule.ts:336` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
 - [x] `server/src/controllers/controller.Users.ts:65` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10)
 - [x] `server/src/services/service.InvoiceDelivery.ts:62` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10)
-- [ ] `server/src/services/service.InvoicePdf.ts:66` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10)
+- [x] `server/src/services/service.InvoicePdf.ts:66` — Function 'anonymous' has cyclomatic complexity 25 (limit: 10) → закрыто ещё в волне 9.1, чек-лист не обновлялся (см. `SKY-C304` выше)
 - [x] `server/src/services/service.Transaction.ts:200` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10)
+
+**Новые находки (хуки, бэклог волны 20.5–20.8 — те же файлы, что и в `SKY-C304`
+выше):**
+
+- [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/useEditSubscriptionDropdown.ts:19` — Function 'anonymous' has cyclomatic complexity 15 (limit: 10) → задача 20.8: закрыто той же декомпозицией, что и `SKY-C304` выше
+- [x] `client/src/pages/ChoreographersPage/ui/ChoreographerModal/useChoreographerModal.ts:71` — Function 'anonymous' has cyclomatic complexity 27 (limit: 10) → задача 20.6: закрыто той же декомпозицией, что и `SKY-C304` выше
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientEmailBlock/useClientEmailBlock.ts:21` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10) → задача 20.6: закрыто той же декомпозицией, что и `SKY-C304` выше
+- [x] `client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/useClientPaymentBlock.ts:200` — Function 'anonymous' has cyclomatic complexity 22 (limit: 10) → волна 22 (2026-09-05): вынесены `usePaymentLinkActions`, `useMandateActions`, `useSubscriptionCreateActions`/`useSubscriptionEditActions`/`useSubscriptionRestartActions`; главный хук — чистая композиция (~55 строк, cc < 10). `skylos` 0 срабатываний по всей директории; `npm test` (jest.config) 5/5; `tsc --noEmit` 20 baseline; `npx eslint` 0
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/useEditClientModal.ts:138` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10) → волна 22: валидация вынесена в чистые `validateNameFields`/`validateContactFields`/`validateOtherFields`/`validateImageFile` + агрегатор `validateEditClientForm`; `onSave` теперь только вызывает валидатор и обрабатывает результат (cc < 10). `skylos` 0 срабатываний; `npm test` 4/4; `tsc --noEmit` 20 baseline; `npx eslint` 0
+- [x] `client/src/pages/ClientsDetailsPage/ui/EditClientModal/useEditClientModal.ts:147` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10) → см. выше, закрыто той же правкой
+- [x] `client/src/pages/EmailPage/ui/EmailPage/useEmailPage.ts:38` — Function 'anonymous' has cyclomatic complexity 18 (limit: 10) → задача 20.5: закрыто той же декомпозицией, что и `SKY-C304` выше
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useCreateInvoiceModal.ts:233` — Function 'anonymous' has cyclomatic complexity 21 (limit: 10) → волна 22: `useInvoiceSubmit` (8 колбэков) разложен на `useInvoiceItemActions`/`useInvoiceSelectionActions`/`useInvoiceSubmitAction`; `submit` дополнительно разгружен через чистые `validateInvoiceSubmission`/`buildInvoicePayload`/`persistInvoicePayload` в `invoiceSubmitHelpers.ts` (cc < 10). `skylos` 0 срабатываний по директории (остаются несвязанные C304 у `useInvoiceEditFill`, не в объёме); `npm test` 13/13; `tsc --noEmit` 20 baseline; `npx eslint` 0
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useCreateInvoiceModal.ts:307` — Function 'anonymous' has cyclomatic complexity 13 (limit: 10) → см. выше, закрыто той же правкой (bыла `submit`, теперь в `useInvoiceSubmitAction.ts`)
+- [x] `client/src/pages/InvoicesPage/ui/InvoicesPage/useInvoicesPage.ts:10` — Function 'anonymous' has cyclomatic complexity 17 (limit: 10) → задача 20.5: закрыто той же декомпозицией, что и `SKY-C304` выше (switch по типу действия вынесен в чистую функцию `buildInvoiceActionRequest`)
+- [x] `client/src/pages/MolliePage/ui/MolliePaymentsMatrix/useMolliePaymentsMatrix.ts:95` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10) → задача 20.7: закрыто той же декомпозицией, что и `SKY-C304` выше
+- [x] `client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/usePaymentReminders.ts:54` — Function 'anonymous' has cyclomatic complexity 12 (limit: 10) → задача 20.7: закрыто той же декомпозицией, что и `SKY-C304` выше
+- [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/useScheduleSettingsPage.ts:44` — Function 'anonymous' has cyclomatic complexity 11 (limit: 10) → задача 20.8: закрыто той же декомпозицией, что и `SKY-C304` выше
 
 ### `SKY-Q302` — Слишком большая глубина вложенности (4) — ЗАКРЫТО
 
@@ -1658,13 +1952,25 @@ arm64/x86_64) — закрытие подтверждено построчно (
 — чисто; `npm run test:ci` — без регрессий (для этой функции отдельного unit-теста
 нет — `server` не имеет единой test-команды на весь репозиторий, см. `AGENTS.md`).
 
+- [x] `server/src/controllers/controller.Invoices.ts:628` — Function 'anonymous' has 6 parameters (limit: 5)
+- [x] `server/src/controllers/controller.Invoices.ts:1000` — Function 'anonymous' has 6 parameters (limit: 5)
+
+Появились в свежем прогоне после предыдущих волн. Исправлено (ветка
+`fix/skylos-repo-policy`): `updateInvoiceInTransaction(...)` и
+`buildAdjustmentInvoiceData(...)` принимают один объект параметров вместо 6
+позиционных аргументов. Проверено: `skylos server/src/controllers/controller.Invoices.ts --quality --select SKY-C303 --format concise --config-file pyproject.toml`
+— 0 срабатываний; `npx tsc --noEmit` (server) — 0 ошибок; `npm run build`
+(server) — чисто; `npm run test:ci` (server) — 53/53 тестов pass. Добавлен
+`server/src/controllers/controller.Invoices.test.ts` на credit/debit
+adjustment-data, чтобы изменение billing-кода было покрыто тестом.
+
 ## Архитектура / публичные API модулей
 
 ### `SKY-L012` — Символ используется, но не экспортирован из публичного API модуля (281) — ЗАКРЫТО
 
 > В основном false positive для текущей FSD-конфигурации алиасов/barrel-экспортов (`StateSchema`, `ThunkConfig`, компоненты страниц и т.д.) — нужен точечный ревью конфигурации Skylos под алиас `@/`, а не массовое переписывание экспортов.
 >
-> **Как закрыто (ветка `fix/skylos-code-quality-wave10`):** перед закрытием повторный прогон без конфигурации давал уже 326 срабатываний (325 в `client/src/` + 1 в `client/config/storybook/preview.ts`) — все одного паттерна: символ импортируется через алиас `@/` из barrel `index.ts`, который эти символы реально реэкспортирует (проверено на `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage`, `createReduxStore`, `ReduxStoreWithManager` и др.). У Skylos нет резолвера алиасов для такого случая (единственная настройка `ignore` применяется глобально, `overrides.whitelist` матчит имена символов, а не коды правил). Добавлен `skylos.toml` с `ignore = ["SKY-L012"]` (подключён в `scripts/check-skylos.sh` через `--config-file`) — повторный прогон `npm run check:skylos`: 0 срабатываний SKY-L012. Оставшиеся пункты ниже — исторический снапшот срабатываний, не требующий правок.
+> **Как закрыто (ветка `fix/skylos-code-quality-wave10`):** перед закрытием повторный прогон без конфигурации давал уже 326 срабатываний (325 в `client/src/` + 1 в `client/config/storybook/preview.ts`) — все одного паттерна: символ импортируется через алиас `@/` из barrel `index.ts`, который эти символы реально реэкспортирует (проверено на `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage`, `createReduxStore`, `ReduxStoreWithManager` и др.). У Skylos нет резолвера алиасов для такого случая (единственная настройка `ignore` применяется глобально, `overrides.whitelist` матчит имена символов, а не коды правил). Конфиг в `pyproject.toml` содержит `ignore = ["SKY-L012"]` (подключён в `scripts/check-skylos.sh` через `--config-file`) — повторный прогон `npm run check:skylos`: 0 срабатываний SKY-L012. Оставшиеся пункты ниже — исторический снапшот срабатываний, не требующий правок.
 
 - [ ] `client/config/storybook/preview.ts:5` — 'Theme' is referenced from local module '../../src/app/providers/ThemeProvider', but that symbol is not exported by its static API surface.
 - [ ] `client/src/app/App.tsx:2` — 'Navbar' is referenced from local module '@/widgets/Navbar', but that symbol is not exported by its static API surface.
@@ -1952,19 +2258,27 @@ arm64/x86_64) — закрытие подтверждено построчно (
 
 ### `SKY-R103` — Не настроена политика гейта Skylos (1)
 
-> Осознанное решение по DDC_CRM_SKYLOS_CI_SPEC.md (Phase A) — фиксировать не требуется сейчас.
+> Закрыто в ветке `fix/skylos-repo-policy`: в `pyproject.toml` добавлена
+> `[tool.skylos.gate]` с явными threshold'ами для Phase A. Это только
+> repository-owned policy; `scripts/check-skylos.sh` не вызывает `--gate`, а
+> GitHub Ruleset пока не делает `skylos-check` required.
 
-- [ ] `.:1` — No [tool.skylos.gate] policy is configured for repository quality gates.
+- [x] `pyproject.toml:25` — добавлена `[tool.skylos.gate]`; точечный прогон
+  `skylos . --quality --select SKY-R103,SKY-R104 --format concise --exclude coverage --exclude graphify-out --config-file pyproject.toml`
+  больше не показывает `SKY-R103`.
 
 ### `SKY-R104` — Нет pre-commit policy файла (1)
 
-> Осознанное решение — фиксировать не требуется сейчас.
+> Закрыто в ветке `fix/skylos-repo-policy`: добавлен `.pre-commit-config.yaml`
+> с локальным staged hook `skylos agent pre-commit .`. Полный audit остаётся
+> в `npm run check:skylos`/CI, pre-commit — только быстрый staged guard.
 
-- [ ] `.:1` — Repository has no pre-commit policy file.
+- [x] `.pre-commit-config.yaml:1` — добавлен repository-owned pre-commit policy
+  file; точечный прогон `skylos . --quality --select SKY-R103,SKY-R104 --format concise --exclude coverage --exclude graphify-out --config-file pyproject.toml`
+  больше не показывает `SKY-R104`.
 
 ### `SKY-R105` — Есть tsconfig.json, но нет npm-скрипта с tsc (1) — ЗАКРЫТО
 
 > Добавить, например, `"typecheck": "tsc --noEmit"` в client/package.json.
 
 - [x] `client/package.json:1` — добавлен скрипт `"typecheck": "tsc --noEmit"`. Внимание: сейчас он не проходит целиком — есть ~20 существующих ошибок типов из `node_modules` (рассинхрон версий `@types/react-router-dom` и `react-router`), не связанных с этой задачей; отдельная задача на будущее, `typecheck` пока не добавлен в `npm run ci`.
-

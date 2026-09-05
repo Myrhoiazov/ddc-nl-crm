@@ -73,49 +73,29 @@ export const MolliePaymentsFilters = memo((props: MolliePaymentsFiltersProps) =>
     return (
         <div className={s.filters}>
             <Input
-                className={s.filterInput}
-                label="Поиск"
-                placeholder="ID, описание, клиент, email"
-                value={filters._q}
-                onChange={(value) => setFilters((prev) => ({ ...prev, _q: value }))}
-                fullWidth
+                className={s.filterInput} label="Поиск" placeholder="ID, описание, клиент, email"
+                value={filters._q} onChange={(value) => setFilters((prev) => ({ ...prev, _q: value }))} fullWidth
             />
             <Select<PaymentStatusFilter>
-                className={s.filterSelect}
-                label="Статус"
-                value={filters.status}
-                options={statusOptions}
+                className={s.filterSelect} label="Статус" value={filters.status} options={statusOptions}
                 onChange={(value) => setFilters((prev) => ({ ...prev, status: value, issueOnly: false }))}
             />
             <Select<PaymentMethodFilter>
-                className={s.filterSelect}
-                label="Метод"
-                value={filters.method}
-                options={methodOptions}
+                className={s.filterSelect} label="Метод" value={filters.method} options={methodOptions}
                 onChange={(value) => setFilters((prev) => ({ ...prev, method: value }))}
             />
             <Input
-                className={s.filterInput}
-                label="С даты"
-                type="date"
-                value={filters.dateFrom}
-                onChange={(value) => setFilters((prev) => ({ ...prev, dateFrom: value }))}
-                fullWidth
+                className={s.filterInput} label="С даты" type="date" value={filters.dateFrom}
+                onChange={(value) => setFilters((prev) => ({ ...prev, dateFrom: value }))} fullWidth
             />
             <Input
-                className={s.filterInput}
-                label="До даты"
-                type="date"
-                value={filters.dateTo}
-                onChange={(value) => setFilters((prev) => ({ ...prev, dateTo: value }))}
-                fullWidth
+                className={s.filterInput} label="До даты" type="date" value={filters.dateTo}
+                onChange={(value) => setFilters((prev) => ({ ...prev, dateTo: value }))} fullWidth
             />
             <FilterActionButtons
-                issueOnly={filters.issueOnly}
-                isLoading={isLoading}
+                issueOnly={filters.issueOnly} isLoading={isLoading}
                 onToggleIssueOnly={() => setFilters((prev) => ({ ...prev, issueOnly: !prev.issueOnly, status: 'all' }))}
-                onApplyFilters={onApplyFilters}
-                onResetFilters={onResetFilters}
+                onApplyFilters={onApplyFilters} onResetFilters={onResetFilters}
             />
         </div>
     );

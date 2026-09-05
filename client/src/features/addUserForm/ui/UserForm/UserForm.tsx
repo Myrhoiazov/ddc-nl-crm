@@ -9,14 +9,14 @@ import {
     DynamicModuleLoader,
     ReducersList,
 } from '@/shared/lib/components/DynamicModuleLoader/DynamicModuleLoader';
-import { newUserActions, newUserReducer } from '../../model/slices/newUserSlice';
+import { newUserReducer } from '../../model/slices/newUserSlice';
 import { useSelector } from 'react-redux';
 import { getAddUserForm } from '../../model/selectors/getAddUserForm/getAddUserForm';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
 import { addNewUser } from '../../model/services/addNewUser/addNewUser';
 import { UserCard } from '@/entities/User';
-import { RoleKey } from '@/entities/Role';
 import { toast } from 'react-toastify';
+import { useUserFormUpdaters } from './useUserFormUpdaters';
 
 interface AddUserFormProps {
     className?: string;
@@ -48,44 +48,10 @@ const UserForm = memo((props: AddUserFormProps) => {
     const dispatch = useAppDispatch();
 
     const formData = useSelector(getAddUserForm);
-
-    const onChangeFirsttName = useCallback(
-        (value?: string) => {
-            dispatch(newUserActions.updateUserForm({ firstName: value ?? '' }));
-        },
-        [dispatch]
-    );
-    const onChangeLastName = useCallback(
-        (value?: string) => {
-            dispatch(newUserActions.updateUserForm({ lastName: value || '' }));
-        },
-        [dispatch]
-    );
-    const onChangeEmail = useCallback(
-        (value?: string) => {
-            dispatch(newUserActions.updateUserForm({ email: value || '' }));
-        },
-        [dispatch]
-    );
-    const onChangePassword = useCallback(
-        (value?: string) => {
-            dispatch(newUserActions.updateUserForm({ password: value || '' }));
-        },
-        [dispatch]
-    );
-
-    const onChangeUserRole = useCallback(
-        (role: RoleKey) => {
-            dispatch(newUserActions.updateUserForm({ role }));
-        },
-        [dispatch]
-    );
-
-    const cleanForm = useCallback(() => {
-        onChangeFirsttName('');
-        onChangeLastName('');
-        onChangeEmail('');
-    }, [onChangeFirsttName, onChangeLastName, onChangeEmail]);
+    const {
+        onChangeFirsttName, onChangeLastName, onChangeEmail,
+        onChangePassword, onChangeUserRole, cleanForm,
+    } = useUserFormUpdaters();
 
     const onSave = useCallback(async () => {
         const result = await dispatch(addNewUser());

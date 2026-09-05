@@ -116,25 +116,13 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
             <div className={s.row}>
                 <FormField label={t('Сумма, EUR')} id={`${id}-amount`}>
                     <input
-                        id={`${id}-amount`}
-                        type="number"
-                        min="0.01"
+                        id={`${id}-amount`} type="number" min="0.01" step="0.01"
                         max={(invoice.balanceDueCents / 100).toFixed(2)}
-                        step="0.01"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        required
-                        autoFocus
+                        value={amount} onChange={(e) => setAmount(e.target.value)} required autoFocus
                     />
                 </FormField>
                 <FormField label={t('Дата оплаты')} id={`${id}-date`}>
-                    <input
-                        id={`${id}-date`}
-                        type="date"
-                        value={paidAt}
-                        onChange={(e) => setPaidAt(e.target.value)}
-                        required
-                    />
+                    <input id={`${id}-date`} type="date" value={paidAt} onChange={(e) => setPaidAt(e.target.value)} required />
                 </FormField>
             </div>
             <div className={s.row}>
@@ -143,11 +131,8 @@ const RecordPaymentForm = memo(({ invoice, onSubmit, onCancel }: {
                 </FormField>
                 <FormField label={t('Reference (необязательно)')} id={`${id}-ref`}>
                     <input
-                        id={`${id}-ref`}
-                        type="text"
-                        value={reference}
-                        onChange={(e) => setReference(e.target.value)}
-                        placeholder="№ транзакции"
+                        id={`${id}-ref`} type="text" value={reference}
+                        onChange={(e) => setReference(e.target.value)} placeholder="№ транзакции"
                     />
                 </FormField>
             </div>
@@ -239,32 +224,19 @@ const AdjustmentForm = memo(({ kind, invoice, onSubmit, onCancel }: {
             )}
             <FormField label={t('Сумма, EUR')} id={`${id}-amount`}>
                 <input
-                    id={`${id}-amount`}
-                    type="number"
-                    min="0.01"
+                    id={`${id}-amount`} type="number" min="0.01" step="0.01"
                     max={maxCents !== undefined ? (maxCents / 100).toFixed(2) : undefined}
-                    step="0.01"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    required
-                    autoFocus
-                    placeholder="0.00"
+                    value={amount} onChange={(e) => setAmount(e.target.value)}
+                    required autoFocus placeholder="0.00"
                 />
             </FormField>
             <FormField label={t('Причина')} id={`${id}-reason`}>
                 <input
-                    id={`${id}-reason`}
-                    type="text"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    required
-                    placeholder={isCredit ? 'Возврат товара, ошибка выставления...' : 'Дополнительные услуги...'}
+                    id={`${id}-reason`} type="text" value={reason} onChange={(e) => setReason(e.target.value)}
+                    required placeholder={isCredit ? 'Возврат товара, ошибка выставления...' : 'Дополнительные услуги...'}
                 />
             </FormField>
-            <FormActions
-                onCancel={onCancel}
-                submitLabel={isCredit ? 'Создать кредит-ноту' : 'Создать корректировку'}
-            />
+            <FormActions onCancel={onCancel} submitLabel={isCredit ? 'Создать кредит-ноту' : 'Создать корректировку'} />
         </form>
     );
 });

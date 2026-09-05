@@ -17,6 +17,16 @@ const mollieClientsAdapter = createEntityAdapter<MollieClient, string>({
     selectId: (cliend) => cliend.id as string,
 });
 
+const setPending = (state: MollieClientsDetailsPageSchema) => {
+    state.error = undefined;
+    state.isLoading = true;
+};
+
+const setRejected = (state: MollieClientsDetailsPageSchema, action: PayloadAction<string | undefined>) => {
+    state.isLoading = false;
+    state.error = action.payload;
+};
+
 export const getMollieClients = mollieClientsAdapter.getSelectors<StateSchema>(
     (state) => state.mollieClientsPage || mollieClientsAdapter.getInitialState(),
 );
@@ -43,14 +53,8 @@ const mollieClientsPageSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
-            .addCase(fetchMollieClientsList.pending, (state) => {
-                state.error = undefined;
-                state.isLoading = true;
-            })
-            .addCase(fetchMollieClientsList.fulfilled, (
-                state,
-                action,
-            ) => {
+            .addCase(fetchMollieClientsList.pending, setPending)
+            .addCase(fetchMollieClientsList.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.page = action.payload.page;
                 state.limit = action.payload.limit;
@@ -63,41 +67,19 @@ const mollieClientsPageSlice = createSlice({
                     mollieClientsAdapter.addMany(state, action.payload.items);
                 }
             })
-            .addCase(fetchMollieClientsList.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error = action.payload;
-            })
-            .addCase(fetchAllMandates.pending, (state) => {
-                state.error = undefined;
-                state.isLoading = true;
-            })
-            .addCase(fetchAllMandates.fulfilled, (
-                state,
-                action: PayloadAction<Mandate[]>,
-            ) => {
+            .addCase(fetchMollieClientsList.rejected, setRejected)
+            .addCase(fetchAllMandates.pending, setPending)
+            .addCase(fetchAllMandates.fulfilled, (state, action: PayloadAction<Mandate[]>) => {
                 state.isLoading = false;
                 state.mandates = action.payload;
             })
-            .addCase(fetchAllMandates.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error = action.payload;
-            })
-            .addCase(fetchAllSubscriptions.pending, (state) => {
-                state.error = undefined;
-                state.isLoading = true;
-            })
-            .addCase(fetchAllSubscriptions.fulfilled, (
-                state,
-                action: PayloadAction<MollieSubscription[]>,
-            ) => {
+            .addCase(fetchAllMandates.rejected, setRejected)
+            .addCase(fetchAllSubscriptions.pending, setPending)
+            .addCase(fetchAllSubscriptions.fulfilled, (state, action: PayloadAction<MollieSubscription[]>) => {
                 state.isLoading = false;
                 state.subscriptions = action.payload;
-
             })
-            .addCase(fetchAllSubscriptions.rejected, (state, action) => {
-                state.isLoading = false;
-                state.error = action.payload;
-            });
+            .addCase(fetchAllSubscriptions.rejected, setRejected);
     },
 });
 

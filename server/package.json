@@ -11,7 +11,7 @@
         "test:search": "node --test -r ts-node/register src/services/service.Search.test.ts",
         "test:email": "node --test -r ts-node/register src/services/service.EmailCrypto.test.ts src/services/service.EmailImap.test.ts src/services/service.EmailSmtp.test.ts",
         "test:payment-reminders": "node --test -r ts-node/register src/services/service.PaymentReminders.test.ts",
-        "test:ci": "npm run test:auth && npm run test:mollie && npm run test:search && npm run test:email && npm run test:payment-reminders",
+        "test:ci": "npm run test:auth && node --test -r ts-node/register src/controllers/controller.Invoices.test.ts && npm run test:mollie && npm run test:search && npm run test:email && npm run test:payment-reminders",
         "user:reset-password": "ts-node scripts/reset-user-password.ts",
         "start": "MODE=development nodemon",
         "pgc": "npm run prisma:generate",
