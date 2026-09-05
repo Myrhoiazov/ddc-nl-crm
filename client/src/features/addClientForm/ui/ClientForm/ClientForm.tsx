@@ -66,28 +66,11 @@ const SubmitButton = ({ isSubmitting, onClick }: { isSubmitting: boolean; onClic
 const AddClientForm = memo((props: AddClientFormProps) => {
     const { className, onSuccess, reloadPage } = props;
     const {
-        formData,
-        branchOptions,
-        mollieCustomerOptions,
-        availableGroups,
-        selectedGroupIds,
-        toggleGroup,
-        mollieCustomerId,
-        setMollieCustomerId,
-        payerRelation,
-        setPayerRelation,
-        validationErrors,
-        isSubmitting,
-        onChangeFirstName,
-        onChangeLastName,
-        onChangeBirthday,
-        onChangePhoneNumber,
-        onChangeEmail,
-        onChangeSocial,
-        onChangeBranchId,
-        onChangePreferredLanguage,
-        onChangeImage,
-        onSave,
+        formData, branchOptions, mollieCustomerOptions, availableGroups, selectedGroupIds, toggleGroup,
+        mollieCustomerId, setMollieCustomerId, payerRelation, setPayerRelation,
+        validationErrors, isSubmitting,
+        onChangeFirstName, onChangeLastName, onChangeBirthday, onChangePhoneNumber, onChangeEmail,
+        onChangeSocial, onChangeBranchId, onChangePreferredLanguage, onChangeImage, onSave,
     } = useClientForm(onSuccess, reloadPage);
 
     return (
@@ -96,30 +79,21 @@ const AddClientForm = memo((props: AddClientFormProps) => {
                 <VStack gap="16" max className={cls.header}>
                     <FormHeader />
                     <ClientCard
-                        onChangeLastName={onChangeLastName}
-                        onChangeFirstName={onChangeFirstName}
-                        onChangeBirthday={onChangeBirthday}
-                        onChangePhoneNumber={onChangePhoneNumber}
-                        onChangeEmail={onChangeEmail}
-                        onChangeImage={onChangeImage}
-                        onChangeSocial={onChangeSocial}
-                        onChangeBranchId={onChangeBranchId}
-                        onChangePreferredLanguage={onChangePreferredLanguage}
-                        branchOptions={branchOptions}
-                        data={formData}
+                        onChangeLastName={onChangeLastName} onChangeFirstName={onChangeFirstName}
+                        onChangeBirthday={onChangeBirthday} onChangePhoneNumber={onChangePhoneNumber}
+                        onChangeEmail={onChangeEmail} onChangeImage={onChangeImage} onChangeSocial={onChangeSocial}
+                        onChangeBranchId={onChangeBranchId} onChangePreferredLanguage={onChangePreferredLanguage}
+                        branchOptions={branchOptions} data={formData}
                     />
                     {formData?.branchId && (
                         <ClientFormGroupsSection
-                            availableGroups={availableGroups}
-                            selectedGroupIds={selectedGroupIds}
+                            availableGroups={availableGroups} selectedGroupIds={selectedGroupIds}
                             onToggleGroup={toggleGroup}
                         />
                     )}
                     <ClientFormPaymentSection
-                        mollieCustomerOptions={mollieCustomerOptions}
-                        mollieCustomerId={mollieCustomerId}
-                        setMollieCustomerId={setMollieCustomerId}
-                        payerRelation={payerRelation}
+                        mollieCustomerOptions={mollieCustomerOptions} mollieCustomerId={mollieCustomerId}
+                        setMollieCustomerId={setMollieCustomerId} payerRelation={payerRelation}
                         setPayerRelation={setPayerRelation}
                     />
                     <ValidationErrors errors={validationErrors} />

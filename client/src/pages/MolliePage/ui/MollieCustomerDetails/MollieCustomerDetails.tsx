@@ -49,15 +49,8 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
     const { t } = useTranslation();
     const { id: customerId } = useParams();
     const {
-        mandates,
-        subscriptions,
-        isLoading,
-        isEditModalOpen,
-        detailsVersion,
-        onOpenEditModal,
-        onCloseEditModal,
-        onReloadCustomerDetails,
-        onRevokeMandate,
+        mandates, subscriptions, isLoading, isEditModalOpen, detailsVersion,
+        onOpenEditModal, onCloseEditModal, onReloadCustomerDetails, onRevokeMandate,
     } = useMollieCustomerDetails(customerId);
 
     if (!customerId) {
@@ -69,14 +62,9 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
             <VStack max gap="24" className={classNames(s.MollieCustomerDetails, {}, [className])}>
                 <CustomerHeader onOpenEditModal={onOpenEditModal} />
                 <MollieClientDetails id={customerId} key={`${customerId}-${detailsVersion}`} />
-                <MollieStudentLinksManager
-                    customerId={customerId}
-                    version={detailsVersion}
-                    onChanged={onReloadCustomerDetails}
-                />
+                <MollieStudentLinksManager customerId={customerId} version={detailsVersion} onChanged={onReloadCustomerDetails} />
                 <MandateList
-                    mandates={mandates}
-                    isLoading={isLoading}
+                    mandates={mandates} isLoading={isLoading}
                     renderAction={(mandate) => mandate.status === 'valid' ? (
                         <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onRevokeMandate(mandate)}>
                             {t('Отозвать')}
@@ -84,22 +72,17 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
                     ) : null}
                 />
                 <MollieSubscriptionList
-                    subscriptions={subscriptions}
-                    isLoading={isLoading}
+                    subscriptions={subscriptions} isLoading={isLoading}
                     renderAction={(subscription) => (
                         <EditSubscriptionDropdown
-                            customerId={customerId}
-                            subscription={subscription}
-                            mandates={mandates}
+                            customerId={customerId} subscription={subscription} mandates={mandates}
                             reloadPage={onReloadCustomerDetails}
                         />
                     )}
                 />
                 <MolliePaymentHistory customerId={customerId} key={`history-${customerId}-${detailsVersion}`} />
                 <MollieClientFormModal
-                    clientId={customerId}
-                    isOpen={isEditModalOpen}
-                    onClose={onCloseEditModal}
+                    clientId={customerId} isOpen={isEditModalOpen} onClose={onCloseEditModal}
                     reloadPage={onReloadCustomerDetails}
                 />
             </VStack>

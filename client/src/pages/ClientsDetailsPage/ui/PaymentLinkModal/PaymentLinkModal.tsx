@@ -34,22 +34,13 @@ export const PaymentLinkModal = memo((props: PaymentLinkModalProps) => {
                 </div>
 
                 {!payers.length ? (
-                    <Text
-                        title="Нет связанного плательщика"
-                        text="Сначала привяжите Mollie customer к ученику."
-                        size="s"
-                    />
+                    <Text title="Нет связанного плательщика" text="Сначала привяжите Mollie customer к ученику." size="s" />
                 ) : (
                     <PaymentLinkFormFields
-                        payers={payers}
-                        payerOptions={form.payerOptions}
-                        payerId={form.payerId}
-                        amount={form.amount}
-                        description={form.description}
-                        isLoading={form.isLoading}
-                        checkoutUrl={form.checkoutUrl}
-                        onPayerChange={form.setPayerId}
-                        onAmountChange={form.setAmount}
+                        payers={payers} payerOptions={form.payerOptions} payerId={form.payerId}
+                        amount={form.amount} description={form.description}
+                        isLoading={form.isLoading} checkoutUrl={form.checkoutUrl}
+                        onPayerChange={form.setPayerId} onAmountChange={form.setAmount}
                         onDescriptionChange={form.setDescription}
                     />
                 )}
@@ -62,13 +53,8 @@ export const PaymentLinkModal = memo((props: PaymentLinkModalProps) => {
                 )}
 
                 <PaymentLinkActions
-                    payersCount={payers.length}
-                    checkoutUrl={form.checkoutUrl}
-                    isLoading={form.isLoading}
-                    onClose={onClose}
-                    onCreate={form.onCreate}
-                    onCopy={form.onCopy}
-                    onOpen={form.onOpen}
+                    payersCount={payers.length} checkoutUrl={form.checkoutUrl} isLoading={form.isLoading}
+                    onClose={onClose} onCreate={form.onCreate} onCopy={form.onCopy} onOpen={form.onOpen}
                 />
             </VStack>
         </Modal>

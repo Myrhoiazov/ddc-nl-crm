@@ -94,16 +94,7 @@ const BranchGroupsView = ({
     );
 };
 
-const BranchCard = ({
-    branch,
-    groups,
-    viewMode,
-    onSetViewMode,
-    open,
-    onToggle,
-    highlightedGroupId,
-    groupCardRefs,
-}: {
+interface BranchCardProps {
     branch: GroupManagementStatistics['branches'][number];
     groups: GroupManagementStatistics['groups'];
     viewMode: BranchViewMode;
@@ -112,7 +103,25 @@ const BranchCard = ({
     onToggle: (event: SyntheticEvent<HTMLDetailsElement>) => void;
     highlightedGroupId: number | null;
     groupCardRefs: RefObject<Record<number, HTMLDivElement | null>>;
-}) => {
+}
+
+const BranchViewToggle = ({ viewMode, onSetViewMode }: { viewMode: BranchViewMode; onSetViewMode: (mode: BranchViewMode) => void }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.viewToggle}>
+            <button type="button" className={viewMode === 'flat' ? s.viewToggleActive : ''} onClick={() => onSetViewMode('flat')}>
+                {t('Общий список')}
+            </button>
+            <button type="button" className={viewMode === 'groups' ? s.viewToggleActive : ''} onClick={() => onSetViewMode('groups')}>
+                {t('По группам')}
+            </button>
+        </div>
+    );
+};
+
+const BranchCard = ({
+    branch, groups, viewMode, onSetViewMode, open, onToggle, highlightedGroupId, groupCardRefs,
+}: BranchCardProps) => {
     const { t } = useTranslation();
 
     return (
@@ -131,22 +140,7 @@ const BranchCard = ({
                 <span>{t('Без группы: {{count}}', { count: branch.unassignedCount })}</span>
             </div>
 
-            <div className={s.viewToggle}>
-                <button
-                    type="button"
-                    className={viewMode === 'flat' ? s.viewToggleActive : ''}
-                    onClick={() => onSetViewMode('flat')}
-                >
-                    {t('Общий список')}
-                </button>
-                <button
-                    type="button"
-                    className={viewMode === 'groups' ? s.viewToggleActive : ''}
-                    onClick={() => onSetViewMode('groups')}
-                >
-                    {t('По группам')}
-                </button>
-            </div>
+            <BranchViewToggle viewMode={viewMode} onSetViewMode={onSetViewMode} />
 
             {viewMode === 'flat' ? (
                 <div className={s.branchStudents}>
@@ -156,10 +150,8 @@ const BranchCard = ({
             ) : (
                 <div className={s.branchGroups}>
                     <BranchGroupsView
-                        groups={groups}
-                        branchId={branch.id}
-                        highlightedGroupId={highlightedGroupId}
-                        groupCardRefs={groupCardRefs}
+                        groups={groups} branchId={branch.id}
+                        highlightedGroupId={highlightedGroupId} groupCardRefs={groupCardRefs}
                     />
                 </div>
             )}
