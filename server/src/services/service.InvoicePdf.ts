@@ -15,6 +15,12 @@ type InvoiceWithItems = Invoice & {
     }>;
 };
 
+interface PdfLayout {
+    left: number;
+    right: number;
+    width: number;
+}
+
 const bundledFontDir = path.join(path.dirname(require.resolve('dejavu-fonts-ttf/package.json')), 'ttf');
 const regularFontCandidates = [
     path.join(bundledFontDir, 'DejaVuSans.ttf'),
@@ -69,7 +75,7 @@ const documentTitle = (invoice: InvoiceWithItems) => {
     return 'INVOICE';
 };
 
-const renderHeader = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number) => {
+const renderHeader = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left, right }: PdfLayout) => {
     const primaryColor = invoice.issuerPrimaryColor || '#1d1d33';
     const logoPath = resolveLogoPath(invoice.issuerLogoUrl);
     const logoTop = 50;
@@ -105,7 +111,7 @@ const renderHeader = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: 
     return { headerDividerY, primaryColor };
 };
 
-const renderInvoiceInfo = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, headerDividerY: number) => {
+const renderInvoiceInfo = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left }: PdfLayout, headerDividerY: number) => {
     const headerOffset = headerDividerY - 132;
     doc.font(boldFont).fontSize(10).fillColor('#111111').text('Invoice No:', left, 158 + headerOffset);
     doc.font(regularFont).text(invoice.number, 120, 158 + headerOffset);
@@ -117,7 +123,7 @@ const renderInvoiceInfo = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, l
     return 265 + headerOffset;
 };
 
-const renderItemsTable = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, width: number, startY: number, primaryColor: string) => {
+const renderItemsTable = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left, width }: PdfLayout, startY: number, primaryColor: string) => {
     let y = startY;
     doc.rect(left, y, width, 30).fill(primaryColor);
     doc.font(boldFont).fontSize(9).fillColor('#ffffff');
@@ -139,7 +145,7 @@ const renderItemsTable = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, le
     return y;
 };
 
-const renderTotals = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, width: number, y: number) => {
+const renderTotals = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left, right, width }: PdfLayout, y: number) => {
     doc.moveTo(left, y).lineTo(right, y).lineWidth(1).strokeColor('#1d1d33').stroke();
     doc.rect(left, y, width, 36).fill('#f7f7f8');
     const hasPaymentActivity = invoice.paidAmountCents > 0 || invoice.creditedAmountCents > 0;
@@ -223,7 +229,7 @@ const renderQrCode = async (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, 
     });
 };
 
-const renderOnlinePayment = async (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, y: number) => {
+const renderOnlinePayment = async (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left, right }: PdfLayout, y: number) => {
     y += 8;
     const paymentSectionTop = y;
     if (invoice.showPaymentButton) {
@@ -235,14 +241,14 @@ const renderOnlinePayment = async (doc: PDFKit.PDFDocument, invoice: InvoiceWith
     return Math.max(y, paymentSectionTop + (invoice.showPaymentQr ? 125 : 0));
 };
 
-const renderNote = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, width: number, y: number) => {
+const renderNote = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left, width }: PdfLayout, y: number) => {
     if (!invoice.note) return y;
     y += 8;
     doc.font(regularFont).fontSize(9).fillColor('#6b7280').text(invoice.note, left, y, { width });
     return y;
 };
 
-const renderFooter = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: number, right: number, width: number) => {
+const renderFooter = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, { left, right, width }: PdfLayout) => {
     doc.moveTo(left, 745).lineTo(right, 745).lineWidth(1).strokeColor('#e5e7eb').stroke();
     doc.font(regularFont).fontSize(8).fillColor('#6b7280').text(
         invoice.issuerEmail
@@ -254,22 +260,20 @@ const renderFooter = (doc: PDFKit.PDFDocument, invoice: InvoiceWithItems, left: 
 
 export const createInvoicePdf = async (invoice: InvoiceWithItems) => {
     const doc = new PDFDocument({ size: 'A4', margin: 55 });
-    const left = 55;
-    const right = 540;
-    const width = right - left;
+    const layout: PdfLayout = { left: 55, right: 540, width: 540 - 55 };
 
-    const { headerDividerY, primaryColor } = renderHeader(doc, invoice, left, right);
-    let y = renderInvoiceInfo(doc, invoice, left, right, headerDividerY);
-    y = renderItemsTable(doc, invoice, left, right, width, y, primaryColor);
-    y = renderTotals(doc, invoice, left, right, width, y);
-    y = renderPaymentDetails(doc, invoice, left, y);
+    const { headerDividerY, primaryColor } = renderHeader(doc, invoice, layout);
+    let y = renderInvoiceInfo(doc, invoice, layout, headerDividerY);
+    y = renderItemsTable(doc, invoice, layout, y, primaryColor);
+    y = renderTotals(doc, invoice, layout, y);
+    y = renderPaymentDetails(doc, invoice, layout.left, y);
 
     if (invoice.paymentUrl && invoice.balanceDueCents > 0 && (invoice.showPaymentButton || invoice.showPaymentQr)) {
-        y = await renderOnlinePayment(doc, invoice, left, right, y);
+        y = await renderOnlinePayment(doc, invoice, layout, y);
     }
 
-    renderNote(doc, invoice, left, width, y);
-    renderFooter(doc, invoice, left, right, width);
+    renderNote(doc, invoice, layout, y);
+    renderFooter(doc, invoice, layout);
 
     return doc;
 };
