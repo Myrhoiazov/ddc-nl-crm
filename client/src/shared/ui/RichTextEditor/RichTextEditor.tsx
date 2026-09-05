@@ -94,7 +94,7 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
         editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
-    const formatActions = getFormatActions(editor, t, onSetLink);
+const formatActions = getFormatActions(editor, t, onSetLink);
 
     return (
         <div className={classNames(cls.wrapper, {}, [className])}>

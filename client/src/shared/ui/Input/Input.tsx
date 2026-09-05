@@ -108,7 +108,7 @@ const InputControl = memo((props: InputControlProps) => {
     );
 });
 
-const createChangeHandler = (type: string, onChange?: (value: string | number | File | File[]) => void) => (
+const createChangeHandler = (type: string, onChange: InputProps['onChange']) => (
     e: React.ChangeEvent<HTMLInputElement>
 ) => {
     if (type === 'file') {
