@@ -1,4 +1,4 @@
-import { ExpenseCategory, PaymentMethod, TransactionType, Transaction as TTransaction } from '@prisma/client';
+import { ExpenseCategory, PaymentMethod, Prisma, TransactionType, Transaction as TTransaction } from '@prisma/client';
 
 import prisma from '../../prisma/prisma-client'
 import dayjs from 'dayjs';
@@ -121,27 +121,18 @@ const mapManualTransaction = (transaction: TTransaction): FinancialTransaction =
     status: 'completed',
 });
 
-interface MolliePaymentWithCustomer {
-    id: number;
-    mollieId: string | null;
-    amountValue: string | number;
-    refundedAmount: string | number;
-    chargedBackAmount: string | number;
-    status: string;
-    method: string;
-    amountCurrency: string;
-    description: string | null;
-    paidAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-    adjustmentAt: Date | null;
-    customer: {
-        givenName: string | null;
-        familyName: string | null;
-        consumerName: string | null;
-        email: string | null;
-    } | null;
-}
+type MolliePaymentWithCustomer = Prisma.PaymentGetPayload<{
+    include: {
+        customer: {
+            select: {
+                givenName: true;
+                familyName: true;
+                consumerName: true;
+                email: true;
+            };
+        };
+    };
+}>;
 
 const molliePaymentCommon = (payment: MolliePaymentWithCustomer) => {
     const customerName = getCustomerName(payment.customer);
@@ -233,7 +224,7 @@ const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
     ]);
 
     const manual = manualTransactions.map(mapManualTransaction);
-    const mollie = mapMolliePayments(molliePayments as unknown as MolliePaymentWithCustomer[]);
+    const mollie = mapMolliePayments(molliePayments);
 
     return manual.concat(mollie);
 };

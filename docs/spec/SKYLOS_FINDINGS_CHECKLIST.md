@@ -16,6 +16,7 @@
 - Реально исправлено: `SKY-D253` (3 из 5 — timing-safe сравнения через новый `timingSafeEqualStrings`), `SKY-D251` (убраны debug-логи с токеном/подписью), `SKY-D291`/`SKY-D293`/`SKY-D312` (permissions, persist-credentials, --ignore-scripts в `.github/workflows/ci.yml` — полностью закрыты), `SKY-D248` (1 из 7 — OAuth-редирект в Mollie).
 - Остальные пункты `SKY-D248`/`SKY-D252`/`SKY-D253`(2)/`SKY-D327`/`SKY-D216`/`SKY-D230`/`SKY-S101` проверены вручную и являются false positive либо намеренным поведением (dev/prod-разветвление) — помечено инлайн у каждого пункта, без изменений кода.
 - Повторный прогон `npm run check:skylos` подтвердил закрытие исправленных пунктов и обнаружил новую находку `SKY-A102` (`server/src/services/service.Token.ts` — "изменён security-код без изменения тестов") — добавлен `server/src/helpers/index.test.ts` на новый хелпер, находка снята.
+- Ещё одна `SKY-A102` (ветка `fix/skylos-config-d260-and-followups`, `server/src/services/service.InvoicePdf.ts:1`) — false positive по конвенции: изменения чисто структурные/типовые (группировка координат в `PdfLayout`, `Prisma.PaymentGetPayload` вместо ручного интерфейса + каста), поведение не менялось, отдельного unit-теста у рендер-хелперов PDF нет (см. разделы SKY-C303/SKY-T103) — задокументировано как «behavior unchanged», правок не требуется.
 - **SKY-D260**: количество срабатываний нестабильно между запусками (187 → 80 без изменений в затронутых файлах) — похоже на нестрогую/выборочную проверку правила в этой версии Skylos; не полагаться на точное число.
 - Следующие категории (мёртвый код, качество/сложность функций, типобезопасность, `SKY-L012`) — отдельными проходами/PR, см. счётчики ниже.
 
@@ -75,7 +76,9 @@
 **Категория "Качество кода" — волны wave10–11 (ветка `fix/skylos-code-quality-wave10`)**: декомпозиция длинных функций (`SKY-C304`) и сквозной проход по счётчикам.
 - Сервер: `conteroller.Mollie.ts` — 15 коммитов декомпозиции (экспорт/список/деньги/callback/возобновление подписок), `controller.Invoices.ts` (отмена Mollie-платежей, запись транзакции, adjustment-документы), `controller.Auth.ts` (test-first: `maskEmail`/`describeLoginFailure`/`buildAuthenticatedUserData`/`createTrustedDeviceIfRequested`, новые тесты, `test:auth` 17/17), плюс `EmailImap`, `Transaction`, `InvoiceDelivery`, `Clients`, `Service.Clients`, `MollieSync`, `PaymentReminders`, `Search`, `MolliePaymentInvoicePdf`, `InvoicePaymentLink` — каждая функция восстановлена до намеренного размера (координаторы без дублирования, хелперы переиспользуются между контроллерами).
 - Клиент: `MollieClientForm` (add-flow) — 7 повторяющихся `useCallback` свёрнуты в фабрику апдейтеров; `RichTextEditor` — 5 toolbar-кнопок вынесены в `ToolbarButton` + декларативный список действий.
-- Итоговые счётчики правил (после конфиг-правок wave13–14, `npm run check:skylos`): `SKY-Q301` 35 → 18, `SKY-Q402` 8 находок в 4 файлах (`service.EmailImap.ts`, `service.InvoiceDelivery.ts`, `controller.Invoices.ts`, `prisma/seed.ts`), `SKY-D260` → 0 (конфиг), `SKY-L012` → 0 (конфиг), `SKY-L007` 1 (false positive, задокументирован в коде). Оставшиеся 18 `SKY-Q301` прошли ручную проверку — это длинные, но линейные координаторы/хуки без вложенности (например `useCreateInvoiceModal`, `useEditClientModal`), разбиение которых снизило бы читаемость; оставшиеся `SKY-Q402` (await в цикле) — интенционально последовательные итерации (Prisma-транзакции на одном соединении, IMAP-стрим, троттлинг рассылок/отмен), паттерн зафиксирован в `tasks/plan.md`.
+- Итоговые счётчики правил (после конфиг-правок wave13–14, `npm run check:skylos`): `SKY-Q301` 35 → 18, `SKY-Q402` 8 находок в 4 файлах (`service.EmailImap.ts`, `service.InvoiceDelivery.ts`, `controller.Invoices.ts`, `prisma/seed.ts`), `SKY-L012` → 0 (конфиг). Оставшиеся 18 `SKY-Q301` прошли ручную проверку — это длинные, но линейные координаторы/хуки без вложенности (например `useCreateInvoiceModal`, `useEditClientModal`), разбиение которых снизило бы читаемость; оставшиеся `SKY-Q402` (await в цикле) — интенционально последовательные итерации (Prisma-транзакции на одном соединении, IMAP-стрим, троттлинг рассылок/отмен), паттерн зафиксирован в `tasks/plan.md`.
+>
+> **Оговорка про `SKY-D260`:** заявление wave13–14 «`SKY-D260` → 0 (конфиг, whitelist документационных путей)» было ошибочным — `overrides.<путь>.whitelist` не применяется к сканнеру homoglyph (он фильтрует только через глобальный `ignore`). Исправлено в ветке `fix/skylos-config-d260-and-followups`: `ignore = ["SKY-L012", "SKY-D260"]` (реально даёт 0, см. раздел SKY-D260).
 
 ## Сводка по правилам
 
@@ -115,7 +118,7 @@
 
 ## Приоритетная ручная проверка (не мех. фикс)
 
-- **SKY-D260** (187) — почти все срабатывания это обычный русский текст вперемешку с английским/кодом в markdown-документации (`CONTEXT.md`, `docs/**`, `AGENTS.md` и т.д.), что и создаёт смешение кириллицы/латиницы. Правило существует, чтобы ловить спрятанные инструкции для AI-агентов внутри вроде бы обычного текста — список просмотрен глазами, подозрительных вставок нет, текст не переписывался; **закрыто конфигом** `skylos.toml` (whitelist для документационных путей, см. раздел SKY-D260).
+- **SKY-D260** (187) — почти все срабатывания это обычный русский текст вперемешку с английским/кодом в markdown-документации (`CONTEXT.md`, `docs/**`, `AGENTS.md` и т.д.), что и создаёт смешение кириллицы/латиницы. Правило существует, чтобы ловить спрятанные инструкции для AI-агентов внутри вроде бы обычного текста — список просмотрен глазами, подозрительных вставок нет, текст не переписывался; **закрыто конфигом** `skylos.toml` (`ignore = ["SKY-L012", "SKY-D260"]`, см. раздел SKY-D260). Важно: `overrides.<путь>.whitelist` НЕ влияет на этот сканнер (он фильтрует находки только через глобальный `ignore`) — предыдущая формулировка "whitelist для документационных путей" была ошибочной (проверено по коду Skylos 4.35.0: injection_scanner фильтрует только `project_ignore`; `is_whitelisted` применяется лишь к dead-code-символам).
 - **SKY-L012** (281) — почти наверняка ложные срабатывания для текущей FSD-конфигурации (`@/`-алиасы и barrel `index.ts`): инструмент не видит переэкспорт `StateSchema`, `ThunkConfig`, `Navbar`, `TransactionsPage` и т.д. как часть публичного API модуля. **Закрыто конфигом** `skylos.toml` (`ignore = ["SKY-L012"]`, см. раздел SKY-L012) — у Skylos нет alias-резолвера, а единственная альтернатива (правка сотен файлов) противоречит FSD-архитектуре.
 - **SKY-L007** (1, новый в прогоне wave10) — `client/webpack.config.ts:9` — пустой `catch` вокруг `process.loadEnvFile('.env')`: это намеренное поведение, безопасность игнорирования задокументирована комментарием в коде (при Docker-сборке `.env` может отсутствовать, переменные приходят из окружения/build args) — false positive, правок не требуется.
 
@@ -204,7 +207,7 @@
 
 > Смешение кириллицы/латиницы — в основном естественный русскоязычный текст в документации; выборочно проверить, не спрятана ли инструкция, точечно фиксить не нужно.
 >
-> **Как закрыто (ветка `fix/skylos-code-quality-wave10`):** список ниже просмотрен глазами — все срабатывания это обычный русский текст в `CONTEXT.md`/`docs/**`/`AGENTS.md`/`README.md`, спрятанных инструкций нет. Вместо переписывания текста добавлен `skylos.toml` с `overrides.<путь>.whitelist = ["SKY-D260"]` для документационных путей (подключён в `scripts/check-skylos.sh` через `--config-file`). Повторный прогон `npm run check:skylos` — 0 срабатываний SKY-D260 в репозитории (в исходниках правило продолжает работать).
+> **Как закрыто (ветка `fix/skylos-config-d260-and-followups`):** список ниже просмотрен глазами — все срабатывания это обычный русский текст в `CONTEXT.md`/`docs/**`/`AGENTS.md`/`README.md`/`client/extractedTranslations/**`/`package.json`, спрятанных инструкций нет. Изначально (wave10) для этого пытались использовать `overrides.<путь>.whitelist = ["SKY-D260"]` — это НЕ работает: сканнер `SKY-D260` (`skylos/security/injection_scanner.py`) фильтрует находки только через глобальный `ignore`, а `overrides.whitelist` применяется лишь к dead-code-символам (`is_whitelisted` в `penalties.py`). Исправлено в `skylos.toml`: `ignore = ["SKY-L012", "SKY-D260"]` (подключён через `--config-file` в `scripts/check-skylos.sh`). Повторный прогон `npm run check:skylos` — 0 срабатываний SKY-D260 в репозитории. Все текущие срабатывания (293 на момент перепроверки) были в docs/переводах/package.json — в исходном коде их нет, поэтому глобальный ignore не скрывает настоящие находки безопасности.
 
 - [ ] `CONTEXT.md:7` — Non-ASCII character 'а' (U+0430) visually resembles ASCII 'a'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
 - [ ] `CONTEXT.md:12` — Non-ASCII character 'а' (U+0430) visually resembles ASCII 'a'. Mixed-script text can hide instructions from human reviewers while remaining readable to AI agents.
@@ -402,9 +405,11 @@
 
 ## Типобезопасность
 
-### `SKY-T103` — Цепочка `as unknown as X` (40) — ЗАКРЫТО
+### `SKY-T103` — Цепочка `as unknown as X` (40 + 1 wave10-регрессия) — ЗАКРЫТО
 
 > В основном тестовые моки состояния — заменить на валидацию/сузение типа или на фабрику тестового state.
+
+- [x] `server/src/services/service.Transaction.ts:236` — `molliePayments` кастовался `as unknown as MolliePaymentWithCustomer[]`, потому что интерфейс был написан вручную и расходился с реальным Prisma-типом (`amountValue`/`refundedAmount`/`chargedBackAmount` как `Decimal`, `customer` — payload инклюда). Исправлено (ветка `fix/skylos-config-d260-and-followups`): вместо ручного интерфейса + каста используется `Prisma.PaymentGetPayload<{ include: { customer: { select: ... } } }>` — тип выводится автоматически из запроса, каст убран, `Number(...)` продолжает работать с `Decimal`. Проверено: `tsc --noEmit` (server) — 0 ошибок; повторный прогон `npm run check:skylos` — 0 срабатываний SKY-T103.
 
 - [x] `client/config/jest/setupTests.ts:24` — заменено на `fromAny()` из `@total-typescript/shoehorn` (мок-класс `IntersectionObserver` намеренно не реализует полный интерфейс — это ровно случай `fromAny`, не двойной каст).
 - [x] `client/src/entities/ClientStatus/ui/ClientStatusSelect/ClientStatusSelect.tsx:32` — `ClientStatusKey` — строковый enum, где ключи совпадают со значениями (`bronze` = `'bronze'`), поэтому `ClientStatusKey[value as unknown as keyof typeof ClientStatusKey]` был тождественным преобразованием; каст убран, `value` передаётся напрямую.
@@ -1590,9 +1595,22 @@ arm64/x86_64) — закрытие подтверждено построчно (
 Проверено: `tsc --noEmit` (server) — 0 ошибок; `npm run build` (server) — чисто;
 `npm run test:ci` (все 5 сьютов) — 0 fail — без регрессий.
 
-### `SKY-C303` — Слишком много параметров функции (1) — ЗАКРЫТО
+### `SKY-C303` — Слишком много параметров функции (1 + 2 wave10-регрессия) — ЗАКРЫТО
 
 > Сгруппировать параметры в один объект.
+
+- [x] `server/src/services/service.InvoicePdf.ts:120` — Function 'anonymous' has 7 parameters (limit: 5)
+- [x] `server/src/services/service.InvoicePdf.ts:142` — Function 'anonymous' has 6 parameters (limit: 5)
+
+Появились после декомпозиции `createInvoicePdf` (wave 10/11) как побочный эффект:
+секции переносились с «сырыми» координатами. Исправлено (ветка
+`fix/skylos-config-d260-and-followups`): введён тип `PdfLayout { left, right, width }`,
+все 8 рендер-функций (`renderHeader`, `renderInvoiceInfo`, `renderItemsTable`,
+`renderTotals`, `renderPaymentDetails`, `renderOnlinePayment`, `renderNote`,
+`renderFooter`) принимают один объект координат вместо 2–3 отдельных чисел.
+`renderItemsTable` 7 params → 5, `renderTotals` 6 params → 4; прочие тоже сократились.
+Проверено: `tsc --noEmit` (server) — 0 ошибок; повторный прогон `npm run check:skylos` —
+0 срабатываний SKY-C303.
 
 - [x] `server/src/controllers/controller.Invoices.ts:203` — Function 'anonymous' has 6 parameters (limit: 5)
 
