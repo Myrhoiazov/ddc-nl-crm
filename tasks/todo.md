@@ -105,6 +105,12 @@
 - [x] Добавлен итоговый статус-блок в начало файла со сводной таблицей по всем категориям (`SKY-D*`, `SKY-T10*`, `SKY-U00*`/`SKY-E003`, `SKY-L007`/`SKY-C303`/`SKY-Q302`/`SKY-Q402`, `SKY-Q301`, `SKY-C304`, `SKY-L012`, `SKY-D260`, `SKY-R10*`) — все ЗАКРЫТЫ
 - [x] Проверка: `grep` по всем оставшимся `[ ]` записям файла — 0 записей без пометки false positive/by design/историческое/тестовое
 
+## Wave 24 — 3 находки SKY-C303, обнаруженные при разборе CI PR #48 ✅ (2026-09-05)
+- [x] `subscriptionMutation.ts:11` (6 параметров) + `useSubscriptionMutations.ts:8` (7 параметров) — переведены на объект-параметр (`SubscriptionMutationOptions`/`SubscriptionMutationsParams`), обновлены вызовы в `useEditSubscriptionDropdown.ts`
+- [x] `useInvoiceSelectionActions.ts:5` (6 параметров, введена в волне 22 этой же сессии) — переведена на объект-параметр (`InvoiceSelectionActionsParams`), обновлён вызов в `useCreateInvoiceModal.ts`
+- [x] Checks: `skylos ... --select SKY-C303,SKY-C304,SKY-Q301` — 0 срабатываний (кроме тестовых, вне объёма); `tsc --noEmit` — 20 baseline; `npx eslint` — 0 errors; `npm test` — 3/3 suites, 13/13 tests
+- [x] Задокументировано в `docs/spec/SKYLOS_FINDINGS_CHECKLIST.md` (раздел `SKY-C303`)
+
 ---
 
 ## Final Gate

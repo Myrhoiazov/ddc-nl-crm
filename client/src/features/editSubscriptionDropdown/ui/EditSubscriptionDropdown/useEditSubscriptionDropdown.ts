@@ -26,9 +26,9 @@ export const useEditSubscriptionDropdown = (
         subscription, validMandateOptions[0]?.value ?? '',
     );
 
-    const { onCancel, onUpdate, onRestart } = useSubscriptionMutations(
+    const { onCancel, onUpdate, onRestart } = useSubscriptionMutations({
         customerId, subscription, form, restartDate, setIsSaving, finishModal, reloadPage,
-    );
+    });
 
     const openModal = useCallback((nextModal: ModalKind) => {
         if (!form.mandateId && validMandateOptions[0]?.value) {
