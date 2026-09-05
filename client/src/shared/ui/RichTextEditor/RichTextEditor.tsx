@@ -5,6 +5,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { classNames } from '@/shared/lib/classNames/classNames';
+import type { Editor } from '@tiptap/react';
 import cls from './RichTextEditor.module.scss';
 
 interface RichTextEditorProps {
@@ -13,6 +14,13 @@ interface RichTextEditorProps {
     onChange: (html: string) => void;
     placeholder?: string;
     readonly?: boolean;
+}
+
+interface FormatAction {
+    label: string;
+    content: ReactNode;
+    isActive: () => boolean;
+    run: () => void;
 }
 
 const ToolbarButton = memo(({ active, label, onClick, children }: {
@@ -31,10 +39,7 @@ const ToolbarButton = memo(({ active, label, onClick, children }: {
     </button>
 ));
 
-export const RichTextEditor = memo((props: RichTextEditorProps) => {
-    const { className, value, onChange, placeholder, readonly } = props;
-    const { t } = useTranslation();
-
+const useRichTextEditor = (value: string, onChange: (html: string) => void, placeholder?: string, readonly?: boolean) => {
     const editor = useEditor({
         extensions: [
             StarterKit,
@@ -59,6 +64,22 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
         editor?.setEditable(!readonly);
     }, [editor, readonly]);
 
+    return editor;
+};
+
+const getFormatActions = (editor: Editor | null, t: (key: string) => string, onSetLink: () => void): FormatAction[] => [
+    { label: t('Жирный'), content: <b>B</b>, isActive: () => !!editor?.isActive('bold'), run: () => editor?.chain().focus().toggleBold().run() },
+    { label: t('Курсив'), content: <i>I</i>, isActive: () => !!editor?.isActive('italic'), run: () => editor?.chain().focus().toggleItalic().run() },
+    { label: t('Маркированный список'), content: <span>•≡</span>, isActive: () => !!editor?.isActive('bulletList'), run: () => editor?.chain().focus().toggleBulletList().run() },
+    { label: t('Нумерованный список'), content: <span>{t('1≡')}</span>, isActive: () => !!editor?.isActive('orderedList'), run: () => editor?.chain().focus().toggleOrderedList().run() },
+    { label: t('Ссылка'), content: <span>🔗</span>, isActive: () => !!editor?.isActive('link'), run: onSetLink },
+];
+
+export const RichTextEditor = memo((props: RichTextEditorProps) => {
+    const { className, value, onChange, placeholder, readonly } = props;
+    const { t } = useTranslation();
+    const editor = useRichTextEditor(value, onChange, placeholder, readonly);
+
     const onSetLink = () => {
         const previousUrl = editor?.getAttributes('link').href as string | undefined;
         const url = window.prompt('Ссылка (URL):', previousUrl ?? 'https://');
@@ -73,13 +94,7 @@ export const RichTextEditor = memo((props: RichTextEditorProps) => {
         editor?.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     };
 
-const formatActions: { label: string; content: ReactNode; isActive: () => boolean; run: () => void }[] = [
-        { label: t('Жирный'), content: <b>B</b>, isActive: () => !!editor?.isActive('bold'), run: () => editor?.chain().focus().toggleBold().run() },
-        { label: t('Курсив'), content: <i>I</i>, isActive: () => !!editor?.isActive('italic'), run: () => editor?.chain().focus().toggleItalic().run() },
-        { label: t('Маркированный список'), content: <span>•≡</span>, isActive: () => !!editor?.isActive('bulletList'), run: () => editor?.chain().focus().toggleBulletList().run() },
-        { label: t('Нумерованный список'), content: <span>{t('1≡')}</span>, isActive: () => !!editor?.isActive('orderedList'), run: () => editor?.chain().focus().toggleOrderedList().run() },
-        { label: t('Ссылка'), content: <span>🔗</span>, isActive: () => !!editor?.isActive('link'), run: onSetLink },
-    ];
+    const formatActions = getFormatActions(editor, t, onSetLink);
 
     return (
         <div className={classNames(cls.wrapper, {}, [className])}>

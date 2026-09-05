@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './ClientFilters.module.scss';
@@ -12,6 +12,7 @@ import { SortOrder } from '@/shared/types/sort';
 import { Button } from '@/shared/ui/Button';
 import { ClientFormModal } from '@/features/addClientForm';
 import AddClientIcon from '@/shared/assets/icons/add_user_icon.svg';
+import { useModalState } from '@/shared/lib/hooks/useModalState/useModalState';
 
 interface ClientFiltersProps {
     className?: string;
@@ -35,16 +36,7 @@ export const ClientFilters = memo((props: ClientFiltersProps) => {
         order,
         reloadPage,
     } = props;
-    const [isAddClientModal, setIsAddClientModal] = useState(false);
-
-    const onCloseModal = useCallback(() => {
-        setIsAddClientModal(false);
-    }, []);
-
-    const onShowModal = useCallback(() => {
-        setIsAddClientModal(true);
-    }, []);
-
+    const { isOpen: isAddClientModal, open: onShowModal, close: onCloseModal } = useModalState();
     const { t } = useTranslation();
 
     return (
