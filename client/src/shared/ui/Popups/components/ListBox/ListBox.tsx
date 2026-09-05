@@ -59,28 +59,33 @@ export function ListBox<T extends string>(props: ListBoxProps<T>) {
                 </ListboxButton>
                 <ListboxOptions className={classNames(cls.options, {}, optionsClasses)}>
                     {items?.map((item) => (
-                        <ListboxOption
-                            key={item.value}
-                            value={item.value}
-                            disabled={item.disabled}
-                            as={Fragment}
-                        >
-                            {({ active, selected }) => (
-                                <li
-                                    className={classNames(cls.item, {
-                                        [popupCls.active]: active,
-                                        [popupCls.disabled]: item.disabled,
-                                        [popupCls.selected]: selected,
-                                    })}
-                                >
-                                    {selected}
-                                    {item.content}
-                                </li>
-                            )}
-                        </ListboxOption>
+                        <ListBoxOptionItem key={item.value} item={item} />
                     ))}
                 </ListboxOptions>
             </Listbox>
         </VStack>
+    );
+}
+
+function ListBoxOptionItem<T extends string>({ item }: { item: ListBoxItem<T> }) {
+    return (
+        <ListboxOption
+            value={item.value}
+            disabled={item.disabled}
+            as={Fragment}
+        >
+            {({ active, selected }) => (
+                <li
+                    className={classNames(cls.item, {
+                        [popupCls.active]: active,
+                        [popupCls.disabled]: item.disabled,
+                        [popupCls.selected]: selected,
+                    })}
+                >
+                    {selected}
+                    {item.content}
+                </li>
+            )}
+        </ListboxOption>
     );
 }
