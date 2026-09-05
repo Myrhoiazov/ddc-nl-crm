@@ -30,8 +30,189 @@ interface ChoreographerDetailsFormProps {
     setTemplateDescription: (value: string) => void;
 }
 
-export const ChoreographerDetailsForm = memo((props: ChoreographerDetailsFormProps) => {
+const LangTabs = ({ lang, onSelect }: { lang: Lang; onSelect: (value: Lang) => void }) => (
+    <div className={s.langTabs}>
+        {LANGS.map((l) => (
+            <button
+                key={l}
+                type="button"
+                className={classNames(s.langTab, { [s.langActive]: lang === l })}
+                onClick={() => onSelect(l)}
+            >
+                {l}
+            </button>
+        ))}
+    </div>
+);
+
+const TextField = ({
+    label,
+    value,
+    onChange,
+    required,
+    type = 'text',
+    placeholder,
+    small,
+    min,
+}: {
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    required?: boolean;
+    type?: string;
+    placeholder?: string;
+    small?: boolean;
+    min?: number;
+}) => (
+    <div className={s.field}>
+        <label className={s.label}>
+            {label} {required && <span className={s.req}>*</span>}
+        </label>
+        <input
+            className={small ? s.inputSmall : s.input}
+            type={type}
+            min={min}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+        />
+    </div>
+);
+
+const NameFields = ({
+    lang,
+    firstNameValue,
+    setFirstName,
+    lastNameValue,
+    setLastName,
+}: {
+    lang: Lang;
+    firstNameValue: string;
+    setFirstName: (value: string) => void;
+    lastNameValue: string;
+    setLastName: (value: string) => void;
+}) => {
     const { t } = useTranslation();
+    return (
+        <div className={s.row}>
+            <TextField label={`${t('Имя')} (${lang})`} value={firstNameValue} onChange={setFirstName} required={lang === 'RU'} />
+            <TextField label={`${t('Фамилия')} (${lang})`} value={lastNameValue} onChange={setLastName} required={lang === 'RU'} />
+        </div>
+    );
+};
+
+const ContactFields = ({
+    phone,
+    setPhone,
+    birthday,
+    setBirthday,
+    email,
+    setEmail,
+    experience,
+    setExperience,
+}: {
+    phone: string;
+    setPhone: (value: string) => void;
+    birthday: string;
+    setBirthday: (value: string) => void;
+    email: string;
+    setEmail: (value: string) => void;
+    experience: string;
+    setExperience: (value: string) => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <>
+            <div className={s.row}>
+                <TextField label={t('Телефон')} value={phone} onChange={setPhone} placeholder="+380..." />
+                <TextField label={t('Дата рождения')} value={birthday} onChange={setBirthday} type="date" />
+            </div>
+            <TextField label={t('Email')} value={email} onChange={setEmail} type="email" placeholder="mail@example.com" />
+            <TextField label={t('Опыт (лет)')} value={experience} onChange={setExperience} type="number" small min={0} />
+        </>
+    );
+};
+
+const CategoryField = ({
+    category,
+    onSelect,
+}: {
+    category: ChoreographerCategory | '';
+    onSelect: (value: ChoreographerCategory | '') => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.field}>
+            <label className={s.label}>{t('Категория')}</label>
+            <div className={s.categoryGroup}>
+                {CATEGORIES.map((cat) => (
+                    <button
+                        key={cat}
+                        type="button"
+                        className={classNames(s.categoryBtn, { [s.categoryActive]: category === cat }, [s[`cat_${cat.toLowerCase()}`]])}
+                        onClick={() => onSelect(category === cat ? '' : cat)}
+                    >
+                        {CATEGORY_LABELS[cat]}
+                    </button>
+                ))}
+                {category && (
+                    <button type="button" className={s.clearCat} onClick={() => onSelect('')}>{t('К без категории')}</button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const SiteAndDescriptionFields = ({
+    showOnSite,
+    setShowOnSite,
+    description,
+    setDescription,
+    templateDescription,
+    setTemplateDescription,
+}: {
+    showOnSite: boolean;
+    setShowOnSite: (value: boolean) => void;
+    description: string;
+    setDescription: (value: string) => void;
+    templateDescription: string;
+    setTemplateDescription: (value: string) => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <>
+            <div className={s.toggleRow}>
+                <label className={s.label}>{t('Показывать на сайте')}</label>
+                <label className={s.toggle}>
+                    <input type="checkbox" checked={showOnSite} onChange={(e) => setShowOnSite(e.target.checked)} />
+                    <span className={s.toggleSlider} />
+                </label>
+            </div>
+            <div className={s.field}>
+                <label className={s.label}>{t('Описание')}</label>
+                <textarea
+                    className={s.textarea}
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="В своей работе уделяет внимание..."
+                />
+            </div>
+            <div className={s.field}>
+                <label className={s.label}>{t('Шаблонное описание')}</label>
+                <textarea
+                    className={s.textarea}
+                    rows={4}
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                    placeholder="Обладает такими стилями, как: Jazz-Funk..."
+                />
+            </div>
+        </>
+    );
+};
+
+export const ChoreographerDetailsForm = memo((props: ChoreographerDetailsFormProps) => {
     const {
         lang, setLang,
         firstNameValue, lastNameValue, setFirstName, setLastName,
@@ -43,112 +224,37 @@ export const ChoreographerDetailsForm = memo((props: ChoreographerDetailsFormPro
 
     return (
         <>
-            {/* Language tabs */}
-            <div className={s.langTabs}>
-                {LANGS.map((l) => (
-                    <button
-                        key={l}
-                        type="button"
-                        className={classNames(s.langTab, { [s.langActive]: lang === l })}
-                        onClick={() => setLang(l)}
-                    >
-                        {l}
-                    </button>
-                ))}
-            </div>
+            <LangTabs lang={lang} onSelect={setLang} />
 
-            {/* Name fields */}
-            <div className={s.row}>
-                <div className={s.field}>
-                    <label className={s.label}>
-                        {t('Имя')} {lang === 'RU' && <span className={s.req}>*</span>} ({lang})
-                    </label>
-                    <input className={s.input} value={firstNameValue} onChange={(e) => setFirstName(e.target.value)} />
-                </div>
-                <div className={s.field}>
-                    <label className={s.label}>
-                        {t('Фамилия')} {lang === 'RU' && <span className={s.req}>*</span>} ({lang})
-                    </label>
-                    <input className={s.input} value={lastNameValue} onChange={(e) => setLastName(e.target.value)} />
-                </div>
-            </div>
+            <NameFields
+                lang={lang}
+                firstNameValue={firstNameValue}
+                setFirstName={setFirstName}
+                lastNameValue={lastNameValue}
+                setLastName={setLastName}
+            />
 
-            {/* Phone + Birthday */}
-            <div className={s.row}>
-                <div className={s.field}>
-                    <label className={s.label}>{t('Телефон')}</label>
-                    <input className={s.input} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+380..." />
-                </div>
-                <div className={s.field}>
-                    <label className={s.label}>{t('Дата рождения')}</label>
-                    <input className={s.input} type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
-                </div>
-            </div>
+            <ContactFields
+                phone={phone}
+                setPhone={setPhone}
+                birthday={birthday}
+                setBirthday={setBirthday}
+                email={email}
+                setEmail={setEmail}
+                experience={experience}
+                setExperience={setExperience}
+            />
 
-            {/* Email */}
-            <div className={s.field}>
-                <label className={s.label}>{t('Email')}</label>
-                <input className={s.input} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="mail@example.com" />
-            </div>
+            <CategoryField category={category} onSelect={setCategory} />
 
-            {/* Experience */}
-            <div className={s.field}>
-                <label className={s.label}>{t('Опыт (лет)')}</label>
-                <input className={s.inputSmall} type="number" min={0} value={experience} onChange={(e) => setExperience(e.target.value)} />
-            </div>
-
-            {/* Category */}
-            <div className={s.field}>
-                <label className={s.label}>{t('Категория')}</label>
-                <div className={s.categoryGroup}>
-                    {CATEGORIES.map((cat) => (
-                        <button
-                            key={cat}
-                            type="button"
-                            className={classNames(s.categoryBtn, { [s.categoryActive]: category === cat }, [s[`cat_${cat.toLowerCase()}`]])}
-                            onClick={() => setCategory(category === cat ? '' : cat)}
-                        >
-                            {CATEGORY_LABELS[cat]}
-                        </button>
-                    ))}
-                    {category && (
-                        <button type="button" className={s.clearCat} onClick={() => setCategory('')}>{t('К без категории')}</button>
-                    )}
-                </div>
-            </div>
-
-            {/* Show on site */}
-            <div className={s.toggleRow}>
-                <label className={s.label}>{t('Показывать на сайте')}</label>
-                <label className={s.toggle}>
-                    <input type="checkbox" checked={showOnSite} onChange={(e) => setShowOnSite(e.target.checked)} />
-                    <span className={s.toggleSlider} />
-                </label>
-            </div>
-
-            {/* Description */}
-            <div className={s.field}>
-                <label className={s.label}>{t('Описание')}</label>
-                <textarea
-                    className={s.textarea}
-                    rows={4}
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="В своей работе уделяет внимание..."
-                />
-            </div>
-
-            {/* Template description */}
-            <div className={s.field}>
-                <label className={s.label}>{t('Шаблонное описание')}</label>
-                <textarea
-                    className={s.textarea}
-                    rows={4}
-                    value={templateDescription}
-                    onChange={(e) => setTemplateDescription(e.target.value)}
-                    placeholder="Обладает такими стилями, как: Jazz-Funk..."
-                />
-            </div>
+            <SiteAndDescriptionFields
+                showOnSite={showOnSite}
+                setShowOnSite={setShowOnSite}
+                description={description}
+                setDescription={setDescription}
+                templateDescription={templateDescription}
+                setTemplateDescription={setTemplateDescription}
+            />
         </>
     );
 });

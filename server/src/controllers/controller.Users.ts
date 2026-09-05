@@ -98,24 +98,37 @@ const recordEnabledChangeAudit = async (req: Request, userId: number, previousEn
     });
 };
 
+const validateUpdateUserRequest = (
+    req: Request,
+    userId: number,
+    role: UserRole | undefined,
+    isEnabled: boolean | undefined,
+): string | null => {
+    if (!userId || (role === undefined && isEnabled === undefined)) {
+        return 'Role or account state is required';
+    }
+    if (role !== undefined && !Object.values(UserRole).includes(role)) {
+        return 'Invalid role';
+    }
+    if (isEnabled !== undefined && typeof isEnabled !== 'boolean') {
+        return 'Invalid account state';
+    }
+    if (req.user?.id === userId && isEnabled === false) {
+        return 'Нельзя заблокировать собственный аккаунт';
+    }
+    if (req.user?.id === userId && role !== undefined && role !== req.user.role) {
+        return 'Нельзя изменить собственную роль';
+    }
+    return null;
+};
+
 export const updateUserController = async (req: Request, res: Response) => {
     const userId = Number(req.params.id);
     const { role, isEnabled } = req.body;
 
-    if (!userId || (role === undefined && isEnabled === undefined)) {
-        return res.status(400).json({ message: 'Role or account state is required' });
-    }
-    if (role !== undefined && !Object.values(UserRole).includes(role)) {
-        return res.status(400).json({ message: 'Invalid role' });
-    }
-    if (isEnabled !== undefined && typeof isEnabled !== 'boolean') {
-        return res.status(400).json({ message: 'Invalid account state' });
-    }
-    if (req.user?.id === userId && isEnabled === false) {
-        return res.status(400).json({ message: 'Нельзя заблокировать собственный аккаунт' });
-    }
-    if (req.user?.id === userId && role !== undefined && role !== req.user.role) {
-        return res.status(400).json({ message: 'Нельзя изменить собственную роль' });
+    const validationError = validateUpdateUserRequest(req, userId, role, isEnabled);
+    if (validationError) {
+        return res.status(400).json({ message: validationError });
     }
 
     try {

@@ -14,6 +14,27 @@ interface ClientEmailBlockProps {
     id: string;
 }
 
+const EmailLoadMoreButton = ({ isLoadingMore, onLoadMore }: {
+    isLoadingMore: boolean;
+    onLoadMore: () => void;
+}) => (
+    <div className={s.loadMore}>
+        <Button
+            theme={ButtonTheme.OUTLINE}
+            disabled={isLoadingMore}
+            onClick={onLoadMore}
+        >
+            {isLoadingMore ? 'Загрузка...' : 'Загрузить ещё'}
+        </Button>
+    </div>
+);
+
+const EmailEmptySelection = () => (
+    <Card padding="24" className={s.emptyState}>
+        <Text text="Выберите письмо, чтобы просмотреть его" size="s" />
+    </Card>
+);
+
 export const ClientEmailBlock = memo(({ id }: ClientEmailBlockProps) => {
     const authData = useSelector(getUserAuthData);
     const isAdmin = authData?.role === RoleKey.ADMIN;
@@ -57,15 +78,7 @@ export const ClientEmailBlock = memo(({ id }: ClientEmailBlockProps) => {
                                 onSelect={onSelectMessage}
                             />
                             {!isLoading && messages.length < total && (
-                                <div className={s.loadMore}>
-                                    <Button
-                                        theme={ButtonTheme.OUTLINE}
-                                        disabled={isLoadingMore}
-                                        onClick={onLoadMore}
-                                    >
-                                        {isLoadingMore ? 'Загрузка...' : 'Загрузить ещё'}
-                                    </Button>
-                                </div>
+                                <EmailLoadMoreButton isLoadingMore={isLoadingMore} onLoadMore={onLoadMore} />
                             )}
                         </div>
                         {selectedMessage ? (
@@ -79,9 +92,7 @@ export const ClientEmailBlock = memo(({ id }: ClientEmailBlockProps) => {
                                 onMarkAsSpam={onMarkMessageAsSpam}
                             />
                         ) : (
-                            <Card padding="24" className={s.emptyState}>
-                                <Text text="Выберите письмо, чтобы просмотреть его" size="s" />
-                            </Card>
+                            <EmailEmptySelection />
                         )}
                     </HStack>
                 )}

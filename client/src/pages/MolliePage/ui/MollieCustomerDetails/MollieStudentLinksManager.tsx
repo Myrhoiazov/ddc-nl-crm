@@ -24,8 +24,95 @@ interface MollieStudentLinksManagerProps {
     onChanged: () => void;
 }
 
-export const MollieStudentLinksManager = memo(({ customerId, version, onChanged }: MollieStudentLinksManagerProps) => {
+const LinkedStudents = ({
+    customer,
+    isSaving,
+    onDeleteLink,
+}: {
+    customer: ReturnType<typeof useStudentLinksManager>['customer'];
+    isSaving: boolean;
+    onDeleteLink: (linkId: string | number) => void;
+}) => {
     const { t } = useTranslation();
+    if (!customer?.clientLinks?.length) {
+        return <Text text="Пока нет связанных учеников." size="s" />;
+    }
+
+    return (
+        <div className={s.linkedStudents}>
+            {customer.clientLinks.map((link) => (
+                <div className={s.studentLinkRow} key={link.id}>
+                    <div className={s.studentInfo}>
+                        {link.client?.id ? (
+                            <Link className={s.studentName} to={`/clients/${link.client.id}`}>
+                                {getStudentName(link.client)}
+                            </Link>
+                        ) : (
+                            <span className={s.studentName}>{t('Ученик')}</span>
+                        )}
+                        <span className={s.studentMeta}>
+                            {link.payerRelation || 'unknown'} · {link.linkSource || 'manual'}{link.isPrimary ? ' · primary' : ''}
+                        </span>
+                    </div>
+                    <Button
+                        theme={ButtonTheme.OUTLINE_RED}
+                        onClick={() => onDeleteLink(link.id)}
+                        disabled={isSaving}
+                    >
+                        {t('Удалить')}
+                    </Button>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const AddStudentForm = ({
+    selectedClientId,
+    setSelectedClientId,
+    payerRelation,
+    setPayerRelation,
+    availableClientOptions,
+    isSaving,
+    onAddStudent,
+}: {
+    selectedClientId: string;
+    setSelectedClientId: (value: string) => void;
+    payerRelation: PayerRelation;
+    setPayerRelation: (value: PayerRelation) => void;
+    availableClientOptions: SelectOption<string>[];
+    isSaving: boolean;
+    onAddStudent: () => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.addStudentForm}>
+            <Select
+                label="Ученик"
+                defaultValue="Выберите ученика"
+                options={availableClientOptions}
+                value={selectedClientId}
+                onChange={setSelectedClientId}
+            />
+            <Select<PayerRelation>
+                label="Кто платит"
+                options={payerRelationOptions}
+                value={payerRelation}
+                onChange={setPayerRelation}
+            />
+            <Button
+                className={s.addStudentButton}
+                theme={ButtonTheme.BACKGROUND_INVERTED}
+                onClick={onAddStudent}
+                disabled={isSaving || !availableClientOptions.length}
+            >
+                {t('Привязать')}
+            </Button>
+        </div>
+    );
+};
+
+export const MollieStudentLinksManager = memo(({ customerId, version, onChanged }: MollieStudentLinksManagerProps) => {
     const {
         customer,
         selectedClientId,
@@ -61,57 +148,17 @@ export const MollieStudentLinksManager = memo(({ customerId, version, onChanged 
 
                 {!isLoading && !error && (
                     <>
-                        <div className={s.linkedStudents}>
-                            {customer?.clientLinks?.length ? customer.clientLinks.map((link) => (
-                                <div className={s.studentLinkRow} key={link.id}>
-                                    <div className={s.studentInfo}>
-                                        {link.client?.id ? (
-                                            <Link className={s.studentName} to={`/clients/${link.client.id}`}>
-                                                {getStudentName(link.client)}
-                                            </Link>
-                                        ) : (
-                                            <span className={s.studentName}>{t('Ученик')}</span>
-                                        )}
-                                        <span className={s.studentMeta}>
-                                            {link.payerRelation || 'unknown'} · {link.linkSource || 'manual'}{link.isPrimary ? ' · primary' : ''}
-                                        </span>
-                                    </div>
-                                    <Button
-                                        theme={ButtonTheme.OUTLINE_RED}
-                                        onClick={() => onDeleteLink(link.id)}
-                                        disabled={isSaving}
-                                    >
-                                        {t('Удалить')}
-                                    </Button>
-                                </div>
-                            )) : (
-                                <Text text="Пока нет связанных учеников." size="s" />
-                            )}
-                        </div>
+                        <LinkedStudents customer={customer} isSaving={isSaving} onDeleteLink={onDeleteLink} />
 
-                        <div className={s.addStudentForm}>
-                            <Select
-                                label="Ученик"
-                                defaultValue="Выберите ученика"
-                                options={availableClientOptions}
-                                value={selectedClientId}
-                                onChange={setSelectedClientId}
-                            />
-                            <Select<PayerRelation>
-                                label="Кто платит"
-                                options={payerRelationOptions}
-                                value={payerRelation}
-                                onChange={setPayerRelation}
-                            />
-                            <Button
-                                className={s.addStudentButton}
-                                theme={ButtonTheme.BACKGROUND_INVERTED}
-                                onClick={onAddStudent}
-                                disabled={isSaving || !availableClientOptions.length}
-                            >
-                                {t('Привязать')}
-                            </Button>
-                        </div>
+                        <AddStudentForm
+                            selectedClientId={selectedClientId}
+                            setSelectedClientId={setSelectedClientId}
+                            payerRelation={payerRelation}
+                            setPayerRelation={setPayerRelation}
+                            availableClientOptions={availableClientOptions}
+                            isSaving={isSaving}
+                            onAddStudent={onAddStudent}
+                        />
                     </>
                 )}
             </VStack>

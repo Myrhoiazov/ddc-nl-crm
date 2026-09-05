@@ -26,6 +26,77 @@ interface MolliePaymentsMatrixToolbarProps {
     totalPaidMonths: number;
 }
 
+const PeriodSelectors = ({
+    periodMode,
+    selectedMonth,
+    monthFrom,
+    monthTo,
+    monthOptions,
+    months,
+    onSelectedMonthChange,
+    onMonthFromChange,
+    onMonthToChange,
+}: {
+    periodMode: PeriodMode;
+    selectedMonth: string;
+    monthFrom: string;
+    monthTo: string;
+    monthOptions: SelectOption<string>[];
+    months?: MatrixMonth[];
+    onSelectedMonthChange: (value: string) => void;
+    onMonthFromChange: (value: string) => void;
+    onMonthToChange: (value: string) => void;
+}) => (
+    <>
+        {periodMode === 'month' && (
+            <Select
+                label="Месяц"
+                value={selectedMonth || months?.[0]?.key}
+                options={monthOptions}
+                onChange={onSelectedMonthChange}
+            />
+        )}
+        {periodMode === 'range' && (
+            <>
+                <Select
+                    label="С месяца"
+                    value={monthFrom || months?.[0]?.key}
+                    options={monthOptions}
+                    onChange={onMonthFromChange}
+                />
+                <Select
+                    label="По месяц"
+                    value={monthTo || months?.[months.length - 1]?.key}
+                    options={monthOptions}
+                    onChange={onMonthToChange}
+                />
+            </>
+        )}
+    </>
+);
+
+const MatrixSummary = ({
+    visibleMonthsCount,
+    rowsCount,
+    paidStudents,
+    totalPaidMonths,
+}: {
+    visibleMonthsCount: number;
+    rowsCount: number;
+    paidStudents: number;
+    totalPaidMonths: number;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.summary}>
+            <span><b>{visibleMonthsCount}</b>{t(' мес.')}</span>
+            <span><b>{rowsCount}</b>{t(' строк')}</span>
+            <span><b>{paidStudents}</b>{t(' с оплатами')}</span>
+            <span><b>{totalPaidMonths}</b>{t(' оплаченных месяцев')}</span>
+        </div>
+    );
+};
+
 export const MolliePaymentsMatrixToolbar = memo((props: MolliePaymentsMatrixToolbarProps) => {
     const {
         startYear, onStartYearChange,
@@ -37,7 +108,6 @@ export const MolliePaymentsMatrixToolbar = memo((props: MolliePaymentsMatrixTool
         search, onSearchChange,
         visibleMonthsCount, rowsCount, paidStudents, totalPaidMonths,
     } = props;
-    const { t } = useTranslation();
 
     return (
         <div className={s.toolbar}>
@@ -53,30 +123,17 @@ export const MolliePaymentsMatrixToolbar = memo((props: MolliePaymentsMatrixTool
                 options={periodModeOptions}
                 onChange={onPeriodModeChange}
             />
-            {periodMode === 'month' && (
-                <Select
-                    label="Месяц"
-                    value={selectedMonth || months?.[0]?.key}
-                    options={monthOptions}
-                    onChange={onSelectedMonthChange}
-                />
-            )}
-            {periodMode === 'range' && (
-                <>
-                    <Select
-                        label="С месяца"
-                        value={monthFrom || months?.[0]?.key}
-                        options={monthOptions}
-                        onChange={onMonthFromChange}
-                    />
-                    <Select
-                        label="По месяц"
-                        value={monthTo || months?.[months.length - 1]?.key}
-                        options={monthOptions}
-                        onChange={onMonthToChange}
-                    />
-                </>
-            )}
+            <PeriodSelectors
+                periodMode={periodMode}
+                selectedMonth={selectedMonth}
+                monthFrom={monthFrom}
+                monthTo={monthTo}
+                monthOptions={monthOptions}
+                months={months}
+                onSelectedMonthChange={onSelectedMonthChange}
+                onMonthFromChange={onMonthFromChange}
+                onMonthToChange={onMonthToChange}
+            />
             <Input
                 label="Поиск"
                 placeholder="Ученик, плательщик или филиал"
@@ -84,12 +141,12 @@ export const MolliePaymentsMatrixToolbar = memo((props: MolliePaymentsMatrixTool
                 onChange={onSearchChange}
                 fullWidth
             />
-            <div className={s.summary}>
-                <span><b>{visibleMonthsCount}</b>{t(' мес.')}</span>
-                <span><b>{rowsCount}</b>{t(' строк')}</span>
-                <span><b>{paidStudents}</b>{t(' с оплатами')}</span>
-                <span><b>{totalPaidMonths}</b>{t(' оплаченных месяцев')}</span>
-            </div>
+            <MatrixSummary
+                visibleMonthsCount={visibleMonthsCount}
+                rowsCount={rowsCount}
+                paidStudents={paidStudents}
+                totalPaidMonths={totalPaidMonths}
+            />
         </div>
     );
 });

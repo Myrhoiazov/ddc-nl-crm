@@ -32,6 +32,20 @@ const initialReducers: ReducersList = {
 
 type ProfileField = 'consumerAccount' | 'consumerName' | 'consumerBic' | 'givenName' | 'familyName' | 'email' | 'city';
 
+const MollieClientFormTitle = () => {
+    const { t } = useTranslation();
+    return <Text size="m" title={t('Добавление нового клиента')} bold />;
+};
+
+const MollieClientFormSubmit = ({ onSave }: { onSave: () => void }) => {
+    const { t } = useTranslation();
+    return (
+        <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
+            {t('Добавить')}
+        </Button>
+    );
+};
+
 const MollieClientForm = memo((props: MollieClientFormProps) => {
     const { className, onSuccess, reloadPage } = props;
     const { t } = useTranslation();
@@ -72,7 +86,7 @@ const MollieClientForm = memo((props: MollieClientFormProps) => {
         <DynamicModuleLoader reducers={initialReducers}>
             <div className={classNames(cls.MollieClientForm, {}, [className])}>
                 <VStack gap="24" align="center" className={cls.header}>
-                    <Text size="m" title={t('Добавление нового клиента')} bold />
+                    <MollieClientFormTitle />
                     <MollieClientCard
                         onChangeLastName={profileUpdaters.familyName}
                         onChangeFirstName={profileUpdaters.givenName}
@@ -83,9 +97,7 @@ const MollieClientForm = memo((props: MollieClientFormProps) => {
                         onChangeConsumerBic={profileUpdaters.consumerBic}
                         data={formData}
                     />
-                    <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
-                        {t('Добавить')}
-                    </Button>
+                    <MollieClientFormSubmit onSave={onSave} />
                 </VStack>
             </div>
         </DynamicModuleLoader>
