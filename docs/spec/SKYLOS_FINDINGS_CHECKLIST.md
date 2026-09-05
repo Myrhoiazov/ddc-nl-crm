@@ -4,6 +4,13 @@
 
 Итоговая оценка прогона: **F (53/100)**. Всего находок в этом файле: **985**.
 
+> **Статус веток (2026-09-05):** все ветки, упомянутые ниже как источники исправлений
+> (`fix/skylos-findings`, `fix/skylos-code-quality*`, `fix/skylos-config-d260-and-followups`,
+> `feature/agents-crm-loop-overhaul`), влиты в develop, их содержимое синхронизировано
+> с develop, ветки удалены локально и на origin. Единственное расхождение между
+> деревьями веток и develop перед удалением (jsdom-фикс теста RichTextEditor,
+> коммит `4f5c5b5`) перенесено в develop cherry-pick-ом (`bd1ee4b`).
+
 ## Как пользоваться чек-листом
 
 - Отмечайте `[x]` только после реального исправления и повторного запуска `npm run check:skylos`, показавшего, что строка больше не встречается.
@@ -915,7 +922,7 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 > Разбить на более мелкие функции/хуки.
 
-**Волна 15 (shared UI компоненты, ветка `fix/skylos-code-quality-wave15`):** закрыто
+**Волна 15 (shared UI компоненты, ветка `fix/skylos-code-quality-wave15`, вмержена в develop PR #40, ветка удалена):** закрыто
 7 находок `SKY-C304` в shared/widgets UI. Все компоненты сведены к функциям <50
 строк без переноса длинной логики в «жирные» хуки (урок round4/round5); где
 состояние/конфигурация действительно выносились — хук также <50 строк.
@@ -935,6 +942,14 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 Проверки: клиентский Jest 22/22 по затронутым сьютам, `npm run lint:ts` 0 ошибок,
 `npm run build:prod` чисто; повторный `check:skylos` — перечисленные файлы больше
 не флагаются, общий счёт находок 291 → 283.
+
+> **Post-wave follow-up (jsdom-детерминизм теста):** в ветке
+> `fix/skylos-code-quality-wave10` оставался не влитым коммит `4f5c5b5`
+> «fix: make RichTextEditor tests deterministic under jsdom (Skylos wave 15.3)» —
+> мок `Range#getClientRects`/`getBoundingClientRect` (jsdom не реализует геометрию
+> Range, из-за чего ProseMirror падал при скролле выделения в тестах). Коммит
+> перенесён в develop cherry-pick-ом (`bd1ee4b`); конфликт в `RichTextEditor.tsx`
+> разрешён в пользу переписанного в волне 15 `getFormatActions`. Тест `3/3`.
 
 **Прогресс: начата декомпозиция крупных страниц/компонентов, которые пересекаются
 с client-частью `SKY-Q301` (см. ниже).** ~46 из 185 находок — это `.test.ts(x)`
