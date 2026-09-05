@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Page } from '@/widgets/Page/Page';
 import { ListSkeleton } from '@/shared/ui/ListSkeleton';
@@ -71,39 +71,43 @@ const InvoicesList = ({
     </div>
 );
 
+interface InvoicesListSectionProps {
+    loading: boolean;
+    invoices: ReturnType<typeof useInvoicesPage>['invoices'];
+    appliedQuery: string;
+    pagination: ReactNode;
+    actions: Omit<Parameters<typeof InvoicesList>[0], 'invoices'>;
+}
+
+const InvoicesListSection = ({ loading, invoices, appliedQuery, pagination, actions }: InvoicesListSectionProps) => {
+    if (loading) return <ListSkeleton rows={4} height={104} />;
+    if (invoices.length === 0) {
+        return (
+            <StateView
+                className={s.empty}
+                title={appliedQuery ? 'По вашему запросу ничего не найдено' : 'Инвойсов пока нет'}
+                text={appliedQuery
+                    ? 'Попробуйте изменить имя, email, номер или транзакцию.'
+                    : 'Создайте первый черновик, проверьте данные и затем выставьте инвойс.'}
+            />
+        );
+    }
+    return (
+        <>
+            {pagination}
+            <InvoicesList invoices={invoices} {...actions} />
+            {pagination}
+        </>
+    );
+};
+
 const InvoicesPage = memo(() => {
     const {
-        invoices,
-        loading,
-        modalOpen,
-        paidMode,
-        editInvoice,
-        status,
-        setStatus,
-        query,
-        setQuery,
-        appliedQuery,
-        page,
-        setPage,
-        total,
-        totalPages,
-        previewUrl,
-        previewNumber,
-        activeAction,
-        setActiveAction,
-        fetchInvoices,
-        updateStatus,
-        handleActionConfirm,
-        createMolliePaymentLink,
-        previewPdf,
-        downloadPdf,
-        closePreview,
-        sendEmail,
-        closeModal,
-        applySearch,
-        resetSearch,
-        openCreateModal,
-        openEditModal,
+        invoices, loading, modalOpen, paidMode, editInvoice, status, setStatus,
+        query, setQuery, appliedQuery, page, setPage, total, totalPages,
+        previewUrl, previewNumber, activeAction, setActiveAction, fetchInvoices, updateStatus,
+        handleActionConfirm, createMolliePaymentLink, previewPdf, downloadPdf, closePreview,
+        sendEmail, closeModal, applySearch, resetSearch, openCreateModal, openEditModal,
     } = useInvoicesPage();
 
     const pagination = (
@@ -123,47 +127,22 @@ const InvoicesPage = memo(() => {
     return (
         <Page>
             <InvoicesPageToolbar
-                query={query}
-                appliedQuery={appliedQuery}
-                status={status}
-                onQueryChange={setQuery}
-                onApplySearch={applySearch}
-                onResetSearch={resetSearch}
-                onStatusChange={(value) => { setPage(1); setStatus(value); }}
-                onOpenCreateModal={openCreateModal}
+                query={query} appliedQuery={appliedQuery} status={status}
+                onQueryChange={setQuery} onApplySearch={applySearch} onResetSearch={resetSearch}
+                onStatusChange={(value) => { setPage(1); setStatus(value); }} onOpenCreateModal={openCreateModal}
             />
 
-            {loading ? (
-                <ListSkeleton rows={4} height={104} />
-            ) : invoices.length === 0 ? (
-                <StateView
-                    className={s.empty}
-                    title={appliedQuery ? 'По вашему запросу ничего не найдено' : 'Инвойсов пока нет'}
-                    text={appliedQuery
-                        ? 'Попробуйте изменить имя, email, номер или транзакцию.'
-                        : 'Создайте первый черновик, проверьте данные и затем выставьте инвойс.'}
-                />
-            ) : (
-                <>
-                    {pagination}
-                    <InvoicesList invoices={invoices} {...actions} />
-                    {pagination}
-                </>
-            )}
+            <InvoicesListSection
+                loading={loading} invoices={invoices} appliedQuery={appliedQuery}
+                pagination={pagination} actions={actions}
+            />
 
             <CreateInvoiceModal
-                isOpen={modalOpen}
-                onClose={closeModal}
-                onSaved={fetchInvoices}
-                editInvoice={editInvoice}
-                paidMode={paidMode}
+                isOpen={modalOpen} onClose={closeModal} onSaved={fetchInvoices}
+                editInvoice={editInvoice} paidMode={paidMode}
             />
 
-            <InvoiceActionModal
-                action={activeAction}
-                onConfirm={handleActionConfirm}
-                onClose={() => setActiveAction(null)}
-            />
+            <InvoiceActionModal action={activeAction} onConfirm={handleActionConfirm} onClose={() => setActiveAction(null)} />
 
             <PdfPreviewModal previewUrl={previewUrl} previewNumber={previewNumber} onClose={closePreview} />
         </Page>

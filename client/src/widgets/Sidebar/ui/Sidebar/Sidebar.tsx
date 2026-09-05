@@ -54,11 +54,7 @@ export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarPr
 
             <div
                 data-testid="sidebar"
-                className={classNames(
-                    cls.Sidebar,
-                    { [cls.collapsed]: collapsed, [cls.mobileOpen]: !!mobileOpen },
-                    [className],
-                )}
+                className={classNames(cls.Sidebar, { [cls.collapsed]: collapsed, [cls.mobileOpen]: !!mobileOpen }, [className])}
             >
                 {/* Mobile close button */}
                 <button className={cls.mobileClose} onClick={onMobileClose} aria-label="Закрыть">
@@ -66,30 +62,20 @@ export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarPr
                 </button>
 
                 <Button
-                    data-testid="sidebar-toggle"
-                    onClick={onToggle}
-                    className={cls.collapseBtn}
-                    theme={ButtonTheme.BACKGROUND_INVERTED}
-                    size={ButtonSize.L}
-                    square
+                    data-testid="sidebar-toggle" onClick={onToggle} className={cls.collapseBtn}
+                    theme={ButtonTheme.BACKGROUND_INVERTED} size={ButtonSize.L} square
                 >
                     {collapsed ? '›' : '‹'}
                 </Button>
 
                 <div className={cls.items}>
                     <SidebarItemsSection
-                        title={t('Навигация')}
-                        items={mainItems}
-                        collapsed={collapsed}
-                        openGroup={openGroup}
-                        onGroupToggle={onGroupToggle}
+                        title={t('Навигация')} items={mainItems} collapsed={collapsed}
+                        openGroup={openGroup} onGroupToggle={onGroupToggle}
                     />
                     <SidebarItemsSection
-                        title={t('CRM разделы')}
-                        items={crmItems}
-                        collapsed={collapsed}
-                        openGroup={openGroup}
-                        onGroupToggle={onGroupToggle}
+                        title={t('CRM разделы')} items={crmItems} collapsed={collapsed}
+                        openGroup={openGroup} onGroupToggle={onGroupToggle}
                     />
                 </div>
             </div>

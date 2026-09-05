@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { GlobalSearchResponse, SearchCategoryKey } from '../../model/types/globalSearch';
-import { FlatResult } from './GlobalSearch';
+import { FlatResult } from './globalSearchResults';
 import cls from './GlobalSearch.module.scss';
 
 const CATEGORY_LABELS: Record<SearchCategoryKey, string> = {

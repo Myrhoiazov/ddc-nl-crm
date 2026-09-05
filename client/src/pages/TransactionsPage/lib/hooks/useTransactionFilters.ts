@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux';
 import { useCallback } from 'react';
+import { ActionCreatorWithPayload } from '@reduxjs/toolkit';
 import {
     getTransactionPageMonth,
     getTransactionPageOrder,
@@ -9,12 +10,26 @@ import {
 } from '../../model/selectors/transactionPageSelectors';
 import { useDebounce } from '@/shared/lib/hooks/useDebounce/useDebounce';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
+import { AppDispatch } from '@/app/providers/StoreProvider';
 import { SortOrder } from '@/shared/types/sort';
 import { TransactionType } from '@/entities/TransactionType';
 import { TransactionSortField } from '@/entities/Transaction';
 import { fetchTransactionsList } from '../../model/services/fetchTransactionsList/fetchTransactionsList';
 import { transactionsPageActions } from '../../model/slices/transactionsPageSlice';
 import { Month } from '@/entities/Month';
+
+// Every filter change follows the same shape: set the field, reset to page 1,
+// re-fetch. Only the action creator (and, for search, the debounce) differs.
+const applyFilterChange = <T,>(
+    dispatch: AppDispatch,
+    fetchData: () => void,
+    setAction: ActionCreatorWithPayload<T>,
+    value: T,
+) => {
+    dispatch(setAction(value));
+    dispatch(transactionsPageActions.setPage(1));
+    fetchData();
+};
 
 export function useTransactionFilters() {
     const search = useSelector(getTransactionPageSearch);
@@ -31,50 +46,25 @@ export function useTransactionFilters() {
 
     const debouncedFetchData = useDebounce(fetchData, 500);
 
-    const onChangeSearch = useCallback(
-        (search: string) => {
-            dispatch(transactionsPageActions.setSearch(search));
-            dispatch(transactionsPageActions.setPage(1));
-            debouncedFetchData();
-        },
-        [dispatch, debouncedFetchData],
-    );
+    const onChangeSearch = useCallback((value: string) => (
+        applyFilterChange(dispatch, debouncedFetchData, transactionsPageActions.setSearch, value)
+    ), [dispatch, debouncedFetchData]);
 
-    const onChangeSort = useCallback(
-        (newSort: TransactionSortField) => {
-            dispatch(transactionsPageActions.setSort(newSort));
-            dispatch(transactionsPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeSort = useCallback((value: TransactionSortField) => (
+        applyFilterChange(dispatch, fetchData, transactionsPageActions.setSort, value)
+    ), [dispatch, fetchData]);
 
-    const onChangeMonth = useCallback(
-        (newMonth: Month) => {
-            dispatch(transactionsPageActions.setMonth(newMonth));
-            dispatch(transactionsPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeMonth = useCallback((value: Month) => (
+        applyFilterChange(dispatch, fetchData, transactionsPageActions.setMonth, value)
+    ), [dispatch, fetchData]);
 
-    const onChangeOrder = useCallback(
-        (newOrder: SortOrder) => {
-            dispatch(transactionsPageActions.setOrder(newOrder));
-            dispatch(transactionsPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeOrder = useCallback((value: SortOrder) => (
+        applyFilterChange(dispatch, fetchData, transactionsPageActions.setOrder, value)
+    ), [dispatch, fetchData]);
 
-    const onChangeType = useCallback(
-        (value: TransactionType) => {
-            dispatch(transactionsPageActions.setType(value));
-            dispatch(transactionsPageActions.setPage(1));
-            fetchData();
-        },
-        [dispatch, fetchData],
-    );
+    const onChangeType = useCallback((value: TransactionType) => (
+        applyFilterChange(dispatch, fetchData, transactionsPageActions.setType, value)
+    ), [dispatch, fetchData]);
 
     return {
         search,
@@ -86,6 +76,6 @@ export function useTransactionFilters() {
         onChangeOrder,
         onChangeSort,
         onChangeType,
-        onChangeMonth
+        onChangeMonth,
     };
 }

@@ -49,15 +49,9 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
 
     const pagination = (
         <MollieCustomersPagination
-            isLoading={isLoading}
-            error={error}
-            total={total}
-            page={page}
-            totalPages={totalPages}
-            firstItemNumber={firstItemNumber}
-            lastItemNumber={lastItemNumber}
-            onPrevious={onPreviousPage}
-            onNext={onNextPage}
+            isLoading={isLoading} error={error} total={total} page={page} totalPages={totalPages}
+            firstItemNumber={firstItemNumber} lastItemNumber={lastItemNumber}
+            onPrevious={onPreviousPage} onNext={onNextPage}
         />
     );
 
@@ -66,25 +60,16 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
             <div className={classNames(s.MollieCustomers, {}, [className])}>
                 <MollieCustomersHeader onExportActiveSubscriptions={onExportActiveSubscriptions} fetchAllClients={fetchAllClients} />
                 <MollieCustomersFiltersBar
-                    filters={filtersHook.filters}
-                    isLoading={isLoading}
-                    onSearch={filtersHook.onChangeSearch}
-                    onSubscriptionStatus={filtersHook.onChangeSubscriptionStatus}
-                    onHasSubscriptions={filtersHook.onChangeHasSubscriptions}
-                    onHasMandates={filtersHook.onChangeHasMandates}
-                    onApply={onApplyFilters}
-                    onReset={onResetFilters}
+                    filters={filtersHook.filters} isLoading={isLoading}
+                    onSearch={filtersHook.onChangeSearch} onSubscriptionStatus={filtersHook.onChangeSubscriptionStatus}
+                    onHasSubscriptions={filtersHook.onChangeHasSubscriptions} onHasMandates={filtersHook.onChangeHasMandates}
+                    onApply={onApplyFilters} onReset={onResetFilters}
                 />
                 {pagination}
                 <MollieClientList
-                    isLoading={isLoading}
-                    error={error}
-                    clients={mollieClients}
+                    isLoading={isLoading} error={error} clients={mollieClients}
                     renderAction={(client: MollieClient) => (
-                        <EditMollieClientDropdown
-                            clientId={client.id ?? ''}
-                            reloadPage={fetchAllClients}
-                        />
+                        <EditMollieClientDropdown clientId={client.id ?? ''} reloadPage={fetchAllClients} />
                     )}
                 />
                 {pagination}
