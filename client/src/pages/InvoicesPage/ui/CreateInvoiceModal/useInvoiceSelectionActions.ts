@@ -2,10 +2,18 @@ import { useCallback } from 'react';
 import { InvoiceBranch, InvoiceBusinessBrand, InvoiceClient, InvoiceGroup } from '../../model/types';
 import { branchAddress, brandAddress, type FormItem, type useInvoiceFormState } from './useCreateInvoiceModal';
 
-export const useInvoiceSelectionActions = (
-    formState: ReturnType<typeof useInvoiceFormState>, updateItem: (index: number, patch: Partial<FormItem>) => void,
-    clients: InvoiceClient[], groups: InvoiceGroup[], brands: InvoiceBusinessBrand[], branches: InvoiceBranch[],
-) => {
+export interface InvoiceSelectionActionsParams {
+    formState: ReturnType<typeof useInvoiceFormState>;
+    updateItem: (index: number, patch: Partial<FormItem>) => void;
+    clients: InvoiceClient[];
+    groups: InvoiceGroup[];
+    brands: InvoiceBusinessBrand[];
+    branches: InvoiceBranch[];
+}
+
+export const useInvoiceSelectionActions = ({
+    formState, updateItem, clients, groups, brands, branches,
+}: InvoiceSelectionActionsParams) => {
     const selectClient = useCallback((value: string) => {
         formState.setClientId(value);
         const client = clients.find((item) => item.id === Number(value));
