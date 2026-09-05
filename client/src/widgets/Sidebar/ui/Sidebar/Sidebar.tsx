@@ -14,25 +14,36 @@ interface SidebarProps {
     onMobileClose?: () => void;
 }
 
+const SidebarItemsSection = ({ title, items, collapsed, openGroup, onGroupToggle }: {
+    title?: string;
+    items: SidebarItemType[];
+    collapsed: boolean;
+    openGroup: string | null;
+    onGroupToggle: (text: string) => void;
+}) => (
+    <>
+        {!collapsed && title && <div className={cls.sectionTitle}>{title}</div>}
+        {items.map((item) =>
+            item.children?.length ? (
+                <SidebarItemGroup
+                    item={item}
+                    key={item.text}
+                    collapsed={collapsed}
+                    isOpen={openGroup === item.text}
+                    onToggle={onGroupToggle}
+                />
+            ) : (
+                <SidebarItem item={item} key={item.text} collapsed={collapsed} />
+            ),
+        )}
+    </>
+);
+
 export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarProps) => {
     const { t } = useTranslation();
     const { collapsed, openGroup, mainItems, crmItems, onToggle, onGroupToggle } = useSidebarState({
         onMobileClose,
     });
-
-    const renderItems = (items: SidebarItemType[]) => items.map((item) =>
-        item.children?.length ? (
-            <SidebarItemGroup
-                item={item}
-                key={item.text}
-                collapsed={collapsed}
-                isOpen={openGroup === item.text}
-                onToggle={onGroupToggle}
-            />
-        ) : (
-            <SidebarItem item={item} key={item.text} collapsed={collapsed} />
-        ),
-    );
 
     return (
         <>
@@ -66,10 +77,20 @@ export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarPr
                 </Button>
 
                 <div className={cls.items}>
-                    {!collapsed && <div className={cls.sectionTitle}>{t('Навигация')}</div>}
-                    {renderItems(mainItems)}
-                    {!collapsed && <div className={cls.sectionTitle}>{t('CRM разделы')}</div>}
-                    {renderItems(crmItems)}
+                    <SidebarItemsSection
+                        title={t('Навигация')}
+                        items={mainItems}
+                        collapsed={collapsed}
+                        openGroup={openGroup}
+                        onGroupToggle={onGroupToggle}
+                    />
+                    <SidebarItemsSection
+                        title={t('CRM разделы')}
+                        items={crmItems}
+                        collapsed={collapsed}
+                        openGroup={openGroup}
+                        onGroupToggle={onGroupToggle}
+                    />
                 </div>
             </div>
         </>

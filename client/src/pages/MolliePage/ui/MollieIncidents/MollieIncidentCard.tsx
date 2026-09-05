@@ -87,82 +87,109 @@ interface MollieIncidentCardProps {
     onResolve: (incident: MollieIncident) => void;
 }
 
-export const MollieIncidentCard = memo(({ incident, isResolving, onResolve }: MollieIncidentCardProps) => {
+const IncidentSummary = ({ incident }: { incident: MollieIncident }) => (
+    <div className={s.mainInfo}>
+        <HStack gap="8" align="center">
+            <span className={`${s.badge} ${s[incident.type]}`}>{incident.type}</span>
+            <span className={`${s.status} ${s[incident.severity]}`}>{incident.status}</span>
+        </HStack>
+        <Text title={incident.title} size="s" bold />
+        <Text text={incident.description || getIncidentHint(incident)} size="s" className={s.mutedText} />
+    </div>
+);
+
+const IncidentClientInfo = ({ incident }: { incident: MollieIncident }) => {
     const { t } = useTranslation();
     const studentLinks = getStudentLinks(incident.customer);
 
     return (
+        <div className={s.clientInfo}>
+            <Text text="Плательщик / ученик" size="s" className={s.label} />
+            {incident.customer?.id ? (
+                <Link className={s.link} to={`/mollie/customers/${incident.customer.id}`}>
+                    {getCustomerName(incident.customer)}
+                </Link>
+            ) : (
+                <Text text={getCustomerName(incident.customer)} bold />
+            )}
+            <Text text={incident.customer?.email || incident.customer?.mollieId || '—'} size="s" className={s.mutedText} />
+            {studentLinks.length ? (
+                <div className={s.studentLinks}>
+                    {studentLinks.map((link) => (
+                        link.client?.id ? (
+                            <Link className={s.crmLink} to={`/clients/${link.client.id}`} key={link.id}>
+                                {t('Ученик: {{name}}', { name: [link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email || `#${link.client.id}` })}
+                            </Link>
+                        ) : null
+                    ))}
+                </div>
+            ) : (
+                <Text text={getCrmClientName(incident.customer)} size="s" className={s.mutedText} />
+            )}
+        </div>
+    );
+};
+
+const IncidentField = ({ label, value }: { label: string; value: string }) => (
+    <div>
+        <Text text={label} size="s" className={s.label} />
+        <Text text={value} bold />
+    </div>
+);
+
+const IncidentActions = ({
+    incident,
+    isResolving,
+    onResolve,
+}: {
+    incident: MollieIncident;
+    isResolving: boolean;
+    onResolve: (incident: MollieIncident) => void;
+}) => {
+    const { t } = useTranslation();
+    const studentLinks = getStudentLinks(incident.customer);
+
+    return (
+        <div className={s.actions}>
+            <Button
+                className={s.resolveButton}
+                theme={ButtonTheme.OUTLINE}
+                disabled={isResolving}
+                onClick={() => onResolve(incident)}
+            >
+                {isResolving ? 'Сохраняем...' : 'Пометить решённым'}
+            </Button>
+            {incident.customer?.id && (
+                <Link className={s.actionLink} to={`/mollie/customers/${incident.customer.id}`}>
+                    {t('Открыть клиента')}
+                </Link>
+            )}
+            {incident.type === 'payment' && (
+                <Link className={s.actionLink} to="/mollie/payments">
+                    {t('Все платежи')}
+                </Link>
+            )}
+            {studentLinks[0]?.client?.id && (
+                <Link className={s.actionLink} to={`/clients/${studentLinks[0].client?.id}`}>
+                    {t('Открыть ученика')}
+                </Link>
+            )}
+        </div>
+    );
+};
+
+export const MollieIncidentCard = memo(({ incident, isResolving, onResolve }: MollieIncidentCardProps) => {
+    return (
         <Card padding="16" fullWidth className={`${s.incidentCard} ${s[incident.severity]}`}>
             <div className={s.incidentGrid}>
-                <div className={s.mainInfo}>
-                    <HStack gap="8" align="center">
-                        <span className={`${s.badge} ${s[incident.type]}`}>{incident.type}</span>
-                        <span className={`${s.status} ${s[incident.severity]}`}>{incident.status}</span>
-                    </HStack>
-                    <Text title={incident.title} size="s" bold />
-                    <Text text={incident.description || getIncidentHint(incident)} size="s" className={s.mutedText} />
-                </div>
+                <IncidentSummary incident={incident} />
+                <IncidentClientInfo incident={incident} />
 
-                <div className={s.clientInfo}>
-                    <Text text="Плательщик / ученик" size="s" className={s.label} />
-                    {incident.customer?.id ? (
-                        <Link className={s.link} to={`/mollie/customers/${incident.customer.id}`}>
-                            {getCustomerName(incident.customer)}
-                        </Link>
-                    ) : (
-                        <Text text={getCustomerName(incident.customer)} bold />
-                    )}
-                    <Text text={incident.customer?.email || incident.customer?.mollieId || '—'} size="s" className={s.mutedText} />
-                    {studentLinks.length ? (
-                        <div className={s.studentLinks}>
-                            {studentLinks.map((link) => (
-                                link.client?.id ? (
-                                    <Link className={s.crmLink} to={`/clients/${link.client.id}`} key={link.id}>
-                                        {t('Ученик: {{name}}', { name: [link.client.firstName, link.client.lastName].filter(Boolean).join(' ') || link.client.email || `#${link.client.id}` })}
-                                    </Link>
-                                ) : null
-                            ))}
-                        </div>
-                    ) : (
-                        <Text text={getCrmClientName(incident.customer)} size="s" className={s.mutedText} />
-                    )}
-                </div>
+                <IncidentField label="Сумма" value={formatAmount(incident)} />
 
-                <div>
-                    <Text text="Сумма" size="s" className={s.label} />
-                    <Text text={formatAmount(incident)} bold />
-                </div>
+                <IncidentField label="Дата" value={formatDate(incident.updatedAt || incident.createdAt)} />
 
-                <div>
-                    <Text text="Дата" size="s" className={s.label} />
-                    <Text text={formatDate(incident.updatedAt || incident.createdAt)} bold />
-                </div>
-
-                <div className={s.actions}>
-                    <Button
-                        className={s.resolveButton}
-                        theme={ButtonTheme.OUTLINE}
-                        disabled={isResolving}
-                        onClick={() => onResolve(incident)}
-                    >
-                        {isResolving ? 'Сохраняем...' : 'Пометить решённым'}
-                    </Button>
-                    {incident.customer?.id && (
-                        <Link className={s.actionLink} to={`/mollie/customers/${incident.customer.id}`}>
-                            {t('Открыть клиента')}
-                        </Link>
-                    )}
-                    {incident.type === 'payment' && (
-                        <Link className={s.actionLink} to="/mollie/payments">
-                            {t('Все платежи')}
-                        </Link>
-                    )}
-                    {studentLinks[0]?.client?.id && (
-                        <Link className={s.actionLink} to={`/clients/${studentLinks[0].client?.id}`}>
-                            {t('Открыть ученика')}
-                        </Link>
-                    )}
-                </div>
+                <IncidentActions incident={incident} isResolving={isResolving} onResolve={onResolve} />
             </div>
         </Card>
     );

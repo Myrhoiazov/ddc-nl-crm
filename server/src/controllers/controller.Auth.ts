@@ -118,6 +118,76 @@ const issueSession = async (
     return userData;
 };
 
+const authenticateUser = async (
+    email: string,
+    password: string,
+    req: Request,
+): Promise<{ user: AuthenticatedUser; passwordCheck: Awaited<ReturnType<typeof verifyPassword>> }> => {
+    const user = await getUserByEmail(email);
+    const passwordCheck = user
+        ? await verifyPassword(user.password, user.salt, password)
+        : await verifyPassword(
+            '$argon2id$v=19$m=19456,t=2,p=1$vPHHlsWpDNP/baAJNAfHYw$NPtVAuSXsZ1Yyv8+3ZqVH2pLxb41tRaWkSQ8n388gXo',
+            null,
+            password,
+        );
+
+    if (!user || !passwordCheck.valid || !user.isEnabled) {
+        await recordAuthSecurityEvent({
+            type: AuthSecurityEventType.LOGIN_FAILED,
+            ...describeLoginFailure(user),
+            req,
+            metadata: {
+                email,
+                reason: describeLoginFailure(user).reason,
+            },
+        });
+        throw new ApiError(401, 'Неверный email или пароль');
+    }
+
+    return { user, passwordCheck };
+};
+
+const startAuthenticatedSession = async (
+    user: AuthenticatedUser,
+    req: Request,
+    res: Response,
+    options: { passwordHashUpgraded: boolean; twoFactor: 'SKIPPED_TRUSTED_DEVICE' | 'SKIPPED_DEV_MODE' },
+) => {
+    const userData = await issueSession(user, req, res, options);
+    return res.status(200).json(userData);
+};
+
+const requestTwoFactor = async (user: AuthenticatedUser, req: Request, res: Response) => {
+    let challenge;
+    try {
+        challenge = await createTwoFactorChallenge({
+            userId: user.id,
+            email: user.email,
+            ipAddress: req.ip,
+            userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
+        });
+    } catch (sendError) {
+        logger.error(`Failed to send 2FA code to user ${user.id}: ${sendError}`);
+        throw new ApiError(503, 'Не удалось отправить код подтверждения. Попробуйте позже.');
+    }
+
+    res.cookie(TWO_FACTOR_PENDING_COOKIE, challenge.rawToken, twoFactorPendingCookieOptions);
+
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.TWO_FACTOR_REQUIRED,
+        actorUserId: user.id,
+        targetUserId: user.id,
+        req,
+        metadata: { channel: 'EMAIL' },
+    });
+
+    return res.status(200).json({
+        requiresTwoFactor: true,
+        maskedEmail: maskEmail(user.email),
+    });
+};
+
 export const login = async (req: Request<{}, {}, loginType>, res: Response, next: NextFunction) => {
     const email = req.body.email.trim().toLowerCase();
     const { password } = req.body;
@@ -127,27 +197,7 @@ export const login = async (req: Request<{}, {}, loginType>, res: Response, next
     }
 
     try {
-        const user = await getUserByEmail(email);
-        const passwordCheck = user
-            ? await verifyPassword(user.password, user.salt, password)
-            : await verifyPassword(
-                '$argon2id$v=19$m=19456,t=2,p=1$vPHHlsWpDNP/baAJNAfHYw$NPtVAuSXsZ1Yyv8+3ZqVH2pLxb41tRaWkSQ8n388gXo',
-                null,
-                password,
-            );
-
-        if (!user || !passwordCheck.valid || !user.isEnabled) {
-            await recordAuthSecurityEvent({
-                type: AuthSecurityEventType.LOGIN_FAILED,
-                ...describeLoginFailure(user),
-                req,
-                metadata: {
-                    email,
-                    reason: describeLoginFailure(user).reason,
-                },
-            });
-            throw new ApiError(401, 'Неверный email или пароль');
-        }
+        const { user, passwordCheck } = await authenticateUser(email, password, req);
 
         if (passwordCheck.needsUpgrade) {
             await upgradeUserPasswordHash(user.id, await hashPassword(password));
@@ -160,40 +210,13 @@ export const login = async (req: Request<{}, {}, loginType>, res: Response, next
         const isLocalDev = process.env.MODE === 'development';
 
         if (hasTrustedDevice || isLocalDev) {
-            const userData = await issueSession(user, req, res, {
+            return startAuthenticatedSession(user, req, res, {
                 passwordHashUpgraded: passwordCheck.needsUpgrade,
                 twoFactor: hasTrustedDevice ? 'SKIPPED_TRUSTED_DEVICE' : 'SKIPPED_DEV_MODE',
             });
-            return res.status(200).json(userData);
         }
 
-        let challenge;
-        try {
-            challenge = await createTwoFactorChallenge({
-                userId: user.id,
-                email: user.email,
-                ipAddress: req.ip,
-                userAgent: typeof req.headers['user-agent'] === 'string' ? req.headers['user-agent'] : null,
-            });
-        } catch (sendError) {
-            logger.error(`Failed to send 2FA code to user ${user.id}: ${sendError}`);
-            throw new ApiError(503, 'Не удалось отправить код подтверждения. Попробуйте позже.');
-        }
-
-        res.cookie(TWO_FACTOR_PENDING_COOKIE, challenge.rawToken, twoFactorPendingCookieOptions);
-
-        await recordAuthSecurityEvent({
-            type: AuthSecurityEventType.TWO_FACTOR_REQUIRED,
-            actorUserId: user.id,
-            targetUserId: user.id,
-            req,
-            metadata: { channel: 'EMAIL' },
-        });
-
-        return res.status(200).json({
-            requiresTwoFactor: true,
-            maskedEmail: maskEmail(user.email),
-        });
+        return requestTwoFactor(user, req, res);
     } catch (error) {
         console.error('Login error:', error);
         next(error)

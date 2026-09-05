@@ -31,9 +31,22 @@ const initialReducers: ReducersList = {
     addTransactionForm: addTransactionFormReducer,
 };
 
+const AddTransactionFormTitle = () => {
+    const { t } = useTranslation();
+    return <Text size="m" title={t('Добавление прихода - расхода')} bold />;
+};
+
+const AddTransactionFormFooter = ({ onSave }: { onSave: () => void }) => {
+    const { t } = useTranslation();
+    return (
+        <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
+            {t('Добавить')}
+        </Button>
+    );
+};
+
 const AddTransactionForm = memo((props: AddTransactionFormProps) => {
     const { className, onSuccess, reloadPage } = props;
-    const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const formData = useSelector(getTransactionFormData);
 
@@ -92,7 +105,7 @@ const AddTransactionForm = memo((props: AddTransactionFormProps) => {
         <DynamicModuleLoader reducers={initialReducers}>
             <div className={classNames('', {}, [className])}>
                 <VStack gap="24" align="center">
-                    <Text size="m" title={t('Добавление прихода - расхода')} bold />
+                    <AddTransactionFormTitle />
                     <TransactionCard
                         data={formData}
                         onChangeTransactionType={onChangeTransactionType}
@@ -102,9 +115,7 @@ const AddTransactionForm = memo((props: AddTransactionFormProps) => {
                         onChangePaymentMethod={onChangePaymentMethod}
                         onChangeTransactionCategory={onChangeTransactionCategory}
                     />
-                    <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
-                        {t('Добавить')}
-                    </Button>
+                    <AddTransactionFormFooter onSave={onSave} />
                 </VStack>
             </div>
         </DynamicModuleLoader>

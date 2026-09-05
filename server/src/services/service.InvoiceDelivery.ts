@@ -124,15 +124,7 @@ const buildEmailHtml = (
     </div>
 `;
 
-export const sendInvoiceEmail = async ({
-    invoiceId,
-    type,
-    actorId,
-}: {
-    invoiceId: number;
-    type: InvoiceDeliveryType;
-    actorId?: number;
-}) => {
+const loadSendableInvoice = async (invoiceId: number) => {
     const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId },
         include: {
@@ -144,16 +136,21 @@ export const sendInvoiceEmail = async ({
     if (invoice.status === InvoiceStatus.DRAFT || invoice.status === InvoiceStatus.CANCELLED) {
         throw new Error('Draft or cancelled invoice cannot be sent');
     }
+    return invoice;
+};
 
+type SendableInvoice = Awaited<ReturnType<typeof loadSendableInvoice>>;
+
+const prepareEmailDelivery = async (invoice: SendableInvoice, type: InvoiceDeliveryType, actorId?: number) => {
     const subject = subjectFor(invoice.number, type);
     const publicToken = crypto.randomBytes(32).toString('hex');
     const { paymentUrl, emailPaymentUrl } = await resolvePaymentUrlsFor(invoice);
     const { text: bankTransferText, html: bankTransferHtml } = bankTransferInstructionsFor(invoice);
     const delivery = await prisma.invoiceDelivery.create({
         data: {
-            invoiceId,
+            invoiceId: invoice.id,
             type,
-            recipientEmail: invoice.billToEmail,
+            recipientEmail: invoice.billToEmail!,
             subject,
             publicToken,
             paymentUrl: emailPaymentUrl,
@@ -161,30 +158,46 @@ export const sendInvoiceEmail = async ({
         },
     });
     const viewUrl = `${publicApiUrl()}/invoices/public/${publicToken}`;
+    return { subject, paymentUrl, viewUrl, emailPaymentUrl, bankTransferText, bankTransferHtml, delivery };
+};
+
+const markDeliveryFailed = async (deliveryId: number, error: unknown) => prisma.invoiceDelivery.update({
+    where: { id: deliveryId },
+    data: {
+        status: InvoiceDeliveryStatus.FAILED,
+        errorMessage: error instanceof Error ? error.message : String(error),
+    },
+});
+
+export const sendInvoiceEmail = async ({
+    invoiceId,
+    type,
+    actorId,
+}: {
+    invoiceId: number;
+    type: InvoiceDeliveryType;
+    actorId?: number;
+}) => {
+    const invoice = await loadSendableInvoice(invoiceId);
+    const prepared = await prepareEmailDelivery(invoice, type, actorId);
 
     try {
-        const attachment = await pdfBuffer({ ...invoice, paymentUrl });
+        const attachment = await pdfBuffer({ ...invoice, paymentUrl: prepared.paymentUrl });
         const transporter = createTransport();
         await transporter.sendMail({
             from: process.env.SMTP_FROM ?? process.env.SMTP_USER,
-            to: invoice.billToEmail,
-            subject,
-            text: buildEmailText(invoice, subject, viewUrl, emailPaymentUrl, bankTransferText),
-            html: buildEmailHtml(invoice, subject, viewUrl, emailPaymentUrl, bankTransferHtml),
+            to: invoice.billToEmail!,
+            subject: prepared.subject,
+            text: buildEmailText(invoice, prepared.subject, prepared.viewUrl, prepared.emailPaymentUrl, prepared.bankTransferText),
+            html: buildEmailHtml(invoice, prepared.subject, prepared.viewUrl, prepared.emailPaymentUrl, prepared.bankTransferHtml),
             attachments: [{ filename: `${invoice.number}.pdf`, content: attachment, contentType: 'application/pdf' }],
         });
         return prisma.invoiceDelivery.update({
-            where: { id: delivery.id },
+            where: { id: prepared.delivery.id },
             data: { status: InvoiceDeliveryStatus.SENT, sentAt: new Date() },
         });
     } catch (error) {
-        await prisma.invoiceDelivery.update({
-            where: { id: delivery.id },
-            data: {
-                status: InvoiceDeliveryStatus.FAILED,
-                errorMessage: error instanceof Error ? error.message : String(error),
-            },
-        });
+        await markDeliveryFailed(prepared.delivery.id, error);
         throw error;
     }
 };

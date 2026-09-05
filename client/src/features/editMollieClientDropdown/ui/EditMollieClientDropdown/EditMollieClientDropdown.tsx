@@ -34,16 +34,16 @@ export const EditMollieClientDropdown = memo((props: EditClientDropdownProps) =>
             reloadPage?.();
             toast.info('Клиент успешно удален');
         }
-    }, [dispatch]);
+    }, [dispatch, clientId, reloadPage]);
 
     const setIsModalOpenHandle = useCallback(async () => {
         setIsModalOpen(true);
         dispatch(fetchMollieClientData(clientId));
-    }, [dispatch]);
+    }, [dispatch, clientId]);
 
     const setIsModalCloseHandle = useCallback(async () => {
         setIsModalOpen(false);
-    }, [dispatch]);
+    }, []);
 
     const items = [
         {

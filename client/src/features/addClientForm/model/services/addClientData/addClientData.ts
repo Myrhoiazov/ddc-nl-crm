@@ -10,20 +10,7 @@ interface ThunkArg {
     groupIds?: number[];
 }
 
-export const addClientData = createAsyncThunk<Client, ThunkArg, ThunkConfig<string>>('client/addClientData', async ({
-    file,
-    mollieCustomerId,
-    payerRelation,
-    groupIds = [],
-}, thunkApi) => {
-    const { extra, rejectWithValue, getState } = thunkApi;
-
-    const clientForm = getAddClientForm(getState());
-
-    if (!clientForm) {
-        return rejectWithValue('Форма клиента не заполнена');
-    }
-
+const buildFormData = (clientForm: Client, { file, mollieCustomerId, payerRelation, groupIds = [] }: ThunkArg): FormData => {
     const formData = new FormData();
 
     const payload: Client = {
@@ -52,6 +39,25 @@ export const addClientData = createAsyncThunk<Client, ThunkArg, ThunkConfig<stri
         formData.append('payerRelation', payerRelation || 'unknown');
     }
     formData.append('groupIds', JSON.stringify(groupIds));
+
+    return formData;
+};
+
+export const addClientData = createAsyncThunk<Client, ThunkArg, ThunkConfig<string>>('client/addClientData', async ({
+    file,
+    mollieCustomerId,
+    payerRelation,
+    groupIds = [],
+}, thunkApi) => {
+    const { extra, rejectWithValue, getState } = thunkApi;
+
+    const clientForm = getAddClientForm(getState());
+
+    if (!clientForm) {
+        return rejectWithValue('Форма клиента не заполнена');
+    }
+
+    const formData = buildFormData(clientForm, { file, mollieCustomerId, payerRelation, groupIds });
 
     try {
         const response = await extra.apiPrivate.post<Client>('/clients', formData, {

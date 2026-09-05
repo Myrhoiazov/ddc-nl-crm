@@ -11,8 +11,50 @@ import { MolliePaymentsPagination } from './MolliePaymentsPagination';
 import { MolliePaymentsTable } from './MolliePaymentsTable';
 import s from './MolliePayments.module.scss';
 
-export const MolliePayments = memo(() => {
+const MolliePaymentsHeader = ({
+    problemCount,
+    isSyncing,
+    onExport,
+    onSyncPayments,
+}: {
+    problemCount: number;
+    isSyncing: boolean;
+    onExport: (problemsOnly: boolean) => void;
+    onSyncPayments: () => void;
+}) => {
     const { t } = useTranslation('home');
+    return (
+        <HStack max justify="between" align="center" gap="16" className={s.header}>
+            <div>
+                <Text title="Mollie Payments" size="m" bold />
+                <Text text={`Проблем на этой странице: ${problemCount}`} size="s" className={s.subtitle} />
+            </div>
+            <HStack gap="8" wrap="wrap" className={s.headerActions}>
+                <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(false)}>{t('Платежи CSV')}</Button>
+                <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(true)}>{t('Проблемы CSV')}</Button>
+                <Button className={s.compactButton} theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSyncPayments} disabled={isSyncing}>
+                    {isSyncing ? 'Sync...' : 'Sync'}
+                </Button>
+            </HStack>
+        </HStack>
+    );
+};
+
+const MolliePaymentsMessage = ({ title, text }: { title: string; text: string }) => (
+    <Card padding="24" fullWidth className={s.stateCard}>
+        <Text title={title} text={text} size="m" />
+    </Card>
+);
+
+const MolliePaymentsSkeleton = () => (
+    <VStack gap="16" max>
+        <Skeleton width="100%" height={72} border="14px" />
+        <Skeleton width="100%" height={72} border="14px" />
+        <Skeleton width="100%" height={72} border="14px" />
+    </VStack>
+);
+
+export const MolliePayments = memo(() => {
     const {
         filters,
         setFilters,
@@ -46,19 +88,12 @@ export const MolliePayments = memo(() => {
 
     return (
         <VStack gap="16" max className={s.MolliePayments}>
-            <HStack max justify="between" align="center" gap="16" className={s.header}>
-                <div>
-                    <Text title="Mollie Payments" size="m" bold />
-                    <Text text={`Проблем на этой странице: ${problemCount}`} size="s" className={s.subtitle} />
-                </div>
-                <HStack gap="8" wrap="wrap" className={s.headerActions}>
-                    <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(false)}>{t('Платежи CSV')}</Button>
-                    <Button className={s.compactButton} theme={ButtonTheme.OUTLINE} onClick={() => onExport(true)}>{t('Проблемы CSV')}</Button>
-                    <Button className={s.compactButton} theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onSyncPayments} disabled={isSyncing}>
-                        {isSyncing ? 'Sync...' : 'Sync'}
-                    </Button>
-                </HStack>
-            </HStack>
+            <MolliePaymentsHeader
+                problemCount={problemCount}
+                isSyncing={isSyncing}
+                onExport={onExport}
+                onSyncPayments={onSyncPayments}
+            />
             {syncMessage && <Text text={syncMessage} size="s" className={s.subtitle} />}
 
             <MolliePaymentsFilters
@@ -72,23 +107,19 @@ export const MolliePayments = memo(() => {
             {pagination}
 
             {error && (
-                <Card padding="24" fullWidth className={s.stateCard}>
-                    <Text title="Не удалось загрузить платежи" text="Проверьте сервер или попробуйте синхронизировать Mollie payments." size="m" />
-                </Card>
+                <MolliePaymentsMessage
+                    title="Не удалось загрузить платежи"
+                    text="Проверьте сервер или попробуйте синхронизировать Mollie payments."
+                />
             )}
 
-            {isLoading && !payments.length && (
-                <VStack gap="16" max>
-                    <Skeleton width="100%" height={72} border="14px" />
-                    <Skeleton width="100%" height={72} border="14px" />
-                    <Skeleton width="100%" height={72} border="14px" />
-                </VStack>
-            )}
+            {isLoading && !payments.length && <MolliePaymentsSkeleton />}
 
             {!isLoading && !error && !payments.length && (
-                <Card padding="24" fullWidth className={s.stateCard}>
-                    <Text title="Платежи не найдены" text="Нажмите Sync payments или измените фильтры." size="m" />
-                </Card>
+                <MolliePaymentsMessage
+                    title="Платежи не найдены"
+                    text="Нажмите Sync payments или измените фильтры."
+                />
             )}
 
             {!!payments.length && <MolliePaymentsTable payments={payments} />}

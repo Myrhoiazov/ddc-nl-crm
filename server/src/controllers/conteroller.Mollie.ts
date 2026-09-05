@@ -510,6 +510,47 @@ const markMollieEventFailed = async (eventId: number | null, err: unknown) => {
     });
 };
 
+const createMollieWebhookEvent = async (paymentId: string, payload: Prisma.InputJsonValue) => {
+    const payment = await mollieService.getPaymentById(paymentId);
+    const dedupeKey = buildMollieWebhookDedupeKey(payment);
+    const event = await prisma.mollieEvent.create({
+        data: {
+            molliePaymentId: paymentId,
+            payload,
+            dedupeKey,
+        },
+    });
+
+    return { payment, event };
+};
+
+const completeMollieWebhookEvent = async (
+    eventId: number,
+    payment: Awaited<ReturnType<typeof mollieService.getPaymentById>>,
+    invoicePaymentLink: Awaited<ReturnType<typeof findInvoicePaymentLinkByToken>>,
+) => {
+    await mollieSyncService.syncMolliePayment(payment, invoicePaymentLink?.invoiceId);
+    await markInvoicePaymentLinkPaid(invoicePaymentLink, payment);
+
+    const syncedPayment = await findSyncedPaymentForWebhook(payment.id);
+    const effectiveStatus = syncedPayment?.status ?? payment.status;
+
+    await prisma.mollieEvent.update({
+        where: { id: eventId },
+        data: {
+            paymentId: syncedPayment?.id ?? null,
+            paymentStatus: effectiveStatus,
+            processingStatus: 'processed',
+            processedAt: new Date(),
+        },
+    });
+
+    logWebhookOutcome(effectiveStatus, payment.id);
+    await notifyMolliePaymentIfLinked(syncedPayment, payment);
+
+    return effectiveStatus;
+};
+
 export const webhookMollieController = async (req: Request, res: Response) => {
     const paymentId = req.body.id;
 
@@ -521,36 +562,11 @@ export const webhookMollieController = async (req: Request, res: Response) => {
 
     try {
         const invoicePaymentLink = await findInvoicePaymentLinkByToken(req);
-        const payment = await mollieService.getPaymentById(paymentId);
-        const dedupeKey = buildMollieWebhookDedupeKey(payment);
-        const event = await prisma.mollieEvent.create({
-            data: {
-                molliePaymentId: paymentId,
-                payload: req.body,
-                dedupeKey,
-            },
-        });
+        const { payment, event } = await createMollieWebhookEvent(paymentId, req.body);
         eventId = event.id;
 
         console.log(`💡 Webhook received for payment ${payment.id} — status: ${payment.status}`);
-        await mollieSyncService.syncMolliePayment(payment, invoicePaymentLink?.invoiceId);
-        await markInvoicePaymentLinkPaid(invoicePaymentLink, payment);
-
-        const syncedPayment = await findSyncedPaymentForWebhook(payment.id);
-        const effectiveStatus = syncedPayment?.status ?? payment.status;
-
-        await prisma.mollieEvent.update({
-            where: { id: eventId },
-            data: {
-                paymentId: syncedPayment?.id ?? null,
-                paymentStatus: effectiveStatus,
-                processingStatus: 'processed',
-                processedAt: new Date(),
-            },
-        });
-
-        logWebhookOutcome(effectiveStatus, payment.id);
-        await notifyMolliePaymentIfLinked(syncedPayment, payment);
+        await completeMollieWebhookEvent(event.id, payment, invoicePaymentLink);
 
         return res.status(200).send('OK');
     } catch (err) {
@@ -654,6 +670,55 @@ const upsertMollieCustomer = (input: CustomerUpsertInput) => prisma.customer.ups
     },
 });
 
+const createCustomerRecord = async (input: {
+    email: string;
+    givenName: string;
+    familyName?: string | null;
+    payerName?: string;
+    payerRelation?: string;
+    clientId?: number | string | null;
+}) => {
+    const existing = await prisma.customer.findUnique({ where: { email: input.email } });
+
+    const explicitClientId = input.clientId ? Number(input.clientId) : null;
+    const { matchedClientId, linkSource } = await resolveCustomerLink(explicitClientId, input.email, existing);
+
+    const matchedClient = matchedClientId
+        ? await prisma.client.findUnique({ where: { id: matchedClientId }, select: { preferredLanguage: true } })
+        : null;
+    const locale = mapClientLanguageToMollieLocale(matchedClient?.preferredLanguage);
+
+    const mollieId = await ensureMollieCustomerId(
+        input.email,
+        `${input.givenName} ${input.familyName ?? ''}`.trim(),
+        locale,
+        existing?.mollieId,
+    );
+
+    if (!mollieId) {
+        return null;
+    }
+
+    const payerRelation = input.payerRelation ?? existing?.payerRelation ?? 'unknown';
+
+    const prismaCustomer = await upsertMollieCustomer({
+        email: input.email,
+        givenName: input.givenName,
+        familyName: input.familyName ?? null,
+        mollieId,
+        payerName: input.payerName ?? `${input.givenName} ${input.familyName ?? ''}`.trim(),
+        payerRelation,
+        linkSource,
+        clientId: matchedClientId,
+        locale,
+        existingPreferredLanguage: existing?.preferredLanguage,
+        seedPreferredLanguage: matchedClient?.preferredLanguage,
+    });
+    await upsertCustomerClientLink(prismaCustomer.id, matchedClientId, linkSource, payerRelation);
+
+    return prismaCustomer;
+};
+
 export const createCustomerController = async (req: Request<{}, {}, TCustomer>, res: Response) => {
 
     const { email, givenName, familyName, payerName, payerRelation, clientId } = req.body as TCustomer & {
@@ -667,42 +732,11 @@ export const createCustomerController = async (req: Request<{}, {}, TCustomer>, 
     }
 
     try {
+        const prismaCustomer = await createCustomerRecord({ email, givenName, familyName, payerName, payerRelation, clientId });
 
-        const existing = await prisma.customer.findUnique({ where: { email } });
-
-        const explicitClientId = clientId ? Number(clientId) : null;
-        const { matchedClientId, linkSource } = await resolveCustomerLink(explicitClientId, email, existing);
-
-        const matchedClient = matchedClientId
-            ? await prisma.client.findUnique({ where: { id: matchedClientId }, select: { preferredLanguage: true } })
-            : null;
-        const locale = mapClientLanguageToMollieLocale(matchedClient?.preferredLanguage);
-
-        const mollieId = await ensureMollieCustomerId(
-            email,
-            `${givenName} ${familyName ?? ''}`.trim(),
-            locale,
-            existing?.mollieId,
-        );
-
-        if (!mollieId) {
+        if (!prismaCustomer) {
             return res.status(502).json({ error: 'Mollie did not return customer id' });
         }
-
-        const prismaCustomer = await upsertMollieCustomer({
-            email,
-            givenName,
-            familyName: familyName ?? null,
-            mollieId,
-            payerName: payerName ?? `${givenName} ${familyName ?? ''}`.trim(),
-            payerRelation: payerRelation ?? existing?.payerRelation ?? 'unknown',
-            linkSource,
-            clientId: matchedClientId,
-            locale,
-            existingPreferredLanguage: existing?.preferredLanguage,
-            seedPreferredLanguage: matchedClient?.preferredLanguage,
-        });
-        await upsertCustomerClientLink(prismaCustomer.id, matchedClientId, linkSource, payerRelation ?? 'unknown');
 
         return res.status(200).json(prismaCustomer);
     } catch (error) {
@@ -1186,6 +1220,52 @@ const loadCustomerEvents = async (customerId: number) => prisma.mollieEvent.find
     take: 30,
 });
 
+const customerListInclude = {
+    mandates: {
+        select: {
+            id: true,
+            mollieId: true,
+            status: true,
+            method: true,
+        },
+    },
+    subscriptions: {
+        select: {
+            id: true,
+            mollieId: true,
+            status: true,
+            description: true,
+            nextPaymentDate: true,
+        },
+    },
+    client: {
+        select: customerClientSelect,
+    },
+    clientLinks: customerClientLinksSelect,
+} satisfies Prisma.CustomerInclude;
+
+type CustomerListFilters = {
+    search?: string;
+    hasSubscriptions?: string;
+    hasMandates?: string;
+    subscriptionStatus?: string;
+};
+
+const buildCustomerListWhere = (filters: CustomerListFilters): Prisma.CustomerWhereInput => {
+    const where: Prisma.CustomerWhereInput = {};
+
+    const or = customerSearchWhere(filters.search);
+    if (or) where.OR = or;
+
+    const subscriptionsFilter = resolveSubscriptionsFilter(filters.subscriptionStatus, filters.hasSubscriptions);
+    if (subscriptionsFilter) where.subscriptions = subscriptionsFilter;
+
+    const mandatesFilter = resolveMandatesFilter(filters.hasMandates);
+    if (mandatesFilter) where.mandates = mandatesFilter;
+
+    return where;
+};
+
 export const mollieGetCustomersController = async (req: Request, res: Response) => {
     try {
         const search = queryString(req.query._q)?.trim();
@@ -1194,42 +1274,11 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
         const subscriptionStatus = queryString(req.query.subscriptionStatus);
         const { page, limit, shouldPaginate } = parsePaginationParams(req);
 
-        const where: Prisma.CustomerWhereInput = {};
-
-        const or = customerSearchWhere(search);
-        if (or) where.OR = or;
-
-        const subscriptionsFilter = resolveSubscriptionsFilter(subscriptionStatus, hasSubscriptions);
-        if (subscriptionsFilter) where.subscriptions = subscriptionsFilter;
-
-        const mandatesFilter = resolveMandatesFilter(hasMandates);
-        if (mandatesFilter) where.mandates = mandatesFilter;
+        const where = buildCustomerListWhere({ search, hasSubscriptions, hasMandates, subscriptionStatus });
 
         const customersQuery = prisma.customer.findMany({
             where,
-            include: {
-                mandates: {
-                    select: {
-                        id: true,
-                        mollieId: true,
-                        status: true,
-                        method: true,
-                    },
-                },
-                subscriptions: {
-                    select: {
-                        id: true,
-                        mollieId: true,
-                        status: true,
-                        description: true,
-                        nextPaymentDate: true,
-                    },
-                },
-                client: {
-                    select: customerClientSelect,
-                },
-                clientLinks: customerClientLinksSelect,
-            },
+            include: customerListInclude,
             orderBy: {
                 updatedAt: 'desc',
             },
@@ -2103,67 +2152,73 @@ const loadCombinedIncidents = async (
     return { payments, subscriptions, customers };
 };
 
+const buildIncidentRequestContext = async (req: Request) => {
+    const search = queryString(req.query._q)?.trim();
+    const type = queryString(req.query.type) ?? 'all';
+    const page = Math.max(Number(queryString(req.query._page) ?? 1), 1);
+    const limit = Math.min(Math.max(Number(queryString(req.query._limit) ?? 25), 1), 100);
+    const resolvedIds = await loadIncidentResolvedIds();
+
+    const paymentWhere = buildPaymentIncidentWhere(search, resolvedIds.payment);
+    const subscriptionWhere = buildSubscriptionIncidentWhere(search, resolvedIds.subscription);
+    const customerWhere = buildCustomerIncidentWhere(search, resolvedIds.customer);
+
+    const counts = await Promise.all([
+        prisma.payment.count({ where: paymentWhere }),
+        prisma.subscription.count({ where: subscriptionWhere }),
+        prisma.customer.count({ where: customerWhere }),
+    ]);
+    const totals = incidentTotals({
+        payments: counts[0],
+        subscriptions: counts[1],
+        customers: counts[2],
+    });
+
+    return { search, type, page, limit, paymentWhere, subscriptionWhere, customerWhere, totals };
+};
+
+const loadScopedIncidents = async (
+    type: string,
+    context: Awaited<ReturnType<typeof buildIncidentRequestContext>>,
+) => {
+    const { page, limit, paymentWhere, subscriptionWhere, customerWhere, totals } = context;
+
+    if (type === 'payments') {
+        const { items, total } = await loadPaymentIncidents(paymentWhere, page, limit);
+        return incidentPaginatedResponse(items.map(mapPaymentIncident), totals, total, page, limit);
+    }
+
+    if (type === 'subscriptions') {
+        const { items, total } = await loadSubscriptionIncidents(subscriptionWhere, page, limit);
+        return incidentPaginatedResponse(items.map(mapSubscriptionIncident), totals, total, page, limit);
+    }
+
+    if (type === 'customers') {
+        const { items, total } = await loadCustomerIncidents(customerWhere, page, limit);
+        return incidentPaginatedResponse(items.map(mapCustomerIncident), totals, total, page, limit);
+    }
+
+    const { payments, subscriptions, customers } = await loadCombinedIncidents(
+        paymentWhere,
+        subscriptionWhere,
+        customerWhere,
+    );
+
+    const items = [
+        ...payments.map(mapPaymentIncident),
+        ...subscriptions.map(mapSubscriptionIncident),
+        ...customers.map(mapCustomerIncident),
+    ].sort((first, second) => (
+        new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
+    )).slice((page - 1) * limit, page * limit);
+
+    return incidentPaginatedResponse(items, totals, totals.total, page, limit);
+};
+
 export const mollieGetPaymentIncidentsController = async (req: Request, res: Response) => {
     try {
-        const search = queryString(req.query._q)?.trim();
-        const type = queryString(req.query.type) ?? 'all';
-        const page = Math.max(Number(queryString(req.query._page) ?? 1), 1);
-        const limit = Math.min(Math.max(Number(queryString(req.query._limit) ?? 25), 1), 100);
-        const resolvedIds = await loadIncidentResolvedIds();
-
-        const paymentWhere = buildPaymentIncidentWhere(search, resolvedIds.payment);
-        const subscriptionWhere = buildSubscriptionIncidentWhere(search, resolvedIds.subscription);
-        const customerWhere = buildCustomerIncidentWhere(search, resolvedIds.customer);
-
-        const counts = await Promise.all([
-            prisma.payment.count({ where: paymentWhere }),
-            prisma.subscription.count({ where: subscriptionWhere }),
-            prisma.customer.count({ where: customerWhere }),
-        ]);
-        const totals = incidentTotals({
-            payments: counts[0],
-            subscriptions: counts[1],
-            customers: counts[2],
-        });
-
-        if (type === 'payments') {
-            const { items, total } = await loadPaymentIncidents(paymentWhere, page, limit);
-            return res.status(200).json(
-                incidentPaginatedResponse(items.map(mapPaymentIncident), totals, total, page, limit),
-            );
-        }
-
-        if (type === 'subscriptions') {
-            const { items, total } = await loadSubscriptionIncidents(subscriptionWhere, page, limit);
-            return res.status(200).json(
-                incidentPaginatedResponse(items.map(mapSubscriptionIncident), totals, total, page, limit),
-            );
-        }
-
-        if (type === 'customers') {
-            const { items, total } = await loadCustomerIncidents(customerWhere, page, limit);
-            return res.status(200).json(
-                incidentPaginatedResponse(items.map(mapCustomerIncident), totals, total, page, limit),
-            );
-        }
-
-        const { payments, subscriptions, customers } = await loadCombinedIncidents(
-            paymentWhere,
-            subscriptionWhere,
-            customerWhere,
-        );
-
-        const items = [
-            ...payments.map(mapPaymentIncident),
-            ...subscriptions.map(mapSubscriptionIncident),
-            ...customers.map(mapCustomerIncident),
-        ].sort((first, second) => (
-            new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime()
-        )).slice((page - 1) * limit, page * limit);
-
-        return res.status(200).json(
-            incidentPaginatedResponse(items, totals, totals.total, page, limit),
-        );
+        const context = await buildIncidentRequestContext(req);
+        return res.status(200).json(await loadScopedIncidents(context.type, context));
     } catch (error) {
         console.error('Error fetching Mollie payment incidents:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
@@ -2551,6 +2606,36 @@ const replaceSubscriptionOnMollie = async (
     return replacement;
 };
 
+const updateSubscriptionOnMollie = async (
+    current: NonNullable<Awaited<ReturnType<typeof findActiveSubscriptionForUpdate>>['current']>,
+    body: z.infer<typeof updateSubscriptionSchema>,
+    subscriptionId: string,
+) => {
+    const requestedPaymentDate = body.startDate;
+    const currentPaymentDate = current.nextPaymentDate?.toISOString().slice(0, 10);
+
+    if (currentPaymentDate && requestedPaymentDate !== currentPaymentDate) {
+        const replacement = await replaceSubscriptionOnMollie(current, body, subscriptionId, requestedPaymentDate);
+
+        return { replaced: true as const, subscription: replacement };
+    }
+
+    const updated = await mollieService.updateSubscriptionById(
+        current.customer.mollieId,
+        subscriptionId,
+        {
+            mandateId: body.mandateId,
+            amountValue: body.amountValue.toFixed(2),
+            interval: body.interval,
+            times: body.times,
+            description: body.description,
+        },
+    );
+    await mollieSyncService.syncMollieSubscription(current.customerId, updated);
+
+    return { replaced: false as const, subscription: updated };
+};
+
 export const mollieUpdateSubscriptionController = async (req: Request, res: Response) => {
     const subscriptionId = req.params.subscriptionId;
     const parsedBody = updateSubscriptionSchema.safeParse(req.body);
@@ -2573,33 +2658,17 @@ export const mollieUpdateSubscriptionController = async (req: Request, res: Resp
             return res.status(409).json({ error: 'Selected valid mandate not found for customer' });
         }
 
-        const requestedPaymentDate = parsedBody.data.startDate;
-        const currentPaymentDate = current.nextPaymentDate?.toISOString().slice(0, 10);
+        const outcome = await updateSubscriptionOnMollie(current, parsedBody.data, subscriptionId);
 
-        if (currentPaymentDate && requestedPaymentDate !== currentPaymentDate) {
-            const replacement = await replaceSubscriptionOnMollie(current, parsedBody.data, subscriptionId, requestedPaymentDate);
-
-            return res.status(201).json({
-                replaced: true,
-                canceledSubscriptionId: subscriptionId,
-                subscription: replacement,
-            });
-        }
-
-        const updated = await mollieService.updateSubscriptionById(
-            current.customer.mollieId,
-            subscriptionId,
-            {
-                mandateId: parsedBody.data.mandateId,
-                amountValue: parsedBody.data.amountValue.toFixed(2),
-                interval: parsedBody.data.interval,
-                times: parsedBody.data.times,
-                description: parsedBody.data.description,
-            },
+        return res.status(outcome.replaced ? 201 : 200).json(
+            outcome.replaced
+                ? {
+                    replaced: true,
+                    canceledSubscriptionId: subscriptionId,
+                    subscription: outcome.subscription,
+                }
+                : outcome.subscription,
         );
-        await mollieSyncService.syncMollieSubscription(current.customerId, updated);
-
-        return res.status(200).json(updated);
     } catch (error) {
         console.error('Error updating Mollie subscription:', error);
         return res.status(502).json({
@@ -2607,6 +2676,47 @@ export const mollieUpdateSubscriptionController = async (req: Request, res: Resp
             detail: mollieErrorDetail(error, 'Unable to update subscription'),
         });
     }
+};
+
+const findRestartableSubscription = async (subscriptionId: string, body: z.infer<typeof restartSubscriptionSchema>) => {
+    const [previous, mandate] = await Promise.all([
+        prisma.subscription.findFirst({
+            where: {
+                mollieId: subscriptionId,
+                customerId: body.customerId,
+                status: { in: ['canceled', 'cancelled', 'completed'] },
+            },
+            include: { customer: true },
+        }),
+        prisma.mandate.findFirst({
+            where: {
+                mollieId: body.mandateId,
+                customerId: body.customerId,
+                status: 'valid',
+            },
+        }),
+    ]);
+    return { previous, mandate };
+};
+
+const restartSubscriptionOnMollie = async (
+    previous: NonNullable<Awaited<ReturnType<typeof findRestartableSubscription>>['previous']>,
+    body: z.infer<typeof restartSubscriptionSchema>,
+) => {
+    const restarted = await mollieService.createMandateSubscription(previous.customer.mollieId, {
+        customerId: previous.customer.mollieId,
+        mandateId: body.mandateId,
+        amount: {
+            currency: previous.amountCurrency,
+            value: Number(previous.amountValue).toFixed(2),
+        },
+        interval: previous.interval,
+        startDate: body.startDate,
+        description: previous.description,
+    });
+    await mollieSyncService.syncMollieSubscription(previous.customerId, restarted);
+
+    return restarted;
 };
 
 export const mollieRestartSubscriptionController = async (req: Request, res: Response) => {
@@ -2621,21 +2731,7 @@ export const mollieRestartSubscriptionController = async (req: Request, res: Res
     }
 
     try {
-        const previous = await prisma.subscription.findFirst({
-            where: {
-                mollieId: subscriptionId,
-                customerId: parsedBody.data.customerId,
-                status: { in: ['canceled', 'cancelled', 'completed'] },
-            },
-            include: { customer: true },
-        });
-        const mandate = await prisma.mandate.findFirst({
-            where: {
-                mollieId: parsedBody.data.mandateId,
-                customerId: parsedBody.data.customerId,
-                status: 'valid',
-            },
-        });
+        const { previous, mandate } = await findRestartableSubscription(subscriptionId, parsedBody.data);
 
         if (!previous?.customer.mollieId) {
             return res.status(409).json({ error: 'Only canceled or completed subscriptions can be restarted' });
@@ -2645,18 +2741,7 @@ export const mollieRestartSubscriptionController = async (req: Request, res: Res
             return res.status(409).json({ error: 'Selected valid mandate not found for customer' });
         }
 
-        const restarted = await mollieService.createMandateSubscription(previous.customer.mollieId, {
-            customerId: previous.customer.mollieId,
-            mandateId: parsedBody.data.mandateId,
-            amount: {
-                currency: previous.amountCurrency,
-                value: Number(previous.amountValue).toFixed(2),
-            },
-            interval: previous.interval,
-            startDate: parsedBody.data.startDate,
-            description: previous.description,
-        });
-        await mollieSyncService.syncMollieSubscription(previous.customerId, restarted);
+        const restarted = await restartSubscriptionOnMollie(previous, parsedBody.data);
 
         return res.status(201).json(restarted);
     } catch (error) {
@@ -2704,6 +2789,41 @@ const revokeMandateLocally = async (mandate: { id: number }) => {
     return subscriptions.count;
 };
 
+const findLocalMandate = async (customerId: number, mandateId: string) => prisma.mandate.findFirst({
+    where: {
+        mollieId: mandateId,
+        customerId,
+    },
+    include: { customer: true },
+});
+
+const reconcileNonValidMandate = async (
+    mandate: NonNullable<Awaited<ReturnType<typeof findLocalMandate>>>,
+    mollieMandateStatus: string,
+) => {
+    if (mollieMandateStatus !== 'valid') {
+        await prisma.mandate.update({
+            where: { id: mandate.id },
+            data: { status: mollieMandateStatus },
+        });
+
+        return {
+            mandateId: mandate.mollieId,
+            status: mollieMandateStatus,
+            canceledSubscriptions: 0,
+            reconciled: true,
+        };
+    }
+
+    await mollieService.revokeMandateById(mandate.customer.mollieId, mandate.mollieId);
+    return {
+        mandateId: mandate.mollieId,
+        status: 'revoked',
+        canceledSubscriptions: await revokeMandateLocally(mandate),
+        reconciled: true,
+    };
+};
+
 export const mollieRevokeMandateController = async (req: Request, res: Response) => {
     const customerId = Number(req.params.customerId);
     const mandateId = req.params.mandateId;
@@ -2712,13 +2832,7 @@ export const mollieRevokeMandateController = async (req: Request, res: Response)
         return res.status(400).json({ error: 'Customer ID and mandate ID are required' });
     }
 
-    const mandate = await prisma.mandate.findFirst({
-        where: {
-            mollieId: mandateId,
-            customerId,
-        },
-        include: { customer: true },
-    });
+    const mandate = await findLocalMandate(customerId, mandateId);
 
     if (!mandate?.customer.mollieId) {
         return res.status(404).json({ error: 'Mandate not found for customer' });
@@ -2730,27 +2844,7 @@ export const mollieRevokeMandateController = async (req: Request, res: Response)
             mandate.customer.mollieId,
         );
 
-        if (mollieMandate.status !== 'valid') {
-            await prisma.mandate.update({
-                where: { id: mandate.id },
-                data: { status: mollieMandate.status },
-            });
-
-            return res.status(200).json({
-                mandateId,
-                status: mollieMandate.status,
-                canceledSubscriptions: 0,
-                reconciled: true,
-            });
-        }
-
-        await mollieService.revokeMandateById(mandate.customer.mollieId, mandateId);
-        return res.status(200).json({
-            mandateId,
-            status: 'revoked',
-            canceledSubscriptions: await revokeMandateLocally(mandate),
-            reconciled: true,
-        });
+        return res.status(200).json(await reconcileNonValidMandate(mandate, mollieMandate.status));
     } catch (error) {
         const statusCode = error && typeof error === 'object' && 'statusCode' in error
             ? Number(error.statusCode)

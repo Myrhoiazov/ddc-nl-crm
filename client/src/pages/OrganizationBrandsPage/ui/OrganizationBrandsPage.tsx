@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { type ChangeEvent } from 'react';
 import { Page } from '@/widgets/Page/Page';
-import { Organization, useOrganizationBrands } from '../useOrganizationBrands';
+import { Organization, Brand, useOrganizationBrands } from '../useOrganizationBrands';
 import s from './OrganizationBrandsPage.module.scss';
 
 const getLogoSrc = (logoUrl: string) => logoUrl.startsWith('/') ? `${__API__}${logoUrl}` : logoUrl;
@@ -11,40 +12,49 @@ const textFields: Array<[keyof Organization, string]> = [
     ['bankName', 'Банк'], ['iban', 'IBAN'], ['mollieOrganizationId', 'Mollie organization ID'],
 ];
 
-const OrganizationBrandsPage = () => {
+const OrgHeader = ({ onSyncMollie }: { onSyncMollie: () => void }) => {
     const { t } = useTranslation();
-    const {
-        organization,
-        setOrganization,
-        brands,
-        brandForm,
-        setBrandForm,
-        saving,
-        uploadingLogo,
-        saveOrganization,
-        syncMollie,
-        saveBrand,
-        uploadLogo,
-        archive,
-        resetBrandForm,
-    } = useOrganizationBrands();
-
-    return <Page>
+    return (
         <div className={s.header}>
             <div><h1>{t('Организация и бренды')}</h1><p>{t('Юридическое лицо и торговые названия для инвойсов.')}</p></div>
-            <button onClick={syncMollie}>{t('Синхронизировать Mollie')}</button>
+            <button onClick={onSyncMollie}>{t('Синхронизировать Mollie')}</button>
         </div>
+    );
+};
 
+const OrgInfoSection = ({ organization, setOrganization, saving, saveOrganization }: {
+    organization: Organization;
+    setOrganization: (org: Organization) => void;
+    saving: boolean;
+    saveOrganization: () => void;
+}) => {
+    const { t } = useTranslation();
+    return (
         <section className={s.card}>
             <h2>{t('Юридическая организация')}</h2>
             <div className={s.grid}>
-                {textFields.map(([key, label]) => <label key={key}>{label}
-                    <input value={String(organization[key] ?? '')} onChange={(event) => setOrganization({ ...organization, [key]: event.target.value })} />
-                </label>)}
+                {textFields.map(([key, label]) => (
+                    <label key={key}>{label}
+                        <input value={String(organization[key] ?? '')} onChange={(event) => setOrganization({ ...organization, [key]: event.target.value })} />
+                    </label>
+                ))}
             </div>
             <button className={s.primary} disabled={saving} onClick={saveOrganization}>{t('Сохранить реквизиты')}</button>
         </section>
+    );
+};
 
+const BrandFormSection = ({ brandForm, setBrandForm, saving, uploadingLogo, uploadLogo, saveBrand, resetBrandForm }: {
+    brandForm: Brand;
+    setBrandForm: (form: Brand) => void;
+    saving: boolean;
+    uploadingLogo: boolean;
+    uploadLogo: (e: ChangeEvent<HTMLInputElement>) => void;
+    saveBrand: () => void;
+    resetBrandForm: () => void;
+}) => {
+    const { t } = useTranslation();
+    return (
         <section className={s.card}>
             <h2>{brandForm.id ? `Редактировать ${brandForm.name}` : 'Добавить бренд / проект'}</h2>
             <div className={s.grid}>
@@ -68,17 +78,57 @@ const OrganizationBrandsPage = () => {
                 {brandForm.id && <button onClick={resetBrandForm}>{t('Отмена')}</button>}
             </div>
         </section>
+    );
+};
 
+const BrandsListSection = ({ brands, onEdit, onArchive }: {
+    brands: Brand[];
+    onEdit: (brand: Brand) => void;
+    onArchive: (id: number) => void;
+}) => {
+    const { t } = useTranslation();
+    return (
         <section className={s.card}>
             <h2>{t('Бренды и проекты')}</h2>
-            <div className={s.brands}>{brands.map((brand) => <article className={s.brand} key={brand.id}>
-                {brand.logoUrl ? <img src={getLogoSrc(brand.logoUrl)} alt={brand.name} /> : <span className={s.swatch} style={{ background: brand.primaryColor }} />}
-                <div><strong>{brand.name}</strong><small>{brand.isDefault ? 'По умолчанию · ' : ''}{brand.isActive ? 'Активен' : 'В архиве'}</small></div>
-                <button onClick={() => setBrandForm(brand)}>{t('Редактировать')}</button>
-                {brand.isActive && <button className={s.danger} onClick={() => archive(brand.id)}>{t('Архивировать')}</button>}
-            </article>)}</div>
+            <div className={s.brands}>
+                {brands.map((brand) => (
+                    <article className={s.brand} key={brand.id}>
+                        {brand.logoUrl ? <img src={getLogoSrc(brand.logoUrl)} alt={brand.name} /> : <span className={s.swatch} style={{ background: brand.primaryColor }} />}
+                        <div><strong>{brand.name}</strong><small>{brand.isDefault ? 'По умолчанию · ' : ''}{brand.isActive ? 'Активен' : 'В архиве'}</small></div>
+                        <button onClick={() => onEdit(brand)}>{t('Редактировать')}</button>
+                        {brand.isActive && brand.id && <button className={s.danger} onClick={() => onArchive(brand.id!)}>{t('Архивировать')}</button>}
+                    </article>
+                ))}
+            </div>
         </section>
-    </Page>;
+    );
+};
+
+const OrganizationBrandsPage = () => {
+    const {
+        organization,
+        setOrganization,
+        brands,
+        brandForm,
+        setBrandForm,
+        saving,
+        uploadingLogo,
+        saveOrganization,
+        syncMollie,
+        saveBrand,
+        uploadLogo,
+        archive,
+        resetBrandForm,
+    } = useOrganizationBrands();
+
+    return (
+        <Page>
+            <OrgHeader onSyncMollie={syncMollie} />
+            <OrgInfoSection organization={organization} setOrganization={setOrganization} saving={saving} saveOrganization={saveOrganization} />
+            <BrandFormSection brandForm={brandForm} setBrandForm={setBrandForm} saving={saving} uploadingLogo={uploadingLogo} uploadLogo={uploadLogo} saveBrand={saveBrand} resetBrandForm={resetBrandForm} />
+            <BrandsListSection brands={brands} onEdit={setBrandForm} onArchive={archive} />
+        </Page>
+    );
 };
 
 export default OrganizationBrandsPage;
