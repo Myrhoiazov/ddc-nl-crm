@@ -79,6 +79,10 @@ Validate
 ### Always
 - Run `npm run ci` from root before pushing — mirrors CI checks.
 - Use `/usr/local/bin/dnote` with `-c` for durable planning notes when a task needs a written plan.
+- Run `npm run graphify:specs` after a significant structural change — new module, new Prisma
+  domain, or a `features/` redesign (full trigger list: docs/spec/GRAPHIFY_WORKFLOW.md). This
+  applies regardless of task type (client, server, or docs) — a stale graph misleads the next
+  agent who reads it for context.
 
 ### When Client Changes
 - Run `npm run lint:ts` and `npm test` from `client/`.
@@ -98,7 +102,7 @@ Validate
   | `npm run test:ci` | Aggregate: all of the above + Invoices controller (what `npm run ci` at root runs) |
 
 - After editing Prisma schema: `cd server && npm run prisma:generate`.
-- `docs/schema.md` is **manually maintained**, not generated — `prisma:generate` only regenerates the Prisma client. When a `.prisma` file changes significantly, hand-edit `docs/schema.md` per the instructions at its own top, then run `npm run graphify:specs` so Graphify's semantic pass picks up the change.
+- `docs/schema.md` is **manually maintained**, not generated — `prisma:generate` only regenerates the Prisma client. When a `.prisma` file changes significantly, hand-edit `docs/schema.md` per the instructions at its own top (the "Always" `graphify:specs` rule above then picks the change up).
 
 ### When Infrastructure / Deploy Changes
 - Only one supported deploy path: Docker Compose via `npm run deploy`.
@@ -108,7 +112,6 @@ Validate
 ### When Documentation Changes
 - Prefer existing docs under `docs/spec/` (committed). `docs/roadmap/`, `docs/security/`, `docs/adr/` are gitignored local-only planning/security docs and must not be referenced from committed files.
 - Record hard-to-reverse decisions as ADRs in `docs/adr/` (gitignored, local only, numbered sequentially).
-- Run `npm run graphify:specs` after significant structural changes.
 
 ## Git and Pull Requests
 
