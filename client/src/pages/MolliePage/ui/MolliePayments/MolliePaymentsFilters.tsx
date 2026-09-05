@@ -34,9 +34,41 @@ interface MolliePaymentsFiltersProps {
     onResetFilters: () => void;
 }
 
+const FilterActionButtons = ({
+    issueOnly,
+    isLoading,
+    onToggleIssueOnly,
+    onApplyFilters,
+    onResetFilters,
+}: {
+    issueOnly: boolean;
+    isLoading: boolean;
+    onToggleIssueOnly: () => void;
+    onApplyFilters: () => void;
+    onResetFilters: () => void;
+}) => {
+    const { t } = useTranslation('home');
+    return (
+        <div className={s.filterActions}>
+            <Button
+                className={s.compactButton}
+                theme={issueOnly ? ButtonTheme.BACKGROUND_INVERTED : ButtonTheme.OUTLINE}
+                onClick={onToggleIssueOnly}
+            >
+                {t('Проблемные')}
+            </Button>
+            <Button className={s.compactButton} theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onApplyFilters} disabled={isLoading}>
+                {t('Применить')}
+            </Button>
+            <Button className={`${s.compactButton} ${s.resetButton}`} theme={ButtonTheme.OUTLINE} onClick={onResetFilters} disabled={isLoading}>
+                {t('Сбросить')}
+            </Button>
+        </div>
+    );
+};
+
 export const MolliePaymentsFilters = memo((props: MolliePaymentsFiltersProps) => {
     const { filters, setFilters, isLoading, onApplyFilters, onResetFilters } = props;
-    const { t } = useTranslation('home');
 
     return (
         <div className={s.filters}>
@@ -78,21 +110,13 @@ export const MolliePaymentsFilters = memo((props: MolliePaymentsFiltersProps) =>
                 onChange={(value) => setFilters((prev) => ({ ...prev, dateTo: value }))}
                 fullWidth
             />
-            <div className={s.filterActions}>
-                <Button
-                    className={s.compactButton}
-                    theme={filters.issueOnly ? ButtonTheme.BACKGROUND_INVERTED : ButtonTheme.OUTLINE}
-                    onClick={() => setFilters((prev) => ({ ...prev, issueOnly: !prev.issueOnly, status: 'all' }))}
-                >
-                    {t('Проблемные')}
-                </Button>
-                <Button className={s.compactButton} theme={ButtonTheme.BACKGROUND_INVERTED} onClick={onApplyFilters} disabled={isLoading}>
-                    {t('Применить')}
-                </Button>
-                <Button className={`${s.compactButton} ${s.resetButton}`} theme={ButtonTheme.OUTLINE} onClick={onResetFilters} disabled={isLoading}>
-                    {t('Сбросить')}
-                </Button>
-            </div>
+            <FilterActionButtons
+                issueOnly={filters.issueOnly}
+                isLoading={isLoading}
+                onToggleIssueOnly={() => setFilters((prev) => ({ ...prev, issueOnly: !prev.issueOnly, status: 'all' }))}
+                onApplyFilters={onApplyFilters}
+                onResetFilters={onResetFilters}
+            />
         </div>
     );
 });

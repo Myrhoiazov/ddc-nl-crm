@@ -48,6 +48,27 @@ const paymentStatusFor = (
         : InvoiceStatus.ISSUED;
 };
 
+const buildMollieInvoiceNote = (payment: MolliePaymentForPdf) => [
+    `Mollie status: ${payment.status}`,
+    `Payment method: ${payment.method || 'unknown'}`,
+    Number(payment.refundedAmount) > 0 ? `Refunded: ${payment.refundedAmount} ${payment.amountCurrency}` : null,
+    Number(payment.chargedBackAmount) > 0 ? `Charged back: ${payment.chargedBackAmount} ${payment.amountCurrency}` : null,
+].filter(Boolean).join('\n');
+
+const buildMollieInvoiceItem = (
+    payment: MolliePaymentForPdf,
+    totalCents: number,
+): NonNullable<Parameters<typeof createInvoicePdf>[0]['items']>[number] => ({
+    id: -payment.id,
+    invoiceId: -payment.id,
+    groupId: null,
+    description: payment.description || `Mollie payment ${payment.mollieId ?? payment.id}`,
+    period: payment.paidAt?.toLocaleDateString('nl-NL') ?? null,
+    quantity: 1,
+    unitPriceCents: totalCents,
+    totalCents,
+});
+
 const buildMollieInvoiceDraft = (
     payment: MolliePaymentForPdf,
     totals: { totalCents: number; paidAmountCents: number; balanceDueCents: number },
@@ -83,12 +104,7 @@ const buildMollieInvoiceDraft = (
         bankName: 'Mollie',
         iban: null,
         paymentReference: payment.mollieId ?? String(payment.id),
-        note: [
-            `Mollie status: ${payment.status}`,
-            `Payment method: ${payment.method || 'unknown'}`,
-            Number(payment.refundedAmount) > 0 ? `Refunded: ${payment.refundedAmount} ${payment.amountCurrency}` : null,
-            Number(payment.chargedBackAmount) > 0 ? `Charged back: ${payment.chargedBackAmount} ${payment.amountCurrency}` : null,
-        ].filter(Boolean).join('\n'),
+        note: buildMollieInvoiceNote(payment),
         showPaymentButton: false,
         showPaymentQr: false,
         paidAmountCents,
@@ -98,16 +114,7 @@ const buildMollieInvoiceDraft = (
         updatedById: null,
         createdAt: payment.createdAt,
         updatedAt: payment.updatedAt,
-        items: [{
-            id: -payment.id,
-            invoiceId: -payment.id,
-            groupId: null,
-            description: payment.description || `Mollie payment ${payment.mollieId ?? payment.id}`,
-            period: payment.paidAt?.toLocaleDateString('nl-NL') ?? null,
-            quantity: 1,
-            unitPriceCents: totalCents,
-            totalCents,
-        }],
+        items: [buildMollieInvoiceItem(payment, totalCents)],
     };
 };
 

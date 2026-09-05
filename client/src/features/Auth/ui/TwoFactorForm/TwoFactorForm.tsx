@@ -13,6 +13,32 @@ import cls from './TwoFactorForm.module.scss';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
+const useResendCooldown = () => {
+    // The server's own cooldown already starts counting from the moment the
+    // first code was sent (during /login), so the resend button starts disabled.
+    const [resendAvailableAt, setResendAvailableAt] = useState(() => Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
+    const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSecondsLeft(Math.max(0, Math.ceil((resendAvailableAt - Date.now()) / 1000)));
+        }, 250);
+        return () => clearInterval(interval);
+    }, [resendAvailableAt]);
+
+    return { setResendAvailableAt, secondsLeft };
+};
+
+const FormMessage = ({ error, success }: { error?: string; success?: string }) => {
+    if (error) {
+        return <div className={cls.error}>{error}</div>;
+    }
+    if (success) {
+        return <div className={cls.success}>{success}</div>;
+    }
+    return null;
+};
+
 export interface TwoFactorFormProps {
     className?: string;
     maskedEmail: string;
@@ -31,17 +57,7 @@ export const TwoFactorForm = memo(({ className, maskedEmail, onSuccess, onBack }
 
     const [isResending, setIsResending] = useState(false);
     const [resendMessage, setResendMessage] = useState<string>();
-    // The server's own cooldown already starts counting from the moment the
-    // first code was sent (during /login), so the resend button starts disabled.
-    const [resendAvailableAt, setResendAvailableAt] = useState(() => Date.now() + RESEND_COOLDOWN_SECONDS * 1000);
-    const [secondsLeft, setSecondsLeft] = useState(RESEND_COOLDOWN_SECONDS);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setSecondsLeft(Math.max(0, Math.ceil((resendAvailableAt - Date.now()) / 1000)));
-        }, 250);
-        return () => clearInterval(interval);
-    }, [resendAvailableAt]);
+    const { setResendAvailableAt, secondsLeft } = useResendCooldown();
 
     const onChangeCode = useCallback((value: string) => {
         setError(undefined);
@@ -85,7 +101,7 @@ export const TwoFactorForm = memo(({ className, maskedEmail, onSuccess, onBack }
             }
             setError(payload?.message || t('Не удалось отправить код повторно'));
         }
-    }, [dispatch, t]);
+    }, [dispatch, t, setResendAvailableAt]);
 
     return (
         <Card className={classNames(cls.TwoFactorForm, {}, [className])} padding="40">
@@ -97,8 +113,7 @@ export const TwoFactorForm = memo(({ className, maskedEmail, onSuccess, onBack }
                     onChange={setTrustDevice}
                     label={t('Запомнить это устройство на 30 дней')}
                 />
-                {error && <div className={cls.error}>{error}</div>}
-                {!error && resendMessage && <div className={cls.success}>{resendMessage}</div>}
+                <FormMessage error={error} success={!error ? resendMessage : undefined} />
                 <TwoFactorFormActions
                     isVerifying={isVerifying}
                     codeLength={code.length}

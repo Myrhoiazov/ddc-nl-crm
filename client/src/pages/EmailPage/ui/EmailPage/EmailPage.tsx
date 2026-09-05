@@ -11,8 +11,54 @@ import { useEmailPage, EmailTab } from './useEmailPage';
 import { EmailPageMessagesTab } from './EmailPageMessagesTab';
 import cls from './EmailPage.module.scss';
 
-const EmailPage = memo(() => {
+const ForbiddenAccess = () => (
+    <Page>
+        <Text title="Доступ запрещён" text="Модуль почты доступен только администраторам." size="m" bold />
+    </Page>
+);
+
+const PageHeader = ({ hasAccounts, onCompose }: { hasAccounts: boolean; onCompose: () => void }) => {
     const { t } = useTranslation();
+    return (
+        <HStack justify="between" align="center" max>
+            <Text title="Почта" size="l" bold />
+            <Button
+                theme={ButtonTheme.BACKGROUND_INVERTED}
+                disabled={!hasAccounts}
+                onClick={onCompose}
+            >
+                {t('Написать письмо')}
+            </Button>
+        </HStack>
+    );
+};
+
+const TabBar = ({ activeTab, onSelect }: { activeTab: EmailTab; onSelect: (tab: EmailTab) => void }) => {
+    const { t } = useTranslation();
+    const tabs: { key: EmailTab; label: string }[] = [
+        { key: 'accounts', label: t('Аккаунты') },
+        { key: 'messages', label: t('Письма') },
+    ];
+
+    return (
+        <div className={cls.tabBar} role="tablist">
+            {tabs.map((tab) => (
+                <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.key}
+                    className={classNames(cls.tab, { [cls.tabActive]: activeTab === tab.key })}
+                    onClick={() => onSelect(tab.key)}
+                >
+                    {tab.label}
+                </button>
+            ))}
+        </div>
+    );
+};
+
+const EmailPage = memo(() => {
     const {
         isAdmin,
         activeTab, setActiveTab,
@@ -42,46 +88,15 @@ const EmailPage = memo(() => {
     } = useEmailPage();
 
     if (!isAdmin) {
-        return (
-            <Page>
-                <Text title="Доступ запрещён" text="Модуль почты доступен только администраторам." size="m" bold />
-            </Page>
-        );
+        return <ForbiddenAccess />;
     }
-
-    const tabs: { key: EmailTab; label: string }[] = [
-        { key: 'accounts', label: t('Аккаунты') },
-        { key: 'messages', label: t('Письма') },
-    ];
 
     return (
         <Page>
             <VStack gap="16" max className={cls.EmailPage}>
-                <HStack justify="between" align="center" max>
-                    <Text title="Почта" size="l" bold />
-                    <Button
-                        theme={ButtonTheme.BACKGROUND_INVERTED}
-                        disabled={!accounts.length}
-                        onClick={() => setIsComposeOpen(true)}
-                    >
-                        {t('Написать письмо')}
-                    </Button>
-                </HStack>
+                <PageHeader hasAccounts={accounts.length > 0} onCompose={() => setIsComposeOpen(true)} />
 
-                <div className={cls.tabBar} role="tablist">
-                    {tabs.map((tab) => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            role="tab"
-                            aria-selected={activeTab === tab.key}
-                            className={classNames(cls.tab, { [cls.tabActive]: activeTab === tab.key })}
-                            onClick={() => setActiveTab(tab.key)}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
+                <TabBar activeTab={activeTab} onSelect={setActiveTab} />
 
                 {activeTab === 'accounts' && (
                     <EmailAccountsPanel

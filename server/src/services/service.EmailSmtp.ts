@@ -58,14 +58,43 @@ export const stripHtmlToText = (html: string): string => html
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 
-const sendEmail = async (accountId: number, input: SendEmailInput) => {
-    const { transporter, account } = await createTransport(accountId);
-
+const buildEmailHeaders = (input: SendEmailInput): Record<string, string> => {
     const headers: Record<string, string> = {};
     if (input.inReplyToMessageId) {
         headers['In-Reply-To'] = input.inReplyToMessageId;
         headers.References = input.inReplyToMessageId;
     }
+    return headers;
+};
+
+const persistSentEmail = async (
+    account: { id: number; label: string; username: string },
+    messageId: string,
+    input: SendEmailInput,
+    text: string,
+) => prisma.emailMessage.create({
+    data: {
+        mailboxId: account.id,
+        messageId,
+        inReplyToMessageId: input.inReplyToMessageId ?? undefined,
+        isOutgoing: true,
+        fromAddress: account.username,
+        fromName: account.label,
+        toAddresses: addressesToJson(input.to.map((address) => ({ address }))),
+        ccAddresses: input.cc?.length ? addressesToJson(input.cc.map((address) => ({ address }))) : undefined,
+        subject: input.subject,
+        bodyText: text,
+        bodyHtml: input.html,
+        receivedAt: new Date(),
+        isRead: true,
+        clientId: input.clientId ?? undefined,
+    },
+});
+
+const sendEmail = async (accountId: number, input: SendEmailInput) => {
+    const { transporter, account } = await createTransport(accountId);
+
+    const headers = buildEmailHeaders(input);
 
     const text = stripHtmlToText(input.html);
 
@@ -84,24 +113,7 @@ const sendEmail = async (accountId: number, input: SendEmailInput) => {
         })),
     });
 
-    const savedMessage = await prisma.emailMessage.create({
-        data: {
-            mailboxId: account.id,
-            messageId: info.messageId,
-            inReplyToMessageId: input.inReplyToMessageId ?? undefined,
-            isOutgoing: true,
-            fromAddress: account.username,
-            fromName: account.label,
-            toAddresses: addressesToJson(input.to.map((address) => ({ address }))),
-            ccAddresses: input.cc?.length ? addressesToJson(input.cc.map((address) => ({ address }))) : undefined,
-            subject: input.subject,
-            bodyText: text,
-            bodyHtml: input.html,
-            receivedAt: new Date(),
-            isRead: true,
-            clientId: input.clientId ?? undefined,
-        },
-    });
+    const savedMessage = await persistSentEmail(account, info.messageId, input, text);
 
     if (input.attachments?.length) {
         await Promise.all(input.attachments.map((attachment) => storeAttachmentFile(savedMessage.id, attachment)));

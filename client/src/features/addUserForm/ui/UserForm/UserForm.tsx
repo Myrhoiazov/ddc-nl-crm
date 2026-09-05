@@ -1,7 +1,7 @@
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { useTranslation } from 'react-i18next';
 import cls from './UserForm.module.scss';
-import { memo, useCallback, useState } from 'react';
+import { memo, useCallback } from 'react';
 import { VStack } from '@/shared/ui/Stack';
 import { Text } from '@/shared/ui/Text/Text';
 import { Button, ButtonTheme } from '@/shared/ui/Button';
@@ -28,19 +28,26 @@ const initialReducers: ReducersList = {
     newUser: newUserReducer,
 };
 
+const UserFormTitle = () => {
+    const { t } = useTranslation();
+    return <Text size="m" title={t('Добавление нового сотрудника')} bold />;
+};
+
+const UserFormSubmit = ({ onSave }: { onSave: () => void }) => {
+    const { t } = useTranslation();
+    return (
+        <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
+            {t('Добавить')}
+        </Button>
+    );
+};
+
 const UserForm = memo((props: AddUserFormProps) => {
     const { className, onSuccess, reloadPage } = props;
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
-    const [file, setFile] = useState<File | null>(null);
 
     const formData = useSelector(getAddUserForm);
-
-    const cleanForm = useCallback(() => {
-        onChangeFirsttName('');
-        onChangeLastName('');
-        onChangeEmail('');
-    }, [onSuccess]);
 
     const onChangeFirsttName = useCallback(
         (value?: string) => {
@@ -74,6 +81,12 @@ const UserForm = memo((props: AddUserFormProps) => {
         [dispatch]
     );
 
+    const cleanForm = useCallback(() => {
+        onChangeFirsttName('');
+        onChangeLastName('');
+        onChangeEmail('');
+    }, [onChangeFirsttName, onChangeLastName, onChangeEmail]);
+
     const onSave = useCallback(async () => {
         const result = await dispatch(addNewUser());
         if (result.meta.requestStatus === 'fulfilled') {
@@ -82,13 +95,13 @@ const UserForm = memo((props: AddUserFormProps) => {
             cleanForm();
             toast.success(t('Пользователь успешно добавлен'));
         }
-    }, [onSuccess, file, cleanForm, dispatch, reloadPage]);
+    }, [onSuccess, cleanForm, dispatch, reloadPage, t]);
 
     return (
         <DynamicModuleLoader reducers={initialReducers}>
             <div className={classNames(cls.UserForm, {}, [className])}>
                 <VStack gap="24" align="center" className={cls.header}>
-                    <Text size="m" title={t('Добавление нового сотрудника')} bold />
+                    <UserFormTitle />
                     <UserCard
                         onChangeLastName={onChangeLastName}
                         onChangeFirsttName={onChangeFirsttName}
@@ -97,9 +110,7 @@ const UserForm = memo((props: AddUserFormProps) => {
                         onChangeEmail={onChangeEmail}
                         data={formData}
                     />
-                    <Button fullWidth onClick={onSave} theme={ButtonTheme.BACKGROUND_INVERTED}>
-                        {t('Добавить')}
-                    </Button>
+                    <UserFormSubmit onSave={onSave} />
                 </VStack>
             </div>
         </DynamicModuleLoader>

@@ -12,8 +12,66 @@ import { InvoicesPagePagination } from './InvoicesPagePagination';
 import { useInvoicesPage } from './useInvoicesPage';
 import s from './InvoicesPage.module.scss';
 
-const InvoicesPage = memo(() => {
+const PdfPreviewModal = ({
+    previewUrl,
+    previewNumber,
+    onClose,
+}: {
+    previewUrl: string | null;
+    previewNumber: string | null;
+    onClose: () => void;
+}) => {
     const { t } = useTranslation();
+    return (
+        <Modal isOpen={Boolean(previewUrl)} onClose={onClose} lazy>
+            <div className={s.previewModal}>
+                <div>
+                    <strong>{previewNumber}</strong>
+                    <button onClick={onClose}>{t('Закрыть')}</button>
+                </div>
+                {previewUrl && <iframe title={`PDF ${previewNumber}`} src={previewUrl} />}
+            </div>
+        </Modal>
+    );
+};
+
+const InvoicesList = ({
+    invoices,
+    onEdit,
+    onPreviewPdf,
+    onDownloadPdf,
+    onSendEmail,
+    onCreateMolliePaymentLink,
+    onSetActiveAction,
+    onUpdateStatus,
+}: {
+    invoices: ReturnType<typeof useInvoicesPage>['invoices'];
+    onEdit: (invoice: NonNullable<ReturnType<typeof useInvoicesPage>['editInvoice']>) => void;
+    onPreviewPdf: (invoice: NonNullable<ReturnType<typeof useInvoicesPage>['editInvoice']>) => void;
+    onDownloadPdf: (invoice: NonNullable<ReturnType<typeof useInvoicesPage>['editInvoice']>) => void;
+    onSendEmail: (invoice: NonNullable<ReturnType<typeof useInvoicesPage>['editInvoice']>) => void;
+    onCreateMolliePaymentLink: (invoice: NonNullable<ReturnType<typeof useInvoicesPage>['editInvoice']>) => void;
+    onSetActiveAction: (action: NonNullable<ReturnType<typeof useInvoicesPage>['activeAction']>) => void;
+    onUpdateStatus: ReturnType<typeof useInvoicesPage>['updateStatus'];
+}) => (
+    <div className={s.list}>
+        {invoices.map((invoice) => (
+            <InvoiceListItem
+                key={invoice.id}
+                invoice={invoice}
+                onEdit={onEdit}
+                onPreviewPdf={onPreviewPdf}
+                onDownloadPdf={onDownloadPdf}
+                onSendEmail={onSendEmail}
+                onCreateMolliePaymentLink={onCreateMolliePaymentLink}
+                onSetActiveAction={onSetActiveAction}
+                onUpdateStatus={onUpdateStatus}
+            />
+        ))}
+    </div>
+);
+
+const InvoicesPage = memo(() => {
     const {
         invoices,
         loading,
@@ -52,6 +110,16 @@ const InvoicesPage = memo(() => {
         <InvoicesPagePagination page={page} totalPages={totalPages} total={total} loading={loading} onPageChange={setPage} />
     );
 
+    const actions = {
+        onEdit: openEditModal,
+        onPreviewPdf: previewPdf,
+        onDownloadPdf: downloadPdf,
+        onSendEmail: sendEmail,
+        onCreateMolliePaymentLink: createMolliePaymentLink,
+        onSetActiveAction: setActiveAction,
+        onUpdateStatus: updateStatus,
+    };
+
     return (
         <Page>
             <InvoicesPageToolbar
@@ -78,21 +146,7 @@ const InvoicesPage = memo(() => {
             ) : (
                 <>
                     {pagination}
-                    <div className={s.list}>
-                        {invoices.map((invoice) => (
-                            <InvoiceListItem
-                                key={invoice.id}
-                                invoice={invoice}
-                                onEdit={openEditModal}
-                                onPreviewPdf={previewPdf}
-                                onDownloadPdf={downloadPdf}
-                                onSendEmail={sendEmail}
-                                onCreateMolliePaymentLink={createMolliePaymentLink}
-                                onSetActiveAction={setActiveAction}
-                                onUpdateStatus={updateStatus}
-                            />
-                        ))}
-                    </div>
+                    <InvoicesList invoices={invoices} {...actions} />
                     {pagination}
                 </>
             )}
@@ -111,15 +165,7 @@ const InvoicesPage = memo(() => {
                 onClose={() => setActiveAction(null)}
             />
 
-            <Modal isOpen={Boolean(previewUrl)} onClose={closePreview} lazy>
-                <div className={s.previewModal}>
-                    <div>
-                        <strong>{previewNumber}</strong>
-                        <button onClick={closePreview}>{t('Закрыть')}</button>
-                    </div>
-                    {previewUrl && <iframe title={`PDF ${previewNumber}`} src={previewUrl} />}
-                </div>
-            </Modal>
+            <PdfPreviewModal previewUrl={previewUrl} previewNumber={previewNumber} onClose={closePreview} />
         </Page>
     );
 });

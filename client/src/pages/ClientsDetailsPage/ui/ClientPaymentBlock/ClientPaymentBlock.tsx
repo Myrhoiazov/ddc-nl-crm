@@ -18,6 +18,76 @@ interface ClientPaymentBlockProps {
     id: string;
 }
 
+interface ContentProps {
+    data: ReturnType<typeof useClientPaymentBlock>['data'];
+    statusText: ReturnType<typeof useClientPaymentBlock>['statusText'];
+    onOpenPaymentLink: () => void;
+    onOpenMandate: () => void;
+    onOpenSubscription: () => void;
+    onOpenEdit: (subscription: NonNullable<ReturnType<typeof useClientPaymentBlock>['data']>['subscriptions'][number]) => void;
+    onCancel: (subscription: NonNullable<ReturnType<typeof useClientPaymentBlock>['data']>['subscriptions'][number]) => void;
+    onOpenRestart: (subscription: NonNullable<ReturnType<typeof useClientPaymentBlock>['data']>['subscriptions'][number]) => void;
+    onRevoke: (mandate: NonNullable<ReturnType<typeof useClientPaymentBlock>['data']>['mandates'][number]) => void;
+    onCopy: (checkoutUrl?: string) => void;
+    onCancelLink: (payment: NonNullable<ReturnType<typeof useClientPaymentBlock>['data']>['paymentLinks'][number]) => void;
+}
+
+const Content = (props: ContentProps) => {
+    const {
+        data,
+        statusText,
+        onOpenPaymentLink,
+        onOpenMandate,
+        onOpenSubscription,
+        onOpenEdit,
+        onCancel,
+        onOpenRestart,
+        onRevoke,
+        onCopy,
+        onCancelLink,
+    } = props;
+
+    return (
+        <VStack gap="16" max>
+            <ClientPaymentHeader
+                statusText={statusText}
+                paymentStatus={data?.summary.paymentStatus ?? 'unknown'}
+                onOpenPaymentLink={onOpenPaymentLink}
+                onOpenMandate={onOpenMandate}
+                onOpenSubscription={onOpenSubscription}
+            />
+
+            <ClientPaymentMetrics
+                payerCount={data?.summary.payerCount}
+                activeSubscriptionCount={data?.summary.activeSubscriptionCount}
+                lastPayment={data?.summary.lastPayment}
+            />
+
+            <ClientPayersSection payers={data?.payers} />
+
+            <ClientSubscriptionsSection
+                subscriptions={data?.subscriptions}
+                onOpenEdit={onOpenEdit}
+                onCancel={onCancel}
+                onOpenRestart={onOpenRestart}
+            />
+
+            <ClientMandatesSection
+                mandates={data?.mandates}
+                onRevoke={onRevoke}
+            />
+
+            <ClientPaymentLinksSection
+                paymentLinks={data?.paymentLinks}
+                onCopy={onCopy}
+                onCancel={onCancelLink}
+            />
+
+            <ClientLatestPaymentsSection latestPayments={data?.latestPayments} />
+        </VStack>
+    );
+};
+
 export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
     const {
         data,
@@ -82,43 +152,19 @@ export const ClientPaymentBlock = memo(({ id }: ClientPaymentBlockProps) => {
 
     return (
         <Card id="mollie-account" padding="24" fullWidth className={s.card}>
-            <VStack gap="16" max>
-                <ClientPaymentHeader
-                    statusText={statusText}
-                    paymentStatus={data?.summary.paymentStatus ?? 'unknown'}
-                    onOpenPaymentLink={() => setIsPaymentLinkOpen(true)}
-                    onOpenMandate={() => setIsMandateOpen(true)}
-                    onOpenSubscription={() => setIsSubscriptionOpen(true)}
-                />
-
-                <ClientPaymentMetrics
-                    payerCount={data?.summary.payerCount}
-                    activeSubscriptionCount={data?.summary.activeSubscriptionCount}
-                    lastPayment={data?.summary.lastPayment}
-                />
-
-                <ClientPayersSection payers={data?.payers} />
-
-                <ClientSubscriptionsSection
-                    subscriptions={data?.subscriptions}
-                    onOpenEdit={onOpenEditSubscription}
-                    onCancel={onCancelSubscription}
-                    onOpenRestart={onOpenRestartSubscription}
-                />
-
-                <ClientMandatesSection
-                    mandates={data?.mandates}
-                    onRevoke={onRevokeMandate}
-                />
-
-                <ClientPaymentLinksSection
-                    paymentLinks={data?.paymentLinks}
-                    onCopy={onCopyPaymentLink}
-                    onCancel={onCancelPaymentLink}
-                />
-
-                <ClientLatestPaymentsSection latestPayments={data?.latestPayments} />
-            </VStack>
+            <Content
+                data={data}
+                statusText={statusText}
+                onOpenPaymentLink={() => setIsPaymentLinkOpen(true)}
+                onOpenMandate={() => setIsMandateOpen(true)}
+                onOpenSubscription={() => setIsSubscriptionOpen(true)}
+                onOpenEdit={onOpenEditSubscription}
+                onCancel={onCancelSubscription}
+                onOpenRestart={onOpenRestartSubscription}
+                onRevoke={onRevokeMandate}
+                onCopy={onCopyPaymentLink}
+                onCancelLink={onCancelPaymentLink}
+            />
 
             <ClientPaymentBlockModals
                 id={id}

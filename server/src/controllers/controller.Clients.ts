@@ -303,6 +303,43 @@ export const updateClientByIdController = async (req: Request<{ id: string }, {}
     }
 }
 
+const buildPaymentSummaryPayload = async (clientId: number) => {
+    const [payerLinks, latestPayments, paymentLinks, subscriptions, mandates] = await Promise.all([
+        findPayerLinks(clientId),
+        findLatestPayments(clientId),
+        findPaymentLinks(clientId),
+        findSubscriptions(clientId),
+        findMandates(clientId),
+    ]);
+
+    const issueStatuses = ['failed', 'canceled', 'expired', 'charged_back'];
+    const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === 'active');
+    const lastPayment = latestPayments[0] ?? null;
+    const latestIssue = latestPayments.find((payment) => issueStatuses.includes(payment.status)) ?? null;
+
+    return {
+        payers: payerLinks.map((link) => ({
+            id: link.id,
+            payerRelation: link.payerRelation,
+            linkSource: link.linkSource,
+            isPrimary: link.isPrimary,
+            customer: link.customer,
+        })),
+        latestPayments,
+        paymentLinks,
+        subscriptions,
+        activeSubscriptions,
+        mandates,
+        summary: {
+            payerCount: payerLinks.length,
+            activeSubscriptionCount: activeSubscriptions.length,
+            lastPayment,
+            latestIssue,
+            paymentStatus: latestIssue ? 'issue' : activeSubscriptions.length ? 'active' : 'unknown',
+        },
+    };
+};
+
 export const getClientPaymentSummaryController = async (req: Request, res: Response) => {
     const clientId = Number(req.params.id);
 
@@ -320,40 +357,7 @@ export const getClientPaymentSummaryController = async (req: Request, res: Respo
             return res.status(404).json({ message: 'Client not found' });
         }
 
-        const [payerLinks, latestPayments, paymentLinks, subscriptions, mandates] = await Promise.all([
-            findPayerLinks(clientId),
-            findLatestPayments(clientId),
-            findPaymentLinks(clientId),
-            findSubscriptions(clientId),
-            findMandates(clientId),
-        ]);
-
-        const issueStatuses = ['failed', 'canceled', 'expired', 'charged_back'];
-        const activeSubscriptions = subscriptions.filter((subscription) => subscription.status === 'active');
-        const lastPayment = latestPayments[0] ?? null;
-        const latestIssue = latestPayments.find((payment) => issueStatuses.includes(payment.status)) ?? null;
-
-        return res.status(200).json({
-            payers: payerLinks.map((link) => ({
-                id: link.id,
-                payerRelation: link.payerRelation,
-                linkSource: link.linkSource,
-                isPrimary: link.isPrimary,
-                customer: link.customer,
-            })),
-            latestPayments,
-            paymentLinks,
-            subscriptions,
-            activeSubscriptions,
-            mandates,
-            summary: {
-                payerCount: payerLinks.length,
-                activeSubscriptionCount: activeSubscriptions.length,
-                lastPayment,
-                latestIssue,
-                paymentStatus: latestIssue ? 'issue' : activeSubscriptions.length ? 'active' : 'unknown',
-            },
-        });
+        return res.status(200).json(await buildPaymentSummaryPayload(clientId));
     } catch (error) {
         console.error('Error fetching client payment summary:', error);
         return res.status(500).json({ message: 'Internal server error' });

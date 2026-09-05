@@ -20,38 +20,20 @@ interface MollieSubscriptionCardProps {
     onChangeSum?: (value?: Payment) => void;
 }
 
-export const MollieSubscriptionCard = memo((props: MollieSubscriptionCardProps) => {
-    const {
-        onChangeCustomer,
-        onChangeTimes,
-        onChangeInterval,
-        onChangeDateStart,
-        onChangeSum,
-        onChangeDescription,
-        customers,
-        data,
-    } = props;
+const SubscriptionScheduleInputs = ({
+    data,
+    onChangeDateStart,
+    onChangeInterval,
+    onChangeTimes,
+}: {
+    data?: MollieSubscription;
+    onChangeDateStart?: (value?: string) => void;
+    onChangeInterval?: (value?: string) => void;
+    onChangeTimes?: (value?: string) => void;
+}) => {
     const { t } = useTranslation();
-
-    // wrap the Input's string value into a Payment object before calling onChangeSum
-    const handleSumChange = (value: string) => {
-        if (!onChangeSum) return;
-        const payment: Payment = {
-            ...((data?.amount as Payment) || { value: '' }),
-            value,
-        };
-        onChangeSum(payment);
-    };
-
-    const selectedCustomer = customers?.find((d) => d.id === data?.customerId);
-
     return (
         <>
-            <CustomersSelect
-                onChange={onChangeCustomer}
-                value={selectedCustomer}
-                options={customers}
-            />
             <Input
                 fullWidth
                 label="Date start"
@@ -76,6 +58,32 @@ export const MollieSubscriptionCard = memo((props: MollieSubscriptionCardProps) 
                 onChange={onChangeTimes}
                 value={data?.times || ''}
             />
+        </>
+    );
+};
+
+const SubscriptionAmountAndDescriptionInputs = ({
+    data,
+    onChangeSum,
+    onChangeDescription,
+}: {
+    data?: MollieSubscription;
+    onChangeSum?: (value?: Payment) => void;
+    onChangeDescription?: (value?: string) => void;
+}) => {
+    const { t } = useTranslation();
+    // wrap the Input's string value into a Payment object before calling onChangeSum
+    const handleSumChange = (value: string) => {
+        if (!onChangeSum) return;
+        const payment: Payment = {
+            ...((data?.amount as Payment) || { value: '' }),
+            value,
+        };
+        onChangeSum(payment);
+    };
+
+    return (
+        <>
             <Input
                 fullWidth
                 label="Сумма "
@@ -84,7 +92,6 @@ export const MollieSubscriptionCard = memo((props: MollieSubscriptionCardProps) 
                 onChange={handleSumChange}
                 value={data?.amount?.value || ''}
             />
-
             <Input
                 fullWidth
                 label="Описание списания"
@@ -92,6 +99,42 @@ export const MollieSubscriptionCard = memo((props: MollieSubscriptionCardProps) 
                 placeholder={t('Какое направление танцев')}
                 onChange={onChangeDescription}
                 value={data?.description || ''}
+            />
+        </>
+    );
+};
+
+export const MollieSubscriptionCard = memo((props: MollieSubscriptionCardProps) => {
+    const {
+        onChangeCustomer,
+        onChangeTimes,
+        onChangeInterval,
+        onChangeDateStart,
+        onChangeSum,
+        onChangeDescription,
+        customers,
+        data,
+    } = props;
+
+    const selectedCustomer = customers?.find((d) => d.id === data?.customerId);
+
+    return (
+        <>
+            <CustomersSelect
+                onChange={onChangeCustomer}
+                value={selectedCustomer}
+                options={customers}
+            />
+            <SubscriptionScheduleInputs
+                data={data}
+                onChangeDateStart={onChangeDateStart}
+                onChangeInterval={onChangeInterval}
+                onChangeTimes={onChangeTimes}
+            />
+            <SubscriptionAmountAndDescriptionInputs
+                data={data}
+                onChangeSum={onChangeSum}
+                onChangeDescription={onChangeDescription}
             />
         </>
     );
