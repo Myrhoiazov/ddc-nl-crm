@@ -1,5 +1,6 @@
 import { classNames, Mods } from '@/shared/lib/classNames/classNames';
-import React, { memo, TextareaHTMLAttributes, useEffect, useRef, useState } from 'react';
+import { useAutofocus } from '@/shared/lib/hooks/useAutofocus/useAutofocus';
+import React, { memo, TextareaHTMLAttributes } from 'react';
 import cls from './Textarea.module.scss';
 
 type HTMLTextAreaProps = Omit<
@@ -20,7 +21,13 @@ interface TextareaProps extends HTMLTextAreaProps {
     fullWidth?: boolean;
 }
 
-const Textarea = memo((props: TextareaProps) => {
+const buildMods = (isFocused: boolean, readonly?: boolean, fullWidth?: boolean): Mods => ({
+    [cls.readonly]: readonly,
+    [cls.focused]: isFocused,
+    [cls.fullWidth]: fullWidth,
+});
+
+const Textarea = (props: TextareaProps) => {
     const {
         className,
         readonly,
@@ -32,34 +39,13 @@ const Textarea = memo((props: TextareaProps) => {
         autofocus,
         ...otherProps
     } = props;
-
-    const ref = useRef<HTMLTextAreaElement>(null);
-    const [isFocused, setIsFocused] = useState(false);
-
-    useEffect(() => {
-        if (autofocus) {
-            setIsFocused(true);
-            ref.current?.focus();
-        }
-    }, [autofocus]);
+    const { ref, isFocused, onBlur, onFocus } = useAutofocus<HTMLTextAreaElement>(autofocus);
 
     const onChangeHandler = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         onChange?.(e.target.value);
     };
 
-    const onBlur = () => {
-        setIsFocused(false);
-    };
-
-    const onFocus = () => {
-        setIsFocused(true);
-    };
-
-    const mods: Mods = {
-        [cls.readonly]: readonly,
-        [cls.focused]: isFocused,
-        [cls.fullWidth]: fullWidth,
-    };
+    const mods = buildMods(isFocused, readonly, fullWidth);
 
     return (
         <div className={classNames(cls.Textarea, mods, [className])}>
@@ -79,6 +65,6 @@ const Textarea = memo((props: TextareaProps) => {
             />
         </div>
     );
-});
+};
 
 export default memo(Textarea);
