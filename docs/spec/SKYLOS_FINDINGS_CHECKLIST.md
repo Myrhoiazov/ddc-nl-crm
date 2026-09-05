@@ -911,9 +911,30 @@ Jest client 281/281 suites, 976/976 тестов; server `test:auth` 14/14,
 
 ## Качество кода (сложность/размер функций)
 
-### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (55/185)
+### `SKY-C304` — Слишком длинная функция (185) — В ПРОЦЕССЕ (62/185)
 
 > Разбить на более мелкие функции/хуки.
+
+**Волна 15 (shared UI компоненты, ветка `fix/skylos-code-quality-wave15`):** закрыто
+7 находок `SKY-C304` в shared/widgets UI. Все компоненты сведены к функциям <50
+строк без переноса длинной логики в «жирные» хуки (урок round4/round5); где
+состояние/конфигурация действительно выносились — хук также <50 строк.
+- `Input.tsx:39` (85) — презентационная часть вынесена в `InputControl`; общий
+  хук `useAutofocus` (новый, в `shared/lib/hooks`, с тестом) убирает дублирование
+  autofocus/фокус-стейта с `Textarea`; модульные `buildMods`/`createChangeHandler`/
+  `handleFileChange`.
+- `Modal.tsx:16` (72) — состояние/таймер/Escape в локальный хук `useModal`;
+  убран мусорный комментарий.
+- `Textarea.tsx:23` (60) — `useAutofocus` + `buildMods`; снят двойной `memo`
+  (был `memo(memo(Component))`).
+- `RichTextEditor.tsx:18` (91) — `useRichTextEditor` (конфигурация TipTap + эффекты
+  синхронизации value/readonly) и `getFormatActions` (массив кнопок тулбара).
+- `ListBox.tsx:29` (58) — рендер опции вынесен в `ListBoxOptionItem`.
+- `ClientFilters.tsx:27` (53) и `TransactionFilters.tsx:30` (56) — состояние
+  modal-открытия через новый общий хук `useModalState` (shared, с тестом).
+Проверки: клиентский Jest 22/22 по затронутым сьютам, `npm run lint:ts` 0 ошибок,
+`npm run build:prod` чисто; повторный `check:skylos` — перечисленные файлы больше
+не флагаются, общий счёт находок 291 → 283.
 
 **Прогресс: начата декомпозиция крупных страниц/компонентов, которые пересекаются
 с client-частью `SKY-Q301` (см. ниже).** ~46 из 185 находок — это `.test.ts(x)`
@@ -1268,17 +1289,17 @@ arm64/x86_64) — закрытие подтверждено построчно (
 - [ ] `client/src/pages/TransactionsPage/model/slices/transactionsPageSlice.test.ts:8` — Function 'anonymous' is 103 lines long (limit: 50)
 - [ ] `client/src/pages/TransactionsPage/ui/TransactionsPage/TransactionsPage.tsx:43` — Function 'anonymous' is 72 lines long (limit: 50)
 - [ ] `client/src/shared/lib/hooks/useInfiniteScroll/useInfiniteScroll.test.ts:5` — Function 'anonymous' is 74 lines long (limit: 50)
-- [ ] `client/src/shared/ui/Input/Input.tsx:39` — Function 'anonymous' is 85 lines long (limit: 50)
+- [x] `client/src/shared/ui/Input/Input.tsx:39` — Function 'anonymous' is 85 lines long (limit: 50) → волна 15: презентация вынесена в `InputControl`; общий хук `useAutofocus` (shared), модульные `buildMods`/`createChangeHandler`/`handleFileChange`; функция <50 строк
 - [ ] `client/src/shared/ui/Modal/Modal.test.tsx:4` — Function 'anonymous' is 61 lines long (limit: 50)
-- [ ] `client/src/shared/ui/Modal/Modal.tsx:16` — Function 'anonymous' is 72 lines long (limit: 50)
-- [ ] `client/src/shared/ui/Popups/components/ListBox/ListBox.tsx:29` — Function 'ListBox' is 58 lines long (limit: 50)
-- [ ] `client/src/shared/ui/RichTextEditor/RichTextEditor.tsx:18` — Function 'anonymous' is 91 lines long (limit: 50)
-- [ ] `client/src/shared/ui/Textarea/Textarea.tsx:23` — Function 'anonymous' is 60 lines long (limit: 50)
-- [ ] `client/src/widgets/ClientFilters/ui/ClientFilters/ClientFilters.tsx:27` — Function 'anonymous' is 53 lines long (limit: 50)
+- [x] `client/src/shared/ui/Modal/Modal.tsx:16` — Function 'anonymous' is 72 lines long (limit: 50) → волна 15: состояние/таймер/Escape-обработчик вынесены в локальный хук `useModal`
+- [x] `client/src/shared/ui/Popups/components/ListBox/ListBox.tsx:29` — Function 'ListBox' is 58 lines long (limit: 50) → волна 15: рендер опции вынесен в `ListBoxOptionItem`
+- [x] `client/src/shared/ui/RichTextEditor/RichTextEditor.tsx:18` — Function 'anonymous' is 91 lines long (limit: 50) → волна 15: `useRichTextEditor` (конфигурация + эффекты синхронизации) и `getFormatActions` (массив кнопок тулбара)
+- [x] `client/src/shared/ui/Textarea/Textarea.tsx:23` — Function 'anonymous' is 60 lines long (limit: 50) → волна 15: `useAutofocus` + `buildMods`; снят двойной `memo`
+- [x] `client/src/widgets/ClientFilters/ui/ClientFilters/ClientFilters.tsx:27` — Function 'anonymous' is 53 lines long (limit: 50) → волна 15: состояние модалки через общий хук `useModalState` (shared)
 - [x] `client/src/widgets/Navbar/ui/Navbar.tsx:28` — Function 'anonymous' is 100 lines long (limit: 50) → волна 8 (round 14): `useUnreadEmailCount` + `NavbarActions`
 - [x] `client/src/widgets/Sidebar/ui/Sidebar/Sidebar.tsx:22` — Function 'anonymous' is 114 lines long (limit: 50) → волна 8 (round 12): `useSidebarState`
 - [x] `client/src/widgets/Sidebar/ui/SidebarItemGroup/SidebarItemGroup.tsx:16` — Function 'anonymous' is 59 lines long (limit: 50) → волна 8 (round 28): `SidebarItemGroupCollapsed`/`SidebarItemGroupExpanded`
-- [ ] `client/src/widgets/TransactionFilters/ui/TransactionFilters/TransactionFilters.tsx:30` — Function 'anonymous' is 56 lines long (limit: 50)
+- [x] `client/src/widgets/TransactionFilters/ui/TransactionFilters/TransactionFilters.tsx:30` — Function 'anonymous' is 56 lines long (limit: 50) → волна 15: `useModalState`
 - [ ] `server/src/controllers/conteroller.Mollie.ts:2496` — Function 'anonymous' is 96 lines long (limit: 50)
 - [ ] `server/src/controllers/conteroller.Mollie.ts:273` — Function 'anonymous' is 51 lines long (limit: 50)
 - [ ] `server/src/controllers/conteroller.Mollie.ts:785` — Function 'anonymous' is 115 lines long (limit: 50)

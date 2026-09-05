@@ -1,4 +1,4 @@
-import { memo, useCallback, useState } from 'react';
+import { memo } from 'react';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import s from './TransactionFilters.module.scss';
 import { Button } from '@/shared/ui/Button';
@@ -13,6 +13,7 @@ import SearchIcon from '@/shared/assets/icons/search.svg';
 import { HStack } from '@/shared/ui/Stack';
 import { useTranslation } from 'react-i18next';
 import { Month } from '@/entities/Month';
+import { useModalState } from '@/shared/lib/hooks/useModalState/useModalState';
 
 interface TransactionFiltersProps {
     className?: string;
@@ -40,16 +41,8 @@ export const TransactionFilters = memo((props: TransactionFiltersProps) => {
         onChangeMonth,
         month,
     } = props;
-    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { isOpen: isModalOpen, open: onShowModal, close: onCloseModal } = useModalState();
     const { t } = useTranslation();
-
-    const onShowModal = useCallback(() => {
-        setIsModalOpen(true);
-    }, []);
-
-    const onCloseModal = useCallback(() => {
-        setIsModalOpen(false);
-    }, []);
 
     return (
         <div className={classNames(s.TransactionFilters, {}, [className])}>
