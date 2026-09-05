@@ -2,6 +2,15 @@
 
 Status: **active project tool workflow**.
 
+## Glossary
+
+| Term | Meaning |
+|---|---|
+| `code-only` | AST-only extraction, no LLM involved. Fast, always available, no semantic understanding — just imports/structure. |
+| semantic pass (`--mode deep`) | An LLM reads each chunk of code and infers what it *does*, not just what it imports. Slow (see backend selection below), produces `GRAPH_REPORT.md`, community labels, and the wiki. |
+| clustering | Groups modules into named communities (e.g. "Invoice domain", "Auth middleware") based on the semantic pass. Feeds `GRAPH_REPORT.md`. |
+| wiki | The semantic pass's markdown output at `graphify-out/wiki/`, with `index.md` as the agent's entry point into a human-readable summary of the whole codebase. |
+
 Graphify serves two distinct purposes in this repo:
 
 | What | Why | Consumed by |
@@ -117,6 +126,10 @@ is available; installed via `uv tool install "graphifyy[ollama]" --with mcp`):
 
 If a client cannot resolve `graphify-mcp` from PATH, wrap it:
 `"command": "uv", "args": ["tool", "run", "graphify-mcp", "graphify-out/graph.json"]`.
+
+`.codex/config.toml` mirrors this same wiring for the OpenAI Codex CLI harness (its
+standard MCP config path, analogous to `.mcp.json` for Claude Code) — both point at
+the same `graphify-out/graph.json`, so regenerating it updates context for either agent.
 
 ## Prisma Models in the Graph
 

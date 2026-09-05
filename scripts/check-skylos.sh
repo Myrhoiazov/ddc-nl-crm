@@ -15,7 +15,7 @@ cd "$ROOT_DIR"
 export SKYLOS_GREP_BUDGET="${SKYLOS_GREP_BUDGET:-120}"
 
 EXCLUDES=(--exclude coverage --exclude graphify-out)
-CONFIG=(--config-file "$ROOT_DIR/skylos.toml")
+CONFIG=(--config-file "$ROOT_DIR/pyproject.toml")
 
 # --format и --github взаимоисключающие флаги Skylos (нельзя запросить и читаемый лог,
 # и GitHub PR-аннотации одной командой) — гоняем анализ дважды: один раз для читаемого

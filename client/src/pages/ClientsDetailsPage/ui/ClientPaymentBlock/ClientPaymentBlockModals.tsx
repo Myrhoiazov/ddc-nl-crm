@@ -127,33 +127,20 @@ const SubscriptionModal = (props: {
     onClose: () => void;
     onCreate: (form: SubscriptionForm) => void;
 }) => {
-    const {
-        isOpen,
-        isSaving,
-        subscriptionForm,
-        payerOptions,
-        mandateOptions,
-        setSubscriptionForm,
-        onClose,
-        onCreate,
-    } = props;
+    const { isOpen, isSaving, subscriptionForm, payerOptions, mandateOptions, setSubscriptionForm, onClose, onCreate } = props;
 
     return (
         <Modal isOpen={isOpen} onClose={onClose} lazy>
             <VStack gap="16" max className={s.actionModal}>
                 <Text title="Создать подписку" text="Для подписки требуется valid mandate выбранного плательщика." size="m" bold />
                 <Select
-                    label="Плательщик"
-                    defaultValue="Выберите плательщика"
-                    options={payerOptions}
+                    label="Плательщик" defaultValue="Выберите плательщика" options={payerOptions}
                     value={subscriptionForm.customerId}
                     onChange={(customerId) => setSubscriptionForm((prev) => ({ ...prev, customerId, mandateId: '' }))}
                 />
                 <Select
-                    label="Valid mandate"
+                    label="Valid mandate" options={mandateOptions} value={subscriptionForm.mandateId}
                     defaultValue={subscriptionForm.customerId ? 'Выберите mandate' : 'Сначала выберите плательщика'}
-                    options={mandateOptions}
-                    value={subscriptionForm.mandateId}
                     onChange={(mandateId) => setSubscriptionForm((prev) => ({ ...prev, mandateId }))}
                 />
                 <Input fullWidth label="Сумма, EUR" type="number" min="0.01" step="0.01" value={subscriptionForm.amountValue} onChange={(amountValue) => setSubscriptionForm((prev) => ({ ...prev, amountValue }))} />
@@ -161,11 +148,8 @@ const SubscriptionModal = (props: {
                 <Input fullWidth label="Дата начала" type="date" value={subscriptionForm.startDate} onChange={(startDate) => setSubscriptionForm((prev) => ({ ...prev, startDate }))} />
                 <Input fullWidth label="Описание" value={subscriptionForm.description} onChange={(description) => setSubscriptionForm((prev) => ({ ...prev, description }))} />
                 <ManageActions
-                    isSaving={isSaving}
-                    onClose={onClose}
-                    onSubmit={() => onCreate(subscriptionForm)}
-                    submitLabel="Создать подписку"
-                    savingLabel="Создание..."
+                    isSaving={isSaving} onClose={onClose} onSubmit={() => onCreate(subscriptionForm)}
+                    submitLabel="Создать подписку" savingLabel="Создание..."
                 />
             </VStack>
         </Modal>
@@ -256,88 +240,43 @@ const RestartSubscriptionModal = (props: {
 
 export const ClientPaymentBlockModals = memo((props: ClientPaymentBlockModalsProps) => {
     const {
-        id,
-        payers,
-        isSaving,
-        isPaymentLinkOpen,
-        isMandateOpen,
-        isSubscriptionOpen,
-        mandateForm,
-        subscriptionForm,
-        editSubscriptionForm,
-        editingSubscription,
-        restartForm,
-        restartingSubscription,
-        payerOptions,
-        mandateOptions,
-        getMandateOptionsForCustomer,
-        onClosePaymentLink,
-        onCloseMandate,
-        onCloseSubscription,
-        onCloseEdit,
-        onCloseRestart,
-        onPaymentLinkCreated,
-        setMandateForm,
-        setSubscriptionForm,
-        setEditSubscriptionForm,
-        setRestartForm,
-        onCreateMandate,
-        onCreateSubscription,
-        onUpdateSubscription,
-        onRestartSubscription,
+        id, payers, isSaving,
+        isPaymentLinkOpen, isMandateOpen, isSubscriptionOpen,
+        mandateForm, subscriptionForm, editSubscriptionForm, editingSubscription,
+        restartForm, restartingSubscription, payerOptions, mandateOptions, getMandateOptionsForCustomer,
+        onClosePaymentLink, onCloseMandate, onCloseSubscription, onCloseEdit, onCloseRestart, onPaymentLinkCreated,
+        setMandateForm, setSubscriptionForm, setEditSubscriptionForm, setRestartForm,
+        onCreateMandate, onCreateSubscription, onUpdateSubscription, onRestartSubscription,
     } = props;
 
     return (
         <>
             <PaymentLinkModal
-                clientId={id}
-                payers={payers}
-                isOpen={isPaymentLinkOpen}
-                onClose={onClosePaymentLink}
-                onCreated={onPaymentLinkCreated}
+                clientId={id} payers={payers} isOpen={isPaymentLinkOpen}
+                onClose={onClosePaymentLink} onCreated={onPaymentLinkCreated}
             />
 
             <MandateModal
-                isOpen={isMandateOpen}
-                isSaving={isSaving}
-                mandateForm={mandateForm}
-                payerOptions={payerOptions}
-                setMandateForm={setMandateForm}
-                onClose={onCloseMandate}
-                onCreate={onCreateMandate}
+                isOpen={isMandateOpen} isSaving={isSaving} mandateForm={mandateForm} payerOptions={payerOptions}
+                setMandateForm={setMandateForm} onClose={onCloseMandate} onCreate={onCreateMandate}
             />
 
             <SubscriptionModal
-                isOpen={isSubscriptionOpen}
-                isSaving={isSaving}
-                subscriptionForm={subscriptionForm}
-                payerOptions={payerOptions}
-                mandateOptions={mandateOptions}
-                setSubscriptionForm={setSubscriptionForm}
-                onClose={onCloseSubscription}
-                onCreate={onCreateSubscription}
+                isOpen={isSubscriptionOpen} isSaving={isSaving} subscriptionForm={subscriptionForm}
+                payerOptions={payerOptions} mandateOptions={mandateOptions} setSubscriptionForm={setSubscriptionForm}
+                onClose={onCloseSubscription} onCreate={onCreateSubscription}
             />
 
             <EditSubscriptionModal
-                isOpen={Boolean(editingSubscription)}
-                isSaving={isSaving}
-                editingSubscription={editingSubscription}
-                editSubscriptionForm={editSubscriptionForm}
-                getMandateOptionsForCustomer={getMandateOptionsForCustomer}
-                setEditSubscriptionForm={setEditSubscriptionForm}
-                onClose={onCloseEdit}
-                onUpdate={onUpdateSubscription}
+                isOpen={Boolean(editingSubscription)} isSaving={isSaving} editingSubscription={editingSubscription}
+                editSubscriptionForm={editSubscriptionForm} getMandateOptionsForCustomer={getMandateOptionsForCustomer}
+                setEditSubscriptionForm={setEditSubscriptionForm} onClose={onCloseEdit} onUpdate={onUpdateSubscription}
             />
 
             <RestartSubscriptionModal
-                isOpen={Boolean(restartingSubscription)}
-                isSaving={isSaving}
-                restartingSubscription={restartingSubscription}
-                restartForm={restartForm}
-                getMandateOptionsForCustomer={getMandateOptionsForCustomer}
-                setRestartForm={setRestartForm}
-                onClose={onCloseRestart}
-                onRestart={onRestartSubscription}
+                isOpen={Boolean(restartingSubscription)} isSaving={isSaving} restartingSubscription={restartingSubscription}
+                restartForm={restartForm} getMandateOptionsForCustomer={getMandateOptionsForCustomer}
+                setRestartForm={setRestartForm} onClose={onCloseRestart} onRestart={onRestartSubscription}
             />
         </>
     );

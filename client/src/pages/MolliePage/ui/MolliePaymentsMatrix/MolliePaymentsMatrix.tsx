@@ -28,27 +28,10 @@ const MatrixHeader = ({ isSyncing, onSync }: { isSyncing: boolean; onSync: () =>
 
 export const MolliePaymentsMatrix = memo(() => {
     const {
-        data,
-        upcoming,
-        startYear, setStartYear,
-        search, setSearch,
-        periodMode, setPeriodMode,
-        selectedMonth, setSelectedMonth,
-        monthFrom, setMonthFrom,
-        monthTo, setMonthTo,
-        upcomingMonth, setUpcomingMonth,
-        isLoading,
-        isUpcomingLoading,
-        isSyncing,
-        error,
-        onSync,
-        rows,
-        monthOptions,
-        visibleMonths,
-        getPaidMonths,
-        paidStudents,
-        totalPaidMonths,
-        upcomingMonthOptions,
+        data, upcoming, startYear, setStartYear, search, setSearch, periodMode, setPeriodMode,
+        selectedMonth, setSelectedMonth, monthFrom, setMonthFrom, monthTo, setMonthTo,
+        upcomingMonth, setUpcomingMonth, isLoading, isUpcomingLoading, isSyncing, error, onSync,
+        rows, monthOptions, visibleMonths, getPaidMonths, paidStudents, totalPaidMonths, upcomingMonthOptions,
     } = useMolliePaymentsMatrix();
 
     return (
@@ -56,35 +39,19 @@ export const MolliePaymentsMatrix = memo(() => {
             <MatrixHeader isSyncing={isSyncing} onSync={onSync} />
 
             <MolliePaymentsMatrixToolbar
-                startYear={startYear}
-                onStartYearChange={setStartYear}
-                periodMode={periodMode}
-                onPeriodModeChange={setPeriodMode}
-                selectedMonth={selectedMonth}
-                onSelectedMonthChange={setSelectedMonth}
-                monthFrom={monthFrom}
-                onMonthFromChange={setMonthFrom}
-                monthTo={monthTo}
-                onMonthToChange={setMonthTo}
-                monthOptions={monthOptions}
-                months={data?.months}
-                search={search}
-                onSearchChange={setSearch}
-                visibleMonthsCount={visibleMonths.length}
-                rowsCount={rows.length}
-                paidStudents={paidStudents}
-                totalPaidMonths={totalPaidMonths}
+                startYear={startYear} onStartYearChange={setStartYear}
+                periodMode={periodMode} onPeriodModeChange={setPeriodMode}
+                selectedMonth={selectedMonth} onSelectedMonthChange={setSelectedMonth}
+                monthFrom={monthFrom} onMonthFromChange={setMonthFrom} monthTo={monthTo} onMonthToChange={setMonthTo}
+                monthOptions={monthOptions} months={data?.months} search={search} onSearchChange={setSearch}
+                visibleMonthsCount={visibleMonths.length} rowsCount={rows.length}
+                paidStudents={paidStudents} totalPaidMonths={totalPaidMonths}
             />
 
             <MolliePaymentsMatrixUpcoming
-                upcomingMonth={upcomingMonth}
-                onUpcomingMonthChange={setUpcomingMonth}
-                upcomingMonthOptions={upcomingMonthOptions}
-                total={upcoming?.total ?? 0}
-                amount={upcoming?.amount ?? 0}
-                currency={upcoming?.currency}
-                isLoading={isUpcomingLoading}
-                items={upcoming?.items ?? []}
+                upcomingMonth={upcomingMonth} onUpcomingMonthChange={setUpcomingMonth}
+                upcomingMonthOptions={upcomingMonthOptions} total={upcoming?.total ?? 0} amount={upcoming?.amount ?? 0}
+                currency={upcoming?.currency} isLoading={isUpcomingLoading} items={upcoming?.items ?? []}
             />
 
             {error && (
@@ -96,11 +63,7 @@ export const MolliePaymentsMatrix = memo(() => {
             {isLoading && !data && <Skeleton width="100%" height={420} border="16px" />}
 
             {!isLoading && !error && data && (
-                <MolliePaymentsMatrixTable
-                    rows={rows}
-                    visibleMonths={visibleMonths}
-                    getPaidMonths={getPaidMonths}
-                />
+                <MolliePaymentsMatrixTable rows={rows} visibleMonths={visibleMonths} getPaidMonths={getPaidMonths} />
             )}
         </VStack>
     );

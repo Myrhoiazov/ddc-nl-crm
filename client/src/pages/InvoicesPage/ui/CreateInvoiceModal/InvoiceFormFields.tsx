@@ -86,19 +86,7 @@ const ClientSelect = ({
     );
 };
 
-const BillingFields = ({
-    paidMode,
-    status,
-    billToName,
-    billToEmail,
-    issueDate,
-    dueDate,
-    onStatusChange,
-    onBillToNameChange,
-    onBillToEmailChange,
-    onIssueDateChange,
-    onDueDateChange,
-}: {
+interface BillingFieldsProps {
     paidMode: boolean;
     status: Extract<InvoiceStatus, 'DRAFT' | 'ISSUED'>;
     billToName: string;
@@ -110,7 +98,12 @@ const BillingFields = ({
     onBillToEmailChange: (value: string) => void;
     onIssueDateChange: (value: string) => void;
     onDueDateChange: (value: string) => void;
-}) => {
+}
+
+const BillingFields = ({
+    paidMode, status, billToName, billToEmail, issueDate, dueDate,
+    onStatusChange, onBillToNameChange, onBillToEmailChange, onIssueDateChange, onDueDateChange,
+}: BillingFieldsProps) => {
     const { t } = useTranslation();
     return (
         <>

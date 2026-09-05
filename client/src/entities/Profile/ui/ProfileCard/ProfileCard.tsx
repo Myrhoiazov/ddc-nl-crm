@@ -22,23 +22,12 @@ interface ProfileCardProps {
 
 export const ProfileCard = (props: ProfileCardProps) => {
     const {
-        className,
-        data,
-        isLoading,
-        error,
-        readonly,
-        onChangeFirstname,
-        onChangeEmail,
-        onChangeLastname,
-        onChangeAvatar,
-        onChangeRole,
+        className, data, isLoading, error, readonly,
+        onChangeFirstname, onChangeEmail, onChangeLastname, onChangeAvatar, onChangeRole,
     } = props;
     const { t } = useTranslation('profile');
 
-    if (isLoading) {
-        return <ProfileCardSkeleton className={className} />;
-    }
-
+    if (isLoading) return <ProfileCardSkeleton className={className} />;
     if (error) {
         return (
             <StateView
@@ -50,9 +39,7 @@ export const ProfileCard = (props: ProfileCardProps) => {
         );
     }
 
-    const mods: Mods = {
-        [cls.editing]: !readonly,
-    };
+    const mods: Mods = { [cls.editing]: !readonly };
 
     return (
         <div className={classNames(cls.ProfileCard, mods, [className])}>

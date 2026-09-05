@@ -4,130 +4,23 @@ import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { $apiPrivate } from '@/shared/api/api';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
-import { SelectOption } from '@/shared/ui/Select/Select';
-import { ClientLanguage } from '@/entities/Client';
 import { MollieClient } from '@/entities/MollieClient';
-import { clientActions } from '../../model/slices/clientSlice';
 import { getAddClientForm } from '../../model/selectors/getAddClientForm/getAddClientForm';
 import { addClientData } from '../../model/services/addClientData/addClientData';
+import { Branch, buildBranchOptions, buildMollieCustomerOptions, DanceGroup, MollieCustomersResponse } from './clientFormOptions';
+import { useClientFormMisc } from './useClientFormMisc';
+import { useClientFormReset } from './useClientFormReset';
+import { useClientProfileFields } from './useClientProfileFields';
 
-interface Branch {
-    id: number;
-    name: string;
-    isActive?: boolean;
-}
-
-interface DanceGroup {
-    id: number;
-    name: string;
-    style: string;
-    level: string;
-    branchId?: number | null;
-}
-
-interface MollieCustomersResponse {
-    items: MollieClient[];
-}
-
-export type PayerRelation = 'self' | 'parent' | 'guardian' | 'unknown';
-
-export const payerRelationOptions: SelectOption<PayerRelation>[] = [
-    { value: 'self', content: 'Сам ученик' },
-    { value: 'parent', content: 'Родитель' },
-    { value: 'guardian', content: 'Опекун' },
-    { value: 'unknown', content: 'Не указано' },
-];
-
-const getMollieCustomerName = (customer: MollieClient) => (
-    customer.payerName
-    || [customer.givenName, customer.familyName].filter(Boolean).join(' ')
-    || customer.email
-    || customer.mollieId
-    || `Платёжный аккаунт #${customer.id}`
-);
+export type { PayerRelation } from './useClientFormMisc';
+export { payerRelationOptions } from './useClientFormMisc';
 
 const useClientFormState = () => {
-    const dispatch = useAppDispatch();
-    const [file, setFile] = useState<File | null>(null);
-    const [selectedGroupIds, setSelectedGroupIds] = useState<number[]>([]);
-    const [mollieCustomerId, setMollieCustomerId] = useState('');
-    const [payerRelation, setPayerRelation] = useState<PayerRelation>('parent');
-    const [validationErrors, setValidationErrors] = useState<string[]>([]);
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const misc = useClientFormMisc();
+    const profileFields = useClientProfileFields(() => misc.setSelectedGroupIds([]));
+    const cleanForm = useClientFormReset(profileFields, misc);
 
-    const onChangeFirstName = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ firstName: value ?? '' }));
-    }, [dispatch]);
-    const onChangeLastName = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ lastName: value || '' }));
-    }, [dispatch]);
-    const onChangeBirthday = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ birthday: value || '' }));
-    }, [dispatch]);
-    const onChangePhoneNumber = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ phoneNumber: value || '' }));
-    }, [dispatch]);
-    const onChangeEmail = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ email: value || '' }));
-    }, [dispatch]);
-    const onChangeSocial = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ social: value || '' }));
-    }, [dispatch]);
-    const onChangeBranchId = useCallback((value?: string) => {
-        dispatch(clientActions.updateProfile({ branchId: value || null }));
-        setSelectedGroupIds([]);
-    }, [dispatch]);
-    const onChangePreferredLanguage = useCallback((value?: ClientLanguage) => {
-        dispatch(clientActions.updateProfile({ preferredLanguage: value || 'RU' }));
-    }, [dispatch]);
-
-    const cleanForm = useCallback(() => {
-        onChangeFirstName('');
-        onChangeLastName('');
-        onChangeBirthday('');
-        onChangePhoneNumber('');
-        onChangeEmail('');
-        onChangeSocial('');
-        onChangeBranchId('');
-        setSelectedGroupIds([]);
-        setMollieCustomerId('');
-        setPayerRelation('parent');
-        setFile(null);
-        setValidationErrors([]);
-    }, [onChangeBranchId, onChangeEmail, onChangeFirstName, onChangeLastName, onChangePhoneNumber, onChangeSocial, onChangeBirthday]);
-
-    const onChangeImage = useCallback((file?: File) => {
-        if (file) {
-            if (!file.type.startsWith('image/')) {
-                setValidationErrors(['Фото должно быть изображением']);
-                return;
-            }
-            if (file.size > 5 * 1024 * 1024) {
-                setValidationErrors(['Размер фото не должен превышать 5 MB']);
-                return;
-            }
-            setFile(file);
-            setValidationErrors([]);
-        }
-    }, []);
-
-    const toggleGroup = useCallback((groupId: number) => {
-        setSelectedGroupIds((current) => current.includes(groupId)
-            ? current.filter((id) => id !== groupId)
-            : [...current, groupId]);
-    }, []);
-
-    return {
-        file, setFile, selectedGroupIds, setSelectedGroupIds,
-        mollieCustomerId, setMollieCustomerId,
-        payerRelation, setPayerRelation,
-        validationErrors, setValidationErrors,
-        isSubmitting, setIsSubmitting,
-        onChangeFirstName, onChangeLastName, onChangeBirthday,
-        onChangePhoneNumber, onChangeEmail, onChangeSocial,
-        onChangeBranchId, onChangePreferredLanguage, onChangeImage,
-        toggleGroup, cleanForm,
-    };
+    return { ...misc, ...profileFields, cleanForm };
 };
 
 const useClientFormData = () => {
@@ -155,27 +48,8 @@ const useClientFormData = () => {
             });
     }, []);
 
-    const branchOptions = useMemo<SelectOption<string>[]>(
-        () => [
-            { value: '', content: t('Без филиала') },
-            ...branches.map((branch) => ({ value: String(branch.id), content: branch.name })),
-        ],
-        [branches, t]
-    );
-
-    const mollieCustomerOptions = useMemo<SelectOption<string>[]>(
-        () => [
-            { value: '', content: t('Не привязывать платёжный аккаунт') },
-            ...mollieCustomers.map((customer) => ({
-                value: String(customer.id),
-                content: customer.email
-                    ? `${getMollieCustomerName(customer)} · ${customer.email}`
-                    : getMollieCustomerName(customer),
-            })),
-        ],
-        [mollieCustomers, t]
-    );
-
+    const branchOptions = useMemo(() => buildBranchOptions(branches, t), [branches, t]);
+    const mollieCustomerOptions = useMemo(() => buildMollieCustomerOptions(mollieCustomers, t), [mollieCustomers, t]);
     const availableGroups = useMemo(
         () => groups.filter((group) => group.branchId === Number(formData?.branchId)),
         [formData?.branchId, groups],

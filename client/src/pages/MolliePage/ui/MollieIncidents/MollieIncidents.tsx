@@ -99,34 +99,15 @@ const IncidentsList = ({
 
 export const MollieIncidents = memo(() => {
     const {
-        filters,
-        setFilters,
-        incidents,
-        summaryCards,
-        total,
-        page,
-        totalPages,
-        isLoading,
-        isSyncing,
-        resolvingIncidentId,
-        error,
-        syncMessage,
-        onApplyFilters,
-        onResetFilters,
-        onSyncPayments,
-        onPreviousPage,
-        onNextPage,
-        onResolveIncident,
+        filters, setFilters, incidents, summaryCards, total, page, totalPages,
+        isLoading, isSyncing, resolvingIncidentId, error, syncMessage,
+        onApplyFilters, onResetFilters, onSyncPayments, onPreviousPage, onNextPage, onResolveIncident,
     } = useMollieIncidents();
 
     const pagination = (
         <MollieIncidentsPagination
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            isLoading={isLoading}
-            onPreviousPage={onPreviousPage}
-            onNextPage={onNextPage}
+            page={page} totalPages={totalPages} total={total} isLoading={isLoading}
+            onPreviousPage={onPreviousPage} onNextPage={onNextPage}
         />
     );
 
@@ -137,27 +118,19 @@ export const MollieIncidents = memo(() => {
             <MollieIncidentsSummary summaryCards={summaryCards} />
 
             <MollieIncidentsFilters
-                filters={filters}
-                setFilters={setFilters}
-                isLoading={isLoading}
-                onApplyFilters={onApplyFilters}
-                onResetFilters={onResetFilters}
+                filters={filters} setFilters={setFilters} isLoading={isLoading}
+                onApplyFilters={onApplyFilters} onResetFilters={onResetFilters}
             />
 
             {pagination}
 
             <IncidentListState
-                isLoading={isLoading && !incidents.length}
-                error={error}
+                isLoading={isLoading && !incidents.length} error={error}
                 isEmpty={!isLoading && !error && !incidents.length}
             />
 
             {!!incidents.length && (
-                <IncidentsList
-                    incidents={incidents}
-                    resolvingIncidentId={resolvingIncidentId}
-                    onResolveIncident={onResolveIncident}
-                />
+                <IncidentsList incidents={incidents} resolvingIncidentId={resolvingIncidentId} onResolveIncident={onResolveIncident} />
             )}
 
             {pagination}

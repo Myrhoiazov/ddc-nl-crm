@@ -15,21 +15,13 @@ interface ChoreographerModalProps {
 
 export const ChoreographerModal = memo(({ isOpen, onClose, onSaved, editChoreographer }: ChoreographerModalProps) => {
     const {
-        saving,
-        lang, setLang,
-        firstNameValue, lastNameValue, setFirstName, setLastName,
-        photo,
-        mainPhoto, setMainPhoto,
-        additionalPhotos, removeExtra,
-        uploadingPhoto, uploadingMain, uploadingExtra,
-        avatarInputRef, mainInputRef, extraInputRef,
-        onAvatarChange, onMainChange, onExtraChange,
-        phone, setPhone, birthday, setBirthday, email, setEmail,
-        experience, setExperience, category, setCategory,
-        showOnSite, setShowOnSite,
+        saving, lang, setLang, firstNameValue, lastNameValue, setFirstName, setLastName, photo,
+        mainPhoto, setMainPhoto, additionalPhotos, removeExtra,
+        uploadingPhoto, uploadingMain, uploadingExtra, avatarInputRef, mainInputRef, extraInputRef,
+        onAvatarChange, onMainChange, onExtraChange, phone, setPhone, birthday, setBirthday, email, setEmail,
+        experience, setExperience, category, setCategory, showOnSite, setShowOnSite,
         description, setDescription, templateDescription, setTemplateDescription,
-        firstNameRu, lastNameRu,
-        onSubmit,
+        firstNameRu, lastNameRu, onSubmit,
     } = useChoreographerModal({ isOpen, onClose, onSaved, editChoreographer });
 
     return (
@@ -40,47 +32,25 @@ export const ChoreographerModal = memo(({ isOpen, onClose, onSaved, editChoreogr
                 </h2>
 
                 <ChoreographerPhotoSection
-                    photo={photo}
-                    mainPhoto={mainPhoto}
-                    additionalPhotos={additionalPhotos}
-                    uploadingPhoto={uploadingPhoto}
-                    uploadingMain={uploadingMain}
-                    uploadingExtra={uploadingExtra}
-                    firstNameRu={firstNameRu}
-                    lastNameRu={lastNameRu}
-                    avatarInputRef={avatarInputRef}
-                    mainInputRef={mainInputRef}
-                    extraInputRef={extraInputRef}
-                    onAvatarChange={onAvatarChange}
-                    onMainChange={onMainChange}
-                    onExtraChange={onExtraChange}
-                    onRemoveMain={() => setMainPhoto(null)}
-                    onRemoveExtra={removeExtra}
+                    photo={photo} mainPhoto={mainPhoto} additionalPhotos={additionalPhotos}
+                    uploadingPhoto={uploadingPhoto} uploadingMain={uploadingMain} uploadingExtra={uploadingExtra}
+                    firstNameRu={firstNameRu} lastNameRu={lastNameRu}
+                    avatarInputRef={avatarInputRef} mainInputRef={mainInputRef} extraInputRef={extraInputRef}
+                    onAvatarChange={onAvatarChange} onMainChange={onMainChange} onExtraChange={onExtraChange}
+                    onRemoveMain={() => setMainPhoto(null)} onRemoveExtra={removeExtra}
                 />
 
                 <ChoreographerDetailsForm
-                    lang={lang}
-                    setLang={setLang}
-                    firstNameValue={firstNameValue}
-                    lastNameValue={lastNameValue}
-                    setFirstName={setFirstName}
-                    setLastName={setLastName}
-                    phone={phone}
-                    setPhone={setPhone}
-                    birthday={birthday}
-                    setBirthday={setBirthday}
-                    email={email}
-                    setEmail={setEmail}
-                    experience={experience}
-                    setExperience={setExperience}
-                    category={category}
-                    setCategory={setCategory}
-                    showOnSite={showOnSite}
-                    setShowOnSite={setShowOnSite}
-                    description={description}
-                    setDescription={setDescription}
-                    templateDescription={templateDescription}
-                    setTemplateDescription={setTemplateDescription}
+                    lang={lang} setLang={setLang}
+                    firstNameValue={firstNameValue} lastNameValue={lastNameValue}
+                    setFirstName={setFirstName} setLastName={setLastName}
+                    phone={phone} setPhone={setPhone} birthday={birthday} setBirthday={setBirthday}
+                    email={email} setEmail={setEmail}
+                    experience={experience} setExperience={setExperience}
+                    category={category} setCategory={setCategory}
+                    showOnSite={showOnSite} setShowOnSite={setShowOnSite}
+                    description={description} setDescription={setDescription}
+                    templateDescription={templateDescription} setTemplateDescription={setTemplateDescription}
                 />
 
                 <button className={s.submitBtn} onClick={onSubmit} disabled={saving}>

@@ -19,6 +19,46 @@ export interface DanceGroup {
     branchId?: number | null;
 }
 
+const validateNameFields = (form: Client): Record<string, string> => {
+    const nextErrors: Record<string, string> = {};
+    if (!form.firstName?.trim() && !form.lastName?.trim()) nextErrors.firstName = 'Укажите имя или фамилию';
+    if ((form.firstName?.trim().length ?? 0) > 100) nextErrors.firstName = 'Имя слишком длинное';
+    if ((form.lastName?.trim().length ?? 0) > 100) nextErrors.lastName = 'Фамилия слишком длинная';
+    return nextErrors;
+};
+
+const validateContactFields = (form: Client): Record<string, string> => {
+    const nextErrors: Record<string, string> = {};
+    const email = form.email?.trim();
+    const phone = form.phoneNumber?.trim();
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Некорректный email';
+    if ((email?.length ?? 0) > 254) nextErrors.email = 'Email слишком длинный';
+    if (phone && phone.replace(/\D/g, '').length < 7) nextErrors.phoneNumber = 'Телефон слишком короткий';
+    if ((phone?.length ?? 0) > 32) nextErrors.phoneNumber = 'Телефон слишком длинный';
+    return nextErrors;
+};
+
+const validateOtherFields = (form: Client): Record<string, string> => {
+    const nextErrors: Record<string, string> = {};
+    if (form.birthday && new Date(form.birthday) > new Date()) nextErrors.birthday = 'Дата рождения не может быть в будущем';
+    if ((form.social?.trim().length ?? 0) > 255) nextErrors.social = 'Ссылка на социальную сеть слишком длинная';
+    return nextErrors;
+};
+
+const validateImageFile = (file: File | null): Record<string, string> => {
+    const nextErrors: Record<string, string> = {};
+    if (file && !file.type.startsWith('image/')) nextErrors.image = 'Выберите изображение';
+    if (file && file.size > 5 * 1024 * 1024) nextErrors.image = 'Размер изображения не должен превышать 5 MB';
+    return nextErrors;
+};
+
+const validateEditClientForm = (form: Client, file: File | null): Record<string, string> => ({
+    ...validateNameFields(form),
+    ...validateContactFields(form),
+    ...validateOtherFields(form),
+    ...validateImageFile(file),
+});
+
 const toFormState = (client?: Client): Client => ({
     firstName: client?.firstName ?? '',
     lastName: client?.lastName ?? '',
@@ -145,22 +185,7 @@ const useEditClientSubmit = ({ clientId, formState, onClose, onSuccess, setIsLoa
     const { form, file, selectedGroupIds, setErrors } = formState;
 
     const onSave = useCallback(async () => {
-        const nextErrors: Record<string, string> = {};
-        const email = form.email?.trim();
-        const phone = form.phoneNumber?.trim();
-
-        if (!form.firstName?.trim() && !form.lastName?.trim()) nextErrors.firstName = 'Укажите имя или фамилию';
-        if ((form.firstName?.trim().length ?? 0) > 100) nextErrors.firstName = 'Имя слишком длинное';
-        if ((form.lastName?.trim().length ?? 0) > 100) nextErrors.lastName = 'Фамилия слишком длинная';
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) nextErrors.email = 'Некорректный email';
-        if ((email?.length ?? 0) > 254) nextErrors.email = 'Email слишком длинный';
-        if (phone && phone.replace(/\D/g, '').length < 7) nextErrors.phoneNumber = 'Телефон слишком короткий';
-        if ((phone?.length ?? 0) > 32) nextErrors.phoneNumber = 'Телефон слишком длинный';
-        if (form.birthday && new Date(form.birthday) > new Date()) nextErrors.birthday = 'Дата рождения не может быть в будущем';
-        if ((form.social?.trim().length ?? 0) > 255) nextErrors.social = 'Ссылка на социальную сеть слишком длинная';
-        if (file && !file.type.startsWith('image/')) nextErrors.image = 'Выберите изображение';
-        if (file && file.size > 5 * 1024 * 1024) nextErrors.image = 'Размер изображения не должен превышать 5 MB';
-
+        const nextErrors = validateEditClientForm(form, file);
         setErrors(nextErrors);
         if (Object.keys(nextErrors).length) return;
 

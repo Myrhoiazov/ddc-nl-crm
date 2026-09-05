@@ -56,52 +56,28 @@ const MolliePaymentsSkeleton = () => (
 
 export const MolliePayments = memo(() => {
     const {
-        filters,
-        setFilters,
-        payments,
-        total,
-        page,
-        totalPages,
-        isLoading,
-        isSyncing,
-        error,
-        syncMessage,
-        problemCount,
-        onApplyFilters,
-        onResetFilters,
-        onSyncPayments,
-        onExport,
-        onPreviousPage,
-        onNextPage,
+        filters, setFilters, payments, total, page, totalPages, isLoading, isSyncing, error,
+        syncMessage, problemCount, onApplyFilters, onResetFilters, onSyncPayments, onExport,
+        onPreviousPage, onNextPage,
     } = useMolliePayments();
 
     const pagination = (
         <MolliePaymentsPagination
-            page={page}
-            totalPages={totalPages}
-            total={total}
-            isLoading={isLoading}
-            onPreviousPage={onPreviousPage}
-            onNextPage={onNextPage}
+            page={page} totalPages={totalPages} total={total} isLoading={isLoading}
+            onPreviousPage={onPreviousPage} onNextPage={onNextPage}
         />
     );
 
     return (
         <VStack gap="16" max className={s.MolliePayments}>
             <MolliePaymentsHeader
-                problemCount={problemCount}
-                isSyncing={isSyncing}
-                onExport={onExport}
-                onSyncPayments={onSyncPayments}
+                problemCount={problemCount} isSyncing={isSyncing} onExport={onExport} onSyncPayments={onSyncPayments}
             />
             {syncMessage && <Text text={syncMessage} size="s" className={s.subtitle} />}
 
             <MolliePaymentsFilters
-                filters={filters}
-                setFilters={setFilters}
-                isLoading={isLoading}
-                onApplyFilters={onApplyFilters}
-                onResetFilters={onResetFilters}
+                filters={filters} setFilters={setFilters} isLoading={isLoading}
+                onApplyFilters={onApplyFilters} onResetFilters={onResetFilters}
             />
 
             {pagination}
