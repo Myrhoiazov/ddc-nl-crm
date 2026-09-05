@@ -22,26 +22,49 @@ const reducers: ReducersList = {
     mollieClientsPage: mollieClientsPageSliceReducer,
 };
 
-export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
+const MollieCustomersHeader = ({ onExportActiveSubscriptions, fetchAllClients }: {
+    onExportActiveSubscriptions: () => void;
+    fetchAllClients: () => void;
+}) => {
     const { t } = useTranslation();
+    return (
+        <HStack justify="between" align="center" max>
+            <Text title={t('Mollie Customers')} bold />
+            <HStack gap="8" wrap="wrap">
+                <Button theme={ButtonTheme.OUTLINE} onClick={onExportActiveSubscriptions}>
+                    {t('CSV активные подписки')}
+                </Button>
+                <MollieClientAction reloadPage={fetchAllClients} />
+            </HStack>
+        </HStack>
+    );
+};
+
+export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
     const {
         mollieClients, isLoading, error, page, total, totalPages,
         firstItemNumber, lastItemNumber, filtersHook, fetchAllClients,
         onApplyFilters, onResetFilters, onPreviousPage, onNextPage, onExportActiveSubscriptions,
     } = useMollieCustomers();
 
+    const pagination = (
+        <MollieCustomersPagination
+            isLoading={isLoading}
+            error={error}
+            total={total}
+            page={page}
+            totalPages={totalPages}
+            firstItemNumber={firstItemNumber}
+            lastItemNumber={lastItemNumber}
+            onPrevious={onPreviousPage}
+            onNext={onNextPage}
+        />
+    );
+
     return (
         <DynamicModuleLoader reducers={reducers}>
             <div className={classNames(s.MollieCustomers, {}, [className])}>
-                <HStack justify="between" align="center" max>
-                    <Text title={t('Mollie Customers')} bold />
-                    <HStack gap="8" wrap="wrap">
-                        <Button theme={ButtonTheme.OUTLINE} onClick={onExportActiveSubscriptions}>
-                            {t('CSV активные подписки')}
-                        </Button>
-                        <MollieClientAction reloadPage={fetchAllClients} />
-                    </HStack>
-                </HStack>
+                <MollieCustomersHeader onExportActiveSubscriptions={onExportActiveSubscriptions} fetchAllClients={fetchAllClients} />
                 <MollieCustomersFiltersBar
                     filters={filtersHook.filters}
                     isLoading={isLoading}
@@ -52,17 +75,7 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
                     onApply={onApplyFilters}
                     onReset={onResetFilters}
                 />
-                <MollieCustomersPagination
-                    isLoading={isLoading}
-                    error={error}
-                    total={total}
-                    page={page}
-                    totalPages={totalPages}
-                    firstItemNumber={firstItemNumber}
-                    lastItemNumber={lastItemNumber}
-                    onPrevious={onPreviousPage}
-                    onNext={onNextPage}
-                />
+                {pagination}
                 <MollieClientList
                     isLoading={isLoading}
                     error={error}
@@ -74,17 +87,7 @@ export const MollieCustomers = memo(({ className }: MollieCustomersProps) => {
                         />
                     )}
                 />
-                <MollieCustomersPagination
-                    isLoading={isLoading}
-                    error={error}
-                    total={total}
-                    page={page}
-                    totalPages={totalPages}
-                    firstItemNumber={firstItemNumber}
-                    lastItemNumber={lastItemNumber}
-                    onPrevious={onPreviousPage}
-                    onNext={onNextPage}
-                />
+                {pagination}
             </div>
         </DynamicModuleLoader>
     );

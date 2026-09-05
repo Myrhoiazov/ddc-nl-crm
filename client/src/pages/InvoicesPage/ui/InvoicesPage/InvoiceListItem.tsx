@@ -54,6 +54,196 @@ interface InvoiceListItemProps {
     onUpdateStatus: (invoice: Invoice, status: Extract<InvoiceStatus, 'ISSUED' | 'CANCELLED'>) => void;
 }
 
+const Amounts = ({ invoice }: { invoice: Invoice }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.amounts}>
+            <strong>{money(invoice.totalCents)}</strong>
+            {invoice.documentType !== 'CREDIT_NOTE' && (
+                <span>
+                    {t('Оплачено {{amount}}', { amount: money(invoice.paidAmountCents) })}
+                    {invoice.creditedAmountCents > 0 && ` · Зачтено ${money(invoice.creditedAmountCents)}`}
+                    {' · '}{t('Долг {{amount}}', { amount: money(invoice.balanceDueCents) })}
+                </span>
+            )}
+            {invoice.paymentReference && (
+                <span>{t('Ref: {{reference}}', { reference: invoice.paymentReference })}</span>
+            )}
+        </div>
+    );
+};
+
+interface ActionsProps {
+    invoice: Invoice;
+    editable: boolean;
+    onEdit: (invoice: Invoice) => void;
+    onPreviewPdf: (invoice: Invoice) => void;
+    onDownloadPdf: (invoice: Invoice) => void;
+    onSendEmail: (invoice: Invoice) => void;
+    onCreateMolliePaymentLink: (invoice: Invoice) => void;
+    onSetActiveAction: (action: InvoiceAction) => void;
+    onUpdateStatus: (invoice: Invoice, status: Extract<InvoiceStatus, 'ISSUED' | 'CANCELLED'>) => void;
+}
+
+const ActionButtons = (props: ActionsProps) => {
+    const {
+        invoice,
+        editable,
+        onEdit,
+        onPreviewPdf,
+        onDownloadPdf,
+        onSendEmail,
+        onCreateMolliePaymentLink,
+        onSetActiveAction,
+        onUpdateStatus,
+    } = props;
+    const { t } = useTranslation();
+
+    return (
+        <div className={s.actions}>
+            {editable && (
+                <button onClick={() => onEdit(invoice)}>
+                    {t('Редактировать')}
+                </button>
+            )}
+            <button onClick={() => onPreviewPdf(invoice)}>{t('Предпросмотр')}</button>
+            <button onClick={() => onDownloadPdf(invoice)}>PDF</button>
+
+            {invoice.billToEmail && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
+                <button onClick={() => onSendEmail(invoice)}>
+                    {invoice.deliveries.some((d) => d.status === 'SENT') ? 'Отправить снова' : 'Email'}
+                </button>
+            )}
+
+            {invoice.documentType !== 'CREDIT_NOTE' && invoice.balanceDueCents > 0 && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
+                <>
+                    <button onClick={() => onCreateMolliePaymentLink(invoice)}>
+                        {invoice.molliePaymentLinks.some((l) => !l.archived && !l.paidAt)
+                            ? 'Оплатить Mollie'
+                            : 'Mollie link'}
+                    </button>
+                    <button onClick={() => onSetActiveAction({ type: 'record-payment', invoice })}>
+                        {t('Добавить оплату')}
+                    </button>
+                </>
+            )}
+
+            {invoice.documentType === 'INVOICE' && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
+                <>
+                    <button onClick={() => onSetActiveAction({ type: 'create-credit', invoice })}>
+                        {t('Кредит-нота')}
+                    </button>
+                    <button onClick={() => onSetActiveAction({ type: 'create-debit', invoice })}>
+                        {t('Корректировка')}
+                    </button>
+                </>
+            )}
+
+            {editable && invoice.status === 'DRAFT' && (
+                <button onClick={() => onUpdateStatus(invoice, 'ISSUED')}>{t('Выдать')}</button>
+            )}
+            {editable && invoice.status === 'DRAFT' && (
+                <button
+                    className={s.confirmPaid}
+                    onClick={() => onSetActiveAction({ type: 'confirm-paid', invoice })}
+                >
+                    {t('Подтвердить как оплаченный')}
+                </button>
+            )}
+            {editable && (
+                <button
+                    className={s.cancel}
+                    onClick={() => onSetActiveAction({ type: 'cancel', invoice })}
+                >
+                    {t('Отменить')}
+                </button>
+            )}
+        </div>
+    );
+};
+
+const MolliePaymentsSection = ({ invoice }: { invoice: Invoice }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.mollie}>
+            <strong>{t('Mollie:')}</strong>
+            {invoice.molliePayments.map((payment) => (
+                <span key={payment.id}>
+                    {payment.mollieId ?? `#${payment.id}`} · {payment.status}
+                    {Number(payment.refundedAmount) > 0 && ` · refund €${Number(payment.refundedAmount).toFixed(2)}`}
+                    {Number(payment.chargedBackAmount) > 0 && ` · chargeback €${Number(payment.chargedBackAmount).toFixed(2)}`}
+                </span>
+            ))}
+        </div>
+    );
+};
+
+const MolliePaymentLinksSection = ({ invoice }: { invoice: Invoice }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.mollie}>
+            <strong>{t('Mollie links:')}</strong>
+            {invoice.molliePaymentLinks.map((link) => (
+                <span key={link.id}>
+                    {link.mollieId} · {link.archived ? 'archived' : 'active'}
+                    {link.expiresAt && ` · до ${new Date(link.expiresAt).toLocaleString('ru-RU')}`}
+                </span>
+            ))}
+        </div>
+    );
+};
+
+const PaymentsSection = ({ invoice }: { invoice: Invoice }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.mollie}>
+            <strong>{t('Оплаты:')}</strong>
+            {invoice.payments.map((payment) => (
+                <span key={payment.id}>
+                    {money(payment.amountCents)} · {payment.method} · {new Date(payment.paidAt).toLocaleDateString('ru-RU')}
+                    {payment.reference && ` · ${payment.reference}`}
+                </span>
+            ))}
+        </div>
+    );
+};
+
+const DeliveriesSection = ({ invoice }: { invoice: Invoice }) => {
+    const { t } = useTranslation();
+    return (
+        <details className={s.history}>
+            <summary>{t('Отправки ({{count}})', { count: invoice.deliveries.length })}</summary>
+            {invoice.deliveries.map((delivery) => (
+                <div key={delivery.id}>
+                    <span>
+                        {delivery.type} · {delivery.status}
+                        {delivery.viewCount > 0 && ` · просмотрен ${delivery.viewCount} раз`}
+                    </span>
+                    <small>
+                        {delivery.recipientEmail} · {new Date(delivery.createdAt).toLocaleString('ru-RU')}
+                        {delivery.errorMessage && ` · ${delivery.errorMessage}`}
+                    </small>
+                </div>
+            ))}
+        </details>
+    );
+};
+
+const HistorySection = ({ invoice }: { invoice: Invoice }) => {
+    const { t } = useTranslation();
+    return (
+        <details className={s.history}>
+            <summary>{t('История ({{count}})', { count: invoice.auditLogs.length })}</summary>
+            {invoice.auditLogs.map((log) => (
+                <div key={log.id}>
+                    <span>{actionLabel[log.action] ?? log.action}</span>
+                    <small>{actorName(log)} · {new Date(log.createdAt).toLocaleString('ru-RU')}</small>
+                </div>
+            ))}
+        </details>
+    );
+};
+
 export const InvoiceListItem = memo((props: InvoiceListItemProps) => {
     const {
         invoice,
@@ -85,144 +275,25 @@ export const InvoiceListItem = memo((props: InvoiceListItemProps) => {
                 {statusLabel[invoice.status]}
             </span>
 
-            <div className={s.amounts}>
-                <strong>{money(invoice.totalCents)}</strong>
-                {invoice.documentType !== 'CREDIT_NOTE' && (
-                    <span>
-                        {t('Оплачено {{amount}}', { amount: money(invoice.paidAmountCents) })}
-                        {invoice.creditedAmountCents > 0 && ` · Зачтено ${money(invoice.creditedAmountCents)}`}
-                        {' · '}{t('Долг {{amount}}', { amount: money(invoice.balanceDueCents) })}
-                    </span>
-                )}
-                {invoice.paymentReference && (
-                    <span>{t('Ref: {{reference}}', { reference: invoice.paymentReference })}</span>
-                )}
-            </div>
+            <Amounts invoice={invoice} />
 
-            <div className={s.actions}>
-                {editable && (
-                    <button onClick={() => onEdit(invoice)}>
-                        {t('Редактировать')}
-                    </button>
-                )}
-                <button onClick={() => onPreviewPdf(invoice)}>{t('Предпросмотр')}</button>
-                <button onClick={() => onDownloadPdf(invoice)}>PDF</button>
+            <ActionButtons
+                invoice={invoice}
+                editable={editable}
+                onEdit={onEdit}
+                onPreviewPdf={onPreviewPdf}
+                onDownloadPdf={onDownloadPdf}
+                onSendEmail={onSendEmail}
+                onCreateMolliePaymentLink={onCreateMolliePaymentLink}
+                onSetActiveAction={onSetActiveAction}
+                onUpdateStatus={onUpdateStatus}
+            />
 
-                {invoice.billToEmail && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
-                    <button onClick={() => onSendEmail(invoice)}>
-                        {invoice.deliveries.some((d) => d.status === 'SENT') ? 'Отправить снова' : 'Email'}
-                    </button>
-                )}
-
-                {invoice.documentType !== 'CREDIT_NOTE' && invoice.balanceDueCents > 0 && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
-                    <>
-                        <button onClick={() => onCreateMolliePaymentLink(invoice)}>
-                            {invoice.molliePaymentLinks.some((l) => !l.archived && !l.paidAt)
-                                ? 'Оплатить Mollie'
-                                : 'Mollie link'}
-                        </button>
-                        <button onClick={() => onSetActiveAction({ type: 'record-payment', invoice })}>
-                            {t('Добавить оплату')}
-                        </button>
-                    </>
-                )}
-
-                {invoice.documentType === 'INVOICE' && !['DRAFT', 'CANCELLED'].includes(invoice.status) && (
-                    <>
-                        <button onClick={() => onSetActiveAction({ type: 'create-credit', invoice })}>
-                            {t('Кредит-нота')}
-                        </button>
-                        <button onClick={() => onSetActiveAction({ type: 'create-debit', invoice })}>
-                            {t('Корректировка')}
-                        </button>
-                    </>
-                )}
-
-                {editable && invoice.status === 'DRAFT' && (
-                    <button onClick={() => onUpdateStatus(invoice, 'ISSUED')}>{t('Выдать')}</button>
-                )}
-                {editable && invoice.status === 'DRAFT' && (
-                    <button
-                        className={s.confirmPaid}
-                        onClick={() => onSetActiveAction({ type: 'confirm-paid', invoice })}
-                    >
-                        {t('Подтвердить как оплаченный')}
-                    </button>
-                )}
-                {editable && (
-                    <button
-                        className={s.cancel}
-                        onClick={() => onSetActiveAction({ type: 'cancel', invoice })}
-                    >
-                        {t('Отменить')}
-                    </button>
-                )}
-            </div>
-
-            {invoice.molliePayments.length > 0 && (
-                <div className={s.mollie}>
-                    <strong>{t('Mollie:')}</strong>
-                    {invoice.molliePayments.map((payment) => (
-                        <span key={payment.id}>
-                            {payment.mollieId ?? `#${payment.id}`} · {payment.status}
-                            {Number(payment.refundedAmount) > 0 && ` · refund €${Number(payment.refundedAmount).toFixed(2)}`}
-                            {Number(payment.chargedBackAmount) > 0 && ` · chargeback €${Number(payment.chargedBackAmount).toFixed(2)}`}
-                        </span>
-                    ))}
-                </div>
-            )}
-
-            {invoice.molliePaymentLinks.length > 0 && (
-                <div className={s.mollie}>
-                    <strong>{t('Mollie links:')}</strong>
-                    {invoice.molliePaymentLinks.map((link) => (
-                        <span key={link.id}>
-                            {link.mollieId} · {link.archived ? 'archived' : 'active'}
-                            {link.expiresAt && ` · до ${new Date(link.expiresAt).toLocaleString('ru-RU')}`}
-                        </span>
-                    ))}
-                </div>
-            )}
-
-            {invoice.payments.length > 0 && (
-                <div className={s.mollie}>
-                    <strong>{t('Оплаты:')}</strong>
-                    {invoice.payments.map((payment) => (
-                        <span key={payment.id}>
-                            {money(payment.amountCents)} · {payment.method} · {new Date(payment.paidAt).toLocaleDateString('ru-RU')}
-                            {payment.reference && ` · ${payment.reference}`}
-                        </span>
-                    ))}
-                </div>
-            )}
-
-            {invoice.deliveries.length > 0 && (
-                <details className={s.history}>
-                    <summary>{t('Отправки ({{count}})', { count: invoice.deliveries.length })}</summary>
-                    {invoice.deliveries.map((delivery) => (
-                        <div key={delivery.id}>
-                            <span>
-                                {delivery.type} · {delivery.status}
-                                {delivery.viewCount > 0 && ` · просмотрен ${delivery.viewCount} раз`}
-                            </span>
-                            <small>
-                                {delivery.recipientEmail} · {new Date(delivery.createdAt).toLocaleString('ru-RU')}
-                                {delivery.errorMessage && ` · ${delivery.errorMessage}`}
-                            </small>
-                        </div>
-                    ))}
-                </details>
-            )}
-
-            <details className={s.history}>
-                <summary>{t('История ({{count}})', { count: invoice.auditLogs.length })}</summary>
-                {invoice.auditLogs.map((log) => (
-                    <div key={log.id}>
-                        <span>{actionLabel[log.action] ?? log.action}</span>
-                        <small>{actorName(log)} · {new Date(log.createdAt).toLocaleString('ru-RU')}</small>
-                    </div>
-                ))}
-            </details>
+            {invoice.molliePayments.length > 0 && <MolliePaymentsSection invoice={invoice} />}
+            {invoice.molliePaymentLinks.length > 0 && <MolliePaymentLinksSection invoice={invoice} />}
+            {invoice.payments.length > 0 && <PaymentsSection invoice={invoice} />}
+            {invoice.deliveries.length > 0 && <DeliveriesSection invoice={invoice} />}
+            <HistorySection invoice={invoice} />
         </article>
     );
 });

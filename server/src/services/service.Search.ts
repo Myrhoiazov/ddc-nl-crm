@@ -180,10 +180,10 @@ const paymentSearchWhere = (q: string): Prisma.PaymentWhereInput => ({
     ],
 });
 
-const searchPayments = async (q: string): Promise<GlobalSearchResponse['payments']> => {
+const queryPaymentRows = (q: string) => {
     const where = paymentSearchWhere(q);
 
-    const [rows, total] = await Promise.all([
+    return Promise.all([
         prisma.payment.findMany({
             where,
             take: FETCH_POOL,
@@ -209,6 +209,10 @@ const searchPayments = async (q: string): Promise<GlobalSearchResponse['payments
         }),
         prisma.payment.count({ where }),
     ]);
+};
+
+const searchPayments = async (q: string): Promise<GlobalSearchResponse['payments']> => {
+    const [rows, total] = await queryPaymentRows(q);
 
     const items = rankAndLimit(rows, q, (row) => [
         row.mollieId,

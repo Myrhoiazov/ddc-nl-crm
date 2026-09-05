@@ -40,9 +40,44 @@ interface PaymentReminderDeliveriesCardProps {
     onStatusFilterChange: (value: string) => void;
 }
 
+const DeliveriesTable = ({ deliveries }: { deliveries: ReminderDelivery[] }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.tableWrapper}>
+            <table className={s.table}>
+                <thead>
+                    <tr>
+                        <th>{t('Клиент')}</th>
+                        <th>{t('Дата платежа')}</th>
+                        <th>{t('Язык')}</th>
+                        <th>{t('Статус')}</th>
+                        <th>{t('Создано')}</th>
+                        <th>{t('Ошибка')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {deliveries.map((delivery) => (
+                        <tr key={delivery.id}>
+                            <td>{clientName(delivery)}</td>
+                            <td>{formatDateTime(delivery.targetPaymentDate)}</td>
+                            <td>{LANGUAGE_LABELS[delivery.language]}</td>
+                            <td>
+                                <span className={`${s.badge} ${s[`status_${delivery.status}`]}`}>
+                                    {STATUS_LABELS[delivery.status]}
+                                </span>
+                            </td>
+                            <td>{formatDateTime(delivery.createdAt)}</td>
+                            <td className={s.errorCell}>{delivery.errorMessage ?? '—'}</td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
+};
+
 export const PaymentReminderDeliveriesCard = memo((props: PaymentReminderDeliveriesCardProps) => {
     const { isLoading, deliveries, statusFilter, onStatusFilterChange } = props;
-    const { t } = useTranslation();
 
     return (
         <Card padding="24" fullWidth className={s.card}>
@@ -62,38 +97,7 @@ export const PaymentReminderDeliveriesCard = memo((props: PaymentReminderDeliver
                     <Text size="s" text="Пока нет ни одной отправки." />
                 )}
 
-                {!isLoading && deliveries.length > 0 && (
-                    <div className={s.tableWrapper}>
-                        <table className={s.table}>
-                            <thead>
-                                <tr>
-                                    <th>{t('Клиент')}</th>
-                                    <th>{t('Дата платежа')}</th>
-                                    <th>{t('Язык')}</th>
-                                    <th>{t('Статус')}</th>
-                                    <th>{t('Создано')}</th>
-                                    <th>{t('Ошибка')}</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {deliveries.map((delivery) => (
-                                    <tr key={delivery.id}>
-                                        <td>{clientName(delivery)}</td>
-                                        <td>{formatDateTime(delivery.targetPaymentDate)}</td>
-                                        <td>{LANGUAGE_LABELS[delivery.language]}</td>
-                                        <td>
-                                            <span className={`${s.badge} ${s[`status_${delivery.status}`]}`}>
-                                                {STATUS_LABELS[delivery.status]}
-                                            </span>
-                                        </td>
-                                        <td>{formatDateTime(delivery.createdAt)}</td>
-                                        <td className={s.errorCell}>{delivery.errorMessage ?? '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                {!isLoading && deliveries.length > 0 && <DeliveriesTable deliveries={deliveries} />}
             </VStack>
         </Card>
     );

@@ -37,8 +37,18 @@ const initialReducers: ReducersList = {
     createMollieMandateForm: createMollieMandateFormReducer,
 };
 
+const FormSkeleton = () => (
+    <VStack gap="16" align="center" max>
+        <Skeleton width={220} height={24} border="6px" />
+        <Skeleton width="100%" height={52} border="14px" />
+        <Skeleton width="100%" height={52} border="14px" />
+        <Skeleton width="100%" height={72} border="14px" />
+        <Skeleton width="100%" height={44} border="32px" />
+    </VStack>
+);
+
 const CreateMollieMandateForm = (props: CreateMollieMandateFormProps) => {
-    const { className, onSuccess, reloadPage } = props;
+    const { onSuccess, reloadPage } = props;
     const { t } = useTranslation();
     const dispatch = useAppDispatch();
     const formData = useSelector(getMollieMandateData);
@@ -78,18 +88,10 @@ const CreateMollieMandateForm = (props: CreateMollieMandateFormProps) => {
             reloadPage?.();
             toast.success(t('Mandate успешно добавлен'));
         }
-    }, [onSuccess, dispatch]);
+    }, [onSuccess, dispatch, reloadPage, t]);
 
     if (isLoading) {
-        return (
-            <VStack gap="16" align="center" max>
-                <Skeleton width={220} height={24} border="6px" />
-                <Skeleton width="100%" height={52} border="14px" />
-                <Skeleton width="100%" height={52} border="14px" />
-                <Skeleton width="100%" height={72} border="14px" />
-                <Skeleton width="100%" height={44} border="32px" />
-            </VStack>
-        );
+        return <FormSkeleton />;
     }
 
     return (

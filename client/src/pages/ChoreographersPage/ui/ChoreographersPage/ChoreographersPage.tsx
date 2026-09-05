@@ -8,8 +8,49 @@ import { ChoreographerCard, Choreographer } from '../ChoreographerCard/Choreogra
 import { ChoreographerModal } from '../ChoreographerModal/ChoreographerModal';
 import s from './ChoreographersPage.module.scss';
 
-const ChoreographersPage = memo(() => {
+const ChoreographersHeader = ({ onAdd }: { onAdd: () => void }) => {
     const { t } = useTranslation();
+    return (
+        <div className={s.header}>
+            <h1 className={s.title}>{t('Хореографы')}</h1>
+            <button className={s.addBtn} onClick={onAdd}>
+                {t('+ Добавить хореографа')}
+            </button>
+        </div>
+    );
+};
+
+const ChoreographersEmptyState = ({ onAdd }: { onAdd: () => void }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.emptyState}>
+            <div className={s.emptyTitle}>{t('Хореографов пока нет')}</div>
+            <div className={s.emptyText}>{t('Добавьте первого преподавателя студии')}</div>
+            <button className={s.addBtn} onClick={onAdd}>
+                {t('+ Добавить хореографа')}
+            </button>
+        </div>
+    );
+};
+
+const ChoreographersGrid = ({ choreographers, onEdit, onDelete }: {
+    choreographers: Choreographer[];
+    onEdit: (c: Choreographer) => void;
+    onDelete: (id: number) => void;
+}) => (
+    <div className={s.grid}>
+        {choreographers.map((c) => (
+            <ChoreographerCard
+                key={c.id}
+                choreographer={c}
+                onEdit={onEdit}
+                onDelete={onDelete}
+            />
+        ))}
+    </div>
+);
+
+const ChoreographersPage = memo(() => {
     const [searchParams] = useSearchParams();
     const [choreographers, setChoreographers] = useState<Choreographer[]>([]);
     const [loading, setLoading] = useState(false);
@@ -48,34 +89,14 @@ const ChoreographersPage = memo(() => {
 
     return (
         <Page>
-            <div className={s.header}>
-                <h1 className={s.title}>{t('Хореографы')}</h1>
-                <button className={s.addBtn} onClick={() => setModalOpen(true)}>
-                    {t('+ Добавить хореографа')}
-                </button>
-            </div>
+            <ChoreographersHeader onAdd={() => setModalOpen(true)} />
 
             {loading ? (
                 <div className={s.empty}>Загрузка...</div>
             ) : filteredChoreographers.length === 0 ? (
-                <div className={s.emptyState}>
-                    <div className={s.emptyTitle}>{t('Хореографов пока нет')}</div>
-                    <div className={s.emptyText}>{t('Добавьте первого преподавателя студии')}</div>
-                    <button className={s.addBtn} onClick={() => setModalOpen(true)}>
-                        {t('+ Добавить хореографа')}
-                    </button>
-                </div>
+                <ChoreographersEmptyState onAdd={() => setModalOpen(true)} />
             ) : (
-                <div className={s.grid}>
-                    {filteredChoreographers.map((c) => (
-                        <ChoreographerCard
-                            key={c.id}
-                            choreographer={c}
-                            onEdit={onEdit}
-                            onDelete={onDelete}
-                        />
-                    ))}
-                </div>
+                <ChoreographersGrid choreographers={filteredChoreographers} onEdit={onEdit} onDelete={onDelete} />
             )}
 
             <ChoreographerModal

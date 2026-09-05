@@ -38,6 +38,32 @@ const reducers: ReducersList = {
     clientsPage: clientsPageReducer,
 };
 
+const useClientStats = (clients: Client[]) =>
+    useMemo(() => {
+        const linked = clients.filter((client) => Boolean(client.mollieLinks?.length)).length;
+        const branches = new Set(clients.map((client) => client.branch?.name).filter(Boolean));
+        return {
+            total: clients.length,
+            linked,
+            unlinked: clients.length - linked,
+            branches: branches.size,
+        };
+    }, [clients]);
+
+const ClientsStatsGrid = ({ clients }: { clients: Client[] }) => {
+    const { t } = useTranslation();
+    const stats = useClientStats(clients);
+
+    return (
+        <div className={cls.statsGrid}>
+            <div className={cls.statCard}><span>{t('Всего учеников')}</span><strong>{stats.total}</strong></div>
+            <div className={cls.statCard}><span>{t('С оплатой')}</span><strong>{stats.linked}</strong></div>
+            <div className={cls.statCard}><span>{t('Без оплаты')}</span><strong>{stats.unlinked}</strong></div>
+            <div className={cls.statCard}><span>{t('Филиалов')}</span><strong>{stats.branches}</strong></div>
+        </div>
+    );
+};
+
 const ClientsPage = (props: ClientsPageProps) => {
     const { className } = props;
     const dispatch = useAppDispatch();
@@ -66,17 +92,6 @@ const ClientsPage = (props: ClientsPageProps) => {
         dispatch(fetchClientsList({ replace: true, noQuery: true }));
     }, [dispatch]);
 
-    const stats = useMemo(() => {
-        const linked = clients.filter((client) => Boolean(client.mollieLinks?.length)).length;
-        const branches = new Set(clients.map((client) => client.branch?.name).filter(Boolean));
-        return {
-            total: clients.length,
-            linked,
-            unlinked: clients.length - linked,
-            branches: branches.size,
-        };
-    }, [clients]);
-
     // A client can also be created from the global "Добавить клиента" button in Navbar,
     // which lives outside this page — it signals us via a DOM event instead of a prop.
     useEffect(() => {
@@ -94,12 +109,7 @@ const ClientsPage = (props: ClientsPageProps) => {
                     <Text title={t('ClientsList')} size="l" bold />
                     <ClientViewSelector view={view} onViewClick={onChangeView} />
                 </HStack>
-                <div className={cls.statsGrid}>
-                    <div className={cls.statCard}><span>{t('Всего учеников')}</span><strong>{stats.total}</strong></div>
-                    <div className={cls.statCard}><span>{t('С оплатой')}</span><strong>{stats.linked}</strong></div>
-                    <div className={cls.statCard}><span>{t('Без оплаты')}</span><strong>{stats.unlinked}</strong></div>
-                    <div className={cls.statCard}><span>{t('Филиалов')}</span><strong>{stats.branches}</strong></div>
-                </div>
+                <ClientsStatsGrid clients={clients} />
                 <FiltersContainer reloadPage={fetchAllClients} />
                 <ClientList
                     view={view}
