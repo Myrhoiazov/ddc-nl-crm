@@ -83,29 +83,9 @@ const DanceStylesGrid = ({ items, onToggle, onEdit, onRemove }: {
 const DanceStylesPage = memo(() => {
     const { t } = useTranslation();
     const {
-        items,
-        search,
-        setSearch,
-        status,
-        setStatus,
-        sort,
-        setSort,
-        loading,
-        modalOpen,
-        setModalOpen,
-        editingId,
-        lang,
-        setLang,
-        form,
-        saving,
-        openCreate,
-        openEdit,
-        updateField,
-        uploadImage,
-        save,
-        remove,
-        toggle,
-        resetFilters,
+        items, search, setSearch, status, setStatus, sort, setSort, loading,
+        modalOpen, setModalOpen, editingId, lang, setLang, form, saving,
+        openCreate, openEdit, updateField, uploadImage, save, remove, toggle, resetFilters,
     } = useDanceStyles();
 
     return (
@@ -113,14 +93,8 @@ const DanceStylesPage = memo(() => {
             <DanceStylesHeader onAdd={openCreate} />
 
             <DanceStylesFilters
-                search={search}
-                onSearchChange={setSearch}
-                status={status}
-                onStatusChange={setStatus}
-                sort={sort}
-                onSortChange={setSort}
-                onReset={resetFilters}
-                itemsCount={items.length}
+                search={search} onSearchChange={setSearch} status={status} onStatusChange={setStatus}
+                sort={sort} onSortChange={setSort} onReset={resetFilters} itemsCount={items.length}
             />
 
             {loading ? <div className={s.empty}>Загружаем стили...</div> : !items.length ? <div className={s.empty}>{t('Стили пока не добавлены.')}</div> : (
@@ -128,16 +102,9 @@ const DanceStylesPage = memo(() => {
             )}
 
             <DanceStyleFormModal
-                isOpen={modalOpen}
-                isEditing={editingId !== undefined}
-                lang={lang}
-                form={form}
-                saving={saving}
-                onClose={() => setModalOpen(false)}
-                onLangChange={setLang}
-                onFieldChange={updateField}
-                onUploadImage={uploadImage}
-                onSave={save}
+                isOpen={modalOpen} isEditing={editingId !== undefined} lang={lang} form={form} saving={saving}
+                onClose={() => setModalOpen(false)} onLangChange={setLang} onFieldChange={updateField}
+                onUploadImage={uploadImage} onSave={save}
             />
         </Page>
     );

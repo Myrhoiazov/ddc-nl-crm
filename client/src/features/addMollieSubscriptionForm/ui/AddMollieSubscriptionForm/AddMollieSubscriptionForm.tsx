@@ -2,10 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { memo, useCallback } from 'react';
 import { Text } from '@/shared/ui/Text/Text';
 import { VStack } from '@/shared/ui/Stack';
-import {
-    addMollieSubscriptionActions,
-    addMollieSubscriptionReducer,
-} from '../../model/slices/addMollieSubscriptionSlice';
+import { addMollieSubscriptionReducer } from '../../model/slices/addMollieSubscriptionSlice';
 import {
     DynamicModuleLoader,
     ReducersList,
@@ -25,6 +22,7 @@ import { addSubscription } from '../../model/services/addSubscription/addSubscri
 import { toast } from 'react-toastify';
 import { Button, ButtonTheme } from '@/shared/ui/Button';
 import { MollieClient } from '@/entities/MollieClient';
+import { useMollieSubscriptionUpdaters } from './useMollieSubscriptionUpdaters';
 
 interface AAddMollieSubscriptionFormProps {
     onSuccess?: () => void;
@@ -108,46 +106,10 @@ const AddMollieSubscriptionForm = memo((props: AAddMollieSubscriptionFormProps) 
         dispatch(fetchMollieClientsList());
     });
 
-    const onChangeDateStart = useCallback(
-        (value?: string) => {
-            dispatch(addMollieSubscriptionActions.update({ startDate: value }));
-        },
-        [dispatch]
-    );
-
-    const onChangeDescription = useCallback(
-        (value?: string) => {
-            dispatch(addMollieSubscriptionActions.update({ description: value }));
-        },
-        [dispatch]
-    );
-
-    const onChangeCustomer = useCallback(
-        (customer?: MollieClient) => {
-            dispatch(addMollieSubscriptionActions.update({ customerId: customer?.mollieId }));
-        },
-        [dispatch]
-    );
-
-    const onChangeTimes = useCallback(
-        (value?: string) => {
-            dispatch(addMollieSubscriptionActions.update({ times: Number(value) }));
-        },
-        [dispatch]
-    );
-    const onChangeInterval = useCallback(
-        (value?: string) => {
-            dispatch(addMollieSubscriptionActions.update({ interval: value }));
-        },
-        [dispatch]
-    );
-
-    const onChangeSum = useCallback(
-        (value?: Payment) => {
-            dispatch(addMollieSubscriptionActions.update({ amount: value }));
-        },
-        [dispatch]
-    );
+    const {
+        onChangeDateStart, onChangeDescription, onChangeCustomer,
+        onChangeTimes, onChangeInterval, onChangeSum,
+    } = useMollieSubscriptionUpdaters();
 
     const onSave = useCallback(async () => {
         const result = await dispatch(addSubscription());

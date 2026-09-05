@@ -31,6 +31,11 @@ TypeScript monorepo, two packages, no shared root `node_modules`:
 - `docs/` — product, infrastructure, security, roadmap, Graphify documentation
 - `plugins/` — local ESLint plugins (FSD path checker)
 
+Two agent harnesses share the same Graphify-generated context: `.mcp.json` wires it into
+Claude Code, `.codex/config.toml` wires the identical `graphify-out/graph.json` into the
+OpenAI Codex CLI. Term glossary (`code-only`, semantic pass, clustering, wiki) and the
+generation workflow: [Graphify Workflow](docs/spec/GRAPHIFY_WORKFLOW.md).
+
 ## Client Architecture
 
 `client/src` follows Feature-Sliced Design:
@@ -42,7 +47,10 @@ app -> pages -> widgets -> features -> entities -> shared
 - Slices import only through their public API (`index.ts`) or from lower layers.
 - `@/` alias → `client/src/`.
 - FSD path rules enforced by `eslint-plugin-denys-fix-fsd-path-plugin` (`path-checker`).
-- Redux state: always-mounted reducers (`user`, `ui`) + lazy reducers via `DynamicModuleLoader`.
+- Redux state: two mandatory root reducers (`user`, `ui`) always mounted, plus optional lazy
+  ("feature") reducers registered on demand via `DynamicModuleLoader`. The full contract —
+  `StateSchema` interface listing every optional slice, and `ReducerManager.add`/`.remove` — lives
+  in `client/src/app/providers/StoreProvider/config/StateSchema.ts`.
 - API access: `$api` (unauthenticated) and `$apiPrivate` (cookie session + CSRF).
 - UI text via i18next. Components are functional, often wrapped with `memo()`.
 - SCSS Modules (`*.module.scss`). Global styles in `app/styles`.

@@ -99,53 +99,26 @@ const MatrixSummary = ({
 
 export const MolliePaymentsMatrixToolbar = memo((props: MolliePaymentsMatrixToolbarProps) => {
     const {
-        startYear, onStartYearChange,
-        periodMode, onPeriodModeChange,
-        selectedMonth, onSelectedMonthChange,
-        monthFrom, onMonthFromChange,
-        monthTo, onMonthToChange,
-        monthOptions, months,
-        search, onSearchChange,
+        startYear, onStartYearChange, periodMode, onPeriodModeChange,
+        selectedMonth, onSelectedMonthChange, monthFrom, onMonthFromChange, monthTo, onMonthToChange,
+        monthOptions, months, search, onSearchChange,
         visibleMonthsCount, rowsCount, paidStudents, totalPaidMonths,
     } = props;
 
     return (
         <div className={s.toolbar}>
-            <Select
-                label="Учебный год"
-                value={startYear}
-                options={yearOptions}
-                onChange={onStartYearChange}
-            />
-            <Select<PeriodMode>
-                label="Просмотр"
-                value={periodMode}
-                options={periodModeOptions}
-                onChange={onPeriodModeChange}
-            />
+            <Select label="Учебный год" value={startYear} options={yearOptions} onChange={onStartYearChange} />
+            <Select<PeriodMode> label="Просмотр" value={periodMode} options={periodModeOptions} onChange={onPeriodModeChange} />
             <PeriodSelectors
-                periodMode={periodMode}
-                selectedMonth={selectedMonth}
-                monthFrom={monthFrom}
-                monthTo={monthTo}
-                monthOptions={monthOptions}
-                months={months}
-                onSelectedMonthChange={onSelectedMonthChange}
-                onMonthFromChange={onMonthFromChange}
+                periodMode={periodMode} selectedMonth={selectedMonth} monthFrom={monthFrom} monthTo={monthTo}
+                monthOptions={monthOptions} months={months}
+                onSelectedMonthChange={onSelectedMonthChange} onMonthFromChange={onMonthFromChange}
                 onMonthToChange={onMonthToChange}
             />
-            <Input
-                label="Поиск"
-                placeholder="Ученик, плательщик или филиал"
-                value={search}
-                onChange={onSearchChange}
-                fullWidth
-            />
+            <Input label="Поиск" placeholder="Ученик, плательщик или филиал" value={search} onChange={onSearchChange} fullWidth />
             <MatrixSummary
-                visibleMonthsCount={visibleMonthsCount}
-                rowsCount={rowsCount}
-                paidStudents={paidStudents}
-                totalPaidMonths={totalPaidMonths}
+                visibleMonthsCount={visibleMonthsCount} rowsCount={rowsCount}
+                paidStudents={paidStudents} totalPaidMonths={totalPaidMonths}
             />
         </div>
     );

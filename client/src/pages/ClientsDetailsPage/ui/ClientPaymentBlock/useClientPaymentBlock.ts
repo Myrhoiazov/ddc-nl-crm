@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import { toast } from 'react-toastify';
-import axios from 'axios';
 import { $apiPrivate } from '@/shared/api/api';
 import type { SelectOption } from '@/shared/ui/Select/Select';
 import { PaymentLinkPayer } from '../PaymentLinkModal/PaymentLinkModal';
-import { today, getPayerName } from './helpers';
+import { getPayerName, today } from './helpers';
+import { useMandateActions } from './useMandateActions';
+import { usePaymentLinkActions } from './usePaymentLinkActions';
+import { useSubscriptionCreateActions } from './useSubscriptionCreateActions';
+import { useSubscriptionEditActions } from './useSubscriptionEditActions';
+import { useSubscriptionRestartActions } from './useSubscriptionRestartActions';
 import type {
     ClientMandate,
     ClientPayment,
@@ -199,212 +202,30 @@ const usePaymentDerivedState = (data: ClientPaymentSummary | null, subscriptionF
 
 export const useClientPaymentBlock = ({ id }: { id: string }): UseClientPaymentBlockResult => {
     const { data, isLoading, error, reload } = usePaymentData(id);
+    const formState = usePaymentFormState();
     const {
-        isPaymentLinkOpen, setIsPaymentLinkOpen,
-        isMandateOpen, setIsMandateOpen,
-        isSubscriptionOpen, setIsSubscriptionOpen,
-        editingSubscription, setEditingSubscription,
-        restartingSubscription, setRestartingSubscription,
-        isSaving, setIsSaving,
-        mandateForm, setMandateForm,
-        subscriptionForm, setSubscriptionForm,
-        editSubscriptionForm, setEditSubscriptionForm,
-        restartForm, setRestartForm,
-    } = usePaymentFormState();
+        setIsSaving, setIsMandateOpen, setIsSubscriptionOpen,
+        setEditingSubscription, setEditSubscriptionForm,
+        setRestartingSubscription, setRestartForm, subscriptionForm,
+    } = formState;
     const { payers, payerOptions, mandateOptions, getMandateOptionsForCustomer, statusText } =
         usePaymentDerivedState(data, subscriptionForm);
 
-    const onCopyPaymentLink = useCallback(async (checkoutUrl?: string) => {
-        if (!checkoutUrl) return;
-
-        try {
-            await navigator.clipboard.writeText(checkoutUrl);
-            toast.success('Payment link скопирован');
-        } catch {
-            toast.error('Не удалось скопировать ссылку');
-        }
-    }, []);
-
-    const onCancelPaymentLink = useCallback(async (payment: ClientPayment) => {
-        if (!window.confirm('Отменить payment link? Плательщик больше не сможет им воспользоваться.')) {
-            return;
-        }
-
-        try {
-            await $apiPrivate.post(`/mollie/payments/${payment.id}/cancel`, { clientId: Number(id) });
-            toast.success('Payment link отменён');
-            reload();
-        } catch {
-            toast.error('Не удалось отменить payment link');
-        }
-    }, [id, reload]);
-
-    const onCreateMandate = useCallback(async (form: MandateForm) => {
-        const payer = data?.payers.find((item) => String(item.customer?.id) === form.customerId)?.customer;
-        if (!payer?.mollieId || !form.consumerName.trim() || !form.consumerAccount.trim()) {
-            toast.error('Выберите плательщика и заполните имя владельца и IBAN');
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            await $apiPrivate.post('/mollie/mandates', {
-                customerId: payer.mollieId,
-                consumerName: form.consumerName.trim(),
-                consumerAccount: form.consumerAccount.replace(/\s/g, '').toUpperCase(),
-                consumerBic: form.consumerBic.trim() || undefined,
-                signatureDate: form.signatureDate,
-                method: 'directdebit',
-            });
-            toast.success('Mandate создан');
-            setIsMandateOpen(false);
-            reload();
-        } catch {
-            toast.error('Не удалось создать mandate. Проверьте IBAN и данные плательщика.');
-        } finally {
-            setIsSaving(false);
-        }
-    }, [data?.payers, reload, setIsSaving, setIsMandateOpen]);
-
-    const onCreateSubscription = useCallback(async (form: SubscriptionForm) => {
-        const payer = data?.payers.find((item) => String(item.customer?.id) === form.customerId)?.customer;
-        const amount = Number(form.amountValue);
-        if (!payer?.mollieId || !form.mandateId || !Number.isFinite(amount) || amount <= 0 || !form.description.trim()) {
-            toast.error('Заполните плательщика, valid mandate, сумму и описание');
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            await $apiPrivate.post(`/mollie/mandates/${payer.mollieId}/subscriptions`, {
-                customerId: payer.mollieId,
-                mandateId: form.mandateId,
-                amount: { currency: 'EUR', value: amount.toFixed(2) },
-                interval: form.interval.trim(),
-                startDate: form.startDate,
-                description: form.description.trim(),
-            });
-            toast.success('Подписка создана');
-            setIsSubscriptionOpen(false);
-            reload();
-        } catch {
-            toast.error('Не удалось создать подписку. Проверьте mandate и дату начала.');
-        } finally {
-            setIsSaving(false);
-        }
-    }, [data?.payers, reload, setIsSaving, setIsSubscriptionOpen]);
-
-    const onCancelSubscription = useCallback(async (subscription: ClientSubscription) => {
-        if (!subscription.mollieId || !subscription.customer?.id
-            || !window.confirm('Остановить активную подписку в Mollie?')) return;
-
-        try {
-            await $apiPrivate.delete(`/mollie/subscriptions/${subscription.mollieId}`, {
-                data: { customerId: subscription.customer.id },
-            });
-            toast.success('Подписка остановлена');
-            reload();
-        } catch {
-            toast.error('Не удалось остановить подписку');
-        }
-    }, [reload]);
-
-    const onOpenEditSubscription = useCallback((subscription: ClientSubscription) => {
-        setEditingSubscription(subscription);
-        setEditSubscriptionForm({
-            mandateId: subscription.mandate?.mollieId ?? getMandateOptionsForCustomer(subscription.customer)[0]?.value ?? '',
-            amountValue: String(subscription.amountValue ?? ''),
-            interval: subscription.interval ?? '1 month',
-            startDate: subscription.nextPaymentDate?.slice(0, 10) ?? today,
-            description: subscription.description ?? '',
-            times: subscription.times ? String(subscription.times) : '',
-        });
-    }, [getMandateOptionsForCustomer, setEditingSubscription, setEditSubscriptionForm]);
-
-    const onUpdateSubscription = useCallback(async (subscription: ClientSubscription, form: EditSubscriptionForm) => {
-        if (!subscription.mollieId || !subscription.customer?.id || !form.mandateId) return;
-
-        setIsSaving(true);
-        try {
-            await $apiPrivate.patch(`/mollie/subscriptions/${subscription.mollieId}`, {
-                customerId: subscription.customer.id,
-                mandateId: form.mandateId,
-                amountValue: Number(form.amountValue),
-                interval: form.interval.trim(),
-                startDate: form.startDate,
-                description: form.description.trim(),
-                times: form.times ? Number(form.times) : undefined,
-            });
-            toast.success('Подписка обновлена. При изменении даты Mollie создаёт новую подписку.');
-            setEditingSubscription(null);
-            reload();
-        } catch (error) {
-            const detail = axios.isAxiosError(error) ? error.response?.data?.detail : undefined;
-            toast.error(detail || 'Не удалось обновить активную подписку');
-        } finally {
-            setIsSaving(false);
-        }
-    }, [reload, setIsSaving, setEditingSubscription]);
-
-    const onOpenRestartSubscription = useCallback((subscription: ClientSubscription) => {
-        setRestartingSubscription(subscription);
-        setRestartForm({
-            mandateId: getMandateOptionsForCustomer(subscription.customer)[0]?.value ?? '',
-            startDate: today,
-        });
-    }, [getMandateOptionsForCustomer, setRestartingSubscription, setRestartForm]);
-
-    const onRestartSubscription = useCallback(async (subscription: ClientSubscription, form: RestartForm) => {
-        if (!subscription.mollieId || !subscription.customer?.id || !form.mandateId) {
-            toast.error('Для повторного запуска нужен valid mandate');
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            await $apiPrivate.post(`/mollie/subscriptions/${subscription.mollieId}/restart`, {
-                customerId: subscription.customer.id,
-                mandateId: form.mandateId,
-                startDate: form.startDate,
-            });
-            toast.success('Создана новая активная подписка');
-            setRestartingSubscription(null);
-            reload();
-        } catch (error) {
-            const detail = axios.isAxiosError(error) ? error.response?.data?.detail : undefined;
-            toast.error(detail || 'Не удалось повторно запустить подписку');
-        } finally {
-            setIsSaving(false);
-        }
-    }, [reload, setIsSaving, setRestartingSubscription]);
-
-    const onRevokeMandate = useCallback(async (mandate: ClientMandate) => {
-        if (!mandate.mollieId || !mandate.customer?.id
-            || !window.confirm('Отозвать mandate? Mollie немедленно отменит все связанные активные подписки. Действие необратимо.')) return;
-
-        try {
-            await $apiPrivate.delete(`/mollie/customers/${mandate.customer.id}/mandates/${mandate.mollieId}`);
-            toast.success('Mandate отозван, связанные подписки остановлены');
-            reload();
-        } catch (error) {
-            const detail = axios.isAxiosError(error) ? error.response?.data?.detail : undefined;
-            toast.error(detail || 'Не удалось отозвать mandate');
-        }
-    }, [reload]);
+    const { onCopyPaymentLink, onCancelPaymentLink } = usePaymentLinkActions(id, reload);
+    const { onCreateMandate, onRevokeMandate } = useMandateActions(data, reload, setIsSaving, setIsMandateOpen);
+    const { onCreateSubscription, onCancelSubscription } =
+        useSubscriptionCreateActions(data, reload, setIsSaving, setIsSubscriptionOpen);
+    const { onOpenEditSubscription, onUpdateSubscription } = useSubscriptionEditActions(
+        reload, setIsSaving, getMandateOptionsForCustomer, setEditingSubscription, setEditSubscriptionForm,
+    );
+    const { onOpenRestartSubscription, onRestartSubscription } = useSubscriptionRestartActions(
+        reload, setIsSaving, getMandateOptionsForCustomer, setRestartingSubscription, setRestartForm,
+    );
 
     return {
         id,
         data, isLoading, error,
-        isPaymentLinkOpen, setIsPaymentLinkOpen,
-        isMandateOpen, setIsMandateOpen,
-        isSubscriptionOpen, setIsSubscriptionOpen,
-        editingSubscription, setEditingSubscription,
-        restartingSubscription, setRestartingSubscription,
-        isSaving,
-        mandateForm, setMandateForm,
-        subscriptionForm, setSubscriptionForm,
-        editSubscriptionForm, setEditSubscriptionForm,
-        restartForm, setRestartForm,
+        ...formState,
         payers, payerOptions, mandateOptions,
         getMandateOptionsForCustomer,
         reload,

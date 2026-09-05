@@ -1,6 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from 'react';
-import axios from 'axios';
-import { toast } from 'react-toastify';
+import { useEffect, useState, type Dispatch, type SetStateAction } from 'react';
 import { $apiPrivate } from '@/shared/api/api';
 import {
     Invoice,
@@ -10,6 +8,10 @@ import {
     InvoiceGroup,
     InvoiceStatus,
 } from '../../model/types';
+import { fillFormFromInvoice, resetFormToDefaults } from './invoiceEditFillHelpers';
+import { useInvoiceItemActions } from './useInvoiceItemActions';
+import { useInvoiceSelectionActions } from './useInvoiceSelectionActions';
+import { useInvoiceSubmitAction } from './useInvoiceSubmitAction';
 
 export interface FormItem {
     groupId: string;
@@ -41,7 +43,7 @@ export const inFiveBusinessDays = () => {
 
 export const emptyItem = (): FormItem => ({ groupId: '', description: '', period: '', quantity: 1, price: '0.00' });
 
-const dateInputValue = (value?: string | null) => (value ? new Date(value).toISOString().slice(0, 10) : '');
+export const dateInputValue = (value?: string | null) => (value ? new Date(value).toISOString().slice(0, 10) : '');
 
 export const branchAddress = (branch: InvoiceBranch) => [branch.address, branch.city].filter(Boolean).join(', ');
 
@@ -103,7 +105,7 @@ export interface UseCreateInvoiceModalResult {
     paidMode: boolean;
 }
 
-const useInvoiceFormState = () => {
+export const useInvoiceFormState = () => {
     const [businessBrandId, setBusinessBrandId] = useState('');
     const [addressSource, setAddressSource] = useState('manual');
     const [clientId, setClientId] = useState('');
@@ -176,192 +178,13 @@ const useInvoiceEditFill = ({ isOpen, editInvoice, paidMode, formState }: {
 }) => {
     useEffect(() => {
         if (!isOpen) return;
-        const {
-            setClientId, setBusinessBrandId, setAddressSource,
-            setBillToName, setBillToEmail, setIssueDate, setDueDate,
-            setStatus, setIssuerName, setIssuerAddress, setIssuerEmail,
-            setBankName, setIban, setNote, setShowPaymentButton, setShowPaymentQr, setItems,
-        } = formState;
-
         if (editInvoice) {
-            setClientId(editInvoice.client?.id ? String(editInvoice.client.id) : '');
-            setBusinessBrandId(editInvoice.businessBrandId ? String(editInvoice.businessBrandId) : '');
-            setAddressSource('manual');
-            setBillToName(editInvoice.billToName);
-            setBillToEmail(editInvoice.billToEmail ?? '');
-            setIssueDate(dateInputValue(editInvoice.issueDate));
-            setDueDate(dateInputValue(editInvoice.dueDate));
-            setStatus(editInvoice.status === 'DRAFT' ? 'DRAFT' : 'ISSUED');
-            setIssuerName(editInvoice.issuerName);
-            setIssuerAddress(editInvoice.issuerAddress ?? '');
-            setIssuerEmail(editInvoice.issuerEmail ?? '');
-            setBankName(editInvoice.bankName ?? '');
-            setIban(editInvoice.iban ?? '');
-            setNote(editInvoice.note ?? '');
-            setShowPaymentButton(editInvoice.showPaymentButton);
-            setShowPaymentQr(editInvoice.showPaymentQr);
-            setItems(editInvoice.items.map((item) => ({
-                groupId: item.group?.id ? String(item.group.id) : '',
-                description: item.description,
-                period: item.period ?? '',
-                quantity: item.quantity,
-                price: (item.unitPriceCents / 100).toFixed(2),
-            })));
-            return;
+            fillFormFromInvoice(formState, editInvoice);
+        } else {
+            resetFormToDefaults(formState);
         }
-        setClientId('');
-        setBusinessBrandId('');
-        setAddressSource('manual');
-        setBillToName('');
-        setBillToEmail('');
-        setIssueDate(today());
-        setDueDate(inFiveBusinessDays());
-        setStatus('DRAFT');
-        setIssuerName('Talent Center DDC');
-        setIssuerAddress('');
-        setIssuerEmail('');
-        setBankName('');
-        setIban('');
-        setNote('');
-        setShowPaymentButton(true);
-        setShowPaymentQr(true);
-        setItems([emptyItem()]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [editInvoice, isOpen, paidMode]);
-};
-
-const useInvoiceSubmit = ({ formState, clients, groups, brands, branches, editInvoice, paidMode, onSaved, onClose }: {
-    formState: ReturnType<typeof useInvoiceFormState>;
-    clients: InvoiceClient[];
-    groups: InvoiceGroup[];
-    brands: InvoiceBusinessBrand[];
-    branches: InvoiceBranch[];
-    editInvoice?: Invoice | null;
-    paidMode: boolean;
-    onSaved: () => void;
-    onClose: () => void;
-}) => {
-    const {
-        businessBrandId, clientId, billToName, billToEmail, issueDate, dueDate,
-        status, issuerName, issuerAddress, issuerEmail, bankName, iban, note,
-        showPaymentButton, showPaymentQr, items, setSaving,
-    } = formState;
-
-    const totalCents = useMemo(() => items.reduce((sum, item) => (
-        sum + Math.round(Number(item.price || 0) * 100) * Number(item.quantity || 0)
-    ), 0), [items]);
-
-    const updateItem = useCallback((index: number, patch: Partial<FormItem>) => {
-        formState.setItems((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
-    }, [formState]);
-
-    const addItem = useCallback(() => {
-        formState.setItems((current) => [...current, emptyItem()]);
-    }, [formState]);
-
-    const removeItem = useCallback((index: number) => {
-        formState.setItems((current) => current.filter((_, i) => i !== index));
-    }, [formState]);
-
-    const selectClient = useCallback((value: string) => {
-        formState.setClientId(value);
-        const client = clients.find((item) => item.id === Number(value));
-        if (client) {
-            formState.setBillToName([client.firstName, client.lastName].filter(Boolean).join(' '));
-            formState.setBillToEmail(client.email ?? '');
-        }
-    }, [clients, formState]);
-
-    const selectGroup = useCallback((index: number, value: string) => {
-        const group = groups.find((item) => item.id === Number(value));
-        if (group?.branch && branchAddress(group.branch)) {
-            formState.setIssuerAddress(branchAddress(group.branch));
-            formState.setAddressSource(`branch:${group.branch.id}`);
-        }
-        updateItem(index, group ? {
-            groupId: value,
-            description: `Dance classes — ${group.name}`,
-            price: ((group.lessonPriceCents ?? 0) / 100).toFixed(2),
-        } : { groupId: value });
-    }, [groups, updateItem, formState]);
-
-    const selectBusinessBrand = useCallback((value: string) => {
-        formState.setBusinessBrandId(value);
-        const brand = brands.find((item) => item.id === Number(value));
-        if (brand) {
-            formState.setIssuerAddress(brandAddress(brand));
-            formState.setAddressSource('brand');
-        }
-    }, [brands, formState]);
-
-    const selectAddressSource = useCallback((value: string) => {
-        formState.setAddressSource(value);
-        if (value === 'brand') {
-            formState.setIssuerAddress(brandAddress(brands.find((brand) => brand.id === Number(businessBrandId))));
-        } else if (value.startsWith('branch:')) {
-            const branch = branches.find((item) => item.id === Number(value.slice('branch:'.length)));
-            if (branch) formState.setIssuerAddress(branchAddress(branch));
-        }
-    }, [brands, branches, businessBrandId, formState]);
-
-    const submit = useCallback(async () => {
-        if (!billToName.trim() || items.some((item) => !item.description.trim())) {
-            toast.error('Укажите получателя и описание каждой строки');
-            return;
-        }
-        if (paidMode && totalCents <= 0) {
-            toast.error('Сумма черновика должна быть больше нуля');
-            return;
-        }
-        setSaving(true);
-        try {
-            const payload = {
-                clientId: clientId ? Number(clientId) : null,
-                businessBrandId: businessBrandId ? Number(businessBrandId) : null,
-                billToName, billToEmail, issueDate,
-                dueDate: paidMode ? null : dueDate || null,
-                status, issuerName, issuerAddress, issuerEmail, bankName, iban,
-                note: note || null,
-                showPaymentButton: paidMode ? false : showPaymentButton,
-                showPaymentQr: paidMode ? false : showPaymentQr,
-                items: items.map((item) => ({
-                    groupId: item.groupId ? Number(item.groupId) : null,
-                    description: item.description,
-                    period: item.period || null,
-                    quantity: item.quantity,
-                    unitPriceCents: Math.round(Number(item.price || 0) * 100),
-                })),
-            };
-            if (editInvoice) {
-                await $apiPrivate.put(`/invoices/${editInvoice.id}`, payload);
-                toast.success('Инвойс обновлён');
-            } else if (paidMode) {
-                await $apiPrivate.post('/invoices', {
-                    ...payload, status: 'DRAFT', dueDate: null, showPaymentButton: false, showPaymentQr: false,
-                });
-                toast.success('Черновик сохранён. Проверьте его и подтвердите оплату в списке.');
-            } else {
-                await $apiPrivate.post('/invoices', payload);
-                toast.success('Инвойс создан');
-            }
-            onSaved();
-            onClose();
-        } catch (error) {
-            const message = axios.isAxiosError(error) ? error.response?.data?.message : undefined;
-            toast.error(message || 'Не удалось сохранить инвойс');
-        } finally {
-            setSaving(false);
-        }
-    }, [
-        billToName, items, paidMode, totalCents, clientId, businessBrandId, billToEmail,
-        issueDate, dueDate, status, issuerName, issuerAddress, issuerEmail, bankName,
-        iban, note, showPaymentButton, showPaymentQr, editInvoice, onSaved, onClose, setSaving,
-    ]);
-
-    return {
-        totalCents, updateItem, addItem, removeItem,
-        selectClient, selectGroup, selectBusinessBrand, selectAddressSource, submit,
-    };
 };
 
 export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, paidMode = false }: Props): UseCreateInvoiceModalResult => {
@@ -380,12 +203,10 @@ export const useCreateInvoiceModal = ({ isOpen, onClose, onSaved, editInvoice, p
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [brands, formState.businessBrandId, editInvoice, isOpen]);
 
-    const {
-        totalCents, updateItem, addItem, removeItem,
-        selectClient, selectGroup, selectBusinessBrand, selectAddressSource, submit,
-    } = useInvoiceSubmit({
-        formState, clients, groups, brands, branches, editInvoice, paidMode, onSaved, onClose,
-    });
+    const { updateItem, addItem, removeItem } = useInvoiceItemActions(formState);
+    const { selectClient, selectGroup, selectBusinessBrand, selectAddressSource } =
+        useInvoiceSelectionActions(formState, updateItem, clients, groups, brands, branches);
+    const { totalCents, submit } = useInvoiceSubmitAction(formState, editInvoice, paidMode, onSaved, onClose);
 
     return {
         clients, brands, branches, groups,
