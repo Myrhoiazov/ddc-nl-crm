@@ -5,24 +5,28 @@ import { runSubscriptionMutation } from './subscriptionMutation';
 import { SubscriptionFormState } from './useSubscriptionForm';
 import { useCancelSubscription } from './useCancelSubscription';
 
-export const useSubscriptionMutations = (
-    customerId: string,
-    subscription: MollieSubscription,
-    form: SubscriptionFormState,
-    restartDate: string,
-    setIsSaving: (value: boolean) => void,
-    finishModal: () => void,
-    reloadPage: (() => void) | undefined,
-) => {
+export interface SubscriptionMutationsParams {
+    customerId: string;
+    subscription: MollieSubscription;
+    form: SubscriptionFormState;
+    restartDate: string;
+    setIsSaving: (value: boolean) => void;
+    finishModal: () => void;
+    reloadPage: (() => void) | undefined;
+}
+
+export const useSubscriptionMutations = ({
+    customerId, subscription, form, restartDate, setIsSaving, finishModal, reloadPage,
+}: SubscriptionMutationsParams) => {
     const onCancel = useCancelSubscription(customerId, subscription, setIsSaving, finishModal, reloadPage);
 
     const onUpdate = useCallback(async () => {
         if (!subscription.id || !form.mandateId) return;
-        await runSubscriptionMutation(
+        await runSubscriptionMutation({
             setIsSaving,
-            finishModal,
+            closeModal: finishModal,
             reloadPage,
-            () => $apiPrivate.patch(`/mollie/subscriptions/${subscription.id}`, {
+            action: () => $apiPrivate.patch(`/mollie/subscriptions/${subscription.id}`, {
                 customerId: Number(customerId),
                 mandateId: form.mandateId,
                 amountValue: Number(form.amountValue),
@@ -31,25 +35,25 @@ export const useSubscriptionMutations = (
                 description: form.description,
                 times: form.times ? Number(form.times) : undefined,
             }),
-            'Подписка обновлена. При изменении даты Mollie создаёт новую подписку.',
-            'Не удалось обновить подписку',
-        );
+            successMessage: 'Подписка обновлена. При изменении даты Mollie создаёт новую подписку.',
+            fallbackErrorMessage: 'Не удалось обновить подписку',
+        });
     }, [customerId, form, reloadPage, subscription.id, finishModal, setIsSaving]);
 
     const onRestart = useCallback(async () => {
         if (!subscription.id || !form.mandateId) return;
-        await runSubscriptionMutation(
+        await runSubscriptionMutation({
             setIsSaving,
-            finishModal,
+            closeModal: finishModal,
             reloadPage,
-            () => $apiPrivate.post(`/mollie/subscriptions/${subscription.id}/restart`, {
+            action: () => $apiPrivate.post(`/mollie/subscriptions/${subscription.id}/restart`, {
                 customerId: Number(customerId),
                 mandateId: form.mandateId,
                 startDate: restartDate,
             }),
-            'Новая подписка создана',
-            'Не удалось повторно запустить подписку',
-        );
+            successMessage: 'Новая подписка создана',
+            fallbackErrorMessage: 'Не удалось повторно запустить подписку',
+        });
     }, [customerId, form.mandateId, reloadPage, restartDate, subscription.id, finishModal, setIsSaving]);
 
     return { onCancel, onUpdate, onRestart };
