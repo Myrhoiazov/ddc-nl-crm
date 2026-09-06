@@ -20,6 +20,7 @@ CRM / admin platform for dance school "DDC" (Talent Center): client/student reco
 | Mollie | Payment gateway: client profiles, subscriptions, mandates, payments, reconciliation. |
 | Mandate | Recurring payment authorisation (Mollie). |
 | Payment reminder | Automated email sequence for unpaid invoices. |
+| Invoice audit log | Per-invoice change history (`InvoiceAuditLog`: action + before/after value snapshot). Distinct from the security audit event log. |
 
 ## System Overview
 
