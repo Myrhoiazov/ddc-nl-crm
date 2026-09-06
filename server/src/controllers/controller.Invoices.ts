@@ -194,6 +194,82 @@ const invoiceInclude = {
     },
 };
 
+// List/search view of invoices (getInvoices) — same source data as the client's edit form
+// and action modal, but the client's InvoiceListItem card never reads businessBrand,
+// parentInvoice, or adjustments, and only reads a subset of the payments/mollie/delivery
+// fields below. Mutation responses keep the full `invoiceInclude` since the edit form
+// still needs those. See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const invoiceListInclude = {
+    client: {
+        select: { id: true },
+    },
+    items: {
+        select: {
+            id: true,
+            description: true,
+            period: true,
+            quantity: true,
+            unitPriceCents: true,
+            totalCents: true,
+            group: { select: { id: true } },
+        },
+        orderBy: { id: 'asc' as const },
+    },
+    payments: {
+        select: {
+            id: true,
+            amountCents: true,
+            method: true,
+            paidAt: true,
+            reference: true,
+        },
+        orderBy: { paidAt: 'desc' as const },
+    },
+    molliePayments: {
+        select: {
+            id: true,
+            mollieId: true,
+            status: true,
+            refundedAmount: true,
+            chargedBackAmount: true,
+        },
+        orderBy: { createdAt: 'desc' as const },
+    },
+    molliePaymentLinks: {
+        select: {
+            id: true,
+            mollieId: true,
+            expiresAt: true,
+            archived: true,
+            paidAt: true,
+        },
+        orderBy: { createdAt: 'desc' as const },
+    },
+    deliveries: {
+        select: {
+            id: true,
+            type: true,
+            status: true,
+            recipientEmail: true,
+            createdAt: true,
+            errorMessage: true,
+            viewCount: true,
+        },
+        orderBy: { createdAt: 'desc' as const },
+        take: 20,
+    },
+    auditLogs: {
+        select: {
+            id: true,
+            action: true,
+            createdAt: true,
+            actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' as const },
+        take: 20,
+    },
+};
+
 const snapshot = (value: unknown): Prisma.InputJsonValue => (
     JSON.parse(JSON.stringify(value, (key, nestedValue) => (
         key === 'auditLogs' ? undefined : nestedValue
@@ -389,6 +465,23 @@ const calculatePaymentResult = (existing: {
     };
 };
 
+type OverdueInvoice = {
+    id: number;
+    status: InvoiceStatus;
+    dueDate: Date | null;
+    balanceDueCents: number;
+};
+
+export const buildOverdueAuditRecords = (
+    overdueInvoices: OverdueInvoice[],
+): Prisma.InvoiceAuditLogCreateManyInput[] => overdueInvoices.map((invoice): Prisma.InvoiceAuditLogCreateManyInput => ({
+    invoiceId: invoice.id,
+    action: 'MARKED_OVERDUE',
+    actorId: undefined,
+    oldValues: snapshot(invoice),
+    newValues: snapshot({ ...invoice, status: InvoiceStatus.OVERDUE }),
+}));
+
 const markOverdueInvoices = async () => {
     const overdueInvoices = await prisma.invoice.findMany({
         where: {
@@ -399,21 +492,15 @@ const markOverdueInvoices = async () => {
         select: { id: true, status: true, dueDate: true, balanceDueCents: true },
     });
     if (!overdueInvoices.length) return 0;
-    await prisma.$transaction(async (transaction) => {
-        for (const invoice of overdueInvoices) {
-            await transaction.invoice.update({
-                where: { id: invoice.id },
-                data: { status: InvoiceStatus.OVERDUE },
-            });
-            await createAuditLog(transaction, {
-                invoiceId: invoice.id,
-                action: 'MARKED_OVERDUE',
-                actorId: undefined,
-                oldValues: invoice,
-                newValues: { ...invoice, status: InvoiceStatus.OVERDUE },
-            });
-        }
-    });
+    await prisma.$transaction([
+        prisma.invoice.updateMany({
+            where: { id: { in: overdueInvoices.map((invoice) => invoice.id) } },
+            data: { status: InvoiceStatus.OVERDUE },
+        }),
+        prisma.invoiceAuditLog.createMany({
+            data: buildOverdueAuditRecords(overdueInvoices),
+        }),
+    ]);
     return overdueInvoices.length;
 };
 
@@ -445,7 +532,7 @@ export const getInvoices = async (req: Request, res: Response) => {
     const [invoices, total] = await Promise.all([
         prisma.invoice.findMany({
             where,
-            include: invoiceInclude,
+            include: invoiceListInclude,
             orderBy: [{ issueDate: 'desc' }, { id: 'desc' }],
             skip: (page - 1) * limit,
             take: limit,
