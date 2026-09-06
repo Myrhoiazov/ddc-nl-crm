@@ -73,6 +73,21 @@ Validate
 | UI / browser changes | .agents/skills/e2e-test/ or .agents/skills/manual-automation/ |
 | Bug investigation | .agents/skills/qa/ |
 | PR publishing | .agents/skills/pull-request/ |
+| Token/context efficiency questions | docs/spec/DDC_CRM_LOCAL_AI_TOKEN_OPTIMIZATION_SPEC.md |
+| API response shaping / over-fetching | docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md |
+
+## Token and Context Efficiency
+
+The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CRM_LOCAL_AI_TOKEN_OPTIMIZATION_SPEC.md).
+
+- Search before reading when the target file is unknown: Graphify → symbol/`rg` search → targeted read → full file read only as a last resort.
+- Read the smallest relevant file range; prefer `git diff` over rereading a whole file after an edit.
+- Never load the whole repository, all of `docs/spec/*`, or all skills as context for one task — load only what the task classification above requires.
+- Do not resend unchanged file content already read in the same task.
+- Shell/tool output truncation is handled by `rtk` (already installed, hook-based) — do not build a parallel mechanism.
+- Track goal, decisions, and remaining work with the native task-tracking tool during the session, and `dnote -c` for anything that needs to survive past it — no separate task-state files.
+- Run the narrowest useful check first (specific test → domain suite → `npm run ci`).
+- Preserve correctness over token savings when more context is genuinely required.
 
 ## Conditional Rules
 
