@@ -107,7 +107,10 @@ export interface Invoice {
     molliePaymentLinks: InvoiceMolliePaymentLink[];
     deliveries: InvoiceDelivery[];
     auditLogs: InvoiceAuditLog[];
-    adjustments: Pick<Invoice, 'id' | 'number' | 'documentType' | 'totalCents' | 'status'>[];
+    // Only present on mutation responses (create/update/status/payment/adjustment) — the
+    // invoice list endpoint (getInvoices) doesn't include it, see
+    // docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+    adjustments?: Pick<Invoice, 'id' | 'number' | 'documentType' | 'totalCents' | 'status'>[];
 }
 
 export interface InvoicesResponse {
