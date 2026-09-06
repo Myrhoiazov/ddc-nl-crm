@@ -82,9 +82,16 @@ export const syncOrganizationFromMollie = async (_req: Request, res: Response) =
     return res.json({ organization, mollieProfile: profile });
 };
 
+// Client only reads organization.{registrationAddress,postalCode,city} as an address fallback
+// (see client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useCreateInvoiceModal.ts:brandAddress)
+// — narrower than the full LegalOrganization, which every brand row would otherwise duplicate.
+const brandOrganizationSelect = {
+    select: { registrationAddress: true, postalCode: true, city: true },
+};
+
 export const getBrands = async (_req: Request, res: Response) => {
     const brands = await prisma.businessBrand.findMany({
-        include: { organization: true },
+        include: { organization: brandOrganizationSelect },
         orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
     });
     return res.json(brands);
