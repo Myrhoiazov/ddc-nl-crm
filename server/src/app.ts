@@ -11,6 +11,7 @@ import dotenv from 'dotenv';
 import routes from './routes';
 import errorMiddleware from './middlewares/middlewares.Error';
 import { csrfProtection } from './middlewares/middleware.Csrf';
+import { queryStats } from './middlewares/middleware.QueryStats';
 import { logger } from './logger';
 import { env } from 'process';
 import { verifyRequestSignature } from './controllers/controller.Instagram';
@@ -63,6 +64,7 @@ app.use(morgan('combined', {
         write: message => logger.info(message.trim())
     }
 }));
+app.use(queryStats);
 app.use(bodyParser.json({
     limit: '1mb',
     verify: (req, res, buf) => {
