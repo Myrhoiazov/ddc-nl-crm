@@ -354,6 +354,35 @@ export const syncMolliePayments = async (): Promise<SyncResult> => {
     return result;
 };
 
+export const resolveSyncStatus = (
+    mollieId: string | null | undefined,
+    existingMollieIds: ReadonlySet<string>,
+): 'created' | 'updated' | 'skipped' => {
+    if (!mollieId) {
+        return 'skipped';
+    }
+    return existingMollieIds.has(mollieId) ? 'updated' : 'created';
+};
+
+export const buildMandateUpsertArgs = (customerId: number, mandate: Mandate) => ({
+    where: { mollieId: mandate.id },
+    update: {
+        status: mandate.status,
+        method: mandate.method,
+        signatureDate: toDate(mandate.signatureDate),
+        mandateReference: mandate.mandateReference ?? undefined,
+        customerId,
+    },
+    create: {
+        mollieId: mandate.id,
+        status: mandate.status,
+        method: mandate.method,
+        signatureDate: toDate(mandate.signatureDate),
+        mandateReference: mandate.mandateReference ?? null,
+        customerId,
+    },
+});
+
 export const syncMollieMandate = async (
     customerId: number,
     mandate: Mandate,
@@ -363,25 +392,7 @@ export const syncMollieMandate = async (
     }
 
     const existing = await prisma.mandate.findUnique({ where: { mollieId: mandate.id } });
-
-    await prisma.mandate.upsert({
-        where: { mollieId: mandate.id },
-        update: {
-            status: mandate.status,
-            method: mandate.method,
-            signatureDate: toDate(mandate.signatureDate),
-            mandateReference: mandate.mandateReference ?? undefined,
-            customerId,
-        },
-        create: {
-            mollieId: mandate.id,
-            status: mandate.status,
-            method: mandate.method,
-            signatureDate: toDate(mandate.signatureDate),
-            mandateReference: mandate.mandateReference ?? null,
-            customerId,
-        },
-    });
+    await prisma.mandate.upsert(buildMandateUpsertArgs(customerId, mandate));
 
     return existing ? 'updated' : 'created';
 };
@@ -399,10 +410,24 @@ export const syncMollieMandates = async (): Promise<SyncResult> => {
     for (const customer of customers) {
         try {
             const mandates = await mollieService.getMandateByCustomerId(customer.mollieId);
+            const mollieIds = mandates
+                .map((mandate) => mandate.id)
+                .filter((id): id is string => Boolean(id));
+            const existingMandates = mollieIds.length
+                ? await prisma.mandate.findMany({
+                    where: { mollieId: { in: mollieIds } },
+                    select: { mollieId: true },
+                })
+                : [];
+            const existingMollieIds = new Set(
+                existingMandates.map((mandate) => mandate.mollieId).filter((id): id is string => Boolean(id)),
+            );
 
             for (const mandate of mandates) {
-                const status = await syncMollieMandate(customer.id, mandate);
+                const status = resolveSyncStatus(mandate.id, existingMollieIds);
                 result[status] += 1;
+                if (status === 'skipped') continue;
+                await prisma.mandate.upsert(buildMandateUpsertArgs(customer.id, mandate));
             }
         } catch (error) {
             result.errors += 1;
@@ -412,6 +437,41 @@ export const syncMollieMandates = async (): Promise<SyncResult> => {
 
     return result;
 };
+
+export const buildSubscriptionUpsertArgs = (
+    customerId: number,
+    subscription: Subscription,
+    localMandateId: number | null,
+) => ({
+    where: { mollieId: subscription.id },
+    update: {
+        description: subscription.description,
+        amountValue: subscription.amount.value,
+        amountCurrency: subscription.amount.currency,
+        interval: subscription.interval,
+        metadata: stringifyMetadata(subscription.metadata),
+        startDate: toDate(subscription.startDate),
+        nextPaymentDate: toDate(subscription.nextPaymentDate),
+        status: subscription.status,
+        times: subscription.times ?? undefined,
+        mandateId: localMandateId ?? undefined,
+        customerId,
+    },
+    create: {
+        mollieId: subscription.id,
+        description: subscription.description,
+        amountValue: subscription.amount.value,
+        amountCurrency: subscription.amount.currency,
+        interval: subscription.interval,
+        metadata: stringifyMetadata(subscription.metadata),
+        startDate: toDate(subscription.startDate),
+        nextPaymentDate: toDate(subscription.nextPaymentDate),
+        status: subscription.status,
+        times: subscription.times ?? null,
+        customerId,
+        mandateId: localMandateId ?? null,
+    },
+});
 
 export const syncMollieSubscription = async (
     customerId: number,
@@ -426,36 +486,7 @@ export const syncMollieSubscription = async (
         : null;
     const existing = await prisma.subscription.findUnique({ where: { mollieId: subscription.id } });
 
-    await prisma.subscription.upsert({
-        where: { mollieId: subscription.id },
-        update: {
-            description: subscription.description,
-            amountValue: subscription.amount.value,
-            amountCurrency: subscription.amount.currency,
-            interval: subscription.interval,
-            metadata: stringifyMetadata(subscription.metadata),
-            startDate: toDate(subscription.startDate),
-            nextPaymentDate: toDate(subscription.nextPaymentDate),
-            status: subscription.status,
-            times: subscription.times ?? undefined,
-            mandateId: mandate?.id ?? undefined,
-            customerId,
-        },
-        create: {
-            mollieId: subscription.id,
-            description: subscription.description,
-            amountValue: subscription.amount.value,
-            amountCurrency: subscription.amount.currency,
-            interval: subscription.interval,
-            metadata: stringifyMetadata(subscription.metadata),
-            startDate: toDate(subscription.startDate),
-            nextPaymentDate: toDate(subscription.nextPaymentDate),
-            status: subscription.status,
-            times: subscription.times ?? null,
-            customerId,
-            mandateId: mandate?.id ?? null,
-        },
-    });
+    await prisma.subscription.upsert(buildSubscriptionUpsertArgs(customerId, subscription, mandate?.id ?? null));
 
     return existing ? 'updated' : 'created';
 };
@@ -473,10 +504,47 @@ export const syncMollieSubscriptions = async (): Promise<SyncResult> => {
     for (const customer of customers) {
         try {
             const subscriptions = await mollieService.getSubscriptionsByCustomerId(customer.mollieId);
+            const mollieIds = subscriptions
+                .map((subscription) => subscription.id)
+                .filter((id): id is string => Boolean(id));
+            const mandateMollieIds = subscriptions
+                .map((subscription) => subscription.mandateId)
+                .filter((id): id is string => Boolean(id));
+
+            const [existingSubscriptions, localMandates] = await Promise.all([
+                mollieIds.length
+                    ? prisma.subscription.findMany({
+                        where: { mollieId: { in: mollieIds } },
+                        select: { mollieId: true },
+                    })
+                    : Promise.resolve([]),
+                mandateMollieIds.length
+                    ? prisma.mandate.findMany({
+                        where: { mollieId: { in: mandateMollieIds } },
+                        select: { id: true, mollieId: true },
+                    })
+                    : Promise.resolve([]),
+            ]);
+
+            const existingMollieIds = new Set(
+                existingSubscriptions.map((subscription) => subscription.mollieId).filter((id): id is string => Boolean(id)),
+            );
+            const mandateIdByMollieId = new Map(
+                localMandates
+                    .filter((mandate): mandate is typeof mandate & { mollieId: string } => Boolean(mandate.mollieId))
+                    .map((mandate) => [mandate.mollieId, mandate.id]),
+            );
 
             for (const subscription of subscriptions) {
-                const status = await syncMollieSubscription(customer.id, subscription);
+                const status = resolveSyncStatus(subscription.id, existingMollieIds);
                 result[status] += 1;
+                if (status === 'skipped') continue;
+                const localMandateId = subscription.mandateId
+                    ? mandateIdByMollieId.get(subscription.mandateId) ?? null
+                    : null;
+                await prisma.subscription.upsert(
+                    buildSubscriptionUpsertArgs(customer.id, subscription, localMandateId),
+                );
             }
         } catch (error) {
             result.errors += 1;
