@@ -74,6 +74,7 @@ Validate
 | Bug investigation | .agents/skills/qa/ |
 | PR publishing | .agents/skills/pull-request/ |
 | Token/context efficiency questions | docs/spec/DDC_CRM_LOCAL_AI_TOKEN_OPTIMIZATION_SPEC.md |
+| API response shaping / over-fetching | docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md |
 
 ## Token and Context Efficiency
 
