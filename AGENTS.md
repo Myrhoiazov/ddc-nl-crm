@@ -12,7 +12,8 @@ DDC CRM is a TypeScript monorepo — React 19 admin SPA (`client/`) + Express 5 
 |---|---|
 | Agent operating rules | **AGENTS.md** (this file) |
 | Human setup / project entry | README.md |
-| Project / domain knowledge | CONTEXT.md |
+| Project / domain knowledge (quick primer) | CONTEXT.md |
+| Domain model (bounded contexts, entities, invariants) | docs/domain/README.md |
 | Feature / system contract | docs/spec/* |
 | Planned module evolution | docs/roadmap/* (gitignored, local only) |
 | Architectural decisions | docs/adr/* (gitignored, local only) |
@@ -59,6 +60,7 @@ Validate
 |---|---|
 | Setup / environment | README.md |
 | Domain terminology / project-specific behavior | CONTEXT.md |
+| Business logic / domain rules (controllers, services, Prisma schema) | docs/domain/README.md (routes to the specific bounded-context file: identity/organization/crm/scheduling/billing/payments/communication) |
 | Docker / production deployment | docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md |
 | Graphify changes | docs/spec/GRAPHIFY_WORKFLOW.md |
 | CI/CD pipeline or Git branching changes | docs/spec/DDC_CRM_CICD_SPEC.md |
