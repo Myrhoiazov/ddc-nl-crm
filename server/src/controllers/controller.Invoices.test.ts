@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
-import { buildAdjustmentInvoiceData } from './controller.Invoices';
+import { buildAdjustmentInvoiceData, buildOverdueAuditRecords } from './controller.Invoices';
 
 const original = {
     id: 42,
@@ -67,4 +67,41 @@ test('buildAdjustmentInvoiceData creates an issued debit note that keeps payment
     assert.equal(data.showPaymentQr, true);
     assert.equal(data.createdById, undefined);
     assert.equal(data.items.create.description, 'Корректировка к INV-2026-007: Extra class');
+});
+
+test('buildOverdueAuditRecords returns no records for an empty invoice list', () => {
+    assert.deepEqual(buildOverdueAuditRecords([]), []);
+});
+
+test('buildOverdueAuditRecords builds one MARKED_OVERDUE record per invoice', () => {
+    const overdueInvoices = [
+        { id: 1, status: InvoiceStatus.ISSUED, dueDate: new Date('2026-08-01T00:00:00.000Z'), balanceDueCents: 5000 },
+        { id: 2, status: InvoiceStatus.PARTIALLY_PAID, dueDate: new Date('2026-08-05T00:00:00.000Z'), balanceDueCents: 1200 },
+    ];
+
+    const records = buildOverdueAuditRecords(overdueInvoices);
+
+    assert.equal(records.length, 2);
+    assert.equal(records[0].invoiceId, 1);
+    assert.equal(records[0].action, 'MARKED_OVERDUE');
+    assert.equal(records[0].actorId, undefined);
+    assert.deepEqual(records[0].oldValues, {
+        id: 1,
+        status: InvoiceStatus.ISSUED,
+        dueDate: '2026-08-01T00:00:00.000Z',
+        balanceDueCents: 5000,
+    });
+    assert.deepEqual(records[0].newValues, {
+        id: 1,
+        status: InvoiceStatus.OVERDUE,
+        dueDate: '2026-08-01T00:00:00.000Z',
+        balanceDueCents: 5000,
+    });
+    assert.equal(records[1].invoiceId, 2);
+    assert.deepEqual(records[1].oldValues, {
+        id: 2,
+        status: InvoiceStatus.PARTIALLY_PAID,
+        dueDate: '2026-08-05T00:00:00.000Z',
+        balanceDueCents: 1200,
+    });
 });
