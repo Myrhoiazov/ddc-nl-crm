@@ -389,6 +389,23 @@ const calculatePaymentResult = (existing: {
     };
 };
 
+type OverdueInvoice = {
+    id: number;
+    status: InvoiceStatus;
+    dueDate: Date | null;
+    balanceDueCents: number;
+};
+
+export const buildOverdueAuditRecords = (
+    overdueInvoices: OverdueInvoice[],
+): Prisma.InvoiceAuditLogCreateManyInput[] => overdueInvoices.map((invoice): Prisma.InvoiceAuditLogCreateManyInput => ({
+    invoiceId: invoice.id,
+    action: 'MARKED_OVERDUE',
+    actorId: undefined,
+    oldValues: snapshot(invoice),
+    newValues: snapshot({ ...invoice, status: InvoiceStatus.OVERDUE }),
+}));
+
 const markOverdueInvoices = async () => {
     const overdueInvoices = await prisma.invoice.findMany({
         where: {
@@ -399,21 +416,15 @@ const markOverdueInvoices = async () => {
         select: { id: true, status: true, dueDate: true, balanceDueCents: true },
     });
     if (!overdueInvoices.length) return 0;
-    await prisma.$transaction(async (transaction) => {
-        for (const invoice of overdueInvoices) {
-            await transaction.invoice.update({
-                where: { id: invoice.id },
-                data: { status: InvoiceStatus.OVERDUE },
-            });
-            await createAuditLog(transaction, {
-                invoiceId: invoice.id,
-                action: 'MARKED_OVERDUE',
-                actorId: undefined,
-                oldValues: invoice,
-                newValues: { ...invoice, status: InvoiceStatus.OVERDUE },
-            });
-        }
-    });
+    await prisma.$transaction([
+        prisma.invoice.updateMany({
+            where: { id: { in: overdueInvoices.map((invoice) => invoice.id) } },
+            data: { status: InvoiceStatus.OVERDUE },
+        }),
+        prisma.invoiceAuditLog.createMany({
+            data: buildOverdueAuditRecords(overdueInvoices),
+        }),
+    ]);
     return overdueInvoices.length;
 };
 
