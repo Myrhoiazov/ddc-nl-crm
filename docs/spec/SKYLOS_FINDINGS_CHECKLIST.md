@@ -1925,7 +1925,7 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
 Проверено: `tsc --noEmit` (server) — 0 ошибок; `npm run build` (server) — чисто;
 `npm run test:ci` (все 5 сьютов) — 0 fail — без регрессий.
 
-### `SKY-C303` — Слишком много параметров функции (1 + 2 wave10-регрессия) — ЗАКРЫТО
+### `SKY-C303` — Слишком много параметров функции (1 + 2 wave10-регрессия + 3 найдены при разборе PR #48) — ЗАКРЫТО
 
 > Сгруппировать параметры в один объект.
 
@@ -1963,6 +1963,26 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
 (server) — чисто; `npm run test:ci` (server) — 53/53 тестов pass. Добавлен
 `server/src/controllers/controller.Invoices.test.ts` на credit/debit
 adjustment-data, чтобы изменение billing-кода было покрыто тестом.
+
+- [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/subscriptionMutation.ts:11` — Function 'anonymous' has 6 parameters (limit: 5)
+- [x] `client/src/features/editSubscriptionDropdown/ui/EditSubscriptionDropdown/useSubscriptionMutations.ts:8` — Function 'anonymous' has 7 parameters (limit: 5)
+- [x] `client/src/pages/InvoicesPage/ui/CreateInvoiceModal/useInvoiceSelectionActions.ts:5` — Function 'anonymous' has 6 parameters (limit: 5)
+
+Обнаружены при разборе причины падения CI-джоба `skylos-check` на PR #48
+(2026-09-05) — единственные 3 находки среди 154, не задокументированные ранее
+в этом чек-листе (`subscriptionMutation.ts`/`useSubscriptionMutations.ts` —
+побочный эффект волны 20.8; `useInvoiceSelectionActions.ts` — введена в волне
+22 этой же сессии). Исправлено (ветка `fix/skylos-repo-policy`): все три
+функции переведены с позиционных параметров на один объект-параметр
+(`SubscriptionMutationOptions`, `SubscriptionMutationsParams`,
+`InvoiceSelectionActionsParams` соответственно), обновлены все места вызова
+(`useSubscriptionMutations.ts` → `subscriptionMutation.ts`,
+`useEditSubscriptionDropdown.ts` → `useSubscriptionMutations.ts`,
+`useCreateInvoiceModal.ts` → `useInvoiceSelectionActions.ts`). Проверено:
+`skylos client/src/features/editSubscriptionDropdown client/src/pages/InvoicesPage/ui/CreateInvoiceModal --quality --select SKY-C303,SKY-C304,SKY-Q301 --format concise --config-file pyproject.toml`
+— 0 срабатываний (кроме тестовых файлов, вне объёма); `tsc --noEmit` (client)
+— 20 baseline, без новых; `npx eslint` — 0 errors (1 предсуществующий warning
+в несвязанном файле); `npm test` — 3/3 suites, 13/13 тестов pass.
 
 ## Архитектура / публичные API модулей
 
