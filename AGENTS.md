@@ -116,6 +116,7 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
   | `npm run test:search` | Search service |
   | `npm run test:email` | Email crypto/imap/smtp services |
   | `npm run test:payment-reminders` | Payment reminders service |
+  | `npm run test:invoice-delivery` | Invoice delivery service |
   | `npm run test:ci` | Aggregate: all of the above + Invoices controller (what `npm run ci` at root runs) |
 
 - After editing Prisma schema: `cd server && npm run prisma:generate`.
