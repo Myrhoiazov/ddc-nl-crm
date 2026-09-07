@@ -132,8 +132,8 @@ export const EmailMessageDetail = memo((props: EmailMessageDetailProps) => {
 
                 <div className={cls.body}>
                     <EmailBodyFrame
-                        bodyHtml={message.bodyHtml}
-                        bodyText={message.bodyText}
+                        bodyHtml={message.bodyHtml ?? null}
+                        bodyText={message.bodyText ?? null}
                         resetKey={message.id}
                     />
                 </div>
