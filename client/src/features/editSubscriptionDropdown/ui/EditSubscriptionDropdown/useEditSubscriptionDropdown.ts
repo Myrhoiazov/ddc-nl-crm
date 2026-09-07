@@ -51,6 +51,7 @@ export const useEditSubscriptionDropdown = (
         restartDate,
         setRestartDate,
         closeModal,
+        setModal,
         items,
         today,
         onCancel,

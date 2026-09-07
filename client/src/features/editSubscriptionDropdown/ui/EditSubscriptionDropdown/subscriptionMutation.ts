@@ -1,7 +1,7 @@
 import { toast } from 'react-toastify';
 import axios from 'axios';
 
-const extractApiErrorDetail = (error: unknown, fallback: string): string => {
+export const extractApiErrorDetail = (error: unknown, fallback: string): string => {
     const detail = axios.isAxiosError(error) ? error.response?.data?.detail : undefined;
     return detail || fallback;
 };

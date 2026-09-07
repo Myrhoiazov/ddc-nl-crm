@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { $apiPrivate } from '@/shared/api/api';
 import { MollieSubscription } from '@/entities/MollieSubscription';
+import { extractApiErrorDetail } from './subscriptionMutation';
 
 export const useCancelSubscription = (
     customerId: string,
@@ -19,8 +20,8 @@ export const useCancelSubscription = (
         toast.info('Подписка отменена');
         finishModal();
         reloadPage?.();
-    } catch {
-        toast.error('Не удалось отменить подписку');
+    } catch (error) {
+        toast.error(extractApiErrorDetail(error, 'Не удалось отменить подписку'));
     } finally {
         setIsSaving(false);
     }

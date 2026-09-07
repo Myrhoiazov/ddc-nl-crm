@@ -9,7 +9,6 @@ export const buildDropdownItems = (
     if (status === 'active') {
         return [
             { content: 'Изменить подписку', onClick: () => openModal('edit') },
-            { content: 'Остановить подписку', onClick: () => openModal('cancel') },
         ];
     }
     if (['canceled', 'completed'].includes(status ?? '')) {
