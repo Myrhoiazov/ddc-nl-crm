@@ -40,15 +40,15 @@ export const findManyComments = async (data: FindCommentsParams): Promise<Commen
 
 export const createComment = async (data: TComment) => {
 
+    // No `include` here: the client discards this response and refetches the comment list
+    // separately (see addCommentsForClient.ts), and `include: { author: true, client: true }`
+    // used to send the full User row — including the password hash and salt — back to the
+    // browser on every comment post.
     return await Comment.create({
         data: {
             text: data?.text,
             userId: Number(data.userId),
             clientId: data.clientId ? Number(data.clientId) : undefined,
-        },
-        include: {
-            author: true,
-            client: true,
         },
     });
 };
