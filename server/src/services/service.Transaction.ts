@@ -198,7 +198,27 @@ const mapMolliePayments = (payments: MolliePaymentWithCustomer[]): FinancialTran
         return entries;
     });
 
-const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
+// getFinancialTransactions() takes no params and always returns the same full data set, but
+// getAllTransactions and getTransactionsSummary are dispatched together on every Finance page
+// load and each call it independently — without this, that's 2 unbounded table scans x 2
+// simultaneous callers = 4 per page view. Single-flight (financialTransactionsPromise) covers
+// truly concurrent calls; the short cache also covers calls that land a moment apart. Mirrors
+// the existing mollieSyncPromise pattern below. Invalidated on create/delete so a user's own
+// mutation is never masked by a stale cache hit.
+const FINANCIAL_TRANSACTIONS_CACHE_MS = 3000;
+
+let financialTransactionsCache: { data: FinancialTransaction[]; expiresAt: number } | null = null;
+let financialTransactionsPromise: Promise<FinancialTransaction[]> | null = null;
+
+export const isCacheFresh = (cache: { expiresAt: number } | null, now: number): boolean => (
+    !!cache && cache.expiresAt > now
+);
+
+const invalidateFinancialTransactionsCache = () => {
+    financialTransactionsCache = null;
+};
+
+const loadFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
     const [manualTransactions, molliePayments] = await Promise.all([
         Transaction.findMany(),
         prisma.payment.findMany({
@@ -227,6 +247,25 @@ const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
     const mollie = mapMolliePayments(molliePayments);
 
     return manual.concat(mollie);
+};
+
+const getFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
+    if (isCacheFresh(financialTransactionsCache, Date.now())) {
+        return financialTransactionsCache!.data;
+    }
+
+    if (!financialTransactionsPromise) {
+        financialTransactionsPromise = loadFinancialTransactions()
+            .then((data) => {
+                financialTransactionsCache = { data, expiresAt: Date.now() + FINANCIAL_TRANSACTIONS_CACHE_MS };
+                return data;
+            })
+            .finally(() => {
+                financialTransactionsPromise = null;
+            });
+    }
+
+    return financialTransactionsPromise;
 };
 
 const sortKeyFor = (transaction: FinancialTransaction, sortBy: string) => {
@@ -358,8 +397,7 @@ export const getAllTransactions = async (params: GetTransactionsParams): Promise
     };
 };
 export const createTransaction = async (data: TTransaction) => {
-
-    return Transaction.create({
+    const created = await Transaction.create({
         data: {
             ...data,
             amount: typeof data.amount === 'string' ? parseFloat(data.amount) : data.amount,
@@ -367,6 +405,8 @@ export const createTransaction = async (data: TTransaction) => {
             paymentMethod: PaymentMethod[data?.paymentMethod.toLocaleUpperCase() as keyof typeof PaymentMethod],
         },
     });
+    invalidateFinancialTransactionsCache();
+    return created;
 };
 export const getTransactionsSummary = async (params: GetTransactionsParams) => {
     triggerMolliePaymentsRefresh();
@@ -441,9 +481,11 @@ export const getTransactionsChart = async (period: TransactionChartPeriod = 'wee
 };
 
 export const deleteTransactionById = async (transactionId: number) => {
-    return Transaction.delete({
+    const deleted = await Transaction.delete({
         where: {
             id: transactionId,
         },
     });
+    invalidateFinancialTransactionsCache();
+    return deleted;
 }
