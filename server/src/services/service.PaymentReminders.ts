@@ -138,15 +138,34 @@ const createReminderDelivery = async (
     }
 };
 
+type ReminderSettings = Awaited<ReturnType<typeof getPaymentReminderSettings>>;
+type ReminderTemplate = Awaited<ReturnType<typeof getPaymentReminderTemplate>>;
+
+// The Mollie Customer is who actually pays (e.g. a parent paying for their child's Client
+// record) — their own language preference takes priority over the linked Client's, which is
+// only a fallback for customers that never got their own set.
+export const resolveReminderLanguage = (
+    customerLanguage: ClientLanguage | null | undefined,
+    clientLanguage: ClientLanguage | null | undefined,
+): ClientLanguage => customerLanguage ?? clientLanguage ?? ClientLanguage.RU;
+
+interface ReminderEmailContext {
+    language: ClientLanguage;
+    recipientEmail: string;
+    targetPaymentDate: Date;
+    settings: ReminderSettings;
+    studio: StudioInfo;
+    template: ReminderTemplate;
+}
+
 const sendReminderEmail = async (
     delivery: { id: number },
     subscription: DueSubscription,
-    language: ClientLanguage,
-    recipientEmail: string,
-    targetPaymentDate: Date,
+    context: ReminderEmailContext,
 ) => {
+    const { language, recipientEmail, targetPaymentDate, settings, studio, template } = context;
+
     try {
-        const settings = await getPaymentReminderSettings();
         if (!settings.senderEmailAccountId) {
             throw new Error('Не настроен email-ящик отправителя для напоминаний об оплате');
         }
@@ -155,10 +174,6 @@ const sendReminderEmail = async (
         const recipientName = client
             ? `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim()
             : (subscription.customer.givenName ?? '');
-        const [template, studio] = await Promise.all([
-            getPaymentReminderTemplate(language),
-            getStudioContactInfo(),
-        ]);
         const { subject, html } = buildReminderEmail(language, {
             clientName: recipientName,
             amountValue: subscription.amountValue.toString(),
@@ -188,17 +203,26 @@ const sendReminderEmail = async (
     }
 };
 
+export interface ReminderRunContext {
+    settings: ReminderSettings;
+    studio: StudioInfo;
+    templateCache: Map<ClientLanguage, ReminderTemplate>;
+}
+
+// settings/studio/templateCache are hoisted from runPaymentReminders and shared across every
+// subscription in a single run — none of them vary per subscription (studio contact info and
+// settings are singletons; templates only vary by language, of which there are 3 at most), so
+// re-fetching them per subscription was a pure-waste N+1 (see docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md
+// for the same principle applied server-wide).
 export const sendReminderForSubscription = async (
     subscription: DueSubscription,
     targetPaymentDate: Date,
+    runContext: ReminderRunContext,
     triggeredById?: number,
 ) => {
     const client = subscription.customer.client;
     const recipientEmail = subscription.customer.email;
-    // The Mollie Customer is who actually pays (e.g. a parent paying for their child's
-    // Client record) — their own language preference takes priority over the linked
-    // Client's, which is only a fallback for customers that never got their own set.
-    const language: ClientLanguage = subscription.customer.preferredLanguage ?? client?.preferredLanguage ?? ClientLanguage.RU;
+    const language = resolveReminderLanguage(subscription.customer.preferredLanguage, client?.preferredLanguage);
 
     const delivery = await createReminderDelivery(
         subscription.id,
@@ -210,7 +234,20 @@ export const sendReminderForSubscription = async (
     if (!delivery) return null;
     if (!recipientEmail) return delivery;
 
-    return sendReminderEmail(delivery, subscription, language, recipientEmail, targetPaymentDate);
+    let template = runContext.templateCache.get(language);
+    if (!template) {
+        template = await getPaymentReminderTemplate(language);
+        runContext.templateCache.set(language, template);
+    }
+
+    return sendReminderEmail(delivery, subscription, {
+        language,
+        recipientEmail,
+        targetPaymentDate,
+        settings: runContext.settings,
+        studio: runContext.studio,
+        template,
+    });
 };
 
 export interface RunPaymentRemindersResult {
@@ -229,11 +266,21 @@ export const runPaymentReminders = async (triggeredById?: number): Promise<RunPa
     }
 
     const subscriptions = await selectSubscriptionsDueForReminder(settings.offsetDays);
+    const runContext: ReminderRunContext = {
+        settings,
+        studio: await getStudioContactInfo(),
+        templateCache: new Map<ClientLanguage, ReminderTemplate>(),
+    };
 
     for (const subscription of subscriptions) {
         if (!subscription.nextPaymentDate) continue;
 
-        const delivery = await sendReminderForSubscription(subscription, subscription.nextPaymentDate, triggeredById);
+        const delivery = await sendReminderForSubscription(
+            subscription,
+            subscription.nextPaymentDate,
+            runContext,
+            triggeredById,
+        );
 
         if (!delivery) {
             result.alreadyQueued += 1;

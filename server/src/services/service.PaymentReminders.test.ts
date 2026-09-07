@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { computeReminderWindow, isMandateEligibleForReminder, isUniqueConstraintViolation } from './service.PaymentReminders';
+import { ClientLanguage } from '@prisma/client';
+import {
+    computeReminderWindow, isMandateEligibleForReminder, isUniqueConstraintViolation, resolveReminderLanguage,
+} from './service.PaymentReminders';
 import { buildReminderEmail, renderReminderTemplate } from './service.PaymentReminderContent';
 
 test('reminder window covers today through today+offsetDays, day-inclusive', () => {
@@ -27,6 +30,19 @@ test('only a valid (non-invalid) mandate is eligible for a reminder', () => {
 test('unique constraint violations are recognized so duplicate reminders are skipped, not thrown', () => {
     assert.equal(isUniqueConstraintViolation(new Error('some other db error')), false);
     assert.equal(isUniqueConstraintViolation(null), false);
+});
+
+test('resolveReminderLanguage prefers the Mollie customer language over the linked client', () => {
+    assert.equal(resolveReminderLanguage(ClientLanguage.NL, ClientLanguage.EN), ClientLanguage.NL);
+});
+
+test('resolveReminderLanguage falls back to the client language when the customer has none', () => {
+    assert.equal(resolveReminderLanguage(null, ClientLanguage.EN), ClientLanguage.EN);
+});
+
+test('resolveReminderLanguage falls back to Russian when neither customer nor client has a language', () => {
+    assert.equal(resolveReminderLanguage(null, null), ClientLanguage.RU);
+    assert.equal(resolveReminderLanguage(undefined, undefined), ClientLanguage.RU);
 });
 
 const sampleStudio = {
