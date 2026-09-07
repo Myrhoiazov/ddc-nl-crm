@@ -114,6 +114,17 @@ const groupInclude = {
     slots: { orderBy: { dayOfWeek: 'asc' as const } },
 };
 
+// List view of groups (getGroups) — shared by the Schedule pages and the invoice creation
+// form's group dropdown (both hit GET /schedule/groups). Neither reads `hall` at all, and
+// only read choreographer.{firstName,lastName} and branch.{id,name,city} — not the full
+// models `groupInclude` returns for the single-group/mutation paths.
+// See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const groupListInclude = {
+    choreographer: { select: { id: true, firstName: true, lastName: true } },
+    branch: { select: { id: true, name: true, city: true } },
+    slots: { orderBy: { dayOfWeek: 'asc' as const } },
+};
+
 const studentSelect = {
     id: true,
     firstName: true,
@@ -235,7 +246,7 @@ export const getGroups = async (req: Request, res: Response) => {
         prisma.danceGroup.count({ where }),
         prisma.danceGroup.findMany({
             where,
-            include: groupInclude,
+            include: groupListInclude,
             orderBy: { createdAt: 'asc' },
             skip: (Number(page) - 1) * Number(limit),
             take: Number(limit),
