@@ -772,6 +772,58 @@ export const updateCustomerController = async (req: Request, res: Response) => {
 
 }
 
+export const deleteCustomerController = async (req: Request, res: Response) => {
+    const customerId = Number(req.params.customerId);
+
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+        return res.status(400).json({ error: 'Invalid customer id' });
+    }
+
+    try {
+        const customer = await prisma.customer.findUnique({
+            where: { id: customerId },
+            select: {
+                id: true,
+                mollieId: true,
+            },
+        });
+
+        if (!customer) {
+            return res.status(404).json({ error: 'Mollie customer not found' });
+        }
+
+        const [mandatesCount, subscriptionsCount] = await Promise.all([
+            prisma.mandate.count({ where: { customerId } }),
+            prisma.subscription.count({ where: { customerId } }),
+        ]);
+
+        if (mandatesCount > 0 || subscriptionsCount > 0) {
+            return res.status(409).json({
+                error: 'Mollie customer has mandates or subscriptions and cannot be deleted',
+            });
+        }
+
+        if (customer.mollieId) {
+            await mollieService.deleteCustomerById(customer.mollieId);
+        }
+
+        const [, deletedCustomer] = await prisma.$transaction([
+            prisma.customerClientLink.deleteMany({
+                where: { customerId },
+            }),
+            prisma.customer.delete({
+                where: { id: customerId },
+                include: customerListInclude,
+            }),
+        ]);
+
+        return res.status(200).json(deletedCustomer);
+    } catch (error) {
+        console.error('Error deleting Mollie customer:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
 type LinkRequestData = {
     payerRelation: string;
     notes?: string;
