@@ -203,6 +203,26 @@ export const createClient = async (data: TClient, options: CreateClientOptions =
     });
 };
 
+// List view of clients (getAllClients) — narrower than the include shared by
+// create/update/getClientById: the list cards (ClientListItemBig/Small, ClientsPage's branch
+// filter) only ever read branch.name, and never read groupMemberships at all (that's only
+// used by ClientDetails.tsx, which is fed by the separate getClientById detail fetch).
+// See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const clientListInclude = {
+    branch: { select: { id: true, name: true } },
+    mollieLinks: {
+        orderBy: [
+            { isPrimary: 'desc' as const },
+            { createdAt: 'asc' as const },
+        ],
+        take: 1,
+        select: {
+            customerId: true,
+            isPrimary: true,
+        },
+    },
+};
+
 export const getAllClients = async (params: GetClientsParams) => {
 
     const {
@@ -234,21 +254,7 @@ export const getAllClients = async (params: GetClientsParams) => {
         orderBy: {
             [_sortBy]: _order,
         },
-        include: {
-            branch: true,
-            groupMemberships: { include: { group: true } },
-            mollieLinks: {
-                orderBy: [
-                    { isPrimary: 'desc' },
-                    { createdAt: 'asc' },
-                ],
-                take: 1,
-                select: {
-                    customerId: true,
-                    isPrimary: true,
-                },
-            },
-        },
+        include: clientListInclude,
     });
 
     return clients;
