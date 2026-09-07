@@ -15,7 +15,7 @@ describe('deleteMollieClientById', () => {
 
         const result = await deleteMollieClientById('1')(dispatch, () => ({}) as never, extra as never);
 
-        expect(extra.apiPrivate.delete).toHaveBeenCalledWith('/mollie/customers1');
+        expect(extra.apiPrivate.delete).toHaveBeenCalledWith('/mollie/customers/1');
         expect(result.meta.requestStatus).toBe('fulfilled');
         expect(result.payload).toEqual(client);
     });
