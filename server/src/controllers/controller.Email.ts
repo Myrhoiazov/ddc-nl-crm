@@ -35,6 +35,28 @@ const accountSelect = {
     // passwordEncrypted is intentionally omitted — it must never leave the server.
 };
 
+// Used only by listMessages — bodyText/bodyHtml are @db.Text (full email content, can be tens
+// of KB each) and EmailMessageList only renders metadata; the full body is fetched separately
+// per-message by getMessage when a message is actually opened (see
+// client/src/pages/EmailPage/ui/EmailPage/useEmailMessageSelection.ts:onSelectMessage).
+const messageListSelect = {
+    id: true,
+    mailboxId: true,
+    imapUid: true,
+    messageId: true,
+    inReplyToMessageId: true,
+    isOutgoing: true,
+    fromAddress: true,
+    fromName: true,
+    toAddresses: true,
+    ccAddresses: true,
+    subject: true,
+    receivedAt: true,
+    isRead: true,
+    clientId: true,
+    createdAt: true,
+};
+
 export const listAccounts = async (req: Request, res: Response) => {
     const accounts = await prisma.emailAccount.findMany({
         select: accountSelect,
@@ -141,7 +163,8 @@ export const listMessages = async (req: Request, res: Response) => {
             orderBy: { receivedAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
-            include: {
+            select: {
+                ...messageListSelect,
                 client: { select: { id: true, firstName: true, lastName: true, email: true } },
                 attachments: { select: attachmentSelect },
             },

@@ -29,8 +29,10 @@ export interface EmailMessage {
     toAddresses: EmailAddress[];
     ccAddresses: EmailAddress[] | null;
     subject: string | null;
-    bodyText: string | null;
-    bodyHtml: string | null;
+    // Only present on a single-message fetch (getMessage) — the list endpoint (listMessages)
+    // omits these to avoid shipping full email bodies in every page of results.
+    bodyText?: string | null;
+    bodyHtml?: string | null;
     receivedAt: string;
     isRead: boolean;
     clientId: number | null;
