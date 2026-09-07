@@ -202,6 +202,16 @@ export const sendInvoiceEmail = async ({
     }
 };
 
+export const resolveDueReminderType = (
+    dueDate: Date,
+    now: Date,
+    inThreeDays: Date,
+): InvoiceDeliveryType | null => {
+    if (dueDate < now) return InvoiceDeliveryType.REMINDER_OVERDUE;
+    if (dueDate <= inThreeDays) return InvoiceDeliveryType.REMINDER_BEFORE_DUE;
+    return null;
+};
+
 export const sendDueInvoiceReminders = async () => {
     const now = new Date();
     const inThreeDays = new Date(now);
@@ -216,21 +226,29 @@ export const sendDueInvoiceReminders = async () => {
         select: { id: true, dueDate: true },
     });
 
-    for (const invoice of invoices) {
-        const type = invoice.dueDate! < now
-            ? InvoiceDeliveryType.REMINDER_OVERDUE
-            : invoice.dueDate! <= inThreeDays
-                ? InvoiceDeliveryType.REMINDER_BEFORE_DUE
-                : null;
-        if (!type) continue;
-        const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        const alreadySent = await prisma.invoiceDelivery.findFirst({
-            where: { invoiceId: invoice.id, type, status: InvoiceDeliveryStatus.SENT, createdAt: { gte: startOfDay } },
+    const candidates = invoices
+        .map((invoice) => ({ invoice, type: resolveDueReminderType(invoice.dueDate!, now, inThreeDays) }))
+        .filter((candidate): candidate is { invoice: typeof invoices[number]; type: InvoiceDeliveryType } => candidate.type !== null);
+
+    if (!candidates.length) return;
+
+    // Batched replacement for what used to be one findFirst per invoice inside the loop below.
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const alreadySent = await prisma.invoiceDelivery.findMany({
+        where: {
+            invoiceId: { in: candidates.map((candidate) => candidate.invoice.id) },
+            type: { in: candidates.map((candidate) => candidate.type) },
+            status: InvoiceDeliveryStatus.SENT,
+            createdAt: { gte: startOfDay },
+        },
+        select: { invoiceId: true, type: true },
+    });
+    const alreadySentKeys = new Set(alreadySent.map((delivery) => `${delivery.invoiceId}:${delivery.type}`));
+
+    for (const { invoice, type } of candidates) {
+        if (alreadySentKeys.has(`${invoice.id}:${type}`)) continue;
+        await sendInvoiceEmail({ invoiceId: invoice.id, type }).catch((error) => {
+            console.error(`Invoice reminder failed for ${invoice.id}:`, error);
         });
-        if (!alreadySent) {
-            await sendInvoiceEmail({ invoiceId: invoice.id, type }).catch((error) => {
-                console.error(`Invoice reminder failed for ${invoice.id}:`, error);
-            });
-        }
     }
 };
