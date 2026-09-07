@@ -13,14 +13,14 @@ describe('deleteSubscriptionById', () => {
         const subscription = { id: 'sub_1' };
         extra.apiPrivate.delete.mockResolvedValue({ data: subscription });
 
-        const result = await deleteSubscriptionById({ customerId: 'cst_1', subscriptionId: 'sub_1' })(
+        const result = await deleteSubscriptionById({ customerId: '1', subscriptionId: 'sub_1' })(
             dispatch,
             () => ({}) as never,
             extra as never,
         );
 
         expect(extra.apiPrivate.delete).toHaveBeenCalledWith('/mollie/subscriptions/sub_1', {
-            data: { customerId: 'cst_1' },
+            data: { customerId: 1 },
         });
         expect(result.meta.requestStatus).toBe('fulfilled');
         expect(result.payload).toEqual(subscription);
