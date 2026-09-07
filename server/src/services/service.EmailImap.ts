@@ -66,13 +66,29 @@ export const addressesToJson = (addresses?: { address?: string; name?: string }[
 
 // MySQL's default collation (utf8mb4_unicode_ci) already compares case-insensitively,
 // unlike Postgres where Prisma needs an explicit `mode: 'insensitive'` filter option.
-const findClientIdByAddress = async (fromAddress: string): Promise<number | null> => {
+//
+// `cache` is one Map per sync run (see syncEmailAccountUnguarded) — messages are streamed
+// one at a time from the IMAP server (client.fetch is an async iterator, so there's no
+// upfront list to batch-query against), but the same sender commonly appears across several
+// messages in one sync batch (a thread, or catching up after being offline), so caching
+// within a single run avoids repeating the same lookup for every one of their messages.
+const findClientIdByAddress = async (
+    fromAddress: string,
+    cache: Map<string, number | null>,
+): Promise<number | null> => {
+    const cached = cache.get(fromAddress);
+    if (cached !== undefined) {
+        return cached;
+    }
+
     const client = await prisma.client.findFirst({
         where: { email: fromAddress },
         select: { id: true },
     });
 
-    return client?.id ?? null;
+    const clientId = client?.id ?? null;
+    cache.set(fromAddress, clientId);
+    return clientId;
 };
 
 // `related` attachments are inline images referenced via cid: in the HTML body
@@ -139,6 +155,7 @@ const processMessage = async (
     message: FetchMessageObject,
     accountId: number,
     startUid: number,
+    clientIdCache: Map<string, number | null>,
 ): Promise<{ created: boolean; uid: number } | null> => {
     if (message.uid < startUid) return null;
 
@@ -147,7 +164,7 @@ const processMessage = async (
 
     if (!fromAddress) return { created: false, uid: message.uid };
 
-    const clientId = await findClientIdByAddress(fromAddress);
+    const clientId = await findClientIdByAddress(fromAddress, clientIdCache);
 
     const savedMessage = await prisma.emailMessage.upsert({
         where: {
@@ -194,6 +211,7 @@ const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult>
         }
 
         let highestUid = account.lastSyncedUid ?? 0;
+        const clientIdCache = new Map<string, number | null>();
 
         for await (const message of client.fetch(
             `${startUid}:*`,
@@ -201,7 +219,7 @@ const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult>
             { uid: true },
         )) {
             try {
-                const outcome = await processMessage(message, account.id, startUid);
+                const outcome = await processMessage(message, account.id, startUid, clientIdCache);
 
                 if (!outcome) continue; // already synced
 
