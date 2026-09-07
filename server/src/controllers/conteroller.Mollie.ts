@@ -772,6 +772,20 @@ export const updateCustomerController = async (req: Request, res: Response) => {
 
 }
 
+const customerDeleteBlockingMandateStatuses = ['valid', 'pending'];
+const customerDeleteBlockingSubscriptionStatuses = ['active', 'pending', 'suspended'];
+
+export const buildCustomerDeleteDependencyWhere = (customerId: number) => ({
+    mandates: {
+        customerId,
+        status: { in: customerDeleteBlockingMandateStatuses },
+    },
+    subscriptions: {
+        customerId,
+        status: { in: customerDeleteBlockingSubscriptionStatuses },
+    },
+});
+
 export const deleteCustomerController = async (req: Request, res: Response) => {
     const customerId = Number(req.params.customerId);
 
@@ -792,14 +806,15 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             return res.status(404).json({ error: 'Mollie customer not found' });
         }
 
+        const dependencyWhere = buildCustomerDeleteDependencyWhere(customerId);
         const [mandatesCount, subscriptionsCount] = await Promise.all([
-            prisma.mandate.count({ where: { customerId } }),
-            prisma.subscription.count({ where: { customerId } }),
+            prisma.mandate.count({ where: dependencyWhere.mandates }),
+            prisma.subscription.count({ where: dependencyWhere.subscriptions }),
         ]);
 
         if (mandatesCount > 0 || subscriptionsCount > 0) {
             return res.status(409).json({
-                error: 'Mollie customer has mandates or subscriptions and cannot be deleted',
+                error: 'Mollie customer has active mandates or subscriptions and cannot be deleted',
             });
         }
 
@@ -807,7 +822,23 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             await mollieService.deleteCustomerById(customer.mollieId);
         }
 
-        const [, deletedCustomer] = await prisma.$transaction([
+        const [, , , , deletedCustomer] = await prisma.$transaction([
+            prisma.payment.updateMany({
+                where: { customerId },
+                data: { customerId: null, subscriptionId: null },
+            }),
+            prisma.payment.updateMany({
+                where: {
+                    subscription: { customerId },
+                },
+                data: { subscriptionId: null },
+            }),
+            prisma.subscription.deleteMany({
+                where: { customerId },
+            }),
+            prisma.mandate.deleteMany({
+                where: { customerId },
+            }),
             prisma.customerClientLink.deleteMany({
                 where: { customerId },
             }),
@@ -2558,15 +2589,16 @@ export const mollieDeleteSubscriptionByIdController = async (req: Request, res: 
     const { customerId } = req.body;
 
     try {
+        const parsedCustomerId = parseSubscriptionCustomerId(customerId);
 
-        if (!customerId) {
+        if (!parsedCustomerId) {
             return res.status(400).json({ error: "customerId is required" });
         }
 
         const subscriptionToCancel = await prisma.subscription.findFirst({
             where: {
                 mollieId: subscriptionId,
-                customerId: Number(customerId),
+                customerId: parsedCustomerId,
                 status: 'active',
             },
             include: {
@@ -2596,6 +2628,16 @@ export const mollieDeleteSubscriptionByIdController = async (req: Request, res: 
         return res.status(500).json({ error: 'Internal server error' });
     }
 }
+
+export const parseSubscriptionCustomerId = (customerId: unknown) => {
+    const parsedCustomerId = Number(customerId);
+
+    if (!Number.isInteger(parsedCustomerId) || parsedCustomerId <= 0) {
+        return null;
+    }
+
+    return parsedCustomerId;
+};
 
 const findActiveSubscriptionForUpdate = async (subscriptionId: string, customerId: number, mandateId: string) => {
     const [current, mandate] = await Promise.all([
