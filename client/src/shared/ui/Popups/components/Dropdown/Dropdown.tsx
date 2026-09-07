@@ -19,16 +19,17 @@ interface DropdownProps {
     items: DropdownItem[];
     direction?: DropdownDirection;
     trigger: ReactNode;
+    triggerAriaLabel?: string;
 }
 
 export function Dropdown(props: DropdownProps) {
-    const { className, trigger, items, direction = 'bottom right' } = props;
+    const { className, trigger, items, direction = 'bottom right', triggerAriaLabel } = props;
 
     const menuClasses = [mapDirectionClass[direction], popupCls.menu];
 
     return (
         <Menu as="div" className={classNames(cls.Dropdown, {}, [className, popupCls.popup])}>
-            <MenuButton className={popupCls.trigger}>{trigger}</MenuButton>
+            <MenuButton className={popupCls.trigger} aria-label={triggerAriaLabel}>{trigger}</MenuButton>
             <MenuItems transition className={classNames(cls.menu, {}, menuClasses)}>
                 {items.map((item, index) => {
                     const content = ({ active }: { active: boolean }) => (
