@@ -11,3 +11,7 @@ const hasRoute = (method: string, path: string) => {
 test('Mollie router exposes DELETE /customers/:customerId', () => {
     assert.equal(hasRoute('delete', '/customers/:customerId'), true);
 });
+
+test('Mollie router exposes DELETE /subscriptions/:subscriptionId', () => {
+    assert.equal(hasRoute('delete', '/subscriptions/:subscriptionId'), true);
+});

@@ -18,7 +18,7 @@ export const deleteSubscriptionById = createAsyncThunk<
         const response = await extra.apiPrivate.delete<MollieSubscription>(
             `/mollie/subscriptions/${subscriptionId}`,
             {
-                data: { customerId },
+                data: { customerId: Number(customerId) },
             }
         );
         return response.data;
