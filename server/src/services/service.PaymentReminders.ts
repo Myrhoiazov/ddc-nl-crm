@@ -149,16 +149,22 @@ export const resolveReminderLanguage = (
     clientLanguage: ClientLanguage | null | undefined,
 ): ClientLanguage => customerLanguage ?? clientLanguage ?? ClientLanguage.RU;
 
+interface ReminderEmailContext {
+    language: ClientLanguage;
+    recipientEmail: string;
+    targetPaymentDate: Date;
+    settings: ReminderSettings;
+    studio: StudioInfo;
+    template: ReminderTemplate;
+}
+
 const sendReminderEmail = async (
     delivery: { id: number },
     subscription: DueSubscription,
-    language: ClientLanguage,
-    recipientEmail: string,
-    targetPaymentDate: Date,
-    settings: ReminderSettings,
-    studio: StudioInfo,
-    template: ReminderTemplate,
+    context: ReminderEmailContext,
 ) => {
+    const { language, recipientEmail, targetPaymentDate, settings, studio, template } = context;
+
     try {
         if (!settings.senderEmailAccountId) {
             throw new Error('Не настроен email-ящик отправителя для напоминаний об оплате');
@@ -197,6 +203,12 @@ const sendReminderEmail = async (
     }
 };
 
+export interface ReminderRunContext {
+    settings: ReminderSettings;
+    studio: StudioInfo;
+    templateCache: Map<ClientLanguage, ReminderTemplate>;
+}
+
 // settings/studio/templateCache are hoisted from runPaymentReminders and shared across every
 // subscription in a single run — none of them vary per subscription (studio contact info and
 // settings are singletons; templates only vary by language, of which there are 3 at most), so
@@ -205,9 +217,7 @@ const sendReminderEmail = async (
 export const sendReminderForSubscription = async (
     subscription: DueSubscription,
     targetPaymentDate: Date,
-    settings: ReminderSettings,
-    studio: StudioInfo,
-    templateCache: Map<ClientLanguage, ReminderTemplate>,
+    runContext: ReminderRunContext,
     triggeredById?: number,
 ) => {
     const client = subscription.customer.client;
@@ -224,13 +234,20 @@ export const sendReminderForSubscription = async (
     if (!delivery) return null;
     if (!recipientEmail) return delivery;
 
-    let template = templateCache.get(language);
+    let template = runContext.templateCache.get(language);
     if (!template) {
         template = await getPaymentReminderTemplate(language);
-        templateCache.set(language, template);
+        runContext.templateCache.set(language, template);
     }
 
-    return sendReminderEmail(delivery, subscription, language, recipientEmail, targetPaymentDate, settings, studio, template);
+    return sendReminderEmail(delivery, subscription, {
+        language,
+        recipientEmail,
+        targetPaymentDate,
+        settings: runContext.settings,
+        studio: runContext.studio,
+        template,
+    });
 };
 
 export interface RunPaymentRemindersResult {
@@ -249,8 +266,11 @@ export const runPaymentReminders = async (triggeredById?: number): Promise<RunPa
     }
 
     const subscriptions = await selectSubscriptionsDueForReminder(settings.offsetDays);
-    const studio = await getStudioContactInfo();
-    const templateCache = new Map<ClientLanguage, ReminderTemplate>();
+    const runContext: ReminderRunContext = {
+        settings,
+        studio: await getStudioContactInfo(),
+        templateCache: new Map<ClientLanguage, ReminderTemplate>(),
+    };
 
     for (const subscription of subscriptions) {
         if (!subscription.nextPaymentDate) continue;
@@ -258,9 +278,7 @@ export const runPaymentReminders = async (triggeredById?: number): Promise<RunPa
         const delivery = await sendReminderForSubscription(
             subscription,
             subscription.nextPaymentDate,
-            settings,
-            studio,
-            templateCache,
+            runContext,
             triggeredById,
         );
 
