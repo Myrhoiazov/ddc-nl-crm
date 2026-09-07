@@ -31,6 +31,7 @@ router.get("/customers", asyncHandler(isAuthenticated), asyncHandler(mollieContr
 router.get("/customers/active-subscriptions/export.csv", asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieExportActiveSubscriptionsController));
 router.get('/customers/:customerId', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieGetCustomerFullInfo));
 router.put('/customers/:customerId', asyncHandler(isAuthenticated), asyncHandler(mollieController.updateCustomerController));
+router.delete('/customers/:customerId', asyncHandler(isAuthenticated), asyncHandler(mollieController.deleteCustomerController));
 router.post('/customers', asyncHandler(isAuthenticated), asyncHandler(mollieController.createCustomerController));
 router.post('/customers/:customerId/payment-link', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieCreateCustomerPaymentLinkController));
 router.post('/customers/:customerId/student-links', asyncHandler(isAuthenticated), asyncHandler(mollieController.createCustomerStudentLinkController));

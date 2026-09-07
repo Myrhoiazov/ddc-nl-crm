@@ -7,7 +7,7 @@ export const deleteMollieClientById = createAsyncThunk<MollieClient, string, Thu
     async (clientId, thunkAPI) => {
         const { extra, rejectWithValue } = thunkAPI;
         try {
-            const response = await extra.apiPrivate.delete<MollieClient>(`/mollie/customers${clientId}`);
+            const response = await extra.apiPrivate.delete<MollieClient>(`/mollie/customers/${clientId}`);
             return response.data;
         } catch (error) {
             return rejectWithValue('delete');
