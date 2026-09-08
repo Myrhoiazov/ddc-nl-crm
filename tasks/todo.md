@@ -8,7 +8,7 @@
 - [x] Task 6: Narrow `findSubscriptions` (Subscription + nested Mandate)
 - [x] Task 7: Narrow `findMandates` Mandate fields
 - [x] Task 8: Narrow `mollieGetCustomerFullInfo` (drop unused relations, select Payment)
-- [ ] Task 9: Narrow `mollieGetPaymentsController` Payment fields
+- [x] Task 9: Narrow `mollieGetPaymentsController` Payment fields
 - [ ] Task 10: Narrow `mollieGetUpcomingSubscriptionsController` Subscription fields
 - [ ] Task 11: Drop unused raw `payment`/`subscription` objects from Mollie incidents
 - [ ] Task 12: Narrow payment-reminder settings/template upsert responses

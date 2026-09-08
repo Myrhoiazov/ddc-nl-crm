@@ -1617,7 +1617,21 @@ const paymentsListPage = async (where: Prisma.PaymentWhereInput, page: number, l
     const [payments, total] = await Promise.all([
         prisma.payment.findMany({
             where,
-            include: {
+            // Matches MolliePayment in
+            // client/src/pages/MolliePage/ui/MolliePayments/molliePaymentTypes.ts —
+            // drops refundedAmount/chargedBackAmount/adjustmentAt/checkoutUrl/
+            // isCancelable and the internal customerId/subscriptionId/invoiceId FKs.
+            select: {
+                id: true,
+                mollieId: true,
+                amountValue: true,
+                amountCurrency: true,
+                description: true,
+                method: true,
+                status: true,
+                paidAt: true,
+                createdAt: true,
+                updatedAt: true,
                 customer: {
                     select: mollieCustomerSelect,
                 },
