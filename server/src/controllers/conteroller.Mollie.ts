@@ -2074,7 +2074,6 @@ const mapPaymentIncident = (payment: {
     createdAt: Date;
     updatedAt: Date;
     customer: unknown;
-    subscription: unknown;
 }) => ({
     id: `payment-${payment.id}`,
     type: 'payment',
@@ -2087,8 +2086,6 @@ const mapPaymentIncident = (payment: {
     createdAt: payment.createdAt,
     updatedAt: payment.updatedAt,
     customer: payment.customer,
-    subscription: payment.subscription,
-    payment,
 });
 
 const mapSubscriptionIncident = (subscription: {
@@ -2100,7 +2097,6 @@ const mapSubscriptionIncident = (subscription: {
     createdAt: Date;
     updatedAt: Date;
     customer: unknown;
-    mandate: unknown;
 }) => ({
     id: `subscription-${subscription.id}`,
     type: 'subscription',
@@ -2113,8 +2109,6 @@ const mapSubscriptionIncident = (subscription: {
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
     customer: subscription.customer,
-    subscription,
-    mandate: subscription.mandate,
 });
 
 const mapCustomerIncident = (customer: {
@@ -2163,33 +2157,35 @@ const incidentCustomerSelect = {
     updatedAt: true,
 } as const;
 
-const includePaymentRelations = {
+// Incident list responses drop the raw payment/subscription objects entirely
+// (client MollieIncidentCard.tsx reads the mapped incident fields + customer,
+// never incident.payment/incident.subscription). Fields below match what
+// mapPaymentIncident/mapSubscriptionIncident need.
+const incidentPaymentSelect = {
+    id: true,
+    status: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
     customer: {
         select: mollieCustomerSelect,
     },
-    subscription: {
-        select: {
-            id: true,
-            mollieId: true,
-            status: true,
-            description: true,
-        },
-    },
-} as const;
+} satisfies Prisma.PaymentSelect;
 
-const includeSubscriptionRelations = {
+const incidentSubscriptionSelect = {
+    id: true,
+    status: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
     customer: {
         select: mollieCustomerSelect,
     },
-    mandate: {
-        select: {
-            id: true,
-            mollieId: true,
-            status: true,
-            method: true,
-        },
-    },
-} as const;
+} satisfies Prisma.SubscriptionSelect;
 
 const loadIncidentResolvedIds = async () => {
     const resolutions = await prisma.mollieIncidentResolution.findMany({
@@ -2231,7 +2227,7 @@ const loadPaymentIncidents = async (
     const [items, total] = await Promise.all([
         prisma.payment.findMany({
             where,
-            include: includePaymentRelations,
+            select: incidentPaymentSelect,
             orderBy: { updatedAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
@@ -2249,7 +2245,7 @@ const loadSubscriptionIncidents = async (
     const [items, total] = await Promise.all([
         prisma.subscription.findMany({
             where,
-            include: includeSubscriptionRelations,
+            select: incidentSubscriptionSelect,
             orderBy: { updatedAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
@@ -2285,13 +2281,13 @@ const loadCombinedIncidents = async (
     const [payments, subscriptions, customers] = await Promise.all([
         prisma.payment.findMany({
             where: paymentWhere,
-            include: includePaymentRelations,
+            select: incidentPaymentSelect,
             orderBy: { updatedAt: 'desc' },
             take: 10,
         }),
         prisma.subscription.findMany({
             where: subscriptionWhere,
-            include: includeSubscriptionRelations,
+            select: incidentSubscriptionSelect,
             orderBy: { updatedAt: 'desc' },
             take: 10,
         }),
