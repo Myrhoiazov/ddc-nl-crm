@@ -388,7 +388,9 @@ export const deleteClientByIdController = async (req: Request, res: Response) =>
             return res.status(404).json({ message: 'Client not found or already deleted' });
         }
 
-        return res.status(200).json({ message: 'Client successfully deleted', client: deletedClient });
+        // Client callers (EditClientDropdown) only check the request status, never
+        // the body — no reason to echo the full deleted row.
+        return res.status(200).json({ message: 'Client successfully deleted' });
     } catch (error) {
         console.error('Error deleting client:', error);
         return res.status(500).json({ message: 'Internal server error' });

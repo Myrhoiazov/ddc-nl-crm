@@ -300,6 +300,9 @@ export const updateClient = async (id: number, data: Partial<TClient>, groupIds?
 export const deleteClient = async (id: number) => {
     return Client.delete({
         where: { id },
+        // Response body is trimmed to a message by the controller; only the id
+        // is needed here for the null-check / minimal echo.
+        select: { id: true },
     });
 };
 
