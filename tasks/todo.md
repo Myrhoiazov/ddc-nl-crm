@@ -12,7 +12,7 @@
 - [x] Task 10: Narrow `mollieGetUpcomingSubscriptionsController` Subscription fields
 - [x] Task 11: Drop unused raw `payment`/`subscription` objects from Mollie incidents
 - [x] Task 12: Narrow payment-reminder settings/template upsert responses
-- [ ] Task 13: Narrow payment-reminder delivery list response
+- [x] Task 13: Narrow payment-reminder delivery list response
 - [ ] Task 14: Trim `deleteClient` response body
 - [ ] Task 15: Trim dance-group create/update response bodies
 - [ ] Task 16: Trim style-card create/update response bodies
