@@ -38,9 +38,47 @@ const emptyToNull = <T extends Record<string, unknown>>(value: T): T => Object.f
     Object.entries(value).map(([key, nested]) => [key, nested === '' ? null : nested]),
 ) as T;
 
+// client/src/pages/OrganizationBrandsPage/organizationBrandsTypes.ts: Organization/Brand — neither
+// type reads createdAt/updatedAt.
+const organizationSelect = {
+    id: true,
+    legalName: true,
+    kvkNumber: true,
+    vatNumber: true,
+    registrationAddress: true,
+    postalCode: true,
+    city: true,
+    countryCode: true,
+    email: true,
+    phone: true,
+    website: true,
+    bankName: true,
+    iban: true,
+    mollieOrganizationId: true,
+} satisfies Prisma.LegalOrganizationSelect;
+
+const organizationBrandSelect = {
+    id: true,
+    organizationId: true,
+    name: true,
+    slug: true,
+    logoUrl: true,
+    primaryColor: true,
+    email: true,
+    phone: true,
+    website: true,
+    address: true,
+    mollieProfileId: true,
+    isDefault: true,
+    isActive: true,
+} satisfies Prisma.BusinessBrandSelect;
+
 export const getOrganization = async (_req: Request, res: Response) => {
     const organization = await prisma.legalOrganization.findFirst({
-        include: { brands: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } },
+        select: {
+            ...organizationSelect,
+            brands: { select: organizationBrandSelect, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] },
+        },
         orderBy: { id: 'asc' },
     });
     return res.json(organization);
