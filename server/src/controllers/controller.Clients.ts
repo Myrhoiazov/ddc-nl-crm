@@ -169,6 +169,10 @@ const findPaymentLinks = async (clientId: number) => prisma.payment.findMany({
     take: 20,
 });
 
+// Matches client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/types.ts's
+// ClientSubscription — omits metadata/mandateId/customerId (internal FK); mandate is narrowed to
+// the 2 fields ClientSubscription.mandate reads instead of the full Mandate model.
+// See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
 const findSubscriptions = async (clientId: number) => prisma.subscription.findMany({
     where: {
         customer: {
@@ -177,8 +181,20 @@ const findSubscriptions = async (clientId: number) => prisma.subscription.findMa
             },
         },
     },
-    include: {
-        mandate: true,
+    select: {
+        id: true,
+        mollieId: true,
+        description: true,
+        amountValue: true,
+        amountCurrency: true,
+        interval: true,
+        status: true,
+        startDate: true,
+        nextPaymentDate: true,
+        times: true,
+        createdAt: true,
+        updatedAt: true,
+        mandate: { select: { mollieId: true, status: true } },
         customer: { select: customerBasicSelect },
     },
     orderBy: { updatedAt: 'desc' },
