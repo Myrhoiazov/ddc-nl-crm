@@ -14,7 +14,7 @@
 - [x] Task 12: Narrow payment-reminder settings/template upsert responses
 - [x] Task 13: Narrow payment-reminder delivery list response
 - [x] Task 14: Trim `deleteClient` response body
-- [ ] Task 15: Trim dance-group create/update response bodies
+- [x] Task 15: Trim dance-group create/update response bodies
 - [ ] Task 16: Trim style-card create/update response bodies
 - [ ] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
 - [ ] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
