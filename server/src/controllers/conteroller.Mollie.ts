@@ -2464,6 +2464,29 @@ export const mollieSyncAllController = async (req: Request, res: Response) => {
 }
 
 // MANDATES
+
+// Response shape shared by mollieCreateMandateController and mollieGetMandatesController — the
+// client's Mandate type (client/src/entities/Mandate/model/types/mandate.ts) only knows Mollie
+// ids, never the internal numeric row id / customerId FK.
+const toMandateResponse = (mandate: {
+    mollieId: string | null;
+    status: string;
+    method: string;
+    signatureDate: Date | null;
+    mandateReference: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+}, customerMollieId: string) => ({
+    id: mandate.mollieId,
+    customerId: customerMollieId,
+    status: mandate.status,
+    method: mandate.method,
+    signatureDate: mandate.signatureDate,
+    mandateReference: mandate.mandateReference,
+    createdAt: mandate.createdAt,
+    updatedAt: mandate.updatedAt,
+});
+
 export const mollieCreateMandateController = async (req: Request<{}, {}, MandateFormData>, res: Response) => {
     const parsedBody = createMandateSchema.safeParse(req.body);
 
@@ -2493,9 +2516,24 @@ export const mollieCreateMandateController = async (req: Request<{}, {}, Mandate
         });
 
         await mollieSyncService.syncMollieMandate(client.id, mandate);
-        const savedMandate = await prisma.mandate.findUnique({ where: { mollieId: mandate.id } });
+        const savedMandate = await prisma.mandate.findUnique({
+            where: { mollieId: mandate.id },
+            select: {
+                mollieId: true,
+                status: true,
+                method: true,
+                signatureDate: true,
+                mandateReference: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
 
-        return res.status(201).json(savedMandate);
+        if (!savedMandate) {
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        return res.status(201).json(toMandateResponse(savedMandate, customerId));
 
     } catch (error) {
         console.error('Error creating Mollie mandate:', error.message);
@@ -2532,16 +2570,9 @@ export const mollieGetMandatesController = async (req: Request, res: Response) =
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        return res.status(200).json(customer.mandates.map((mandate) => ({
-            id: mandate.mollieId,
-            customerId: customer.mollieId,
-            status: mandate.status,
-            method: mandate.method,
-            signatureDate: mandate.signatureDate,
-            mandateReference: mandate.mandateReference,
-            createdAt: mandate.createdAt,
-            updatedAt: mandate.updatedAt,
-        })));
+        return res.status(200).json(
+            customer.mandates.map((mandate) => toMandateResponse(mandate, customer.mollieId as string)),
+        );
     } catch (error) {
         console.error('Error fetching Mollie mandates:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
