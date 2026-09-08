@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 // ─── Halls ────────────────────────────────────────────────────────────────────
 
+// createdAt is never read on the client (neither the schedule-settings hall list nor the
+// group-form hall dropdown).
+const hallSelect = { id: true, name: true, capacity: true } satisfies Prisma.HallSelect;
+
 export const getHalls = async (_req: Request, res: Response) => {
-    const halls = await prisma.hall.findMany({ orderBy: { name: 'asc' } });
+    const halls = await prisma.hall.findMany({ select: hallSelect, orderBy: { name: 'asc' } });
     return res.json(halls);
 };
 
@@ -25,8 +29,35 @@ export const deleteHall = async (req: Request, res: Response) => {
 
 // ─── Choreographers ───────────────────────────────────────────────────────────
 
+// One endpoint (/schedule/choreographers) feeds both the full ChoreographersPage CRUD view
+// (needs every field except timestamps) and the lightweight group-form choreographer dropdown
+// (needs only id/firstName/lastName/email/phone) — createdAt/updatedAt are unused by either.
+const choreographerListSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    firstNameUa: true,
+    lastNameUa: true,
+    firstNameEn: true,
+    lastNameEn: true,
+    phone: true,
+    email: true,
+    birthday: true,
+    experience: true,
+    category: true,
+    photo: true,
+    mainPhoto: true,
+    additionalPhotos: true,
+    description: true,
+    templateDescription: true,
+    showOnSite: true,
+} satisfies Prisma.ChoreographerSelect;
+
 export const getChoreographers = async (_req: Request, res: Response) => {
-    const list = await prisma.choreographer.findMany({ orderBy: { firstName: 'asc' } });
+    const list = await prisma.choreographer.findMany({
+        select: choreographerListSelect,
+        orderBy: { firstName: 'asc' },
+    });
     return res.json(list);
 };
 
@@ -288,7 +319,9 @@ export const createGroup = async (req: Request, res: Response) => {
                 ? { create: slots.map((s: any) => ({ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime })) }
                 : undefined,
         },
-        include: groupInclude,
+        // Client (useGroupFormSubmit.ts:44-60) discards the response and re-fetches
+        // the list; only the created id is echoed back.
+        select: { id: true },
     });
 
     return res.status(201).json(group);
@@ -325,7 +358,8 @@ export const updateGroup = async (req: Request, res: Response) => {
                 slots: { create: slots.map((s: any) => ({ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime })) },
             }),
         },
-        include: groupInclude,
+        // Same as createGroup — client discards the body and re-fetches the list.
+        select: { id: true },
     });
 
     return res.json(group);
@@ -367,6 +401,24 @@ const danceStyleData = (body: Record<string, unknown>) => ({
     isActive: body.isActive === undefined ? true : Boolean(body.isActive),
 });
 
+// client/src/pages/DanceStylesPage/danceStyleTypes.ts: DanceStyle — createdAt/updatedAt are only
+// used server-side for the "newest" sort option, never read by the client.
+const styleCardSelect = {
+    id: true,
+    name: true,
+    nameUa: true,
+    nameEn: true,
+    description: true,
+    descriptionUa: true,
+    descriptionEn: true,
+    content: true,
+    contentUa: true,
+    contentEn: true,
+    image: true,
+    youtubeUrl: true,
+    isActive: true,
+} satisfies Prisma.DanceStyleSelect;
+
 export const getStyleCards = async (req: Request, res: Response) => {
     const { _q = '', status = 'all', sort = 'name-asc' } = req.query as Record<string, string>;
     const where: any = {};
@@ -387,20 +439,23 @@ export const getStyleCards = async (req: Request, res: Response) => {
             ? { createdAt: 'desc' as const }
             : { name: 'asc' as const };
 
-    const items = await prisma.danceStyle.findMany({ where, orderBy });
+    const items = await prisma.danceStyle.findMany({ where, orderBy, select: styleCardSelect });
     return res.json({ items, total: items.length });
 };
 
 export const createStyleCard = async (req: Request, res: Response) => {
     const data = danceStyleData(req.body);
     if (!data.name) return res.status(400).json({ message: 'Название обязательно' });
-    return res.status(201).json(await prisma.danceStyle.create({ data }));
+    // useDanceStyleFormSubmit.save discards the response and re-fetches via
+    // loadStyles() — only the created id is echoed back.
+    return res.status(201).json(await prisma.danceStyle.create({ data, select: { id: true } }));
 };
 
 export const updateStyleCard = async (req: Request, res: Response) => {
     const data = danceStyleData(req.body);
     if (!data.name) return res.status(400).json({ message: 'Название обязательно' });
-    return res.json(await prisma.danceStyle.update({ where: { id: Number(req.params.id) }, data }));
+    // Same as createStyleCard — client ignores the body and re-fetches the list.
+    return res.json(await prisma.danceStyle.update({ where: { id: Number(req.params.id) }, data, select: { id: true } }));
 };
 
 export const deleteStyleCard = async (req: Request, res: Response) => {

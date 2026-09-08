@@ -6,6 +6,8 @@ import {
     getAllPaymentReminderTemplates,
     getPaymentReminderSettings,
     getStudioContactInfo,
+    reminderSettingsSelect,
+    reminderTemplateSelect,
     runPaymentReminders,
 } from '../services/service.PaymentReminders';
 import { buildReminderEmail, PAYMENT_REMINDER_PLACEHOLDERS } from '../services/service.PaymentReminderContent';
@@ -38,6 +40,7 @@ export const updatePaymentReminderSettingsController = async (req: Request, res:
         where: { id: 1 },
         update: { ...parsedBody.data, updatedById: req.user?.id },
         create: { id: 1, ...parsedBody.data, updatedById: req.user?.id },
+        select: reminderSettingsSelect,
     });
 
     return res.status(200).json(settings);
@@ -53,6 +56,29 @@ export const runPaymentRemindersController = async (req: Request, res: Response)
     }
 };
 
+// Matches ReminderDelivery in
+// client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/useReminderDeliveries.ts —
+// drops subscriptionId/sentAt/triggeredById and the unused nested subscription.id.
+const deliveryListSelect = {
+    id: true,
+    targetPaymentDate: true,
+    status: true,
+    language: true,
+    recipientEmail: true,
+    errorMessage: true,
+    createdAt: true,
+    subscription: {
+        select: {
+            description: true,
+            customer: {
+                select: {
+                    client: { select: { firstName: true, lastName: true } },
+                },
+            },
+        },
+    },
+} satisfies Prisma.PaymentReminderDeliverySelect;
+
 export const getPaymentReminderDeliveriesController = async (req: Request, res: Response) => {
     const statusParam = req.query.status;
     const status = typeof statusParam === 'string' && statusParam in PaymentReminderStatus
@@ -62,19 +88,7 @@ export const getPaymentReminderDeliveriesController = async (req: Request, res: 
 
     const deliveries = await prisma.paymentReminderDelivery.findMany({
         where: status ? { status } : undefined,
-        include: {
-            subscription: {
-                select: {
-                    id: true,
-                    description: true,
-                    customer: {
-                        select: {
-                            client: { select: { id: true, firstName: true, lastName: true } },
-                        },
-                    },
-                },
-            },
-        },
+        select: deliveryListSelect,
         orderBy: { createdAt: 'desc' },
         take: limit,
     });
@@ -116,6 +130,7 @@ export const updatePaymentReminderTemplateController = async (req: Request, res:
         where: { language },
         update: data,
         create: data,
+        select: reminderTemplateSelect,
     });
 
     return res.status(200).json(template);

@@ -38,9 +38,47 @@ const emptyToNull = <T extends Record<string, unknown>>(value: T): T => Object.f
     Object.entries(value).map(([key, nested]) => [key, nested === '' ? null : nested]),
 ) as T;
 
+// client/src/pages/OrganizationBrandsPage/organizationBrandsTypes.ts: Organization/Brand — neither
+// type reads createdAt/updatedAt.
+const organizationSelect = {
+    id: true,
+    legalName: true,
+    kvkNumber: true,
+    vatNumber: true,
+    registrationAddress: true,
+    postalCode: true,
+    city: true,
+    countryCode: true,
+    email: true,
+    phone: true,
+    website: true,
+    bankName: true,
+    iban: true,
+    mollieOrganizationId: true,
+} satisfies Prisma.LegalOrganizationSelect;
+
+const organizationBrandSelect = {
+    id: true,
+    organizationId: true,
+    name: true,
+    slug: true,
+    logoUrl: true,
+    primaryColor: true,
+    email: true,
+    phone: true,
+    website: true,
+    address: true,
+    mollieProfileId: true,
+    isDefault: true,
+    isActive: true,
+} satisfies Prisma.BusinessBrandSelect;
+
 export const getOrganization = async (_req: Request, res: Response) => {
     const organization = await prisma.legalOrganization.findFirst({
-        include: { brands: { orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] } },
+        select: {
+            ...organizationSelect,
+            brands: { select: organizationBrandSelect, orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }] },
+        },
         orderBy: { id: 'asc' },
     });
     return res.json(organization);
@@ -133,14 +171,29 @@ export const archiveBrand = async (req: Request, res: Response) => {
     return res.json(brand);
 };
 
+// One endpoint (/company/branches) feeds both the full BranchesPage CRUD view and several
+// lightweight dropdowns (ClientTypeTabs, useClientForm, useEditClientModal,
+// useGroupFormReferenceData, useCreateInvoiceModal) — this is the union of fields any consumer
+// reads; createdAt/updatedAt are never used on the client.
+const branchSelect = {
+    id: true,
+    name: true,
+    address: true,
+    city: true,
+    phone: true,
+    email: true,
+    description: true,
+    isActive: true,
+} satisfies Prisma.BranchSelect;
+
 export const getBranches = async (_req: Request, res: Response) => {
-    const branches = await prisma.branch.findMany({ orderBy: { createdAt: 'asc' } });
+    const branches = await prisma.branch.findMany({ select: branchSelect, orderBy: { createdAt: 'asc' } });
     return res.json(branches);
 };
 
 export const getBranchById = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    const branch = await prisma.branch.findUnique({ where: { id } });
+    const branch = await prisma.branch.findUnique({ where: { id }, select: branchSelect });
     if (!branch) return res.status(404).json({ message: 'Not found' });
     return res.json(branch);
 };

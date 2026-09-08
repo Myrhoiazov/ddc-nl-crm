@@ -18,9 +18,7 @@ export interface EmailAccountOption {
     isActive: boolean;
 }
 
-// The backend validation is `.strict()` — send only the whitelisted fields,
-// not the raw `settings` object (which also carries id/updatedAt/updatedById
-// from the GET response and would otherwise fail validation).
+// The backend validation is `.strict()` — send only the whitelisted fields.
 const buildSettingsPayload = (settings: ReminderSettings) => ({
     offsetDays: settings.offsetDays,
     sendHour: settings.sendHour,

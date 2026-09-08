@@ -267,7 +267,10 @@ export const downloadAttachment = async (req: Request, res: Response) => {
         throw ApiError.BadRequest('Не указан id вложения');
     }
 
-    const attachment = await prisma.emailAttachment.findUnique({ where: { id: attachmentId } });
+    const attachment = await prisma.emailAttachment.findUnique({
+        where: { id: attachmentId },
+        select: { mimeType: true, filename: true, storagePath: true },
+    });
 
     if (!attachment) {
         throw ApiError.BadRequest('Вложение не найдено');

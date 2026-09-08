@@ -47,10 +47,29 @@ export const getStudioContactInfo = async (): Promise<StudioInfo> => {
     };
 };
 
+// Matches ReminderSettings in
+// client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/useReminderSettings.ts.
+export const reminderSettingsSelect = {
+    offsetDays: true,
+    sendHour: true,
+    sendMinute: true,
+    senderEmailAccountId: true,
+    enabled: true,
+} satisfies Prisma.PaymentReminderSettingsSelect;
+
+// Matches ReminderTemplate in
+// client/src/pages/PaymentRemindersPage/ui/PaymentRemindersPage/useReminderTemplates.ts.
+export const reminderTemplateSelect = {
+    language: true,
+    subject: true,
+    bodyHtml: true,
+} satisfies Prisma.PaymentReminderTemplateSelect;
+
 export const getPaymentReminderSettings = () => prisma.paymentReminderSettings.upsert({
     where: { id: 1 },
     update: {},
     create: { id: 1 },
+    select: reminderSettingsSelect,
 });
 
 // Seeds a DB row with the built-in default copy on first access, so opening the template
@@ -63,6 +82,7 @@ export const getPaymentReminderTemplate = (language: ClientLanguage) => prisma.p
         subject: DEFAULT_REMINDER_TEMPLATES[language].subject,
         bodyHtml: DEFAULT_REMINDER_TEMPLATES[language].bodyHtml,
     },
+    select: reminderTemplateSelect,
 });
 
 export const getAllPaymentReminderTemplates = () => Promise.all(

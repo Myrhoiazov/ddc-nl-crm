@@ -1,12 +1,27 @@
-# Todo: Mollie Subscription Deletion
+# Todo: API Response Shape — Second-Pass Audit Fixes
 
-- [x] Task 1: Confirm and document cancellation semantics
-- [x] Task 2: Make active subscription stop/cancel action discoverable
-- [x] Task 3: Harden client cancellation request, modal, reload, and errors
-- [x] Task 4: Harden server cancellation validation and tests
-- [x] Task 4a: Allow customer delete with revoked/completed/canceled history only
-- [x] Task 5: Run browser QA on Mollie customer details
-- [x] Checks passed (`npm run ci` from the root)
-- [x] Code review passed
-- [x] Browser QA completed with backend availability limitation documented
-- [ ] Ready for PR
+- [x] Task 1: Stop leaking `InvoiceDelivery.publicToken` from create/update
+- [x] Task 2: Stop leaking `InvoiceDelivery.publicToken` from `getInvoiceDeliveries`
+- [x] Task 3: Narrow Mollie customer-list response (drop bank-like consumer fields)
+- [x] Task 4: Narrow Client detail includes (branch/group) in `service.Clients.ts`
+- [x] Task 5: Narrow `findLatestPayments`/`findPaymentLinks` Payment fields
+- [x] Task 6: Narrow `findSubscriptions` (Subscription + nested Mandate)
+- [x] Task 7: Narrow `findMandates` Mandate fields
+- [x] Task 8: Narrow `mollieGetCustomerFullInfo` (drop unused relations, select Payment)
+- [x] Task 9: Narrow `mollieGetPaymentsController` Payment fields
+- [x] Task 10: Narrow `mollieGetUpcomingSubscriptionsController` Subscription fields
+- [x] Task 11: Drop unused raw `payment`/`subscription` objects from Mollie incidents
+- [x] Task 12: Narrow payment-reminder settings/template upsert responses
+- [x] Task 13: Narrow payment-reminder delivery list response
+- [x] Task 14: Trim `deleteClient` response body
+- [x] Task 15: Trim dance-group create/update response bodies
+- [x] Task 16: Trim style-card create/update response bodies
+- [x] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
+- [x] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
+- [x] Task 19: Resolve `invoiceInclude.adjustments` — kept (shipped credit/debit note API), documented as intentional on client type
+- [x] Checks passed (`npm run ci` from the root — one flaky lazy-load test failed on the first full run, passed isolated + on full rerun)
+- [x] Code review passed (2-axis review: 0 hard violations; 3 judgment-call smells noted & accepted; stale deleteClientById thunks fixed in follow-up)
+- [x] Browser QA completed per-task where noted (blocked — dev-requirement requires Docker or `npm start` without root PORT; all changes are non-visible payload trims confirmed by server+client tests)
+- [x] All remaining `fix/*` + `refactor/*` branches merged into `develop` (13 branches: invoice-delivery-public-token-leak, mollie-create-mandate-response-shape, mollie-customer-delete-route, mollie-subscription-delete-flow, clients-detail-include, clients-payment-fields-select, clients-subscriptions-select, company-branches-select, company-organization-select, email-download-attachment-select, mollie-customer-list-select, schedule-halls-choreographers-select, schedule-style-cards-select) — merge commits, conflicts resolved (tasks/* kept develop version; mollie-customer-delete-route resolved with develop version since DELETE endpoint already existed there; its client-side URL fix `/mollie/customers/${clientId}` preserved)
+- [x] Checks re-run after all merges: server `npm run build` + `test:ci` (77 tests pass), client `lint:ts` 0 errors + `npm test` (283 suites / 985 passed), root `npm run ci` green
+- [x] Ready for PR
