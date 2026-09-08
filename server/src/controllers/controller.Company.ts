@@ -133,14 +133,29 @@ export const archiveBrand = async (req: Request, res: Response) => {
     return res.json(brand);
 };
 
+// One endpoint (/company/branches) feeds both the full BranchesPage CRUD view and several
+// lightweight dropdowns (ClientTypeTabs, useClientForm, useEditClientModal,
+// useGroupFormReferenceData, useCreateInvoiceModal) — this is the union of fields any consumer
+// reads; createdAt/updatedAt are never used on the client.
+const branchSelect = {
+    id: true,
+    name: true,
+    address: true,
+    city: true,
+    phone: true,
+    email: true,
+    description: true,
+    isActive: true,
+} satisfies Prisma.BranchSelect;
+
 export const getBranches = async (_req: Request, res: Response) => {
-    const branches = await prisma.branch.findMany({ orderBy: { createdAt: 'asc' } });
+    const branches = await prisma.branch.findMany({ select: branchSelect, orderBy: { createdAt: 'asc' } });
     return res.json(branches);
 };
 
 export const getBranchById = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    const branch = await prisma.branch.findUnique({ where: { id } });
+    const branch = await prisma.branch.findUnique({ where: { id }, select: branchSelect });
     if (!branch) return res.status(404).json({ message: 'Not found' });
     return res.json(branch);
 };
