@@ -132,9 +132,6 @@ const invoiceInclude = {
     businessBrand: {
         select: { id: true, name: true, logoUrl: true, primaryColor: true },
     },
-    parentInvoice: {
-        select: { id: true, number: true, documentType: true },
-    },
     adjustments: {
         select: { id: true, number: true, documentType: true, totalCents: true, status: true },
         orderBy: { id: 'desc' as const },
@@ -197,8 +194,8 @@ const invoiceInclude = {
 // List/search view of invoices (getInvoices) — same source data as the client's edit form
 // and action modal, but the client's InvoiceListItem card never reads businessBrand,
 // parentInvoice, or adjustments, and only reads a subset of the payments/mollie/delivery
-// fields below. Mutation responses keep the full `invoiceInclude` since the edit form
-// still needs those. See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+// fields below. Mutation responses keep the full `invoiceInclude` (minus `parentInvoice`,
+// which no client code references at all). See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
 const invoiceListInclude = {
     client: {
         select: { id: true },

@@ -17,7 +17,7 @@
 - [x] Task 15: Trim dance-group create/update response bodies
 - [x] Task 16: Trim style-card create/update response bodies
 - [x] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
-- [ ] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
+- [x] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
 - [ ] Task 19: Resolve `invoiceInclude.adjustments` (open question)
 - [ ] Checks passed (`npm run ci` from the root, run before the last PR lands)
 - [ ] Code review passed
