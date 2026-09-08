@@ -130,6 +130,24 @@ const findPayerLinks = async (clientId: number) => prisma.customerClientLink.fin
     ],
 });
 
+// Matches client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/types.ts's ClientPayment —
+// omits refundedAmount/chargedBackAmount/adjustmentAt/invoiceId/subscriptionId (internal FK).
+// See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const clientPaymentSelect = {
+    id: true,
+    mollieId: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    method: true,
+    status: true,
+    checkoutUrl: true,
+    isCancelable: true,
+    paidAt: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PaymentSelect;
+
 const findLatestPayments = async (clientId: number) => prisma.payment.findMany({
     where: {
         customer: {
@@ -138,7 +156,8 @@ const findLatestPayments = async (clientId: number) => prisma.payment.findMany({
             },
         },
     },
-    include: {
+    select: {
+        ...clientPaymentSelect,
         customer: { select: customerBasicSelect },
         subscription: {
             select: {
@@ -162,7 +181,8 @@ const findPaymentLinks = async (clientId: number) => prisma.payment.findMany({
             },
         },
     },
-    include: {
+    select: {
+        ...clientPaymentSelect,
         customer: { select: customerBasicSelect },
     },
     orderBy: { createdAt: 'desc' },
