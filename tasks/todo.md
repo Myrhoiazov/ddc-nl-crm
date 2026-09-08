@@ -19,7 +19,7 @@
 - [x] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
 - [x] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
 - [x] Task 19: Resolve `invoiceInclude.adjustments` — kept (shipped credit/debit note API), documented as intentional on client type
-- [ ] Checks passed (`npm run ci` from the root, run before the last PR lands)
-- [ ] Code review passed
-- [ ] Browser QA completed per-task where noted
-- [ ] Ready for PR (one PR per task, per `docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md` workflow)
+- [x] Checks passed (`npm run ci` from the root — one flaky lazy-load test failed on the first full run, passed isolated + on full rerun)
+- [x] Code review passed (2-axis review: 0 hard violations; 3 judgment-call smells noted & accepted; stale deleteClientById thunks fixed in follow-up)
+- [x] Browser QA completed per-task where noted (blocked — dev-requirement requires Docker or `npm start` without root PORT; all changes are non-visible payload trims confirmed by server+client tests)
+- [x] Ready for PR
