@@ -16,7 +16,7 @@ export const useBrandLogoUpload = (setBrandForm: Dispatch<SetStateAction<Brand>>
             const response = await $apiPrivate.post<{ url: string }>('/company/brands/upload', form);
             setBrandForm((current) => ({ ...current, logoUrl: response.data.url }));
             toast.success('Логотип загружен');
-        } catch (error: any) {
+        } catch (error) {
             toast.error(extractApiErrorMessage(error, 'Не удалось загрузить логотип'));
         } finally {
             setUploadingLogo(false);
