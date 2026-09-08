@@ -2,10 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import mollieRouter from './router.Mollie';
 
-const hasRoute = (method: string, path: string) => {
-    const stack = (mollieRouter as unknown as { stack: Array<{ route?: { path: string; methods: Record<string, boolean> } }> }).stack;
+type RouteLayer = {
+    route?: {
+        path?: string;
+        methods?: Record<string, boolean>;
+    };
+};
 
-    return stack.some((layer) => layer.route?.path === path && layer.route.methods[method]);
+const hasRoute = (method: string, path: string) => {
+    const layers = (mollieRouter as { stack?: RouteLayer[] }).stack ?? [];
+
+    return layers.some((layer) => layer.route?.path === path && Boolean(layer.route?.methods?.[method]));
 };
 
 test('Mollie router exposes DELETE /customers/:customerId', () => {

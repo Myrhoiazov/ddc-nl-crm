@@ -13,7 +13,7 @@ export const useOrganizationActions = (
             await $apiPrivate.put('/company/organization', organization);
             toast.success('Реквизиты организации сохранены');
             await load();
-        } catch (error: any) {
+        } catch (error) {
             toast.error(extractApiErrorMessage(error, 'Не удалось сохранить организацию'));
         } finally {
             setSaving(false);
