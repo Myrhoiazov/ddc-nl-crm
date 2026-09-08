@@ -31,21 +31,6 @@ export interface IncidentCustomer {
     }[];
 }
 
-export interface IncidentSubscription {
-    id: number;
-    mollieId?: string;
-    status?: string;
-    description?: string;
-}
-
-export interface IncidentPayment {
-    id: number;
-    mollieId?: string;
-    status: string;
-    amountValue: string | number;
-    amountCurrency: string;
-}
-
 export interface MollieIncident {
     id: string;
     type: 'payment' | 'subscription' | 'customer';
@@ -58,8 +43,6 @@ export interface MollieIncident {
     createdAt: string;
     updatedAt: string;
     customer?: IncidentCustomer | null;
-    subscription?: IncidentSubscription | null;
-    payment?: IncidentPayment | null;
 }
 
 export interface MollieIncidentsResponse {

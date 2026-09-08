@@ -2,7 +2,7 @@ import { useIncidentsList } from './useIncidentsList';
 import { useIncidentActions } from './useIncidentActions';
 
 export type {
-    IncidentTypeFilter, IncidentCustomer, IncidentSubscription, IncidentPayment, MollieIncident, IncidentFilters,
+    IncidentTypeFilter, IncidentCustomer, MollieIncident, IncidentFilters,
 } from './mollieIncidentTypes';
 export { defaultFilters } from './mollieIncidentTypes';
 
