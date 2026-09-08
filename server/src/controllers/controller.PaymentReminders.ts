@@ -6,6 +6,8 @@ import {
     getAllPaymentReminderTemplates,
     getPaymentReminderSettings,
     getStudioContactInfo,
+    reminderSettingsSelect,
+    reminderTemplateSelect,
     runPaymentReminders,
 } from '../services/service.PaymentReminders';
 import { buildReminderEmail, PAYMENT_REMINDER_PLACEHOLDERS } from '../services/service.PaymentReminderContent';
@@ -38,6 +40,7 @@ export const updatePaymentReminderSettingsController = async (req: Request, res:
         where: { id: 1 },
         update: { ...parsedBody.data, updatedById: req.user?.id },
         create: { id: 1, ...parsedBody.data, updatedById: req.user?.id },
+        select: reminderSettingsSelect,
     });
 
     return res.status(200).json(settings);
@@ -116,6 +119,7 @@ export const updatePaymentReminderTemplateController = async (req: Request, res:
         where: { language },
         update: data,
         create: data,
+        select: reminderTemplateSelect,
     });
 
     return res.status(200).json(template);
