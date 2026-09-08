@@ -1,12 +1,25 @@
-# Todo: Mollie Subscription Deletion
+# Todo: API Response Shape — Second-Pass Audit Fixes
 
-- [x] Task 1: Confirm and document cancellation semantics
-- [x] Task 2: Make active subscription stop/cancel action discoverable
-- [x] Task 3: Harden client cancellation request, modal, reload, and errors
-- [x] Task 4: Harden server cancellation validation and tests
-- [x] Task 4a: Allow customer delete with revoked/completed/canceled history only
-- [x] Task 5: Run browser QA on Mollie customer details
-- [x] Checks passed (`npm run ci` from the root)
-- [x] Code review passed
-- [x] Browser QA completed with backend availability limitation documented
-- [ ] Ready for PR
+- [x] Task 1: Stop leaking `InvoiceDelivery.publicToken` from create/update
+- [x] Task 2: Stop leaking `InvoiceDelivery.publicToken` from `getInvoiceDeliveries`
+- [x] Task 3: Narrow Mollie customer-list response (drop bank-like consumer fields)
+- [ ] Task 4: Narrow Client detail includes (branch/group) in `service.Clients.ts`
+- [ ] Task 5: Narrow `findLatestPayments`/`findPaymentLinks` Payment fields
+- [ ] Task 6: Narrow `findSubscriptions` (Subscription + nested Mandate)
+- [ ] Task 7: Narrow `findMandates` Mandate fields
+- [ ] Task 8: Narrow `mollieGetCustomerFullInfo` (drop unused relations, select Payment)
+- [ ] Task 9: Narrow `mollieGetPaymentsController` Payment fields
+- [ ] Task 10: Narrow `mollieGetUpcomingSubscriptionsController` Subscription fields
+- [ ] Task 11: Drop unused raw `payment`/`subscription` objects from Mollie incidents
+- [ ] Task 12: Narrow payment-reminder settings/template upsert responses
+- [ ] Task 13: Narrow payment-reminder delivery list response
+- [ ] Task 14: Trim `deleteClient` response body
+- [ ] Task 15: Trim dance-group create/update response bodies
+- [ ] Task 16: Trim style-card create/update response bodies
+- [ ] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
+- [ ] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
+- [ ] Task 19: Resolve `invoiceInclude.adjustments` (open question)
+- [ ] Checks passed (`npm run ci` from the root, run before the last PR lands)
+- [ ] Code review passed
+- [ ] Browser QA completed per-task where noted
+- [ ] Ready for PR (one PR per task, per `docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md` workflow)

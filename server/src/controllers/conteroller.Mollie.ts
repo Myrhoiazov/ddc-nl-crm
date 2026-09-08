@@ -844,7 +844,7 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             }),
             prisma.customer.delete({
                 where: { id: customerId },
-                include: customerListInclude,
+                select: customerListSelect,
             }),
         ]);
 
@@ -1303,7 +1303,19 @@ const loadCustomerEvents = async (customerId: number) => prisma.mollieEvent.find
     take: 30,
 });
 
-const customerListInclude = {
+// Shared by the paginated customer list (mollieGetCustomersController) and the customer-delete
+// response (deleteMollieCustomerController) — neither client consumer
+// (MollieClientListItem.tsx/MollieCustomerBadges.tsx, and deleteMollieClientById.tsx which
+// discards the response entirely) reads consumerAccount/consumerBic/consumerName (bank-account-
+// like data), address fields, locale, or timestamps. See
+// docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const customerListSelect = {
+    id: true,
+    payerName: true,
+    givenName: true,
+    familyName: true,
+    email: true,
+    payerRelation: true,
     mandates: {
         select: {
             id: true,
@@ -1325,7 +1337,7 @@ const customerListInclude = {
         select: customerClientSelect,
     },
     clientLinks: customerClientLinksSelect,
-} satisfies Prisma.CustomerInclude;
+} satisfies Prisma.CustomerSelect;
 
 type CustomerListFilters = {
     search?: string;
@@ -1361,7 +1373,7 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
 
         const customersQuery = prisma.customer.findMany({
             where,
-            include: customerListInclude,
+            select: customerListSelect,
             orderBy: {
                 updatedAt: 'desc',
             },
