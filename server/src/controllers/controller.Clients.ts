@@ -184,6 +184,9 @@ const findSubscriptions = async (clientId: number) => prisma.subscription.findMa
     orderBy: { updatedAt: 'desc' },
 });
 
+// Matches client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/types.ts's ClientMandate —
+// omits mandateReference/customerId (internal FK). See
+// docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
 const findMandates = async (clientId: number) => prisma.mandate.findMany({
     where: {
         customer: {
@@ -192,7 +195,14 @@ const findMandates = async (clientId: number) => prisma.mandate.findMany({
             },
         },
     },
-    include: {
+    select: {
+        id: true,
+        mollieId: true,
+        status: true,
+        method: true,
+        signatureDate: true,
+        createdAt: true,
+        updatedAt: true,
         customer: { select: customerBasicSelect },
     },
     orderBy: { updatedAt: 'desc' },
