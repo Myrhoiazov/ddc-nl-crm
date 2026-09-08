@@ -288,7 +288,9 @@ export const createGroup = async (req: Request, res: Response) => {
                 ? { create: slots.map((s: any) => ({ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime })) }
                 : undefined,
         },
-        include: groupInclude,
+        // Client (useGroupFormSubmit.ts:44-60) discards the response and re-fetches
+        // the list; only the created id is echoed back.
+        select: { id: true },
     });
 
     return res.status(201).json(group);
@@ -325,7 +327,8 @@ export const updateGroup = async (req: Request, res: Response) => {
                 slots: { create: slots.map((s: any) => ({ dayOfWeek: s.dayOfWeek, startTime: s.startTime, endTime: s.endTime })) },
             }),
         },
-        include: groupInclude,
+        // Same as createGroup — client discards the body and re-fetches the list.
+        select: { id: true },
     });
 
     return res.json(group);
