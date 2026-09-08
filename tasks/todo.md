@@ -18,7 +18,7 @@
 - [x] Task 16: Trim style-card create/update response bodies
 - [x] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
 - [x] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
-- [ ] Task 19: Resolve `invoiceInclude.adjustments` (open question)
+- [x] Task 19: Resolve `invoiceInclude.adjustments` — kept (shipped credit/debit note API), documented as intentional on client type
 - [ ] Checks passed (`npm run ci` from the root, run before the last PR lands)
 - [ ] Code review passed
 - [ ] Browser QA completed per-task where noted
