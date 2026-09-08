@@ -56,6 +56,54 @@ const customerPaymentSelect = {
     updatedAt: true,
 } satisfies Prisma.PaymentSelect;
 
+// Matches UpcomingSubscription in
+// client/src/pages/MolliePage/ui/MolliePaymentsMatrix/useUpcomingSubscriptions.ts —
+// used by MolliePaymentsMatrixUpcoming.tsx. Omits metadata/startDate/status/
+// times and the internal mandateId/customerId FKs.
+const upcomingSubscriptionSelect = {
+    id: true,
+    mollieId: true,
+    description: true,
+    amountValue: true,
+    amountCurrency: true,
+    interval: true,
+    nextPaymentDate: true,
+    mandate: {
+        select: {
+            mollieId: true,
+            status: true,
+            method: true,
+        },
+    },
+    customer: {
+        select: {
+            id: true,
+            payerName: true,
+            givenName: true,
+            familyName: true,
+            email: true,
+            client: {
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                },
+            },
+            clientLinks: {
+                select: {
+                    client: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            },
+        },
+    },
+} satisfies Prisma.SubscriptionSelect;
+
 const mollieCustomerSelect = {
     id: true,
     mollieId: true,
@@ -1780,18 +1828,7 @@ export const mollieGetUpcomingSubscriptionsController = async (req: Request, res
                     lte: new Date(`${dateTo}T23:59:59.999Z`),
                 },
             },
-            include: {
-                mandate: {
-                    select: {
-                        mollieId: true,
-                        status: true,
-                        method: true,
-                    },
-                },
-                customer: {
-                    select: mollieCustomerSelect,
-                },
-            },
+            select: upcomingSubscriptionSelect,
             orderBy: { nextPaymentDate: 'asc' },
         });
 
