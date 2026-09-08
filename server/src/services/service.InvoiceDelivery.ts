@@ -5,6 +5,25 @@ import prisma from '../../prisma/prisma-client';
 import { createInvoicePdf } from './service.InvoicePdf';
 import { ensureInvoicePaymentLink } from './service.InvoicePaymentLink';
 
+// publicToken/paymentUrl/invoiceId/createdById are intentionally omitted from every
+// InvoiceDelivery response — publicToken is the unauthenticated bearer token that grants
+// public view/pay access to the invoice and must never leave the server. Matches
+// client/src/pages/InvoicesPage/model/types.ts InvoiceDelivery. See
+// docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const invoiceDeliverySelect = {
+    id: true,
+    type: true,
+    status: true,
+    recipientEmail: true,
+    subject: true,
+    errorMessage: true,
+    sentAt: true,
+    firstViewedAt: true,
+    lastViewedAt: true,
+    viewCount: true,
+    createdAt: true,
+} as const;
+
 const money = (cents: number, currency: string) => new Intl.NumberFormat('nl-NL', {
     style: 'currency',
     currency,
@@ -156,6 +175,7 @@ const prepareEmailDelivery = async (invoice: SendableInvoice, type: InvoiceDeliv
             paymentUrl: emailPaymentUrl,
             createdById: actorId,
         },
+        select: invoiceDeliverySelect,
     });
     const viewUrl = `${publicApiUrl()}/invoices/public/${publicToken}`;
     return { subject, paymentUrl, viewUrl, emailPaymentUrl, bankTransferText, bankTransferHtml, delivery };
@@ -167,6 +187,7 @@ const markDeliveryFailed = async (deliveryId: number, error: unknown) => prisma.
         status: InvoiceDeliveryStatus.FAILED,
         errorMessage: error instanceof Error ? error.message : String(error),
     },
+    select: invoiceDeliverySelect,
 });
 
 export const sendInvoiceEmail = async ({
@@ -195,6 +216,7 @@ export const sendInvoiceEmail = async ({
         return prisma.invoiceDelivery.update({
             where: { id: prepared.delivery.id },
             data: { status: InvoiceDeliveryStatus.SENT, sentAt: new Date() },
+            select: invoiceDeliverySelect,
         });
     } catch (error) {
         await markDeliveryFailed(prepared.delivery.id, error);
