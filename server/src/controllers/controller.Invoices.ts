@@ -175,8 +175,23 @@ const invoiceInclude = {
         },
         orderBy: { createdAt: 'desc' as const },
     },
+    // publicToken/paymentUrl/invoiceId/createdById are intentionally omitted — publicToken
+    // is the unauthenticated bearer token that grants public view/pay access to the invoice
+    // (see docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md) and must never leave the server;
+    // matches client/src/pages/InvoicesPage/model/types.ts InvoiceDelivery.
     deliveries: {
-        include: {
+        select: {
+            id: true,
+            type: true,
+            status: true,
+            recipientEmail: true,
+            subject: true,
+            errorMessage: true,
+            sentAt: true,
+            firstViewedAt: true,
+            lastViewedAt: true,
+            viewCount: true,
+            createdAt: true,
             createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
         orderBy: { createdAt: 'desc' as const },
@@ -1362,7 +1377,20 @@ export const getInvoiceDeliveries = async (req: Request, res: Response) => {
     if (!invoiceId) return res.status(400).json({ message: 'Некорректный инвойс' });
     const deliveries = await prisma.invoiceDelivery.findMany({
         where: { invoiceId },
-        include: { createdBy: { select: { id: true, firstName: true, lastName: true, email: true } } },
+        select: {
+            id: true,
+            type: true,
+            status: true,
+            recipientEmail: true,
+            subject: true,
+            errorMessage: true,
+            sentAt: true,
+            firstViewedAt: true,
+            lastViewedAt: true,
+            viewCount: true,
+            createdAt: true,
+            createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
         orderBy: { createdAt: 'desc' },
     });
     return res.json(deliveries);
