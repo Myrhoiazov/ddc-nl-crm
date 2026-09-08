@@ -397,13 +397,16 @@ export const getStyleCards = async (req: Request, res: Response) => {
 export const createStyleCard = async (req: Request, res: Response) => {
     const data = danceStyleData(req.body);
     if (!data.name) return res.status(400).json({ message: 'Название обязательно' });
-    return res.status(201).json(await prisma.danceStyle.create({ data }));
+    // useDanceStyleFormSubmit.save discards the response and re-fetches via
+    // loadStyles() — only the created id is echoed back.
+    return res.status(201).json(await prisma.danceStyle.create({ data, select: { id: true } }));
 };
 
 export const updateStyleCard = async (req: Request, res: Response) => {
     const data = danceStyleData(req.body);
     if (!data.name) return res.status(400).json({ message: 'Название обязательно' });
-    return res.json(await prisma.danceStyle.update({ where: { id: Number(req.params.id) }, data }));
+    // Same as createStyleCard — client ignores the body and re-fetches the list.
+    return res.json(await prisma.danceStyle.update({ where: { id: Number(req.params.id) }, data, select: { id: true } }));
 };
 
 export const deleteStyleCard = async (req: Request, res: Response) => {
