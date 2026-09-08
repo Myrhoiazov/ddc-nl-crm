@@ -401,6 +401,24 @@ const danceStyleData = (body: Record<string, unknown>) => ({
     isActive: body.isActive === undefined ? true : Boolean(body.isActive),
 });
 
+// client/src/pages/DanceStylesPage/danceStyleTypes.ts: DanceStyle — createdAt/updatedAt are only
+// used server-side for the "newest" sort option, never read by the client.
+const styleCardSelect = {
+    id: true,
+    name: true,
+    nameUa: true,
+    nameEn: true,
+    description: true,
+    descriptionUa: true,
+    descriptionEn: true,
+    content: true,
+    contentUa: true,
+    contentEn: true,
+    image: true,
+    youtubeUrl: true,
+    isActive: true,
+} satisfies Prisma.DanceStyleSelect;
+
 export const getStyleCards = async (req: Request, res: Response) => {
     const { _q = '', status = 'all', sort = 'name-asc' } = req.query as Record<string, string>;
     const where: any = {};
@@ -421,7 +439,7 @@ export const getStyleCards = async (req: Request, res: Response) => {
             ? { createdAt: 'desc' as const }
             : { name: 'asc' as const };
 
-    const items = await prisma.danceStyle.findMany({ where, orderBy });
+    const items = await prisma.danceStyle.findMany({ where, orderBy, select: styleCardSelect });
     return res.json({ items, total: items.length });
 };
 
