@@ -24,7 +24,7 @@ export const useBrandActions = (
             else await $apiPrivate.post('/company/brands', payload);
             toast.success('Бренд сохранён');
             await load();
-        } catch (error: any) {
+        } catch (error) {
             toast.error(extractApiErrorMessage(error, 'Не удалось сохранить бренд'));
         } finally {
             setSaving(false);
