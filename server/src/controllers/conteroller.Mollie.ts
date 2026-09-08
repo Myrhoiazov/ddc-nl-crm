@@ -2681,14 +2681,16 @@ export const mollieDeleteSubscriptionByIdController = async (req: Request, res: 
             subscriptionId,
         );
 
-        const subscription = await prisma.subscription.update({
+        await prisma.subscription.update({
             where: { mollieId: subscriptionId },
             data: {
                 status: deletedSubscription?.status ?? 'canceled',
             },
         });
 
-        return res.status(200).json({ message: "Subscription cancelled", deletedSubscription, subscription });
+        // Client deleteSubscriptionById thunk is not wired to any reducer and nothing
+        // reads the deleted Mollie payload or the updated row — a status message suffices.
+        return res.status(200).json({ message: "Subscription cancelled" });
     } catch (error) {
         console.error('Error deleting Mollie subscription:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
