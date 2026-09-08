@@ -1,12 +1,16 @@
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
 // ─── Halls ────────────────────────────────────────────────────────────────────
 
+// createdAt is never read on the client (neither the schedule-settings hall list nor the
+// group-form hall dropdown).
+const hallSelect = { id: true, name: true, capacity: true } satisfies Prisma.HallSelect;
+
 export const getHalls = async (_req: Request, res: Response) => {
-    const halls = await prisma.hall.findMany({ orderBy: { name: 'asc' } });
+    const halls = await prisma.hall.findMany({ select: hallSelect, orderBy: { name: 'asc' } });
     return res.json(halls);
 };
 
@@ -25,8 +29,35 @@ export const deleteHall = async (req: Request, res: Response) => {
 
 // ─── Choreographers ───────────────────────────────────────────────────────────
 
+// One endpoint (/schedule/choreographers) feeds both the full ChoreographersPage CRUD view
+// (needs every field except timestamps) and the lightweight group-form choreographer dropdown
+// (needs only id/firstName/lastName/email/phone) — createdAt/updatedAt are unused by either.
+const choreographerListSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    firstNameUa: true,
+    lastNameUa: true,
+    firstNameEn: true,
+    lastNameEn: true,
+    phone: true,
+    email: true,
+    birthday: true,
+    experience: true,
+    category: true,
+    photo: true,
+    mainPhoto: true,
+    additionalPhotos: true,
+    description: true,
+    templateDescription: true,
+    showOnSite: true,
+} satisfies Prisma.ChoreographerSelect;
+
 export const getChoreographers = async (_req: Request, res: Response) => {
-    const list = await prisma.choreographer.findMany({ orderBy: { firstName: 'asc' } });
+    const list = await prisma.choreographer.findMany({
+        select: choreographerListSelect,
+        orderBy: { firstName: 'asc' },
+    });
     return res.json(list);
 };
 
