@@ -6,8 +6,8 @@
 - [x] Task 4: Narrow Client detail includes (branch/group) in `service.Clients.ts`
 - [x] Task 5: Narrow `findLatestPayments`/`findPaymentLinks` Payment fields
 - [x] Task 6: Narrow `findSubscriptions` (Subscription + nested Mandate)
-- [ ] Task 7: Narrow `findMandates` Mandate fields
-- [ ] Task 8: Narrow `mollieGetCustomerFullInfo` (drop unused relations, select Payment)
+- [x] Task 7: Narrow `findMandates` Mandate fields
+- [x] Task 8: Narrow `mollieGetCustomerFullInfo` (drop unused relations, select Payment)
 - [ ] Task 9: Narrow `mollieGetPaymentsController` Payment fields
 - [ ] Task 10: Narrow `mollieGetUpcomingSubscriptionsController` Subscription fields
 - [ ] Task 11: Drop unused raw `payment`/`subscription` objects from Mollie incidents

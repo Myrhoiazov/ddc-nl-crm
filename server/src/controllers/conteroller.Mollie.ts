@@ -40,6 +40,22 @@ const customerClientLinksSelect = {
     },
 } satisfies Prisma.CustomerClientLinkFindManyArgs;
 
+// Matches MolliePayment in
+// client/src/entities/MollieClient/model/types/mollieClient.ts — used by the
+// customer detail page's payment history (usePaymentHistoryData.ts).
+const customerPaymentSelect = {
+    id: true,
+    mollieId: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    method: true,
+    status: true,
+    paidAt: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PaymentSelect;
+
 const mollieCustomerSelect = {
     id: true,
     mollieId: true,
@@ -1403,9 +1419,12 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
             prisma.customer.findUnique({
                 where: { id: parsedCustomerId },
                 include: {
-                    mandates: true,
-                    subscriptions: true,
-                    payments: true,
+                    // mandates/subscriptions intentionally omitted — the client
+                    // fetches them from separate /mandates and /subscriptions
+                    // endpoints (useCustomerDataRefresh.ts), not this one.
+                    payments: {
+                        select: customerPaymentSelect,
+                    },
                     client: {
                         select: customerClientSelect,
                     },
