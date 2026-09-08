@@ -130,6 +130,24 @@ const findPayerLinks = async (clientId: number) => prisma.customerClientLink.fin
     ],
 });
 
+// Matches client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/types.ts's ClientPayment —
+// omits refundedAmount/chargedBackAmount/adjustmentAt/invoiceId/subscriptionId (internal FK).
+// See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const clientPaymentSelect = {
+    id: true,
+    mollieId: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    method: true,
+    status: true,
+    checkoutUrl: true,
+    isCancelable: true,
+    paidAt: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PaymentSelect;
+
 const findLatestPayments = async (clientId: number) => prisma.payment.findMany({
     where: {
         customer: {
@@ -138,7 +156,8 @@ const findLatestPayments = async (clientId: number) => prisma.payment.findMany({
             },
         },
     },
-    include: {
+    select: {
+        ...clientPaymentSelect,
         customer: { select: customerBasicSelect },
         subscription: {
             select: {
@@ -162,13 +181,18 @@ const findPaymentLinks = async (clientId: number) => prisma.payment.findMany({
             },
         },
     },
-    include: {
+    select: {
+        ...clientPaymentSelect,
         customer: { select: customerBasicSelect },
     },
     orderBy: { createdAt: 'desc' },
     take: 20,
 });
 
+// Matches client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/types.ts's
+// ClientSubscription — omits metadata/mandateId/customerId (internal FK); mandate is narrowed to
+// the 2 fields ClientSubscription.mandate reads instead of the full Mandate model.
+// See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
 const findSubscriptions = async (clientId: number) => prisma.subscription.findMany({
     where: {
         customer: {
@@ -177,13 +201,28 @@ const findSubscriptions = async (clientId: number) => prisma.subscription.findMa
             },
         },
     },
-    include: {
-        mandate: true,
+    select: {
+        id: true,
+        mollieId: true,
+        description: true,
+        amountValue: true,
+        amountCurrency: true,
+        interval: true,
+        status: true,
+        startDate: true,
+        nextPaymentDate: true,
+        times: true,
+        createdAt: true,
+        updatedAt: true,
+        mandate: { select: { mollieId: true, status: true } },
         customer: { select: customerBasicSelect },
     },
     orderBy: { updatedAt: 'desc' },
 });
 
+// Matches client/src/pages/ClientsDetailsPage/ui/ClientPaymentBlock/types.ts's ClientMandate —
+// omits mandateReference/customerId (internal FK). See
+// docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
 const findMandates = async (clientId: number) => prisma.mandate.findMany({
     where: {
         customer: {
@@ -192,7 +231,14 @@ const findMandates = async (clientId: number) => prisma.mandate.findMany({
             },
         },
     },
-    include: {
+    select: {
+        id: true,
+        mollieId: true,
+        status: true,
+        method: true,
+        signatureDate: true,
+        createdAt: true,
+        updatedAt: true,
         customer: { select: customerBasicSelect },
     },
     orderBy: { updatedAt: 'desc' },
@@ -378,7 +424,9 @@ export const deleteClientByIdController = async (req: Request, res: Response) =>
             return res.status(404).json({ message: 'Client not found or already deleted' });
         }
 
-        return res.status(200).json({ message: 'Client successfully deleted', client: deletedClient });
+        // Client callers (EditClientDropdown) only check the request status, never
+        // the body — no reason to echo the full deleted row.
+        return res.status(200).json({ message: 'Client successfully deleted' });
     } catch (error) {
         console.error('Error deleting client:', error);
         return res.status(500).json({ message: 'Internal server error' });

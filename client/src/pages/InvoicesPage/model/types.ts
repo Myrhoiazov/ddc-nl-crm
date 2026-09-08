@@ -110,6 +110,10 @@ export interface Invoice {
     // Only present on mutation responses (create/update/status/payment/adjustment) — the
     // invoice list endpoint (getInvoices) doesn't include it, see
     // docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+    // Kept intentionally: credit/debit notes are a shipped feature (the UI creates them
+    // via POST /invoices/:id/adjustments in invoiceActionRequests.ts), so the field
+    // matches the server's invoiceInclude.adjustments. No component renders the parent's
+    // adjustment list yet, but the API surface is live, not dead weight.
     adjustments?: Pick<Invoice, 'id' | 'number' | 'documentType' | 'totalCents' | 'status'>[];
 }
 

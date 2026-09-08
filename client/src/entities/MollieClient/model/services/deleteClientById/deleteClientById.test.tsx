@@ -10,14 +10,14 @@ beforeEach(() => {
 
 describe('MollieClient deleteClientById', () => {
     test('deletes the client and fulfills with the response payload', async () => {
-        const client = { id: '1', name: 'Client B.V.' };
-        extra.apiPrivate.delete.mockResolvedValue({ data: client });
+        const message = { message: 'Client successfully deleted' };
+        extra.apiPrivate.delete.mockResolvedValue({ data: message });
 
         const result = await deleteClientById()(dispatch, () => ({}) as never, extra as never);
 
         expect(extra.apiPrivate.delete).toHaveBeenCalledWith('/clients/undefined');
         expect(result.meta.requestStatus).toBe('fulfilled');
-        expect(result.payload).toEqual(client);
+        expect(result.payload).toEqual(message);
     });
 
     test('rejects when the API call fails', async () => {

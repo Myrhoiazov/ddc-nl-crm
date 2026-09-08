@@ -132,9 +132,6 @@ const invoiceInclude = {
     businessBrand: {
         select: { id: true, name: true, logoUrl: true, primaryColor: true },
     },
-    parentInvoice: {
-        select: { id: true, number: true, documentType: true },
-    },
     adjustments: {
         select: { id: true, number: true, documentType: true, totalCents: true, status: true },
         orderBy: { id: 'desc' as const },
@@ -175,8 +172,23 @@ const invoiceInclude = {
         },
         orderBy: { createdAt: 'desc' as const },
     },
+    // publicToken/paymentUrl/invoiceId/createdById are intentionally omitted — publicToken
+    // is the unauthenticated bearer token that grants public view/pay access to the invoice
+    // (see docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md) and must never leave the server;
+    // matches client/src/pages/InvoicesPage/model/types.ts InvoiceDelivery.
     deliveries: {
-        include: {
+        select: {
+            id: true,
+            type: true,
+            status: true,
+            recipientEmail: true,
+            subject: true,
+            errorMessage: true,
+            sentAt: true,
+            firstViewedAt: true,
+            lastViewedAt: true,
+            viewCount: true,
+            createdAt: true,
             createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
         },
         orderBy: { createdAt: 'desc' as const },
@@ -197,8 +209,8 @@ const invoiceInclude = {
 // List/search view of invoices (getInvoices) — same source data as the client's edit form
 // and action modal, but the client's InvoiceListItem card never reads businessBrand,
 // parentInvoice, or adjustments, and only reads a subset of the payments/mollie/delivery
-// fields below. Mutation responses keep the full `invoiceInclude` since the edit form
-// still needs those. See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+// fields below. Mutation responses keep the full `invoiceInclude` (minus `parentInvoice`,
+// which no client code references at all). See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
 const invoiceListInclude = {
     client: {
         select: { id: true },
@@ -1362,7 +1374,20 @@ export const getInvoiceDeliveries = async (req: Request, res: Response) => {
     if (!invoiceId) return res.status(400).json({ message: 'Некорректный инвойс' });
     const deliveries = await prisma.invoiceDelivery.findMany({
         where: { invoiceId },
-        include: { createdBy: { select: { id: true, firstName: true, lastName: true, email: true } } },
+        select: {
+            id: true,
+            type: true,
+            status: true,
+            recipientEmail: true,
+            subject: true,
+            errorMessage: true,
+            sentAt: true,
+            firstViewedAt: true,
+            lastViewedAt: true,
+            viewCount: true,
+            createdAt: true,
+            createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
         orderBy: { createdAt: 'desc' },
     });
     return res.json(deliveries);

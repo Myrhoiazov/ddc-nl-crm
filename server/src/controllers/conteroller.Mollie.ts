@@ -40,6 +40,70 @@ const customerClientLinksSelect = {
     },
 } satisfies Prisma.CustomerClientLinkFindManyArgs;
 
+// Matches MolliePayment in
+// client/src/entities/MollieClient/model/types/mollieClient.ts — used by the
+// customer detail page's payment history (usePaymentHistoryData.ts).
+const customerPaymentSelect = {
+    id: true,
+    mollieId: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    method: true,
+    status: true,
+    paidAt: true,
+    createdAt: true,
+    updatedAt: true,
+} satisfies Prisma.PaymentSelect;
+
+// Matches UpcomingSubscription in
+// client/src/pages/MolliePage/ui/MolliePaymentsMatrix/useUpcomingSubscriptions.ts —
+// used by MolliePaymentsMatrixUpcoming.tsx. Omits metadata/startDate/status/
+// times and the internal mandateId/customerId FKs.
+const upcomingSubscriptionSelect = {
+    id: true,
+    mollieId: true,
+    description: true,
+    amountValue: true,
+    amountCurrency: true,
+    interval: true,
+    nextPaymentDate: true,
+    mandate: {
+        select: {
+            mollieId: true,
+            status: true,
+            method: true,
+        },
+    },
+    customer: {
+        select: {
+            id: true,
+            payerName: true,
+            givenName: true,
+            familyName: true,
+            email: true,
+            client: {
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                },
+            },
+            clientLinks: {
+                select: {
+                    client: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                        },
+                    },
+                },
+            },
+        },
+    },
+} satisfies Prisma.SubscriptionSelect;
+
 const mollieCustomerSelect = {
     id: true,
     mollieId: true,
@@ -844,7 +908,7 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             }),
             prisma.customer.delete({
                 where: { id: customerId },
-                include: customerListInclude,
+                select: customerListSelect,
             }),
         ]);
 
@@ -1303,7 +1367,19 @@ const loadCustomerEvents = async (customerId: number) => prisma.mollieEvent.find
     take: 30,
 });
 
-const customerListInclude = {
+// Shared by the paginated customer list (mollieGetCustomersController) and the customer-delete
+// response (deleteMollieCustomerController) — neither client consumer
+// (MollieClientListItem.tsx/MollieCustomerBadges.tsx, and deleteMollieClientById.tsx which
+// discards the response entirely) reads consumerAccount/consumerBic/consumerName (bank-account-
+// like data), address fields, locale, or timestamps. See
+// docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const customerListSelect = {
+    id: true,
+    payerName: true,
+    givenName: true,
+    familyName: true,
+    email: true,
+    payerRelation: true,
     mandates: {
         select: {
             id: true,
@@ -1325,7 +1401,7 @@ const customerListInclude = {
         select: customerClientSelect,
     },
     clientLinks: customerClientLinksSelect,
-} satisfies Prisma.CustomerInclude;
+} satisfies Prisma.CustomerSelect;
 
 type CustomerListFilters = {
     search?: string;
@@ -1361,7 +1437,7 @@ export const mollieGetCustomersController = async (req: Request, res: Response) 
 
         const customersQuery = prisma.customer.findMany({
             where,
-            include: customerListInclude,
+            select: customerListSelect,
             orderBy: {
                 updatedAt: 'desc',
             },
@@ -1403,9 +1479,12 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
             prisma.customer.findUnique({
                 where: { id: parsedCustomerId },
                 include: {
-                    mandates: true,
-                    subscriptions: true,
-                    payments: true,
+                    // mandates/subscriptions intentionally omitted — the client
+                    // fetches them from separate /mandates and /subscriptions
+                    // endpoints (useCustomerDataRefresh.ts), not this one.
+                    payments: {
+                        select: customerPaymentSelect,
+                    },
                     client: {
                         select: customerClientSelect,
                     },
@@ -1598,7 +1677,21 @@ const paymentsListPage = async (where: Prisma.PaymentWhereInput, page: number, l
     const [payments, total] = await Promise.all([
         prisma.payment.findMany({
             where,
-            include: {
+            // Matches MolliePayment in
+            // client/src/pages/MolliePage/ui/MolliePayments/molliePaymentTypes.ts —
+            // drops refundedAmount/chargedBackAmount/adjustmentAt/checkoutUrl/
+            // isCancelable and the internal customerId/subscriptionId/invoiceId FKs.
+            select: {
+                id: true,
+                mollieId: true,
+                amountValue: true,
+                amountCurrency: true,
+                description: true,
+                method: true,
+                status: true,
+                paidAt: true,
+                createdAt: true,
+                updatedAt: true,
                 customer: {
                     select: mollieCustomerSelect,
                 },
@@ -1747,18 +1840,7 @@ export const mollieGetUpcomingSubscriptionsController = async (req: Request, res
                     lte: new Date(`${dateTo}T23:59:59.999Z`),
                 },
             },
-            include: {
-                mandate: {
-                    select: {
-                        mollieId: true,
-                        status: true,
-                        method: true,
-                    },
-                },
-                customer: {
-                    select: mollieCustomerSelect,
-                },
-            },
+            select: upcomingSubscriptionSelect,
             orderBy: { nextPaymentDate: 'asc' },
         });
 
@@ -2004,7 +2086,6 @@ const mapPaymentIncident = (payment: {
     createdAt: Date;
     updatedAt: Date;
     customer: unknown;
-    subscription: unknown;
 }) => ({
     id: `payment-${payment.id}`,
     type: 'payment',
@@ -2017,8 +2098,6 @@ const mapPaymentIncident = (payment: {
     createdAt: payment.createdAt,
     updatedAt: payment.updatedAt,
     customer: payment.customer,
-    subscription: payment.subscription,
-    payment,
 });
 
 const mapSubscriptionIncident = (subscription: {
@@ -2030,7 +2109,6 @@ const mapSubscriptionIncident = (subscription: {
     createdAt: Date;
     updatedAt: Date;
     customer: unknown;
-    mandate: unknown;
 }) => ({
     id: `subscription-${subscription.id}`,
     type: 'subscription',
@@ -2043,8 +2121,6 @@ const mapSubscriptionIncident = (subscription: {
     createdAt: subscription.createdAt,
     updatedAt: subscription.updatedAt,
     customer: subscription.customer,
-    subscription,
-    mandate: subscription.mandate,
 });
 
 const mapCustomerIncident = (customer: {
@@ -2093,33 +2169,35 @@ const incidentCustomerSelect = {
     updatedAt: true,
 } as const;
 
-const includePaymentRelations = {
+// Incident list responses drop the raw payment/subscription objects entirely
+// (client MollieIncidentCard.tsx reads the mapped incident fields + customer,
+// never incident.payment/incident.subscription). Fields below match what
+// mapPaymentIncident/mapSubscriptionIncident need.
+const incidentPaymentSelect = {
+    id: true,
+    status: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
     customer: {
         select: mollieCustomerSelect,
     },
-    subscription: {
-        select: {
-            id: true,
-            mollieId: true,
-            status: true,
-            description: true,
-        },
-    },
-} as const;
+} satisfies Prisma.PaymentSelect;
 
-const includeSubscriptionRelations = {
+const incidentSubscriptionSelect = {
+    id: true,
+    status: true,
+    amountValue: true,
+    amountCurrency: true,
+    description: true,
+    createdAt: true,
+    updatedAt: true,
     customer: {
         select: mollieCustomerSelect,
     },
-    mandate: {
-        select: {
-            id: true,
-            mollieId: true,
-            status: true,
-            method: true,
-        },
-    },
-} as const;
+} satisfies Prisma.SubscriptionSelect;
 
 const loadIncidentResolvedIds = async () => {
     const resolutions = await prisma.mollieIncidentResolution.findMany({
@@ -2161,7 +2239,7 @@ const loadPaymentIncidents = async (
     const [items, total] = await Promise.all([
         prisma.payment.findMany({
             where,
-            include: includePaymentRelations,
+            select: incidentPaymentSelect,
             orderBy: { updatedAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
@@ -2179,7 +2257,7 @@ const loadSubscriptionIncidents = async (
     const [items, total] = await Promise.all([
         prisma.subscription.findMany({
             where,
-            include: includeSubscriptionRelations,
+            select: incidentSubscriptionSelect,
             orderBy: { updatedAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,
@@ -2215,13 +2293,13 @@ const loadCombinedIncidents = async (
     const [payments, subscriptions, customers] = await Promise.all([
         prisma.payment.findMany({
             where: paymentWhere,
-            include: includePaymentRelations,
+            select: incidentPaymentSelect,
             orderBy: { updatedAt: 'desc' },
             take: 10,
         }),
         prisma.subscription.findMany({
             where: subscriptionWhere,
-            include: includeSubscriptionRelations,
+            select: incidentSubscriptionSelect,
             orderBy: { updatedAt: 'desc' },
             take: 10,
         }),
@@ -2398,6 +2476,29 @@ export const mollieSyncAllController = async (req: Request, res: Response) => {
 }
 
 // MANDATES
+
+// Response shape shared by mollieCreateMandateController and mollieGetMandatesController — the
+// client's Mandate type (client/src/entities/Mandate/model/types/mandate.ts) only knows Mollie
+// ids, never the internal numeric row id / customerId FK.
+const toMandateResponse = (mandate: {
+    mollieId: string | null;
+    status: string;
+    method: string;
+    signatureDate: Date | null;
+    mandateReference: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+}, customerMollieId: string) => ({
+    id: mandate.mollieId,
+    customerId: customerMollieId,
+    status: mandate.status,
+    method: mandate.method,
+    signatureDate: mandate.signatureDate,
+    mandateReference: mandate.mandateReference,
+    createdAt: mandate.createdAt,
+    updatedAt: mandate.updatedAt,
+});
+
 export const mollieCreateMandateController = async (req: Request<{}, {}, MandateFormData>, res: Response) => {
     const parsedBody = createMandateSchema.safeParse(req.body);
 
@@ -2427,9 +2528,24 @@ export const mollieCreateMandateController = async (req: Request<{}, {}, Mandate
         });
 
         await mollieSyncService.syncMollieMandate(client.id, mandate);
-        const savedMandate = await prisma.mandate.findUnique({ where: { mollieId: mandate.id } });
+        const savedMandate = await prisma.mandate.findUnique({
+            where: { mollieId: mandate.id },
+            select: {
+                mollieId: true,
+                status: true,
+                method: true,
+                signatureDate: true,
+                mandateReference: true,
+                createdAt: true,
+                updatedAt: true,
+            },
+        });
 
-        return res.status(201).json(savedMandate);
+        if (!savedMandate) {
+            return res.status(500).json({ error: 'Internal server error' });
+        }
+
+        return res.status(201).json(toMandateResponse(savedMandate, customerId));
 
     } catch (error) {
         console.error('Error creating Mollie mandate:', error.message);
@@ -2466,16 +2582,9 @@ export const mollieGetMandatesController = async (req: Request, res: Response) =
             return res.status(404).json({ error: 'Customer not found' });
         }
 
-        return res.status(200).json(customer.mandates.map((mandate) => ({
-            id: mandate.mollieId,
-            customerId: customer.mollieId,
-            status: mandate.status,
-            method: mandate.method,
-            signatureDate: mandate.signatureDate,
-            mandateReference: mandate.mandateReference,
-            createdAt: mandate.createdAt,
-            updatedAt: mandate.updatedAt,
-        })));
+        return res.status(200).json(
+            customer.mandates.map((mandate) => toMandateResponse(mandate, customer.mollieId as string)),
+        );
     } catch (error) {
         console.error('Error fetching Mollie mandates:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
@@ -2615,14 +2724,16 @@ export const mollieDeleteSubscriptionByIdController = async (req: Request, res: 
             subscriptionId,
         );
 
-        const subscription = await prisma.subscription.update({
+        await prisma.subscription.update({
             where: { mollieId: subscriptionId },
             data: {
                 status: deletedSubscription?.status ?? 'canceled',
             },
         });
 
-        return res.status(200).json({ message: "Subscription cancelled", deletedSubscription, subscription });
+        // Client deleteSubscriptionById thunk is not wired to any reducer and nothing
+        // reads the deleted Mollie payload or the updated row — a status message suffices.
+        return res.status(200).json({ message: "Subscription cancelled" });
     } catch (error) {
         console.error('Error deleting Mollie subscription:', error.message);
         return res.status(500).json({ error: 'Internal server error' });

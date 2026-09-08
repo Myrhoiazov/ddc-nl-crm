@@ -109,6 +109,21 @@ const normalizeClientData = (data: Partial<TClient> & { status?: unknown }) => {
     return data;
 }
 
+// Shared by createClient/getClientById/updateClient — matches client/src/entities/Client/model/
+// types/client.ts's ClientBranch/ClientDanceGroup exactly; `branch: true`/`group: true` would
+// otherwise leak Branch.phone/email/description/timestamps and DanceGroup.maxParticipants/
+// lessonPriceCents/choreographerId (internal FK)/hallId/timestamps. See
+// docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+const clientDetailInclude = {
+    branch: { select: { id: true, name: true, city: true, address: true, isActive: true } },
+    groupMemberships: {
+        select: {
+            groupId: true,
+            group: { select: { id: true, name: true, style: true, level: true, branchId: true } },
+        },
+    },
+} satisfies Prisma.ClientInclude;
+
 type TransactionClient = Prisma.TransactionClient;
 
 const assertCustomerExists = async (transaction: TransactionClient, mollieCustomerId: number) => {
@@ -189,10 +204,7 @@ export const createClient = async (data: TClient, options: CreateClientOptions =
                     create: options.groupIds.map((groupId) => ({ groupId })),
                 } : undefined,
             },
-            include: {
-                branch: true,
-                groupMemberships: { include: { group: true } },
-            },
+            include: clientDetailInclude,
         });
 
         if (options.mollieCustomerId) {
@@ -263,10 +275,7 @@ export const getAllClients = async (params: GetClientsParams) => {
 export const getClientById = async (id: number) => {
     const client = await Client.findUnique({
         where: { id },
-        include: {
-            branch: true,
-            groupMemberships: { include: { group: true } },
-        },
+        include: clientDetailInclude,
     });
 
     if (!client) return null;
@@ -289,10 +298,7 @@ export const updateClient = async (id: number, data: Partial<TClient>, groupIds?
                     create: groupIds.map((groupId) => ({ groupId })),
                 } : undefined,
             },
-            include: {
-                branch: true,
-                groupMemberships: { include: { group: true } },
-            },
+            include: clientDetailInclude,
         });
     });
 };
@@ -300,6 +306,9 @@ export const updateClient = async (id: number, data: Partial<TClient>, groupIds?
 export const deleteClient = async (id: number) => {
     return Client.delete({
         where: { id },
+        // Response body is trimmed to a message by the controller; only the id
+        // is needed here for the null-check / minimal echo.
+        select: { id: true },
     });
 };
 
