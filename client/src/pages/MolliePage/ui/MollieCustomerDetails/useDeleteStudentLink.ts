@@ -1,11 +1,11 @@
 import { Dispatch, SetStateAction } from 'react';
 import { toast } from 'react-toastify';
 import { $apiPrivate } from '@/shared/api/api';
-import { MollieClient } from '@/entities/MollieClient';
+import { MollieClient, MollieClientStudentLink } from '@/entities/MollieClient';
 
 export const useDeleteStudentLink = (
     customerId: string,
-    setCustomer: Dispatch<SetStateAction<MollieClient | null>>,
+    setClientLinks: Dispatch<SetStateAction<MollieClientStudentLink[]>>,
     setIsSaving: (value: boolean) => void,
     onChanged: () => void,
 ) => async (linkId: string | number) => {
@@ -15,10 +15,12 @@ export const useDeleteStudentLink = (
 
     setIsSaving(true);
     try {
+        // The delete endpoint still returns the full customer payload — only
+        // clientLinks from it is relevant here.
         const { data } = await $apiPrivate.delete<MollieClient>(
             `/mollie/customers/${customerId}/student-links/${linkId}`,
         );
-        setCustomer(data);
+        setClientLinks(data.clientLinks ?? []);
         onChanged();
         toast.success('Связь удалена');
     } catch {

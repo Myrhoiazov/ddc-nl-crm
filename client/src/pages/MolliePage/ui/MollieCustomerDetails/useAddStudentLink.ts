@@ -1,13 +1,13 @@
 import { Dispatch, SetStateAction } from 'react';
 import { toast } from 'react-toastify';
 import { $apiPrivate } from '@/shared/api/api';
-import { MollieClient } from '@/entities/MollieClient';
+import { MollieClient, MollieClientStudentLink } from '@/entities/MollieClient';
 import { PayerRelation } from './studentLinksHelpers';
 
 export const useAddStudentLink = (
     customerId: string,
-    customer: MollieClient | null,
-    setCustomer: Dispatch<SetStateAction<MollieClient | null>>,
+    clientLinks: MollieClientStudentLink[],
+    setClientLinks: Dispatch<SetStateAction<MollieClientStudentLink[]>>,
     setIsSaving: (value: boolean) => void,
     onChanged: () => void,
 ) => async (selectedClientId: string, payerRelation: PayerRelation, onSaved: () => void) => {
@@ -18,15 +18,17 @@ export const useAddStudentLink = (
 
     setIsSaving(true);
     try {
+        // The create endpoint still returns the full customer payload — only
+        // clientLinks from it is relevant here.
         const { data } = await $apiPrivate.post<MollieClient>(
             `/mollie/customers/${customerId}/student-links`,
             {
                 clientId: selectedClientId,
                 payerRelation,
-                isPrimary: !(customer?.clientLinks?.length),
+                isPrimary: !clientLinks.length,
             },
         );
-        setCustomer(data);
+        setClientLinks(data.clientLinks ?? []);
         onSaved();
         onChanged();
         toast.success('Ученик привязан к платёжному профилю');

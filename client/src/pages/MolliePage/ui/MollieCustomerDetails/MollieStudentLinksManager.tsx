@@ -25,22 +25,22 @@ interface MollieStudentLinksManagerProps {
 }
 
 const LinkedStudents = ({
-    customer,
+    clientLinks,
     isSaving,
     onDeleteLink,
 }: {
-    customer: ReturnType<typeof useStudentLinksManager>['customer'];
+    clientLinks: ReturnType<typeof useStudentLinksManager>['clientLinks'];
     isSaving: boolean;
     onDeleteLink: (linkId: string | number) => void;
 }) => {
     const { t } = useTranslation();
-    if (!customer?.clientLinks?.length) {
+    if (!clientLinks.length) {
         return <Text text="Пока нет связанных учеников." size="s" />;
     }
 
     return (
         <div className={s.linkedStudents}>
-            {customer.clientLinks.map((link) => (
+            {clientLinks.map((link) => (
                 <div className={s.studentLinkRow} key={link.id}>
                     <div className={s.studentInfo}>
                         {link.client?.id ? (
@@ -114,7 +114,7 @@ const AddStudentForm = ({
 
 export const MollieStudentLinksManager = memo(({ customerId, version, onChanged }: MollieStudentLinksManagerProps) => {
     const {
-        customer, selectedClientId, setSelectedClientId, payerRelation, setPayerRelation,
+        clientLinks, selectedClientId, setSelectedClientId, payerRelation, setPayerRelation,
         isLoading, isSaving, error, availableClientOptions, onAddStudent, onDeleteLink,
     } = useStudentLinksManager(customerId, version, onChanged);
 
@@ -139,7 +139,7 @@ export const MollieStudentLinksManager = memo(({ customerId, version, onChanged 
 
                 {!isLoading && !error && (
                     <>
-                        <LinkedStudents customer={customer} isSaving={isSaving} onDeleteLink={onDeleteLink} />
+                        <LinkedStudents clientLinks={clientLinks} isSaving={isSaving} onDeleteLink={onDeleteLink} />
 
                         <AddStudentForm
                             selectedClientId={selectedClientId} setSelectedClientId={setSelectedClientId}

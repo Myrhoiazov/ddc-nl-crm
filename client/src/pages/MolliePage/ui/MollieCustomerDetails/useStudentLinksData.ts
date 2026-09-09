@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { $apiPrivate } from '@/shared/api/api';
-import { MollieClient } from '@/entities/MollieClient';
+import { MollieClientStudentLink } from '@/entities/MollieClient';
 import { Client } from '@/entities/Client';
 import { getStudentName } from './studentLinksHelpers';
 
 export const useStudentLinksData = (customerId: string, version: number) => {
-    const [customer, setCustomer] = useState<MollieClient | null>(null);
+    const [clientLinks, setClientLinks] = useState<MollieClientStudentLink[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState(false);
@@ -15,11 +15,11 @@ export const useStudentLinksData = (customerId: string, version: number) => {
         setError(false);
 
         Promise.all([
-            $apiPrivate.get<MollieClient>(`/mollie/customers/${customerId}`),
+            $apiPrivate.get<MollieClientStudentLink[]>(`/mollie/customers/${customerId}/student-links`),
             $apiPrivate.get<Client[]>('/clients'),
         ])
-            .then(([customerResponse, clientsResponse]) => {
-                setCustomer(customerResponse.data);
+            .then(([linksResponse, clientsResponse]) => {
+                setClientLinks(linksResponse.data ?? []);
                 setClients(clientsResponse.data ?? []);
             })
             .catch(() => setError(true))
@@ -27,11 +27,11 @@ export const useStudentLinksData = (customerId: string, version: number) => {
     }, [customerId, version]);
 
     const linkedClientIds = useMemo(
-        () => new Set((customer?.clientLinks ?? [])
+        () => new Set(clientLinks
             .map((link) => link.client?.id)
             .filter(Boolean)
             .map(String)),
-        [customer],
+        [clientLinks],
     );
 
     const availableClientOptions = useMemo(() => clients
@@ -42,6 +42,6 @@ export const useStudentLinksData = (customerId: string, version: number) => {
         .filter((option) => !linkedClientIds.has(option.value)), [clients, linkedClientIds]);
 
     return {
-        customer, setCustomer, isLoading, error, availableClientOptions,
+        clientLinks, setClientLinks, isLoading, error, availableClientOptions,
     };
 };

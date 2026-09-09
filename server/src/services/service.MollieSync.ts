@@ -311,32 +311,6 @@ export const syncMolliePayment = async (
     return existing ? 'updated' : 'created';
 };
 
-export const reconcileCustomerPayments = async (customerId: number): Promise<SyncResult> => {
-    const result = createEmptySyncResult();
-    const payments = await prisma.payment.findMany({
-        where: {
-            customerId,
-            mollieId: { not: null },
-        },
-        select: { mollieId: true },
-    });
-
-    for (const localPayment of payments) {
-        if (!localPayment.mollieId) continue;
-
-        try {
-            const payment = await mollieService.getPaymentById(localPayment.mollieId);
-            const status = await syncMolliePayment(payment);
-            result[status] += 1;
-        } catch (error) {
-            result.errors += 1;
-            console.error('Mollie customer payment reconciliation failed:', localPayment.mollieId, error);
-        }
-    }
-
-    return result;
-};
-
 export const syncMolliePayments = async (): Promise<SyncResult> => {
     const result = createEmptySyncResult();
     const payments = await mollieService.getAllPayments();
