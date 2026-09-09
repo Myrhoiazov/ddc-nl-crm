@@ -234,18 +234,18 @@ SKY-C304,SKY-Q301` дала: сервер — 0 находок по обоим �
 - [x] `server/src/controllers/controller.Instagram.ts:20` — сравнение подписи вебхука (`x-hub-signature-256`) переведено на `timingSafeEqualStrings`.
 - [x] `server/src/services/service.Token.ts:181` — сравнение `tokenHash` при определении текущей сессии переведено на `timingSafeEqualStrings`.
 - [ ] `client/src/features/changePassword/model/services/changePasswordThunk.ts:23` — **false positive**: сравнение `newPassword !== confirmPassword` в браузере — оба значения ввёл сам пользователь в своей форме, границы доверия не пересекаются, timing-атака неприменима. Не менять.
-- [ ] `server/scripts/reset-user-password.ts:67` — **false positive**: интерактивный CLI-скрипт, пароль и подтверждение вводит сам администратор в своём терминале — нет удалённого наблюдателя, способного измерить тайминг. Не менять.
+- [ ] `server/scripts/reset-user-password.ts:66` — **false positive**: интерактивный CLI-скрипт, пароль и подтверждение вводит сам администратор в своём терминале — нет удалённого наблюдателя, способного измерить тайминг. Не менять.
 
 ### `SKY-D248` — Захардкоженный внутренний URL (7) — 1 из 7 исправлен
 
 > Вынести хост в переменную окружения.
 
-- [x] `server/src/controllers/conteroller.Mollie.ts:318` — OAuth-редирект после обмена токеном: `http://localhost:3000` fallback теперь применяется только при `MODE=development`, в проде — относительный `/` вместо захардкоженного адреса. Skylos продолжит подсвечивать эту строку (правило ищет сам литерал `http://localhost`, не смотрит на условие) — теперь это тот же принятый паттерн, что и у остальных 6 пунктов ниже.
+- [x] `server/src/controllers/conteroller.Mollie.ts:410` — OAuth-редирект после обмена токеном: `http://localhost:3000` fallback теперь применяется только при `MODE=development`, в проде — относительный `/` вместо захардкоженного адреса. Skylos продолжит подсвечивать эту строку (правило ищет сам литерал `http://localhost`, не смотрит на условие) — теперь это тот же принятый паттерн, что и у остальных 6 пунктов ниже.
 - [ ] `client/webpack.config.ts:31` — by design: fallback только при `isDev`, в проде требует `CLIENT_API_URL` (кидает ошибку, если не задан).
-- [ ] `server/src/app.ts:25` — by design: `http://localhost:3000` добавляется в `allowedClientOrigins` только когда `isDev`.
+- [ ] `server/src/app.ts:27` — by design: `http://localhost:3000` добавляется в `allowedClientOrigins` только когда `isDev`.
 - [ ] `server/src/middlewares/middleware.Csrf.ts:11` — by design: тот же паттерн — localhost добавляется в allowlist только при `MODE === 'development'`.
 - [ ] `server/src/services/service.Files.ts:7` — by design: `url = isDev ? 'http://localhost:8080' : process.env.CLIENT_URL`.
-- [ ] `server/src/services/service.InvoiceDelivery.ts:24` — by design: последний fallback после проверки `PUBLIC_API_URL`/`SERVER_URL`/`MOLLIE_WEBHOOK_URL`, используется только если ни одна прод-переменная не задана.
+- [ ] `server/src/services/service.InvoiceDelivery.ts:43` — by design: последний fallback после проверки `PUBLIC_API_URL`/`SERVER_URL`/`MOLLIE_WEBHOOK_URL`, используется только если ни одна прод-переменная не задана.
 - [ ] `server/src/services/service.PaymentReminders.ts:11` — by design: fallback только при `MODE === 'development'`.
 
 ### `SKY-D327` — Возможная эксфильтрация данных (2) — false positives
@@ -253,33 +253,31 @@ SKY-C304,SKY-Q301` дала: сервер — 0 находок по обоим �
 > Запрос отправляет process.env/секреты во внешний адрес — подтвердить адресата и убрать чувствительные данные из payload.
 
 - [ ] `scripts/deploy-docker.sh:66` — **false positive**: `ssh "$DEPLOY_HOST" ...` — это штатный ручной деплой на свой же продовый хост (см. `npm run deploy`, `docs/adr/0002-...`), `$DEPLOY_HOST`/`$REMOTE_PATH` берутся из `.env` владельца репозитория, не из недоверенного ввода; rsync явно исключает `.env`/`node_modules`/`.git`.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:294` — **false positive**: это штатный OAuth2 `authorization_code` обмен с официальным `https://api.mollie.com/oauth2/tokens` — секреты (`MOLLIE_CLIENT_ID`/`MOLLIE_CLIENT_SECRET`) обязаны туда отправляться по протоколу OAuth, адрес захардкожен на HTTPS API Mollie, не переменный.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:364` — **false positive**: это штатный OAuth2 `authorization_code` обмен с официальным `https://api.mollie.com/oauth2/tokens` — секреты (`MOLLIE_CLIENT_ID`/`MOLLIE_CLIENT_SECRET`) обязаны туда отправляться по протоколу OAuth, адрес захардкожен на HTTPS API Mollie, не переменный.
 
-### `SKY-D216` — Потенциальный SSRF (4) — false positives
+### `SKY-D216` — Потенциальный SSRF (4, из них 3 дубликата схлопнулись в 1 при несвязанном рефакторинге) — false positives
 
 > axios-запрос с URL из переменной — свалидировать против allowlist перед запросом.
 
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2482` — **false positive**: это `axios.isAxiosError(error)` (проверка типа ошибки), не HTTP-запрос.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2416` — **false positive**: аналогично, `axios.isAxiosError(error)`.
-- [ ] `server/src/controllers/conteroller.Mollie.ts:2575` — **false positive**: аналогично, `axios.isAxiosError(error)`.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:3024` — **false positive**: это `axios.isAxiosError(error)` (проверка типа ошибки), не HTTP-запрос. Три отдельные находки этого пункта (изначально строки 2482/2416/2575) с тех пор объединены несвязанной правкой в общий хелпер `mollieErrorDetail(error, fallback)` — вызов `isAxiosError` в файле теперь ровно один.
 - [ ] `server/src/routes/router.Health.test.ts:20` — **false positive**: тест делает `fetch` на `http://127.0.0.1:${port}`, где `port` — эфемерный порт локального сервера, поднятого этим же тестом.
 
 ### `SKY-D230` — Открытый редирект (open redirect) (2) — false positives
 
 > res.redirect() с переменным аргументом — свалидировать целевой адрес.
 
-- [ ] `server/src/controllers/conteroller.Mollie.ts:270` — **false positive**: `authorizationUri` строится библиотекой OAuth2-клиента (`oauthClient.authorizeURL(...)`) из `MOLLIE_REDIRECT_URI`/client id/сгенерированного `state` — не из пользовательского ввода.
-- [x] `server/src/controllers/conteroller.Mollie.ts:318` — цель редиректа не пользовательский ввод (открытый редирект тут неприменим), но заодно убран захардкоженный localhost-fallback — см. `SKY-D248` выше.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:351` — **false positive**: `authorizationUri` строится библиотекой OAuth2-клиента (`oauthClient.authorizeURL(...)`) из `MOLLIE_REDIRECT_URI`/client id/сгенерированного `state` — не из пользовательского ввода.
+- [x] `server/src/controllers/conteroller.Mollie.ts:411` — цель редиректа не пользовательский ввод (открытый редирект тут неприменим), но заодно убран захардкоженный localhost-fallback — см. `SKY-D248` выше.
 
 ### `SKY-D252` — Флаги безопасности cookie не подтверждены (5) — by design, не менять
 
 > Явно выставить secure: true (не полагаться на значение по умолчанию/переменную).
 
-- [ ] `server/src/controllers/conteroller.Mollie.ts:262` — by design: `secure: process.env.MODE === 'production'` — намеренно, чтобы cookie работали по HTTP в локальной разработке (`secure: true` браузер не примет без HTTPS).
-- [ ] `server/src/controllers/controller.Auth.ts:105` — by design, тот же `cookieOptions`.
-- [ ] `server/src/controllers/controller.Auth.ts:172` — by design, тот же `twoFactorPendingCookieOptions`.
-- [ ] `server/src/controllers/controller.Auth.ts:254` — by design, тот же `trustedDeviceCookieOptions`.
-- [ ] `server/src/controllers/controller.Auth.ts:353` — by design, тот же `cookieOptions`.
+- [ ] `server/src/controllers/conteroller.Mollie.ts:343` — by design: `secure: process.env.MODE === 'production'` — намеренно, чтобы cookie работали по HTTP в локальной разработке (`secure: true` браузер не примет без HTTPS).
+- [ ] `server/src/controllers/controller.Auth.ts:116` — by design, тот же `cookieOptions`.
+- [ ] `server/src/controllers/controller.Auth.ts:175` — by design, тот же `twoFactorPendingCookieOptions`.
+- [ ] `server/src/controllers/controller.Auth.ts:252` — by design, тот же `trustedDeviceCookieOptions`.
+- [ ] `server/src/controllers/controller.Auth.ts:390` — by design, тот же `cookieOptions`.
 
 ### `SKY-D251` — Чувствительные данные в console.log (1) — ЗАКРЫТО
 
@@ -503,7 +501,7 @@ SKY-C304,SKY-Q301` дала: сервер — 0 находок по обоим �
 
 > Проверить, не закоммичен ли реальный секрет/токен; при необходимости — ротировать и вынести в .env.
 
-- [ ] `server/src/controllers/controller.Clients.ts:193` — **false positive**: строка `if (selectedGroupIds && !await validateGroupSelection(...))` не содержит строковых литералов вообще; секрета на этой строке нет.
+- [ ] `server/src/controllers/controller.Clients.ts:333` — **false positive**: строка `if (selectedGroupIds && !await validateGroupSelection(...))` не содержит строковых литералов вообще; секрета на этой строке нет.
 
 ## Типобезопасность
 
@@ -563,7 +561,7 @@ SKY-C304,SKY-Q301` дала: сервер — 0 находок по обоим �
 
 > Добавить валидацию (zod/схема) перед приведением типа.
 
-- [ ] `server/src/controllers/controller.Invoices.ts:198` — **false positive**: `snapshot()` строит значение через `JSON.parse(JSON.stringify(value, replacer))` — это его собственный JSON round-trip, поэтому результат по построению всегда JSON-совместим (`Prisma.InputJsonValue`); отдельная рантайм-схема для валидации по сути проверяла бы то, что уже гарантировано самим JSON.stringify/parse. Данные — собственный аудит-снапшот сервера (before/after invoice), не пользовательский ввод. Не менять.
+- [ ] `server/src/controllers/controller.Invoices.ts:286` — **false positive**: `snapshot()` строит значение через `JSON.parse(JSON.stringify(value, replacer))` — это его собственный JSON round-trip, поэтому результат по построению всегда JSON-совместим (`Prisma.InputJsonValue`); отдельная рантайм-схема для валидации по сути проверяла бы то, что уже гарантировано самим JSON.stringify/parse. Данные — собственный аудит-снапшот сервера (before/after invoice), не пользовательский ввод. Не менять.
 
 ### `SKY-T106` — Публичный API использует `any` (4) — ЗАКРЫТО
 
@@ -581,9 +579,9 @@ SKY-C304,SKY-Q301` дала: сервер — 0 находок по обоим �
 > Проверить реальную неиспользуемость (в т.ч. динамические/publicAPI-экспорты) и удалить либо оставить с пометкой, почему используется.
 
 - [x] `client/config/jest/__mocks__/react-i18next.ts:1` — unused function: useTranslation
-- [x] `client/config/jest/jestEnptyComponent.tsx:3` — unused function: jestEnptyComponent
-- [x] `client/config/jest/setupTests.ts:27` — unused function: disconnect
-- [x] `client/config/jest/setupTests.ts:28` — unused function: takeRecords
+- [x] `client/config/jest/jestEnptyComponent.tsx:2` — unused function: jestEnptyComponent
+- [x] `client/config/jest/setupTests.ts:28` — unused function: disconnect
+- [x] `client/config/jest/setupTests.ts:29` — unused function: takeRecords
 - [x] `client/src/pages/ArticleDetailsPage/model/selectors/comments.ts:4` — unused function: getArticleCommentsError
 - [x] `client/src/pages/MolliePage/ui/MolliePayments/MolliePayments.tsx:153` — unused function: getCrmClientName
 - [x] `client/src/pages/SettingsPage/model/selectors/clientsPageSelectors.ts:5` — unused function: getSettingsPageIsLoading
@@ -1460,7 +1458,7 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
 - [x] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.test.tsx:14` — Function 'anonymous' is 55 lines long (limit: 50) → убран длинный `describe` callback, тесты оставлены top-level без изменения assertions. Проверено: `skylos ... --select SKY-C304` по файлу — 0 срабатываний; Jest `MollieClientListItem.test.tsx` — 7/7 pass.
 - [x] `client/src/entities/MollieClient/ui/MollieClientListItem/MollieClientListItem.tsx:16` — Function 'anonymous' is 72 lines long (limit: 50) → волна 8 (round 26): `MollieCustomerBadges`
 - [x] `client/src/entities/MollieSubscription/ui/MollieSubscriptionCard/MollieSubscriptionCard.tsx:23` — Function 'anonymous' is 76 lines long (limit: 50) → волна 19.4: `SubscriptionScheduleInputs`/`SubscriptionAmountAndDescriptionInputs`; закрыто
-- [ ] `client/src/entities/Profile/model/services/updateProfileData/updateProfileData.test.tsx:22` — Function 'anonymous' is 59 lines long (limit: 50)
+- [ ] `client/src/entities/Profile/model/services/updateProfileData/updateProfileData.test.tsx:23` — Function 'anonymous' is 59 lines long (limit: 50)
 - [ ] `client/src/entities/Profile/model/slice/profileSlice.test.ts:6` — Function 'anonymous' is 110 lines long (limit: 50)
 - [x] `client/src/entities/Profile/ui/ProfileCard/ProfileCard.tsx:23` — Function 'anonymous' is 102 lines long (limit: 50) → предыдущая пометка [x] (волна 8 round 16) была неточной — компонент всегда оставался на пороге лимита; свежий прогон после волн 16–20 подтверждает 55 строк(и) (строка 23) — не закрыто
 - [x] `client/src/entities/Summary/ui/SummaryCards/SummaryCards.tsx:16` — Function 'anonymous' is 52 lines long (limit: 50) → волна 8 (round 25): `SummaryStatCard` + `SummaryCardsSkeleton`
@@ -1562,8 +1560,8 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
 - [x] `client/src/pages/ScheduleSettingsPage/ui/ScheduleSettingsPage/ScheduleSettingsPage.tsx:184` — Function 'anonymous' is 109 lines long (limit: 50) → волна 6: секция списка групп вынесена в `GroupsListSection` + фильтры в `GroupFilters`, подтверждено `check:skylos`
 - [ ] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.test.tsx:33` — Function 'anonymous' is 57 lines long (limit: 50)
 - [x] `client/src/pages/TransactionsPage/lib/hooks/useTransactionFilters.ts:19` — Function 'useTransactionFilters' is 73 lines long (limit: 50) → задача 20.8: 4 из 5 `onChangeX`-колбэков были идентичны по форме (set-поле + сброс страницы + рефетч) — вынесены в общий чистый хелпер `applyFilterChange(dispatch, fetchData, actionCreator, value)`. Проверено: `skylos` — 0 срабатываний; `npm test -- src/pages/TransactionsPage` — 33/33 pass; `tsc --noEmit` — без новых ошибок; `npx eslint` — 0 issues
-- [ ] `client/src/pages/TransactionsPage/model/selectors/transactionPageSelectors.test.ts:21` — Function 'anonymous' is 51 lines long (limit: 50)
-- [ ] `client/src/pages/TransactionsPage/model/services/fetchTransactionsList/fetchTransactionsList.test.ts:34` — Function 'anonymous' is 61 lines long (limit: 50)
+- [ ] `client/src/pages/TransactionsPage/model/selectors/transactionPageSelectors.test.ts:22` — Function 'anonymous' is 51 lines long (limit: 50)
+- [ ] `client/src/pages/TransactionsPage/model/services/fetchTransactionsList/fetchTransactionsList.test.ts:35` — Function 'anonymous' is 61 lines long (limit: 50)
 - [ ] `client/src/pages/TransactionsPage/model/slices/transactionsPageSlice.test.ts:8` — Function 'anonymous' is 103 lines long (limit: 50)
 - [x] `client/src/pages/TransactionsPage/ui/TransactionsPage/TransactionsPage.tsx:43` — Function 'anonymous' is 72 lines long (limit: 50) → волна 19.8: вынесен `TransactionsPagination`, компонент сократился с 72 до 68 строк(и) (строка 68), но лимит 50 всё ещё не достигнут
 - [ ] `client/src/shared/lib/hooks/useInfiniteScroll/useInfiniteScroll.test.ts:5` — Function 'anonymous' is 74 lines long (limit: 50)
@@ -1901,33 +1899,28 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
 похоже, детектирует пустой `catch {}` синтаксически, не читая комментарий внутри.
 Код не менялся.
 
-### `SKY-Q402` — await внутри цикла (23) — ЗАКРЫТО
+### `SKY-Q402` — await внутри цикла (23 исходных; 18 актуальных после волны 24 — 2 исчезли из-за батчинга `markOverdueInvoices`, 3 схлопнулись в EmailImap/InvoiceDelivery при вынесении кода в общие функции, 1 новый в `syncMollieMandates`) — ЗАКРЫТО
 
 > Использовать Promise.all()/Promise.allSettled() для параллельного выполнения, если итерации независимы.
 
 - [x] `server/prisma/seed.ts:35` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/controllers/controller.Invoices.ts:654` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/controllers/controller.Invoices.ts:276` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/controllers/controller.Invoices.ts:280` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/controllers/controller.Invoices.ts:655` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.EmailImap.ts:170` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/controllers/controller.Invoices.ts:879` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/controllers/controller.Invoices.ts:880` — await inside loop — consider using Promise.all() for parallel execution.
 - [x] `server/src/services/service.EmailImap.ts:90` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.EmailImap.ts:160` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.EmailImap.ts:196` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.EmailImap.ts:168` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.EmailImap.ts:222` (было 160/168/170/196 — с тех пор несвязанной правкой тело `for await` вынесено в отдельную `processMessage()`, поэтому статический анализ видит один await в цикле вместо четырёх; семантика цикла та же) — await inside loop — consider using Promise.all() for parallel execution.
 - [x] `server/src/services/service.EmailSmtp.ts:108` — await inside loop — consider using Promise.all() for parallel execution.
 - [x] `server/src/services/service.EmailSyncCron.ts:16` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.InvoiceDelivery.ts:173` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.InvoiceDelivery.ts:177` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:311` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:461` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:200` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:312` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:329` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:387` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:458` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.MollieSync.ts:384` — await inside loop — consider using Promise.all() for parallel execution.
-- [x] `server/src/services/service.PaymentReminders.ts:210` — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.InvoiceDelivery.ts:272` (было 173/177 — с тех пор несвязанной правкой пер-инвойсовый `findFirst` внутри цикла заменён на один батч-`findMany` до цикла, в самом цикле остался один await) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:204` (было 200, `syncMollieCustomers`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:328` (было 311, `reconcileCustomerPayments`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:329` (было 312, `reconcileCustomerPayments`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:346` (было 329, `syncMolliePayments`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:412` (было 384, `syncMollieMandates`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:417` (новый, `syncMollieMandates`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:430` (было 387, `syncMollieMandates`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:537` (было 461, `syncMollieSubscriptionsForCustomer` после волны 24 — см. запись SKY-C304 выше) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.MollieSync.ts:555` (было 458, `syncMollieSubscriptions`) — await inside loop — consider using Promise.all() for parallel execution.
+- [x] `server/src/services/service.PaymentReminders.ts:298` — await inside loop — consider using Promise.all() for parallel execution.
 
 Из 23 находок — 3 реально распараллелены, 20 сознательно оставлены
 последовательными (с обоснованием, не вслепую).
@@ -1953,14 +1946,15 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
   try/catch для изоляции ошибок по письму. Распараллеливание изменило бы протокольную
   семантику IMAP-сессии и логику курсора синхронизации — не тривиальный рефакторинг,
   не то же самое, что "await в цикле" по независимому массиву.
-- `controller.Invoices.ts:276/280` (2, `markOverdueInvoices`) — цикл внутри
-  `prisma.$transaction(async (transaction) => {...})`. Интерактивные транзакции
-  Prisma работают через одно соединение — параллельные запросы внутри одной
-  транзакции официально не поддерживаются Prisma (гонка за соединением). Оставлено
-  последовательным — это правильное поведение, не недостаток.
-- `controller.Invoices.ts:654/655` (2 — по факту сейчас строки ~683/684 из-за
-  сдвига номеров после правок SKY-C303/Q302 в этом же файле; сам код тот же) —
-  цикл отмены активных платежей Mollie при отмене инвойса. Последовательность
+- ~~`controller.Invoices.ts:276/280` (2, `markOverdueInvoices`)~~ — **больше не существует**:
+  при сверке волной 24 (2026-09-09) обнаружено, что несвязанная более ранняя правка
+  переписала `markOverdueInvoices` с `prisma.$transaction(async (transaction) => { for
+  (...) { await ... } })` на батч-операции `prisma.$transaction([updateMany, createMany])`
+  без цикла вообще — находка пропала из свежего прогона по-настоящему (не дрейф строк).
+  Обоснование ниже (Prisma-транзакции на одном соединении) больше не относится к этой
+  функции, оставлено для истории.
+- `controller.Invoices.ts:879/880` (2, было 654/655) — цикл отмены активных платежей
+  Mollie при отмене инвойса. Последовательность
   обеспечивает семантику "остановиться на первой ошибке, вернуть 502, инвойс не
   тронут" — при `Promise.all` часть платежей могла бы отмениться, а часть нет, и
   инвойс остался бы в неопределённом состоянии. Финансовая операция — оставлено
@@ -1972,12 +1966,14 @@ SKY-C304,SKY-Q301`) выявила три вещи, которые волна 21
   `Promise.all` по потенциально десяткам-сотням инвойсов/подписок разом рискует
   упереться в лимиты почтового провайдера. Требует продуктового решения о лимите
   параллелизма — не мех. фикс, оставлено как есть.
-- `service.MollieSync.ts` (8: 196/200, 307/311-312, 325/329, 382/384/386-387,
-  456/458/460-461) — все циклы синхронизации с Mollie API (customers/payments/
-  mandates/subscriptions). Нет отдельного rate-limiter — последовательный `await`
-  в цикле сейчас единственная защита от пробивания лимитов Mollie API при полном
-  ресинке (потенциально сотни записей). Оставлено намеренно последовательным по
-  той же причине, что и email-рассылки выше.
+- `service.MollieSync.ts` (было 8, сейчас 9 после волны 24 — `syncMollieMandates`
+  обзавёлся третьим await в цикле от несвязанной более ранней N+1-батчинг-оптимизации
+  `existingMandates`, аналогичной уже существовавшей в subscriptions-синке; см.
+  актуальные номера строк в чек-боксах выше) — все циклы синхронизации с Mollie API
+  (customers/payments/mandates/subscriptions). Нет отдельного rate-limiter —
+  последовательный `await` в цикле сейчас единственная защита от пробивания лимитов
+  Mollie API при полном ресинке (потенциально сотни записей). Оставлено намеренно
+  последовательным по той же причине, что и email-рассылки выше.
 - `server/prisma/seed.ts:35` (`down()`) — цикл из 2 итераций (`TRUNCATE TABLE
   sessions`, `TRUNCATE TABLE users`) между `SET FOREIGN_KEY_CHECKS = 0` и `= 1`.
   Тривиальный dev-seed скрипт, распараллеливание TRUNCATE с отключенными FK
