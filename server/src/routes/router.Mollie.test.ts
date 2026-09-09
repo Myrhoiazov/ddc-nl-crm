@@ -30,3 +30,11 @@ test('Mollie router exposes DELETE /customers/:customerId', () => {
 test('Mollie router exposes DELETE /subscriptions/:subscriptionId', () => {
     assert.equal(hasRoute('delete', '/subscriptions/:subscriptionId'), true);
 });
+
+test('Mollie router exposes GET /customers/:customerId/payments', () => {
+    assert.equal(hasRoute('get', '/customers/:customerId/payments'), true);
+});
+
+test('Mollie router exposes GET /customers/:customerId/student-links', () => {
+    assert.equal(hasRoute('get', '/customers/:customerId/student-links'), true);
+});

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { $apiPrivate } from '@/shared/api/api';
-import { MollieClient, MolliePayment } from '@/entities/MollieClient';
+import { MolliePayment } from '@/entities/MollieClient';
 
 export const usePaymentHistoryData = (customerId: string) => {
     const [payments, setPayments] = useState<MolliePayment[]>([]);
@@ -11,11 +11,11 @@ export const usePaymentHistoryData = (customerId: string) => {
         setIsLoading(true);
         setError(false);
 
-        $apiPrivate.get<MollieClient>(`/mollie/customers/${customerId}`, {
+        $apiPrivate.get<MolliePayment[]>(`/mollie/customers/${customerId}/payments`, {
             params: { _ts: Date.now() },
             headers: { 'Cache-Control': 'no-cache' },
         })
-            .then(({ data }) => setPayments(data.payments ?? []))
+            .then(({ data }) => setPayments(data ?? []))
             .catch(() => setError(true))
             .finally(() => setIsLoading(false));
     }, [customerId]);

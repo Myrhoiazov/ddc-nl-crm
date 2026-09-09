@@ -311,32 +311,6 @@ export const syncMolliePayment = async (
     return existing ? 'updated' : 'created';
 };
 
-export const reconcileCustomerPayments = async (customerId: number): Promise<SyncResult> => {
-    const result = createEmptySyncResult();
-    const payments = await prisma.payment.findMany({
-        where: {
-            customerId,
-            mollieId: { not: null },
-        },
-        select: { mollieId: true },
-    });
-
-    for (const localPayment of payments) {
-        if (!localPayment.mollieId) continue;
-
-        try {
-            const payment = await mollieService.getPaymentById(localPayment.mollieId);
-            const status = await syncMolliePayment(payment);
-            result[status] += 1;
-        } catch (error) {
-            result.errors += 1;
-            console.error('Mollie customer payment reconciliation failed:', localPayment.mollieId, error);
-        }
-    }
-
-    return result;
-};
-
 export const syncMolliePayments = async (): Promise<SyncResult> => {
     const result = createEmptySyncResult();
     const payments = await mollieService.getAllPayments();
@@ -491,6 +465,55 @@ export const syncMollieSubscription = async (
     return existing ? 'updated' : 'created';
 };
 
+const syncMollieSubscriptionsForCustomer = async (
+    customer: { id: number; mollieId: string | null },
+    result: SyncResult,
+): Promise<void> => {
+    const subscriptions = await mollieService.getSubscriptionsByCustomerId(customer.mollieId);
+    const mollieIds = subscriptions
+        .map((subscription) => subscription.id)
+        .filter((id): id is string => Boolean(id));
+    const mandateMollieIds = subscriptions
+        .map((subscription) => subscription.mandateId)
+        .filter((id): id is string => Boolean(id));
+
+    const [existingSubscriptions, localMandates] = await Promise.all([
+        mollieIds.length
+            ? prisma.subscription.findMany({
+                where: { mollieId: { in: mollieIds } },
+                select: { mollieId: true },
+            })
+            : Promise.resolve([]),
+        mandateMollieIds.length
+            ? prisma.mandate.findMany({
+                where: { mollieId: { in: mandateMollieIds } },
+                select: { id: true, mollieId: true },
+            })
+            : Promise.resolve([]),
+    ]);
+
+    const existingMollieIds = new Set(
+        existingSubscriptions.map((subscription) => subscription.mollieId).filter((id): id is string => Boolean(id)),
+    );
+    const mandateIdByMollieId = new Map(
+        localMandates
+            .filter((mandate): mandate is typeof mandate & { mollieId: string } => Boolean(mandate.mollieId))
+            .map((mandate) => [mandate.mollieId, mandate.id]),
+    );
+
+    for (const subscription of subscriptions) {
+        const status = resolveSyncStatus(subscription.id, existingMollieIds);
+        result[status] += 1;
+        if (status === 'skipped') continue;
+        const localMandateId = subscription.mandateId
+            ? mandateIdByMollieId.get(subscription.mandateId) ?? null
+            : null;
+        await prisma.subscription.upsert(
+            buildSubscriptionUpsertArgs(customer.id, subscription, localMandateId),
+        );
+    }
+};
+
 export const syncMollieSubscriptions = async (): Promise<SyncResult> => {
     const result = createEmptySyncResult();
     const customers = await prisma.customer.findMany({
@@ -503,49 +526,7 @@ export const syncMollieSubscriptions = async (): Promise<SyncResult> => {
 
     for (const customer of customers) {
         try {
-            const subscriptions = await mollieService.getSubscriptionsByCustomerId(customer.mollieId);
-            const mollieIds = subscriptions
-                .map((subscription) => subscription.id)
-                .filter((id): id is string => Boolean(id));
-            const mandateMollieIds = subscriptions
-                .map((subscription) => subscription.mandateId)
-                .filter((id): id is string => Boolean(id));
-
-            const [existingSubscriptions, localMandates] = await Promise.all([
-                mollieIds.length
-                    ? prisma.subscription.findMany({
-                        where: { mollieId: { in: mollieIds } },
-                        select: { mollieId: true },
-                    })
-                    : Promise.resolve([]),
-                mandateMollieIds.length
-                    ? prisma.mandate.findMany({
-                        where: { mollieId: { in: mandateMollieIds } },
-                        select: { id: true, mollieId: true },
-                    })
-                    : Promise.resolve([]),
-            ]);
-
-            const existingMollieIds = new Set(
-                existingSubscriptions.map((subscription) => subscription.mollieId).filter((id): id is string => Boolean(id)),
-            );
-            const mandateIdByMollieId = new Map(
-                localMandates
-                    .filter((mandate): mandate is typeof mandate & { mollieId: string } => Boolean(mandate.mollieId))
-                    .map((mandate) => [mandate.mollieId, mandate.id]),
-            );
-
-            for (const subscription of subscriptions) {
-                const status = resolveSyncStatus(subscription.id, existingMollieIds);
-                result[status] += 1;
-                if (status === 'skipped') continue;
-                const localMandateId = subscription.mandateId
-                    ? mandateIdByMollieId.get(subscription.mandateId) ?? null
-                    : null;
-                await prisma.subscription.upsert(
-                    buildSubscriptionUpsertArgs(customer.id, subscription, localMandateId),
-                );
-            }
+            await syncMollieSubscriptionsForCustomer(customer, result);
         } catch (error) {
             result.errors += 1;
             console.error('Mollie subscriptions sync failed:', customer.mollieId, error);
