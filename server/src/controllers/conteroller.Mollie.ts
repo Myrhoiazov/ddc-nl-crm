@@ -866,6 +866,32 @@ export const buildCustomerDeleteDependencyWhere = (customerId: number) => ({
     },
 });
 
+const buildCustomerDeleteTransaction = (customerId: number) => [
+    prisma.payment.updateMany({
+        where: { customerId },
+        data: { customerId: null, subscriptionId: null },
+    }),
+    prisma.payment.updateMany({
+        where: {
+            subscription: { customerId },
+        },
+        data: { subscriptionId: null },
+    }),
+    prisma.subscription.deleteMany({
+        where: { customerId },
+    }),
+    prisma.mandate.deleteMany({
+        where: { customerId },
+    }),
+    prisma.customerClientLink.deleteMany({
+        where: { customerId },
+    }),
+    prisma.customer.delete({
+        where: { id: customerId },
+        select: customerListSelect,
+    }),
+];
+
 export const deleteCustomerController = async (req: Request, res: Response) => {
     const customerId = Number(req.params.customerId);
 
@@ -902,31 +928,7 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             await mollieService.deleteCustomerById(customer.mollieId);
         }
 
-        const [, , , , deletedCustomer] = await prisma.$transaction([
-            prisma.payment.updateMany({
-                where: { customerId },
-                data: { customerId: null, subscriptionId: null },
-            }),
-            prisma.payment.updateMany({
-                where: {
-                    subscription: { customerId },
-                },
-                data: { subscriptionId: null },
-            }),
-            prisma.subscription.deleteMany({
-                where: { customerId },
-            }),
-            prisma.mandate.deleteMany({
-                where: { customerId },
-            }),
-            prisma.customerClientLink.deleteMany({
-                where: { customerId },
-            }),
-            prisma.customer.delete({
-                where: { id: customerId },
-                select: customerListSelect,
-            }),
-        ]);
+        const [, , , , , deletedCustomer] = await prisma.$transaction(buildCustomerDeleteTransaction(customerId));
 
         return res.status(200).json(deletedCustomer);
     } catch (error) {
@@ -2543,6 +2545,39 @@ const toMandateResponse = (mandate: {
     updatedAt: mandate.updatedAt,
 });
 
+const createAndSyncMollieMandate = async (params: {
+    localClientId: number;
+    mandateData: z.infer<typeof createMandateSchema>;
+}) => {
+    const { localClientId, mandateData } = params;
+    const { customerId, signatureDate, method, consumerName, consumerAccount, consumerBic } = mandateData;
+
+    const mandate = await mollieService.createMandate({
+        customerId,
+        method: method as MandateMethod,
+        consumerName,
+        consumerAccount,
+        consumerBic,
+        signatureDate,
+        mandateReference: `MANDATE-${customerId}-${Date.now()}`,
+    });
+
+    await mollieSyncService.syncMollieMandate(localClientId, mandate);
+
+    return prisma.mandate.findUnique({
+        where: { mollieId: mandate.id },
+        select: {
+            mollieId: true,
+            status: true,
+            method: true,
+            signatureDate: true,
+            mandateReference: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+};
+
 export const mollieCreateMandateController = async (req: Request<{}, {}, MandateFormData>, res: Response) => {
     const parsedBody = createMandateSchema.safeParse(req.body);
 
@@ -2554,35 +2589,16 @@ export const mollieCreateMandateController = async (req: Request<{}, {}, Mandate
     }
 
     try {
-        const { customerId, signatureDate, method, consumerName, consumerAccount, consumerBic } = parsedBody.data;
+        const { customerId } = parsedBody.data;
         const client = await getCostomerByMollieId(customerId);
 
         if (!client) {
             return res.status(400).json({ message: 'Client ID is required' });
         }
 
-        const mandate = await mollieService.createMandate({
-            customerId,
-            method: method as MandateMethod,
-            consumerName,
-            consumerAccount,
-            consumerBic,
-            signatureDate,
-            mandateReference: `MANDATE-${customerId}-${Date.now()}`
-        });
-
-        await mollieSyncService.syncMollieMandate(client.id, mandate);
-        const savedMandate = await prisma.mandate.findUnique({
-            where: { mollieId: mandate.id },
-            select: {
-                mollieId: true,
-                status: true,
-                method: true,
-                signatureDate: true,
-                mandateReference: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+        const savedMandate = await createAndSyncMollieMandate({
+            localClientId: client.id,
+            mandateData: parsedBody.data,
         });
 
         if (!savedMandate) {
