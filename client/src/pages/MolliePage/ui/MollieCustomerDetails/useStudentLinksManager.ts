@@ -6,15 +6,15 @@ export { getStudentName } from './studentLinksHelpers';
 
 export const useStudentLinksManager = (customerId: string, version: number, onChanged: () => void) => {
     const {
-        customer, setCustomer, isLoading, error, availableClientOptions,
+        clientLinks, setClientLinks, isLoading, error, availableClientOptions,
     } = useStudentLinksData(customerId, version);
 
     const {
         selectedClientId, setSelectedClientId, payerRelation, setPayerRelation, isSaving, onAddStudent, onDeleteLink,
-    } = useStudentLinkActions(customerId, customer, setCustomer, onChanged);
+    } = useStudentLinkActions(customerId, clientLinks, setClientLinks, onChanged);
 
     return {
-        customer,
+        clientLinks,
         selectedClientId,
         setSelectedClientId,
         payerRelation,

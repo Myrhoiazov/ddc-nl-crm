@@ -1,4 +1,4 @@
-export { MollieClient, MolliePayment } from './model/types/mollieClient';
+export { MollieClient, MolliePayment, MollieClientStudentLink } from './model/types/mollieClient';
 export type { MollieClientDetailsSchema } from './model/types/molliCclientDetailsSchema'
 
 export {

@@ -23,7 +23,6 @@ const customer = {
     givenName: 'Ivan',
     familyName: 'Petrov',
     clientLinks: [],
-    payments: [],
 };
 
 const clients = [{ id: '5', firstName: 'Petr', lastName: 'Sidorov', email: 'petr@example.com' }];
@@ -34,6 +33,8 @@ beforeEach(() => {
         if (url === '/mollie/customers/cst_1') return Promise.resolve({ data: customer });
         if (url === '/mollie/mandates/cst_1') return Promise.resolve({ data: [] });
         if (url === '/mollie/customers/cst_1/subscriptions') return Promise.resolve({ data: [] });
+        if (url === '/mollie/customers/cst_1/payments') return Promise.resolve({ data: [] });
+        if (url === '/mollie/customers/cst_1/student-links') return Promise.resolve({ data: [] });
         if (url === '/clients') return Promise.resolve({ data: clients });
         return Promise.resolve({ data: [] });
     });
@@ -92,5 +93,27 @@ describe('MollieCustomerDetails', () => {
         renderPage();
 
         expect(await screen.findByText('Платежи пока не найдены.')).toBeInTheDocument();
+        expect($apiPrivate.get).toHaveBeenCalledWith(
+            '/mollie/customers/cst_1/payments',
+            expect.anything(),
+        );
+    });
+
+    test('fetches student links from the dedicated endpoint, not the full customer payload', async () => {
+        renderPage();
+
+        await screen.findByText('Пока нет связанных учеников.');
+        expect($apiPrivate.get).toHaveBeenCalledWith('/mollie/customers/cst_1/student-links');
+    });
+
+    test('loads the heavy customer endpoint only once per page view', async () => {
+        renderPage();
+
+        await screen.findByText('Ivan Petrov');
+        await screen.findByText('Платежи пока не найдены.');
+
+        const heavyCalls = ($apiPrivate.get as jest.Mock).mock.calls
+            .filter(([url]) => url === '/mollie/customers/cst_1');
+        expect(heavyCalls).toHaveLength(1);
     });
 });
