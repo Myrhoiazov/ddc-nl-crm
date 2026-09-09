@@ -40,6 +40,22 @@ const customerClientLinksSelect = {
     },
 } satisfies Prisma.CustomerClientLinkFindManyArgs;
 
+// Lightweight select for the update-customer form modal — only fields the
+// form actually renders. Avoids loading payments, events, clientLinks, etc.
+const customerUpdateFormSelect = {
+    id: true,
+    mollieId: true,
+    email: true,
+    givenName: true,
+    familyName: true,
+    city: true,
+    consumerAccount: true,
+    consumerName: true,
+    consumerBic: true,
+    preferredLanguage: true,
+    createdAt: true,
+} satisfies Prisma.CustomerSelect;
+
 // Matches MolliePayment in
 // client/src/entities/MollieClient/model/types/mollieClient.ts — used by the
 // customer detail page's payment history (usePaymentHistoryData.ts).
@@ -1505,6 +1521,34 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
         });
     } catch (error) {
         console.error('Error fetching Mollie customer details:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+// Lightweight endpoint for the update-customer form modal — returns only the
+// fields the form actually renders, skipping payments/events/clientLinks/etc.
+export const mollieGetCustomerEditData = async (req: Request, res: Response) => {
+    const { customerId } = req.params;
+    const parsedCustomerId = Number(customerId);
+
+    if (!Number.isInteger(parsedCustomerId) || parsedCustomerId <= 0) {
+        return res.status(400).json({ error: 'Invalid customer id' });
+    }
+
+    try {
+        const customer = await prisma.customer.findUnique({
+            where: { id: parsedCustomerId },
+            select: customerUpdateFormSelect,
+        });
+
+        if (!customer) {
+            return res.status(404).json({ error: 'Mollie customer not found' });
+        }
+
+        res.set('Cache-Control', 'no-store');
+        return res.status(200).json(customer);
+    } catch (error) {
+        console.error('Error fetching Mollie customer edit data:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
     }
 }
