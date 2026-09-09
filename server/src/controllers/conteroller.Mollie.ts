@@ -866,6 +866,32 @@ export const buildCustomerDeleteDependencyWhere = (customerId: number) => ({
     },
 });
 
+const buildCustomerDeleteTransaction = (customerId: number) => [
+    prisma.payment.updateMany({
+        where: { customerId },
+        data: { customerId: null, subscriptionId: null },
+    }),
+    prisma.payment.updateMany({
+        where: {
+            subscription: { customerId },
+        },
+        data: { subscriptionId: null },
+    }),
+    prisma.subscription.deleteMany({
+        where: { customerId },
+    }),
+    prisma.mandate.deleteMany({
+        where: { customerId },
+    }),
+    prisma.customerClientLink.deleteMany({
+        where: { customerId },
+    }),
+    prisma.customer.delete({
+        where: { id: customerId },
+        select: customerListSelect,
+    }),
+];
+
 export const deleteCustomerController = async (req: Request, res: Response) => {
     const customerId = Number(req.params.customerId);
 
@@ -902,31 +928,7 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             await mollieService.deleteCustomerById(customer.mollieId);
         }
 
-        const [, , , , deletedCustomer] = await prisma.$transaction([
-            prisma.payment.updateMany({
-                where: { customerId },
-                data: { customerId: null, subscriptionId: null },
-            }),
-            prisma.payment.updateMany({
-                where: {
-                    subscription: { customerId },
-                },
-                data: { subscriptionId: null },
-            }),
-            prisma.subscription.deleteMany({
-                where: { customerId },
-            }),
-            prisma.mandate.deleteMany({
-                where: { customerId },
-            }),
-            prisma.customerClientLink.deleteMany({
-                where: { customerId },
-            }),
-            prisma.customer.delete({
-                where: { id: customerId },
-                select: customerListSelect,
-            }),
-        ]);
+        const [, , , , , deletedCustomer] = await prisma.$transaction(buildCustomerDeleteTransaction(customerId));
 
         return res.status(200).json(deletedCustomer);
     } catch (error) {
@@ -1078,6 +1080,32 @@ export const deleteCustomerStudentLinkController = async (req: Request, res: Res
         return res.status(200).json(updatedCustomer);
     } catch (error) {
         console.error('Error unlinking Mollie customer from student:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+// Dedicated endpoint for the customer detail page's student-links section
+// (useStudentLinksData.ts) — returns just the clientLinks array instead of
+// the full customer payload the create/delete endpoints above return (this
+// hook only ever read `.clientLinks` from that shape).
+export const mollieGetCustomerStudentLinksController = async (req: Request, res: Response) => {
+    const customerId = Number(req.params.customerId);
+
+    if (!Number.isInteger(customerId) || customerId <= 0) {
+        return res.status(400).json({ error: 'Invalid customer id' });
+    }
+
+    try {
+        const customer = await getCustomerWithStudentLinks(customerId);
+
+        if (!customer) {
+            return res.status(404).json({ error: 'Mollie customer not found' });
+        }
+
+        res.set('Cache-Control', 'no-store');
+        return res.status(200).json(customer.clientLinks);
+    } catch (error) {
+        console.error('Error fetching Mollie customer student links:', error.message);
         return res.status(500).json({ error: 'Internal server error' });
     }
 };
@@ -1489,18 +1517,21 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
     }
 
     try {
-        await mollieSyncService.reconcileCustomerPayments(parsedCustomerId);
-
         const [customerFullInfo, events] = await Promise.all([
             prisma.customer.findUnique({
                 where: { id: parsedCustomerId },
                 include: {
-                    // mandates/subscriptions intentionally omitted — the client
-                    // fetches them from separate /mandates and /subscriptions
-                    // endpoints (useCustomerDataRefresh.ts), not this one.
-                    payments: {
-                        select: customerPaymentSelect,
-                    },
+                    // mandates/subscriptions/payments intentionally omitted — the
+                    // client fetches them from dedicated endpoints
+                    // (useCustomerDataRefresh.ts, usePaymentHistoryData.ts)
+                    // instead of this one. clientLinks stays here (used directly
+                    // by MollieClientProfileCard), plus student-links has its own
+                    // lightweight endpoint for useStudentLinksData. This endpoint
+                    // used to also run a synchronous live Mollie API reconciliation
+                    // loop over every stored payment before responding — removed:
+                    // webhooks (service.MollieUtils) are the source of truth for
+                    // payment status, and re-syncing on every page view meant N
+                    // sequential external HTTP calls per load.
                     client: {
                         select: customerClientSelect,
                     },
@@ -1524,6 +1555,33 @@ export const mollieGetCustomerFullInfo = async (req: Request, res: Response) => 
         return res.status(500).json({ error: 'Internal server error' });
     }
 }
+
+// Dedicated endpoint for the customer detail page's payment history section
+// (usePaymentHistoryData.ts) — the full customer payload above deliberately
+// omits payments (unbounded row count, not needed by anything else on the
+// page) so this is a separate, narrow query instead of a heavier include.
+export const mollieGetCustomerPaymentsController = async (req: Request, res: Response) => {
+    const { customerId } = req.params;
+    const parsedCustomerId = Number(customerId);
+
+    if (!Number.isInteger(parsedCustomerId) || parsedCustomerId <= 0) {
+        return res.status(400).json({ error: 'Invalid customer id' });
+    }
+
+    try {
+        const payments = await prisma.payment.findMany({
+            where: { customerId: parsedCustomerId },
+            select: customerPaymentSelect,
+            orderBy: { createdAt: 'desc' },
+        });
+
+        res.set('Cache-Control', 'no-store');
+        return res.status(200).json(payments);
+    } catch (error) {
+        console.error('Error fetching Mollie customer payments:', error.message);
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 // Lightweight endpoint for the update-customer form modal — returns only the
 // fields the form actually renders, skipping payments/events/clientLinks/etc.
@@ -2543,6 +2601,39 @@ const toMandateResponse = (mandate: {
     updatedAt: mandate.updatedAt,
 });
 
+const createAndSyncMollieMandate = async (params: {
+    localClientId: number;
+    mandateData: z.infer<typeof createMandateSchema>;
+}) => {
+    const { localClientId, mandateData } = params;
+    const { customerId, signatureDate, method, consumerName, consumerAccount, consumerBic } = mandateData;
+
+    const mandate = await mollieService.createMandate({
+        customerId,
+        method: method as MandateMethod,
+        consumerName,
+        consumerAccount,
+        consumerBic,
+        signatureDate,
+        mandateReference: `MANDATE-${customerId}-${Date.now()}`,
+    });
+
+    await mollieSyncService.syncMollieMandate(localClientId, mandate);
+
+    return prisma.mandate.findUnique({
+        where: { mollieId: mandate.id },
+        select: {
+            mollieId: true,
+            status: true,
+            method: true,
+            signatureDate: true,
+            mandateReference: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+};
+
 export const mollieCreateMandateController = async (req: Request<{}, {}, MandateFormData>, res: Response) => {
     const parsedBody = createMandateSchema.safeParse(req.body);
 
@@ -2554,35 +2645,16 @@ export const mollieCreateMandateController = async (req: Request<{}, {}, Mandate
     }
 
     try {
-        const { customerId, signatureDate, method, consumerName, consumerAccount, consumerBic } = parsedBody.data;
+        const { customerId } = parsedBody.data;
         const client = await getCostomerByMollieId(customerId);
 
         if (!client) {
             return res.status(400).json({ message: 'Client ID is required' });
         }
 
-        const mandate = await mollieService.createMandate({
-            customerId,
-            method: method as MandateMethod,
-            consumerName,
-            consumerAccount,
-            consumerBic,
-            signatureDate,
-            mandateReference: `MANDATE-${customerId}-${Date.now()}`
-        });
-
-        await mollieSyncService.syncMollieMandate(client.id, mandate);
-        const savedMandate = await prisma.mandate.findUnique({
-            where: { mollieId: mandate.id },
-            select: {
-                mollieId: true,
-                status: true,
-                method: true,
-                signatureDate: true,
-                mandateReference: true,
-                createdAt: true,
-                updatedAt: true,
-            },
+        const savedMandate = await createAndSyncMollieMandate({
+            localClientId: client.id,
+            mandateData: parsedBody.data,
         });
 
         if (!savedMandate) {

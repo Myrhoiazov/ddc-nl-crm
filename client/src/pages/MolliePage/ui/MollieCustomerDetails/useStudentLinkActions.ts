@@ -1,21 +1,21 @@
 import { Dispatch, SetStateAction, useState } from 'react';
-import { MollieClient } from '@/entities/MollieClient';
+import { MollieClientStudentLink } from '@/entities/MollieClient';
 import { PayerRelation } from './studentLinksHelpers';
 import { useAddStudentLink } from './useAddStudentLink';
 import { useDeleteStudentLink } from './useDeleteStudentLink';
 
 export const useStudentLinkActions = (
     customerId: string,
-    customer: MollieClient | null,
-    setCustomer: Dispatch<SetStateAction<MollieClient | null>>,
+    clientLinks: MollieClientStudentLink[],
+    setClientLinks: Dispatch<SetStateAction<MollieClientStudentLink[]>>,
     onChanged: () => void,
 ) => {
     const [selectedClientId, setSelectedClientId] = useState('');
     const [payerRelation, setPayerRelation] = useState<PayerRelation>('parent');
     const [isSaving, setIsSaving] = useState(false);
 
-    const addStudentLink = useAddStudentLink(customerId, customer, setCustomer, setIsSaving, onChanged);
-    const onDeleteLink = useDeleteStudentLink(customerId, setCustomer, setIsSaving, onChanged);
+    const addStudentLink = useAddStudentLink(customerId, clientLinks, setClientLinks, setIsSaving, onChanged);
+    const onDeleteLink = useDeleteStudentLink(customerId, setClientLinks, setIsSaving, onChanged);
 
     const onAddStudent = () => addStudentLink(selectedClientId, payerRelation, () => setSelectedClientId(''));
 
