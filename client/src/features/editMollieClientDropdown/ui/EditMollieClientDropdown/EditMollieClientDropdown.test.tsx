@@ -64,7 +64,7 @@ describe('EditMollieClientDropdown', () => {
         fireEvent.click(screen.getByRole('button'));
         fireEvent.click(await screen.findByText('Обновить'));
 
-        expect($apiPrivate.get).toHaveBeenCalledWith('/mollie/customers/1');
+        expect($apiPrivate.get).toHaveBeenCalledWith('/mollie/customers/edit-data/1');
         expect(await screen.findByText('Редактирование клиента')).toBeInTheDocument();
     });
 });
