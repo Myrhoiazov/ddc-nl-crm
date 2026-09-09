@@ -15,7 +15,7 @@ describe('fetchMollieClientData', () => {
 
         const result = await fetchMollieClientData('1')(dispatch, () => ({}) as never, extra as never);
 
-        expect(extra.apiPrivate.get).toHaveBeenCalledWith('/mollie/customers/1');
+        expect(extra.apiPrivate.get).toHaveBeenCalledWith('/mollie/customers/edit-data/1');
         expect(result.meta.requestStatus).toBe('fulfilled');
         expect(result.payload).toEqual(client);
     });
