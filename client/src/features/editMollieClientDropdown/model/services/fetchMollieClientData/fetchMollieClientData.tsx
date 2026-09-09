@@ -8,7 +8,7 @@ export const fetchMollieClientData = createAsyncThunk<MollieClient, string, Thun
         const { extra, rejectWithValue } = thunkAPI;
         try {
             const { data } = await extra.apiPrivate.get<MollieClient>(
-                `/mollie/customers/${customerId}`
+                `/mollie/customers/edit-data/${customerId}`
             );
 
             if (!data) {
