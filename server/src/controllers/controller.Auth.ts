@@ -304,6 +304,13 @@ export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>,
         // (see login()) — so this success is by definition "a new/untrusted
         // device". Only alert when it follows recent failed attempts, to avoid
         // paging on every ordinary first-time-device login.
+        //
+        // This is a DB query, not state threaded from login()'s rate-limit hit:
+        // login() and this verify step are two separate HTTP requests (the user
+        // re-enters the app between them to type the 2FA code), so nothing set
+        // on the login() request object survives to here. The query is indexed
+        // (@@index([targetUserId, createdAt]) on AuthSecurityEvent) and only
+        // runs on the already-low-frequency 2FA-success path, not per keystroke.
         const recentFailures = await prisma.authSecurityEvent.count({
             where: {
                 type: AuthSecurityEventType.LOGIN_FAILED,

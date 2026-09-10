@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import axios from 'axios';
 import {
     buildLoginBlockedNotification,
     buildMolliePaymentNotification,
     buildNewDeviceAfterFailuresNotification,
+    notifyLoginBlocked,
+    notifyNewDeviceAfterFailures,
 } from './service.Telegram';
 
 const payment = {
@@ -91,4 +94,57 @@ test('builds a new-device-after-failures notification with email, IP, and failur
     assert.match(message, /user@example\.com/);
     assert.match(message, /198\.51\.100\.4/);
     assert.match(message, /3/);
+});
+
+const withTelegramEnv = (vars: Record<string, string | undefined>, fn: () => Promise<void>) => {
+    const previous: Record<string, string | undefined> = {
+        TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN,
+        TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
+    };
+    for (const key of Object.keys(vars)) {
+        if (vars[key] === undefined) delete process.env[key];
+        else process.env[key] = vars[key];
+    }
+    return fn().finally(() => {
+        for (const key of Object.keys(previous)) {
+            if (previous[key] === undefined) delete process.env[key];
+            else process.env[key] = previous[key];
+        }
+    });
+};
+
+test('notifyLoginBlocked does not call axios when Telegram is not configured', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: undefined, TELEGRAM_CHAT_ID: undefined }, async () => {
+        const result = await notifyLoginBlocked({ email: 'a@b.com', ip: '1.2.3.4', retryAfterSeconds: 60 });
+        assert.equal(result, false);
+    });
+
+    assert.equal(postMock.mock.callCount(), 0);
+});
+
+test('notifyLoginBlocked sends the built message via axios when Telegram is configured', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: 'token', TELEGRAM_CHAT_ID: 'chat-id' }, async () => {
+        const result = await notifyLoginBlocked({ email: 'a@b.com', ip: '1.2.3.4', retryAfterSeconds: 60 });
+        assert.equal(result, true);
+    });
+
+    assert.equal(postMock.mock.callCount(), 1);
+    const [url, body] = postMock.mock.calls[0].arguments;
+    assert.match(String(url), /api\.telegram\.org\/bottoken\/sendMessage/);
+    assert.match((body as { text: string }).text, /Вход заблокирован/);
+});
+
+test('notifyNewDeviceAfterFailures does not call axios when Telegram is not configured', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: undefined, TELEGRAM_CHAT_ID: undefined }, async () => {
+        const result = await notifyNewDeviceAfterFailures({ email: 'a@b.com', ip: '1.2.3.4', recentFailures: 2 });
+        assert.equal(result, false);
+    });
+
+    assert.equal(postMock.mock.callCount(), 0);
 });
