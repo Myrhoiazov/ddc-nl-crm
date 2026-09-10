@@ -23,7 +23,7 @@ const amsterdamUtcOffsetMs = (date: Date) => {
     return (match[1] === '-' ? -minutes : minutes) * 60 * 1000;
 };
 
-export const paymentLinkExpiry = (dueDate: Date | null) => {
+export const paymentLinkExpiry = (dueDate: Date | null, now: Date = new Date()) => {
     if (!dueDate) return null;
     const localEndAsUtc = Date.UTC(
         dueDate.getUTCFullYear(),
@@ -35,7 +35,7 @@ export const paymentLinkExpiry = (dueDate: Date | null) => {
         999,
     );
     const expiry = new Date(localEndAsUtc - amsterdamUtcOffsetMs(new Date(localEndAsUtc)));
-    return expiry.getTime() > Date.now() ? expiry : null;
+    return expiry.getTime() > now.getTime() ? expiry : null;
 };
 
 const paymentLinkWebhookUrl = (token: string) => {
