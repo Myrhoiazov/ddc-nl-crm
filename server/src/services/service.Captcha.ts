@@ -31,7 +31,8 @@ export const verifyCaptchaToken = async (token: string, remoteIp?: string): Prom
         });
         return data.success === true;
     } catch (error) {
-        console.error('Turnstile verification request failed:', error);
+        const message = error instanceof Error ? error.message : 'unknown error';
+        console.error('Turnstile verification request failed:', message);
         return false;
     }
 };
