@@ -38,7 +38,9 @@ const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
         onBackToCredentials,
         captchaRequired,
         captchaSiteKey,
+        captchaWidgetKey,
         onCaptchaVerify,
+        onCaptchaReset,
     } = useLoginForm({ onSuccess });
 
     if (pendingMaskedEmail) {
@@ -70,7 +72,12 @@ const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
                     />
                     {captchaRequired && captchaSiteKey && (
                         <VStack align="center" className={cls.captcha}>
-                            <TurnstileWidget siteKey={captchaSiteKey} onVerify={onCaptchaVerify} />
+                            <TurnstileWidget
+                                key={captchaWidgetKey}
+                                siteKey={captchaSiteKey}
+                                onVerify={onCaptchaVerify}
+                                onReset={onCaptchaReset}
+                            />
                         </VStack>
                     )}
                     <LoginFormError error={error} />

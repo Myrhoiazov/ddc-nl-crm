@@ -112,4 +112,33 @@ describe('LoginForm', () => {
             captchaToken: 'captcha-token-abc',
         })));
     });
+
+    test('does not retry login without a fresh captcha token after Turnstile expires', async () => {
+        let expiredCallback: (() => void) | undefined;
+        const renderMock = jest.fn().mockImplementation((_container, options) => {
+            options.callback('captcha-token-abc');
+            expiredCallback = options['expired-callback'];
+            return 'widget-id';
+        });
+        window.turnstile = { render: renderMock, remove: jest.fn() };
+
+        const error = new Error('captcha') as Error & { isAxiosError: boolean; response: { status: number; data: unknown } };
+        error.isAxiosError = true;
+        error.response = {
+            status: 400,
+            data: { code: 'CAPTCHA_REQUIRED', message: 'Подтвердите, что вы не робот', siteKey: 'site-key-xyz' },
+        };
+        ($api.post as jest.Mock).mockRejectedValueOnce(error);
+        renderLoginForm();
+
+        fireEvent.change(screen.getByPlaceholderText('name@company.com'), { target: { value: 'd@example.com' } });
+        fireEvent.change(screen.getByPlaceholderText('Введите пароль'), { target: { value: 'wrong' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+        await waitFor(() => expect(renderMock).toHaveBeenCalled());
+        expiredCallback?.();
+        fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+        expect($api.post).toHaveBeenCalledTimes(1);
+    });
 });

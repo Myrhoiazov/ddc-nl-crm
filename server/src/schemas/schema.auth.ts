@@ -5,6 +5,7 @@ const loginBodySchema = z.object({
         message: "Write a correct email address",
     }),
     password: z.string().min(1).max(128),
+    captchaToken: z.string().min(1).max(4096).optional(),
 });
 
 export const loginSchema = z.object({ body: loginBodySchema });

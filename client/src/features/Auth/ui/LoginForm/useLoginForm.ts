@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { FormEvent } from 'react';
 import { getLoginEmail } from '../../model/selectors/getLoginEmail/getLoginEmail';
@@ -20,21 +20,41 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
     const isLoading = useSelector(getLoginIsLoading);
     const error = useSelector(getLoginError);
     const [pendingMaskedEmail, setPendingMaskedEmail] = useState<string>();
-    const [captchaToken, setCaptchaToken] = useState<string>();
+    const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
+    const captchaTokenRef = useRef<string | undefined>(undefined);
+
+    const clearCaptchaToken = useCallback((resetWidget = false) => {
+        captchaTokenRef.current = undefined;
+        if (resetWidget) {
+            setCaptchaWidgetKey((value) => value + 1);
+        }
+    }, []);
 
     const onChangeEmail = useCallback((value: string) => {
         dispatch(loginActions.cleanError());
+        clearCaptchaToken(true);
         dispatch(loginActions.setUseremail(value));
-    }, [dispatch]);
+    }, [clearCaptchaToken, dispatch]);
 
     const onChangePassword = useCallback((value: string) => {
         dispatch(loginActions.cleanError());
+        clearCaptchaToken(true);
         dispatch(loginActions.setPassword(value));
-    }, [dispatch]);
+    }, [clearCaptchaToken, dispatch]);
+
+    const captchaRequired = error?.code === 'CAPTCHA_REQUIRED' || error?.code === 'CAPTCHA_INVALID';
 
     const onLoginClick = useCallback(async () => {
-        const result = await dispatch(loginByUsername({ email, password, captchaToken }));
-        setCaptchaToken(undefined);
+        const captchaTokenValue = captchaTokenRef.current;
+        if (captchaRequired && !captchaTokenValue) return;
+
+        const authData = captchaTokenValue
+            ? { email, password, captchaToken: captchaTokenValue }
+            : { email, password };
+        const result = await dispatch(loginByUsername(authData));
+        if (captchaTokenValue) {
+            clearCaptchaToken(true);
+        }
         if (result.meta.requestStatus !== 'fulfilled') return;
         const payload = result.payload;
         if (payload && 'requiresTwoFactor' in payload) {
@@ -42,11 +62,13 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
         } else {
             onSuccess?.();
         }
-    }, [onSuccess, dispatch, password, email, captchaToken]);
+    }, [captchaRequired, clearCaptchaToken, onSuccess, dispatch, password, email]);
 
     const onCaptchaVerify = useCallback((token: string) => {
-        setCaptchaToken(token);
+        captchaTokenRef.current = token;
     }, []);
+
+    const onCaptchaReset = clearCaptchaToken;
 
     const onSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -56,8 +78,6 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
     const onBackToCredentials = useCallback(() => {
         setPendingMaskedEmail(undefined);
     }, []);
-
-    const captchaRequired = error?.code === 'CAPTCHA_REQUIRED' || error?.code === 'CAPTCHA_INVALID';
 
     return {
         email,
@@ -71,6 +91,8 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
         onBackToCredentials,
         captchaRequired,
         captchaSiteKey: error?.siteKey,
+        captchaWidgetKey,
         onCaptchaVerify,
+        onCaptchaReset,
     };
 };

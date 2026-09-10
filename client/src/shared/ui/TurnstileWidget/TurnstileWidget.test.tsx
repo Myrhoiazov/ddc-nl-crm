@@ -35,6 +35,28 @@ describe('TurnstileWidget', () => {
         expect(onVerify).toHaveBeenCalledWith('captcha-token-123');
     });
 
+    test('clears the token when Turnstile expires or errors', async () => {
+        const onReset = jest.fn();
+        let expiredCallback: (() => void) | undefined;
+        let errorCallback: (() => void) | undefined;
+        window.turnstile = {
+            render: jest.fn().mockImplementation((_container, options) => {
+                expiredCallback = options['expired-callback'];
+                errorCallback = options['error-callback'];
+                return 'widget-id';
+            }),
+            remove: jest.fn(),
+        };
+
+        render(<TurnstileWidget siteKey="test-site-key" onVerify={jest.fn()} onReset={onReset} />);
+
+        await waitFor(() => expect(window.turnstile?.render).toHaveBeenCalled());
+        expiredCallback?.();
+        errorCallback?.();
+
+        expect(onReset).toHaveBeenCalledTimes(2);
+    });
+
     test('removes the widget on unmount', async () => {
         const removeMock = jest.fn();
         window.turnstile = {
