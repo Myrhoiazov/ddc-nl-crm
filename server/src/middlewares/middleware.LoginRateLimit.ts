@@ -44,7 +44,7 @@ export const loginRateLimit = async (req: Request, res: Response, next: NextFunc
         return;
     }
 
-    if (result.count > CAPTCHA_THRESHOLD && isCaptchaConfigured()) {
+    if (result.count >= CAPTCHA_THRESHOLD && isCaptchaConfigured()) {
         const token = typeof req.body?.captchaToken === 'string' ? req.body.captchaToken : '';
         const valid = token ? await verifyCaptchaToken(token, req.ip) : false;
         if (!valid) {
