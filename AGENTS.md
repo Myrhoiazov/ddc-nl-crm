@@ -64,7 +64,7 @@ Validate
 | Docker / production deployment | docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md |
 | Graphify changes | docs/spec/GRAPHIFY_WORKFLOW.md |
 | CI/CD pipeline or Git branching changes | docs/spec/DDC_CRM_CICD_SPEC.md |
-| Skylos / dead-code / security scan changes | docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md (local run: `npm run check:skylos`) |
+| Skylos / dead-code / security scan changes | docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md (local run: `npm run check:skylos`). Скрипт использует `--baseline` — известные находки подавлены через `.skylos/baseline.json`. Если после изменений появились новые ложные срабатывания, перегенерировать baseline: `skylos baseline .` |
 | Auth / security changes | docs/roadmap/AUTH_SECURITY_ROADMAP.md (gitignored, local only) |
 | Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md (gitignored, local only) |
 | Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md (gitignored, local only) |

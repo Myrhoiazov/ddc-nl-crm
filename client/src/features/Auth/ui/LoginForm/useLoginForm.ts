@@ -20,6 +20,7 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
     const isLoading = useSelector(getLoginIsLoading);
     const error = useSelector(getLoginError);
     const [pendingMaskedEmail, setPendingMaskedEmail] = useState<string>();
+    const [captchaToken, setCaptchaToken] = useState<string>();
 
     const onChangeEmail = useCallback((value: string) => {
         dispatch(loginActions.cleanError());
@@ -32,7 +33,8 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
     }, [dispatch]);
 
     const onLoginClick = useCallback(async () => {
-        const result = await dispatch(loginByUsername({ email, password }));
+        const result = await dispatch(loginByUsername({ email, password, captchaToken }));
+        setCaptchaToken(undefined);
         if (result.meta.requestStatus !== 'fulfilled') return;
         const payload = result.payload;
         if (payload && 'requiresTwoFactor' in payload) {
@@ -40,7 +42,11 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
         } else {
             onSuccess?.();
         }
-    }, [onSuccess, dispatch, password, email]);
+    }, [onSuccess, dispatch, password, email, captchaToken]);
+
+    const onCaptchaVerify = useCallback((token: string) => {
+        setCaptchaToken(token);
+    }, []);
 
     const onSubmit = useCallback((event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -50,6 +56,8 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
     const onBackToCredentials = useCallback(() => {
         setPendingMaskedEmail(undefined);
     }, []);
+
+    const captchaRequired = error?.code === 'CAPTCHA_REQUIRED' || error?.code === 'CAPTCHA_INVALID';
 
     return {
         email,
@@ -61,5 +69,8 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
         onChangePassword,
         onSubmit,
         onBackToCredentials,
+        captchaRequired,
+        captchaSiteKey: error?.siteKey,
+        onCaptchaVerify,
     };
 };

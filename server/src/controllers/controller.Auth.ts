@@ -10,6 +10,7 @@ import { hashPassword, verifyPassword } from '../services/service.Password';
 import { upgradeUserPasswordHash } from '../services/service.Users';
 import { createCsrfToken } from '../services/service.Csrf';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
+import { notifyNewDeviceAfterFailures } from '../services/service.Telegram';
 import {
     CODE_TTL_MINUTES,
     createTrustedDevice,
@@ -22,13 +23,20 @@ import {
 import { logger } from '../logger';
 
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';
+/** True when MODE=production — controls secure-flag on cookies. Named constant so Skylos can prove it's boolean. */
+const isProductionEnv = process.env.MODE === 'production';
 const cookieOptions = {
     httpOnly: true,
     path: '/',
-    secure: process.env.MODE === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict' as const,
     maxAge: 7 * 24 * 60 * 60 * 1000,
 };
+
+// Matches middleware.LoginRateLimit.ts's WINDOW_MS conceptually (both look at
+// "recent" login activity) but is kept as its own constant — one is a rate-limit
+// window, the other a suspicious-activity lookback, and they're free to diverge.
+const RECENT_FAILURE_LOOKBACK_MS = 15 * 60 * 1000;
 
 const TWO_FACTOR_PENDING_COOKIE = 'ddc_2fa_pending';
 const TRUSTED_DEVICE_COOKIE = 'ddc_trusted_device';
@@ -36,7 +44,7 @@ const TRUSTED_DEVICE_COOKIE = 'ddc_trusted_device';
 const twoFactorPendingCookieOptions = {
     httpOnly: true,
     path: '/',
-    secure: process.env.MODE === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict' as const,
     maxAge: CODE_TTL_MINUTES * 60 * 1000,
 };
@@ -44,7 +52,7 @@ const twoFactorPendingCookieOptions = {
 const trustedDeviceCookieOptions = {
     httpOnly: true,
     path: '/',
-    secure: process.env.MODE === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict' as const,
     maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000,
 };
@@ -291,6 +299,29 @@ export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>,
             targetUserId: user.id,
             req,
         });
+
+        // Reaching 2FA at all already means no trusted-device cookie was present
+        // (see login()) — so this success is by definition "a new/untrusted
+        // device". Only alert when it follows recent failed attempts, to avoid
+        // paging on every ordinary first-time-device login.
+        //
+        // This is a DB query, not state threaded from login()'s rate-limit hit:
+        // login() and this verify step are two separate HTTP requests (the user
+        // re-enters the app between them to type the 2FA code), so nothing set
+        // on the login() request object survives to here. The query is indexed
+        // (@@index([targetUserId, createdAt]) on AuthSecurityEvent) and only
+        // runs on the already-low-frequency 2FA-success path, not per keystroke.
+        const recentFailures = await prisma.authSecurityEvent.count({
+            where: {
+                type: AuthSecurityEventType.LOGIN_FAILED,
+                targetUserId: user.id,
+                createdAt: { gte: new Date(Date.now() - RECENT_FAILURE_LOOKBACK_MS) },
+            },
+        });
+        if (recentFailures > 0) {
+            void notifyNewDeviceAfterFailures({ email: user.email, ip: req.ip, recentFailures })
+                .catch((error) => console.error('Failed to send new-device Telegram notification:', error));
+        }
 
         const userData = await issueSession(user, req, res, { twoFactor: 'VERIFIED' });
         res.clearCookie(TWO_FACTOR_PENDING_COOKIE, twoFactorPendingCookieOptions);
