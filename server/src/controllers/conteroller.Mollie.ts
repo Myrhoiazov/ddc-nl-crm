@@ -343,7 +343,7 @@ export const connectMollieController = async (req: AuthenticatedRequest, res: Re
     res.cookie('mollie_oauth_state', salt, {
         httpOnly: true,
         path: '/api/v1/mollie/callback',
-        secure: process.env.MODE === 'production',
+        secure: true,
         sameSite: 'lax',
         maxAge: 10 * 60 * 1000,
     });
