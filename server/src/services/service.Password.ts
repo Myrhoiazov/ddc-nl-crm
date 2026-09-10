@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import argon2 from 'argon2';
 import { authentication } from '../helpers';
+import { COMMON_PASSWORDS } from '../data/commonPasswords';
 
 const ARGON2_OPTIONS = {
     type: argon2.argon2id,
@@ -37,3 +38,7 @@ export const verifyPassword = async (
 };
 
 export const isPasswordAllowed = (password: string) => password.length >= 12 && password.length <= 128;
+
+const commonPasswordSet = new Set(COMMON_PASSWORDS.map((entry) => entry.toLowerCase()));
+
+export const isCommonPassword = (password: string) => commonPasswordSet.has(password.toLowerCase());
