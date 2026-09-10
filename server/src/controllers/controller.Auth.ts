@@ -22,10 +22,12 @@ import {
 import { logger } from '../logger';
 
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';
+/** True when MODE=production — controls secure-flag on cookies. Named constant so Skylos can prove it's boolean. */
+const isProductionEnv = process.env.MODE === 'production';
 const cookieOptions = {
     httpOnly: true,
     path: '/',
-    secure: process.env.MODE === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict' as const,
     maxAge: 7 * 24 * 60 * 60 * 1000,
 };
@@ -36,7 +38,7 @@ const TRUSTED_DEVICE_COOKIE = 'ddc_trusted_device';
 const twoFactorPendingCookieOptions = {
     httpOnly: true,
     path: '/',
-    secure: process.env.MODE === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict' as const,
     maxAge: CODE_TTL_MINUTES * 60 * 1000,
 };
@@ -44,7 +46,7 @@ const twoFactorPendingCookieOptions = {
 const trustedDeviceCookieOptions = {
     httpOnly: true,
     path: '/',
-    secure: process.env.MODE === 'production',
+    secure: isProductionEnv,
     sameSite: 'strict' as const,
     maxAge: TRUSTED_DEVICE_DAYS * 24 * 60 * 60 * 1000,
 };

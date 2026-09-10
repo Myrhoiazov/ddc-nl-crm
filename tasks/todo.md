@@ -1,27 +1,60 @@
-# Todo: API Response Shape — Second-Pass Audit Fixes
+# Todo: Skylos Findings Fix
 
-- [x] Task 1: Stop leaking `InvoiceDelivery.publicToken` from create/update
-- [x] Task 2: Stop leaking `InvoiceDelivery.publicToken` from `getInvoiceDeliveries`
-- [x] Task 3: Narrow Mollie customer-list response (drop bank-like consumer fields)
-- [x] Task 4: Narrow Client detail includes (branch/group) in `service.Clients.ts`
-- [x] Task 5: Narrow `findLatestPayments`/`findPaymentLinks` Payment fields
-- [x] Task 6: Narrow `findSubscriptions` (Subscription + nested Mandate)
-- [x] Task 7: Narrow `findMandates` Mandate fields
-- [x] Task 8: Narrow `mollieGetCustomerFullInfo` (drop unused relations, select Payment)
-- [x] Task 9: Narrow `mollieGetPaymentsController` Payment fields
-- [x] Task 10: Narrow `mollieGetUpcomingSubscriptionsController` Subscription fields
-- [x] Task 11: Drop unused raw `payment`/`subscription` objects from Mollie incidents
-- [x] Task 12: Narrow payment-reminder settings/template upsert responses
-- [x] Task 13: Narrow payment-reminder delivery list response
-- [x] Task 14: Trim `deleteClient` response body
-- [x] Task 15: Trim dance-group create/update response bodies
-- [x] Task 16: Trim style-card create/update response bodies
-- [x] Task 17: Trim `mollieDeleteSubscriptionByIdController` response body
-- [x] Task 18: Drop unused `parentInvoice` from `invoiceInclude`
-- [x] Task 19: Resolve `invoiceInclude.adjustments` — kept (shipped credit/debit note API), documented as intentional on client type
-- [x] Checks passed (`npm run ci` from the root — one flaky lazy-load test failed on the first full run, passed isolated + on full rerun)
-- [x] Code review passed (2-axis review: 0 hard violations; 3 judgment-call smells noted & accepted; stale deleteClientById thunks fixed in follow-up)
-- [x] Browser QA completed per-task where noted (blocked — dev-requirement requires Docker or `npm start` without root PORT; all changes are non-visible payload trims confirmed by server+client tests)
-- [x] All remaining `fix/*` + `refactor/*` branches merged into `develop` (13 branches: invoice-delivery-public-token-leak, mollie-create-mandate-response-shape, mollie-customer-delete-route, mollie-subscription-delete-flow, clients-detail-include, clients-payment-fields-select, clients-subscriptions-select, company-branches-select, company-organization-select, email-download-attachment-select, mollie-customer-list-select, schedule-halls-choreographers-select, schedule-style-cards-select) — merge commits, conflicts resolved (tasks/* kept develop version; mollie-customer-delete-route resolved with develop version since DELETE endpoint already existed there; its client-side URL fix `/mollie/customers/${clientId}` preserved)
-- [x] Checks re-run after all merges: server `npm run build` + `test:ci` (77 tests pass), client `lint:ts` 0 errors + `npm test` (283 suites / 985 passed), root `npm run ci` green
-- [x] Ready for PR
+**Grade: D (66/100)** — Phase A (informational, non-blocking)
+
+## Security (High Priority)
+
+- [ ] Task 1: SKY-D252 — Add `secure: true` to cookie options
+  - `server/src/controllers/controller.Auth.ts` (lines 116, 175, 252, 390)
+  - `server/src/controllers/conteroller.Mollie.ts` (line 343)
+- [ ] Task 2: SKY-D253 — Use `crypto.timingSafeEqual` for password comparison
+  - `client/src/features/changePassword/model/services/changePasswordThunk.ts:23`
+  - `server/scripts/reset-user-password.ts:66`
+- [ ] Task 3: SKY-D248 — Replace hardcoded URLs with env vars
+  - `client/webpack.config.ts:31`
+  - `server/src/app.ts:27`
+  - `server/src/controllers/conteroller.Mollie.ts:410`
+  - `server/src/middlewares/middleware.Csrf.ts:11`
+  - `server/src/services/service.Files.ts:7`
+  - `server/src/services/service.InvoiceDelivery.ts:43`
+  - `server/src/services/service.PaymentReminders.ts:11`
+- [ ] Task 4: SKY-D327 — Fix potential data exfiltration
+  - `server/src/controllers/conteroller.Mollie.ts:364`
+  - `scripts/deploy-docker.sh:66`
+- [ ] Task 5: SKY-D216 — Validate URL against allowlist (SSRF prevention)
+  - `server/src/controllers/conteroller.Mollie.ts:3080`
+- [ ] Task 6: SKY-D230 — Validate redirect targets
+  - `server/src/controllers/conteroller.Mollie.ts:351,411`
+- [ ] Task 7: SKY-S101 — Verify high-entropy value is not a secret
+  - `server/src/controllers/controller.Clients.ts:333`
+
+## Quality / Type Safety (Medium Priority)
+
+- [ ] Task 8: SKY-T105 — Add runtime validation for `JSON.parse`
+  - `server/src/controllers/controller.Invoices.ts:286`
+- [ ] Task 9: SKY-L007 — Handle or document empty catch block
+  - `client/webpack.config.ts:9`
+- [ ] Task 10: SKY-Q402 — Parallelize `await` in loops with `Promise.all`
+  - `server/src/services/service.MollieSync.ts` (7 locations)
+  - `server/src/controllers/controller.Invoices.ts` (lines 879, 880)
+  - `server/src/services/service.EmailImap.ts:222`
+  - `server/src/services/service.InvoiceDelivery.ts:272`
+  - `server/src/services/service.PaymentReminders.ts:298`
+  - `server/prisma/seed.ts:35`
+
+## Dead Code (Low Priority — leave test/config/stories)
+
+- [ ] Task 11: Clean production dead code only
+  - SKY-U001: `client/config/jest/__mocks__/react-i18next.ts`, `jestEnptyComponent.tsx`, `setupTests.ts`
+  - SKY-U003: `server/src/services/service.Files.ts:6` (isDev)
+  - SKY-U004: `client/src/app/providers/ErrorBoundary/ui/ErrorBoundary.tsx`
+  - SKY-E003: `server/prisma.config.ts`, `server/prisma/seed.ts`, `client/webpack.config.ts`, `client/stylelint.config.mjs`
+
+## Final
+
+- [ ] `npm run check:skylos` — confirm grade improvement
+- [ ] Server: `npm run build` + relevant domain tests
+- [ ] Client: `npm run lint:ts` + `npm test`
+- [ ] Root: `npm run ci`
+- [ ] Browser QA for changed pages
+- [ ] PR into `develop`
