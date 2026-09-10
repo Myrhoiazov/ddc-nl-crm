@@ -14,6 +14,7 @@ import emailRouter from './router.Email'
 import searchRouter from './router.Search'
 import paymentRemindersRouter from './router.PaymentReminders'
 import healthRouter from './router.Health'
+import authSecurityEventsRouter from './router.AuthSecurityEvents'
 
 const router = express.Router();
 
@@ -32,6 +33,7 @@ export default (): express.Router => {
     router.use('/email', emailRouter)
     router.use('/search', searchRouter)
     router.use('/payment-reminders', paymentRemindersRouter)
+    router.use('/auth-security-events', authSecurityEventsRouter)
 
     router.use('/instagram', instagramRouter)
 
