@@ -22,6 +22,7 @@ export const loginRateLimit = async (req: Request, res: Response, next: NextFunc
         windowMs: WINDOW_MS,
         maxAttempts: MAX_ATTEMPTS,
     });
+    res.locals.loginRateLimitCount = result.count;
 
     if (result.limited) {
         const email = typeof req.body?.email === 'string'

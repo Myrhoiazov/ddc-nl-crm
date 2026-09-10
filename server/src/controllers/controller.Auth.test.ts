@@ -1,6 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildAuthenticatedUserData, describeLoginFailure, maskEmail } from './controller.Auth';
+import {
+    buildAuthenticatedUserData,
+    buildCaptchaPrewarmLoginError,
+    describeLoginFailure,
+    maskEmail,
+} from './controller.Auth';
 
 // Type-compatible with the AuthenticatedUser shape the controller works with.
 const user: NonNullable<Parameters<typeof describeLoginFailure>[0]> = {
@@ -48,4 +53,25 @@ test('buildAuthenticatedUserData exposes exactly the safe user profile', () => {
     });
     assert.equal('password' in data, false);
     assert.equal('salt' in data, false);
+});
+
+test('buildCaptchaPrewarmLoginError returns a captcha hint before the threshold attempt', () => {
+    const previousSiteKey = process.env.TURNSTILE_SITE_KEY;
+    const previousSecretKey = process.env.TURNSTILE_SECRET_KEY;
+    process.env.TURNSTILE_SITE_KEY = 'site-key';
+    process.env.TURNSTILE_SECRET_KEY = 'secret-key';
+
+    try {
+        assert.deepEqual(buildCaptchaPrewarmLoginError('Неверный email или пароль', 2), {
+            code: 'CAPTCHA_REQUIRED',
+            message: 'Неверный email или пароль',
+            siteKey: 'site-key',
+        });
+        assert.equal(buildCaptchaPrewarmLoginError('Неверный email или пароль', 1), null);
+    } finally {
+        if (previousSiteKey === undefined) delete process.env.TURNSTILE_SITE_KEY;
+        else process.env.TURNSTILE_SITE_KEY = previousSiteKey;
+        if (previousSecretKey === undefined) delete process.env.TURNSTILE_SECRET_KEY;
+        else process.env.TURNSTILE_SECRET_KEY = previousSecretKey;
+    }
 });
