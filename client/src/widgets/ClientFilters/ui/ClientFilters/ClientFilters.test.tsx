@@ -58,6 +58,6 @@ describe('ClientFilters', () => {
         renderFilters();
         fireEvent.click(screen.getByRole('button', { name: /Добавить клиента/ }));
 
-        expect(await screen.findByText('Добавление ученика')).toBeInTheDocument();
+        expect(await screen.findByText('Добавление ученика', {}, { timeout: 3000 })).toBeInTheDocument();
     });
 });

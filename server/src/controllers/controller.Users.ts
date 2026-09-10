@@ -111,7 +111,7 @@ const recordEnabledChangeAudit = async (req: Request, userId: number, previousEn
     });
 };
 
-const validateUpdateUserRequest = (
+export const validateUpdateUserRequest = (
     req: Request,
     userId: number,
     role: UserRole | undefined,
