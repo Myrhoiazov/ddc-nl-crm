@@ -83,6 +83,40 @@ test('verifyCaptchaToken returns false and swallows the error on a network failu
     delete process.env.TURNSTILE_SECRET_KEY;
 });
 
+test('verifyCaptchaToken does not log the Turnstile secret on verification errors', async (t) => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret-key';
+    t.mock.method(axios, 'post', async () => {
+        throw {
+            message: 'Request failed',
+            config: { data: 'secret=secret-key&response=any-token' },
+        };
+    });
+    const errorMock = t.mock.method(console, 'error', () => {});
+
+    const result = await verifyCaptchaToken('any-token');
+    const logged = errorMock.mock.calls.flatMap((call) => call.arguments).join(' ');
+
+    assert.equal(result, false);
+    assert.equal(logged.includes('secret-key'), false);
+    delete process.env.TURNSTILE_SECRET_KEY;
+});
+
+test('verifyCaptchaToken logs only the safe error message on verification errors', async (t) => {
+    process.env.TURNSTILE_SECRET_KEY = 'secret-key';
+    t.mock.method(axios, 'post', async () => {
+        throw new Error('Request failed');
+    });
+    const errorMock = t.mock.method(console, 'error', () => {});
+
+    await verifyCaptchaToken('any-token');
+
+    assert.deepEqual(errorMock.mock.calls[0].arguments, [
+        'Turnstile verification request failed:',
+        'Request failed',
+    ]);
+    delete process.env.TURNSTILE_SECRET_KEY;
+});
+
 test('verifyCaptchaToken returns false without calling axios when the secret is not configured', async (t) => {
     delete process.env.TURNSTILE_SECRET_KEY;
     const postMock = t.mock.method(axios, 'post', async () => ({ data: { success: true } }));
