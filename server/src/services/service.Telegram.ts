@@ -203,3 +203,27 @@ export const notifyNewDeviceAfterFailures = async (params: {
     await sendTelegramMessage(buildNewDeviceAfterFailuresNotification(params));
     return true;
 };
+
+export const buildRoleChangedNotification = (params: {
+    targetEmail: string;
+    actorEmail?: string | null;
+    fromRole: string;
+    toRole: string;
+}) => [
+    '<b>Изменена роль пользователя</b>',
+    '',
+    `<b>Пользователь:</b> ${escapeHtml(params.targetEmail)}`,
+    `<b>Роль:</b> ${escapeHtml(params.fromRole)} → ${escapeHtml(params.toRole)}`,
+    params.actorEmail ? `<b>Изменил:</b> ${escapeHtml(params.actorEmail)}` : null,
+].filter((row): row is string => Boolean(row)).join('\n');
+
+export const notifyRoleChanged = async (params: {
+    targetEmail: string;
+    actorEmail?: string | null;
+    fromRole: string;
+    toRole: string;
+}) => {
+    if (!isTelegramConfigured()) return false;
+    await sendTelegramMessage(buildRoleChangedNotification(params));
+    return true;
+};

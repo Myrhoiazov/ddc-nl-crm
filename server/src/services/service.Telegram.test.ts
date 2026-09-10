@@ -5,8 +5,10 @@ import {
     buildLoginBlockedNotification,
     buildMolliePaymentNotification,
     buildNewDeviceAfterFailuresNotification,
+    buildRoleChangedNotification,
     notifyLoginBlocked,
     notifyNewDeviceAfterFailures,
+    notifyRoleChanged,
 } from './service.Telegram';
 
 const payment = {
@@ -96,6 +98,31 @@ test('builds a new-device-after-failures notification with email, IP, and failur
     assert.match(message, /3/);
 });
 
+test('builds a role-changed notification with target, actor and role transition', () => {
+    const message = buildRoleChangedNotification({
+        targetEmail: 'target@example.com',
+        actorEmail: 'admin@example.com',
+        fromRole: 'MANAGER',
+        toRole: 'ADMIN',
+    });
+
+    assert.match(message, /Изменена роль/);
+    assert.match(message, /target@example\.com/);
+    assert.match(message, /MANAGER.*ADMIN/);
+    assert.match(message, /admin@example\.com/);
+});
+
+test('builds a role-changed notification without actor when not available', () => {
+    const message = buildRoleChangedNotification({
+        targetEmail: 'target@example.com',
+        actorEmail: null,
+        fromRole: 'MANAGER',
+        toRole: 'ADMIN',
+    });
+
+    assert.doesNotMatch(message, /Изменил/);
+});
+
 const withTelegramEnv = (vars: Record<string, string | undefined>, fn: () => Promise<void>) => {
     const previous: Record<string, string | undefined> = {
         TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN,
@@ -147,4 +174,39 @@ test('notifyNewDeviceAfterFailures does not call axios when Telegram is not conf
     });
 
     assert.equal(postMock.mock.callCount(), 0);
+});
+
+test('notifyRoleChanged does not call axios when Telegram is not configured', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: undefined, TELEGRAM_CHAT_ID: undefined }, async () => {
+        const result = await notifyRoleChanged({
+            targetEmail: 'target@example.com',
+            actorEmail: 'admin@example.com',
+            fromRole: 'MANAGER',
+            toRole: 'ADMIN',
+        });
+        assert.equal(result, false);
+    });
+
+    assert.equal(postMock.mock.callCount(), 0);
+});
+
+test('notifyRoleChanged sends the built message via axios when Telegram is configured', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: 'token', TELEGRAM_CHAT_ID: 'chat-id' }, async () => {
+        const result = await notifyRoleChanged({
+            targetEmail: 'target@example.com',
+            actorEmail: 'admin@example.com',
+            fromRole: 'MANAGER',
+            toRole: 'ADMIN',
+        });
+        assert.equal(result, true);
+    });
+
+    assert.equal(postMock.mock.callCount(), 1);
+    const [url, body] = postMock.mock.calls[0].arguments;
+    assert.match(String(url), /api\.telegram\.org\/bottoken\/sendMessage/);
+    assert.match((body as { text: string }).text, /Изменена роль/);
 });
