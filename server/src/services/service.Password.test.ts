@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { authentication, generateSalt } from '../helpers';
-import { hashPassword, isPasswordAllowed, verifyPassword } from './service.Password';
+import { hashPassword, isCommonPassword, isPasswordAllowed, verifyPassword } from './service.Password';
 
 process.env.SECRET_SALT ||= 'test-secret-salt';
 
@@ -26,4 +26,22 @@ test('new password policy requires 12 to 128 characters', () => {
     assert.equal(isPasswordAllowed('short'), false);
     assert.equal(isPasswordAllowed('twelve-chars!'), true);
     assert.equal(isPasswordAllowed('x'.repeat(129)), false);
+});
+
+test('isCommonPassword rejects a known leaked password', () => {
+    assert.equal(isCommonPassword('qwerty123456'), true);
+});
+
+test('isCommonPassword is case-insensitive', () => {
+    assert.equal(isCommonPassword('QWERTY123456'), true);
+    assert.equal(isCommonPassword('QwErTy123456'), true);
+});
+
+test('isCommonPassword allows a unique/random password', () => {
+    assert.equal(isCommonPassword('Xk7#mQ2p!zR9vL4w'), false);
+});
+
+test('isCommonPassword only matches exact list entries, no fuzzy match', () => {
+    assert.equal(isCommonPassword('qwerty123456-with-suffix'), false);
+    assert.equal(isCommonPassword('prefix-qwerty123456'), false);
 });

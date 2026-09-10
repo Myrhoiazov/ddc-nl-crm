@@ -3,7 +3,7 @@ import { get } from "lodash";
 import { AuthSecurityEventType } from '@prisma/client';
 import { IUserAttributes } from 'models/user/model/user.types';
 import { updateUser, getUserWithCredentials, updateUserPassword } from '../services/service.Users';
-import { hashPassword, isPasswordAllowed, verifyPassword } from '../services/service.Password';
+import { hashPassword, isCommonPassword, isPasswordAllowed, verifyPassword } from '../services/service.Password';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
 import { listUserSessions, revokeOtherUserSessions, revokeUserSession } from '../services/service.Token';
 
@@ -90,6 +90,9 @@ export const changePasswordController = async (req: Request, res: Response) => {
     }
     if (!isPasswordAllowed(newPassword)) {
         return res.status(400).json({ message: 'Пароль должен содержать от 12 до 128 символов' });
+    }
+    if (isCommonPassword(newPassword)) {
+        return res.status(400).json({ message: 'Этот пароль слишком распространён. Выберите другой пароль' });
     }
 
     if (String(currentUser.id) !== String(userId) && currentUser.role !== 'ADMIN') {

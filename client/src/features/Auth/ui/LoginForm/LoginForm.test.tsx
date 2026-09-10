@@ -1,6 +1,6 @@
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { createReduxStore, ReduxStoreWithManager } from '@/app/providers/StoreProvider';
 import { $api } from '@/shared/api/api';
 import LoginForm from './LoginForm';
@@ -28,6 +28,7 @@ function renderLoginForm(onSuccess = jest.fn()) {
 
 beforeEach(() => {
     jest.clearAllMocks();
+    window.turnstile = undefined;
 });
 
 describe('LoginForm', () => {
@@ -76,5 +77,39 @@ describe('LoginForm', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
         expect(await screen.findByText('Вы ввели неверный логин или пароль')).toBeInTheDocument();
+    });
+
+    test('shows the captcha widget after a CAPTCHA_REQUIRED response and submits the token on retry', async () => {
+        const renderMock = jest.fn().mockImplementation((_container, options) => {
+            options.callback('captcha-token-abc');
+            return 'widget-id';
+        });
+        window.turnstile = { render: renderMock, remove: jest.fn() };
+
+        const error = new Error('captcha') as Error & { isAxiosError: boolean; response: { status: number; data: unknown } };
+        error.isAxiosError = true;
+        error.response = {
+            status: 400,
+            data: { code: 'CAPTCHA_REQUIRED', message: 'Подтвердите, что вы не робот', siteKey: 'site-key-xyz' },
+        };
+        ($api.post as jest.Mock).mockRejectedValueOnce(error);
+        renderLoginForm();
+
+        fireEvent.change(screen.getByPlaceholderText('name@company.com'), { target: { value: 'd@example.com' } });
+        fireEvent.change(screen.getByPlaceholderText('Введите пароль'), { target: { value: 'wrong' } });
+        fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+        await waitFor(() => expect(renderMock).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+            sitekey: 'site-key-xyz',
+        })));
+
+        ($api.post as jest.Mock).mockResolvedValueOnce({
+            data: { id: '1', username: 'denis', email: 'd@example.com', role: 'ADMIN' },
+        });
+        fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
+
+        await waitFor(() => expect($api.post).toHaveBeenLastCalledWith('/auth/login', expect.objectContaining({
+            captchaToken: 'captcha-token-abc',
+        })));
     });
 });

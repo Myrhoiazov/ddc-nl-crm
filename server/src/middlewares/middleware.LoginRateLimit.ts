@@ -2,6 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import { AuthSecurityEventType } from '@prisma/client';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
 import { calculateProgressiveDelayMs, hitRateLimit, resetRateLimit } from '../services/service.RateLimit';
+import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured, verifyCaptchaToken } from '../services/service.Captcha';
+import { notifyLoginBlocked } from '../services/service.Telegram';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;
@@ -22,21 +24,37 @@ export const loginRateLimit = async (req: Request, res: Response, next: NextFunc
     });
 
     if (result.limited) {
+        const email = typeof req.body?.email === 'string'
+            ? req.body.email.trim().toLowerCase()
+            : 'unknown';
         void recordAuthSecurityEvent({
             type: AuthSecurityEventType.LOGIN_BLOCKED,
             req,
             metadata: {
-                email: typeof req.body?.email === 'string'
-                    ? req.body.email.trim().toLowerCase()
-                    : 'unknown',
+                email,
                 retryAfterSeconds: result.retryAfterSeconds,
                 count: result.count,
                 store: result.store,
             },
         });
+        void notifyLoginBlocked({ email, ip: req.ip, retryAfterSeconds: result.retryAfterSeconds })
+            .catch((error) => console.error('Failed to send login-blocked Telegram notification:', error));
         res.setHeader('Retry-After', result.retryAfterSeconds);
         res.status(429).json({ message: 'Слишком много попыток входа. Попробуйте позже.' });
         return;
+    }
+
+    if (result.count > CAPTCHA_THRESHOLD && isCaptchaConfigured()) {
+        const token = typeof req.body?.captchaToken === 'string' ? req.body.captchaToken : '';
+        const valid = token ? await verifyCaptchaToken(token, req.ip) : false;
+        if (!valid) {
+            res.status(400).json({
+                code: token ? 'CAPTCHA_INVALID' : 'CAPTCHA_REQUIRED',
+                message: 'Подтвердите, что вы не робот, и попробуйте снова.',
+                siteKey: captchaSiteKey(),
+            });
+            return;
+        }
     }
 
     res.on('finish', () => {
