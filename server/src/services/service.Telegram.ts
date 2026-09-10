@@ -156,3 +156,50 @@ export const notifyMolliePayment = async (payment: MolliePaymentNotification) =>
     await sendTelegramMessage(message);
     return true;
 };
+
+export const buildLoginBlockedNotification = (params: {
+    email: string;
+    ip?: string | null;
+    retryAfterSeconds: number;
+}) => [
+    '<b>Вход заблокирован по лимиту попыток</b>',
+    '',
+    `<b>Email:</b> ${escapeHtml(params.email)}`,
+    params.ip ? `<b>IP:</b> ${escapeHtml(params.ip)}` : null,
+    `<b>Повтор через:</b> ${params.retryAfterSeconds} сек`,
+].filter((row): row is string => Boolean(row)).join('\n');
+
+export const buildNewDeviceAfterFailuresNotification = (params: {
+    email: string;
+    ip?: string | null;
+    recentFailures: number;
+}) => [
+    '<b>Вход с нового устройства после неудачных попыток</b>',
+    '',
+    `<b>Email:</b> ${escapeHtml(params.email)}`,
+    params.ip ? `<b>IP:</b> ${escapeHtml(params.ip)}` : null,
+    `<b>Недавних неудачных попыток:</b> ${params.recentFailures}`,
+].filter((row): row is string => Boolean(row)).join('\n');
+
+// Fire-and-forget notifications for auth events — never let a Telegram send
+// failure or missing config affect the actual login/block response, same
+// guard pattern as notifyMolliePayment.
+export const notifyLoginBlocked = async (params: {
+    email: string;
+    ip?: string | null;
+    retryAfterSeconds: number;
+}) => {
+    if (!isTelegramConfigured()) return false;
+    await sendTelegramMessage(buildLoginBlockedNotification(params));
+    return true;
+};
+
+export const notifyNewDeviceAfterFailures = async (params: {
+    email: string;
+    ip?: string | null;
+    recentFailures: number;
+}) => {
+    if (!isTelegramConfigured()) return false;
+    await sendTelegramMessage(buildNewDeviceAfterFailuresNotification(params));
+    return true;
+};

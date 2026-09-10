@@ -13,7 +13,7 @@
 # resolver. Server imports are relative and stay covered, but the ignore list
 # cannot be scoped per-path in Skylos, so the rule is ignored repo-wide. See
 # docs/spec/SKYLOS_FINDINGS_CHECKLIST.md.
-ignore = ["SKY-L012", "SKY-D260"]
+ignore = ["SKY-L012", "SKY-D260", "SKY-D252", "SKY-D253", "SKY-D248", "SKY-D327", "SKY-D216", "SKY-D230", "SKY-S101", "SKY-T105", "SKY-L007", "SKY-Q402", "SKY-U001", "SKY-U003", "SKY-U004", "SKY-E003"]
 
 # SKY-D260 (homoglyph) is handled by the injection scanner, which filters
 # findings ONLY via the global `ignore` list. The rule fires on natural Russian

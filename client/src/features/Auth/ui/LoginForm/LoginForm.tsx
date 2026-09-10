@@ -13,6 +13,7 @@ import { LoginFormHeader } from './LoginFormHeader';
 import { LoginFormFields } from './LoginFormFields';
 import { LoginFormError } from './LoginFormError';
 import { LoginFormActions } from './LoginFormActions';
+import { TurnstileWidget } from '@/shared/ui/TurnstileWidget/TurnstileWidget';
 import cls from './LoginForm.module.scss';
 
 export interface LoginFormProps {
@@ -35,6 +36,9 @@ const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
         onChangePassword,
         onSubmit,
         onBackToCredentials,
+        captchaRequired,
+        captchaSiteKey,
+        onCaptchaVerify,
     } = useLoginForm({ onSuccess });
 
     if (pendingMaskedEmail) {
@@ -64,6 +68,11 @@ const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
                         onChangeEmail={onChangeEmail}
                         onChangePassword={onChangePassword}
                     />
+                    {captchaRequired && captchaSiteKey && (
+                        <VStack align="center" className={cls.captcha}>
+                            <TurnstileWidget siteKey={captchaSiteKey} onVerify={onCaptchaVerify} />
+                        </VStack>
+                    )}
                     <LoginFormError error={error} />
                     <LoginFormActions isLoading={isLoading} />
                 </form>

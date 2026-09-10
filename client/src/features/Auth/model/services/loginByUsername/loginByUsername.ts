@@ -6,6 +6,7 @@ import axios from 'axios';
 interface LoginByEmailProps {
     email: string;
     password: string;
+    captchaToken?: string;
 }
 
 export interface RequiresTwoFactorResponse {
@@ -18,6 +19,8 @@ export type LoginResponse = RequiresTwoFactorResponse | User;
 export interface ServerError {
     status: number;
     message?: string;
+    code?: string;
+    siteKey?: string | null;
 }
 
 export const loginByUsername = createAsyncThunk<LoginResponse, LoginByEmailProps, ThunkConfig<ServerError>>(
@@ -49,7 +52,13 @@ export const loginByUsername = createAsyncThunk<LoginResponse, LoginByEmailProps
                     || (error.code === 'ERR_NETWORK'
                         ? 'Локальный сервер недоступен. Запустите backend на порту 8080.'
                         : 'Не удалось выполнить вход. Проверьте сервер.');
-                return rejectWithValue({ status, message });
+                const code = typeof error.response?.data?.code === 'string'
+                    ? error.response.data.code
+                    : undefined;
+                const siteKey = typeof error.response?.data?.siteKey === 'string'
+                    ? error.response.data.siteKey
+                    : undefined;
+                return rejectWithValue({ status, message, code, siteKey });
             }
 
             return rejectWithValue({ status: 500, message: 'Unknown error' });

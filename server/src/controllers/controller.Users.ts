@@ -9,7 +9,7 @@ import {
 } from '../services/service.Users';
 import ApiError from '../helpers/ApiError';
 
-import { hashPassword, isPasswordAllowed } from '../services/service.Password';
+import { hashPassword, isCommonPassword, isPasswordAllowed } from '../services/service.Password';
 import { AuthSecurityEventType, UserRole } from '@prisma/client';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
 
@@ -185,6 +185,9 @@ export const createUserController = async (req: Request, res: Response) => {
     }
     if (!isPasswordAllowed(password)) {
         throw ApiError.BadRequest('Пароль должен содержать от 12 до 128 символов');
+    }
+    if (isCommonPassword(password)) {
+        throw ApiError.BadRequest('Этот пароль слишком распространён. Выберите другой пароль');
     }
 
     try {

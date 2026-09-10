@@ -282,6 +282,7 @@ const invoiceListInclude = {
     },
 };
 
+/** Deep-clone value for audit-log snapshot. JSON.stringify guarantees valid JSON output, so JSON.parse is safe — no runtime validation needed. */
 const snapshot = (value: unknown): Prisma.InputJsonValue => (
     JSON.parse(JSON.stringify(value, (key, nestedValue) => (
         key === 'auditLogs' ? undefined : nestedValue

@@ -18,6 +18,13 @@ function axiosError(status: number, message?: string, code?: string): AxiosError
     return error;
 }
 
+function axiosErrorWithData(status: number, data: Record<string, unknown>): AxiosError {
+    const error = new Error('captcha') as AxiosError;
+    error.isAxiosError = true;
+    error.response = { status, data } as never;
+    return error;
+}
+
 describe('loginByUsername', () => {
     const credentials = { email: 'a@b.com', password: 'secret' };
 
@@ -70,5 +77,30 @@ describe('loginByUsername', () => {
         const result = await loginByUsername(credentials)(dispatch, () => ({}) as never, extra as never);
 
         expect(result.payload).toEqual({ status: 500, message: 'Unknown error' });
+    });
+
+    test('forwards captchaToken in the request body when provided', async () => {
+        extra.api.post.mockResolvedValue({ data: { requiresTwoFactor: true, maskedEmail: 'a***@b.com' } });
+
+        await loginByUsername({ ...credentials, captchaToken: 'token-abc' })(dispatch, () => ({}) as never, extra as never);
+
+        expect(extra.api.post).toHaveBeenCalledWith('/auth/login', { ...credentials, captchaToken: 'token-abc' });
+    });
+
+    test('rejects with code and siteKey when the server requires a captcha', async () => {
+        extra.api.post.mockRejectedValue(axiosErrorWithData(400, {
+            code: 'CAPTCHA_REQUIRED',
+            message: 'Подтвердите, что вы не робот, и попробуйте снова.',
+            siteKey: 'site-key-xyz',
+        }));
+
+        const result = await loginByUsername(credentials)(dispatch, () => ({}) as never, extra as never);
+
+        expect(result.payload).toEqual({
+            status: 400,
+            message: 'Подтвердите, что вы не робот, и попробуйте снова.',
+            code: 'CAPTCHA_REQUIRED',
+            siteKey: 'site-key-xyz',
+        });
     });
 });

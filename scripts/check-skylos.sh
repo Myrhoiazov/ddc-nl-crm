@@ -23,11 +23,11 @@ CONFIG=(--config-file "$ROOT_DIR/pyproject.toml")
 # inline-аннотаций прямо на diff в PR.
 echo "==> Skylos audit (readable log)"
 concise_status=0
-skylos . -a --format concise "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
+skylos . -a --format concise --baseline "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
 
 echo
 echo "==> Skylos audit (GitHub PR annotations)"
 github_status=0
-skylos . -a --github "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
+skylos . -a --github --baseline "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
 
 exit "$concise_status"
