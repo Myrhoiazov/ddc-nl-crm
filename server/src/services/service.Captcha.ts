@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const TURNSTILE_VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
 
-// Require a captcha once failed login attempts exceed this, strictly before
+// Require a captcha once failed login attempts reach this, strictly before
 // middleware.LoginRateLimit.ts's hard block (MAX_ATTEMPTS = 5) — an additional
 // layer on top of rate limiting, not a replacement for it.
 export const CAPTCHA_THRESHOLD = 3;

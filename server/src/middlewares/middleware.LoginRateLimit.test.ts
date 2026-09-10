@@ -78,11 +78,10 @@ const hitUntilCaptchaRequired = async (email: string, captchaToken?: string) => 
     return { res, nextCalled };
 };
 
-test('loginRateLimit rejects missing captchaToken after the captcha threshold', async () => {
+test('loginRateLimit rejects missing captchaToken on the captcha threshold attempt', async () => {
     await withTurnstileEnv(async () => {
         const email = `missing-${Date.now()}@example.com`;
 
-        await hitUntilCaptchaRequired(email);
         await hitUntilCaptchaRequired(email);
         await hitUntilCaptchaRequired(email);
         const { res, nextCalled } = await hitUntilCaptchaRequired(email);
@@ -97,12 +96,11 @@ test('loginRateLimit rejects missing captchaToken after the captcha threshold', 
     });
 });
 
-test('loginRateLimit rejects an invalid Turnstile token after calling Siteverify', async (t) => {
+test('loginRateLimit rejects an invalid Turnstile token on the threshold attempt after calling Siteverify', async (t) => {
     await withTurnstileEnv(async () => {
         const email = `invalid-${Date.now()}@example.com`;
         const postMock = t.mock.method(axios, 'post', async () => ({ data: { success: false } }));
 
-        await hitUntilCaptchaRequired(email);
         await hitUntilCaptchaRequired(email);
         await hitUntilCaptchaRequired(email);
         const { res, nextCalled } = await hitUntilCaptchaRequired(email, 'bad-token');
@@ -114,7 +112,7 @@ test('loginRateLimit rejects an invalid Turnstile token after calling Siteverify
     });
 });
 
-test('loginRateLimit allows a valid Turnstile token after Siteverify succeeds', async (t) => {
+test('loginRateLimit allows a valid Turnstile token on the threshold attempt after Siteverify succeeds', async (t) => {
     await withTurnstileEnv(async () => {
         const email = `valid-${Date.now()}@example.com`;
         const postMock = t.mock.method(axios, 'post', async (_url: string, body: URLSearchParams) => {
@@ -124,7 +122,6 @@ test('loginRateLimit allows a valid Turnstile token after Siteverify succeeds', 
             return { data: { success: true } };
         });
 
-        await hitUntilCaptchaRequired(email);
         await hitUntilCaptchaRequired(email);
         await hitUntilCaptchaRequired(email);
         const { res, nextCalled } = await hitUntilCaptchaRequired(email, 'valid-token');
