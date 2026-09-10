@@ -6,6 +6,9 @@ const SCRIPT_ID = 'cf-turnstile-script';
 interface TurnstileRenderOptions {
     sitekey: string;
     callback: (token: string) => void;
+    'expired-callback'?: () => void;
+    'error-callback'?: () => void;
+    'timeout-callback'?: () => void;
 }
 
 declare global {
@@ -43,12 +46,13 @@ const loadTurnstileScript = () => new Promise<void>((resolve, reject) => {
 interface TurnstileWidgetProps {
     siteKey: string;
     onVerify: (token: string) => void;
+    onReset?: () => void;
     className?: string;
 }
 
 // Loaded only when the server signals CAPTCHA_REQUIRED/CAPTCHA_INVALID — the
 // Turnstile script is never fetched on an ordinary page visit.
-export const TurnstileWidget = memo(({ siteKey, onVerify, className }: TurnstileWidgetProps) => {
+export const TurnstileWidget = memo(({ siteKey, onVerify, onReset, className }: TurnstileWidgetProps) => {
     const containerRef = useRef<HTMLDivElement>(null);
     const widgetIdRef = useRef<string | undefined>(undefined);
 
@@ -61,6 +65,9 @@ export const TurnstileWidget = memo(({ siteKey, onVerify, className }: Turnstile
                 widgetIdRef.current = window.turnstile.render(containerRef.current, {
                     sitekey: siteKey,
                     callback: onVerify,
+                    'expired-callback': onReset,
+                    'error-callback': onReset,
+                    'timeout-callback': onReset,
                 });
             })
             .catch((error: unknown) => {
@@ -73,7 +80,7 @@ export const TurnstileWidget = memo(({ siteKey, onVerify, className }: Turnstile
                 window.turnstile.remove(widgetIdRef.current);
             }
         };
-    }, [siteKey, onVerify]);
+    }, [siteKey, onVerify, onReset]);
 
     return <div ref={containerRef} className={className} />;
 });
