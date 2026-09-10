@@ -12,6 +12,7 @@ import ApiError from '../helpers/ApiError';
 import { hashPassword, isCommonPassword, isPasswordAllowed } from '../services/service.Password';
 import { AuthSecurityEventType, UserRole } from '@prisma/client';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
+import { notifyRoleChanged } from '../services/service.Telegram';
 
 /**
  * Controller to fetch all users.
@@ -62,7 +63,13 @@ export const deleteUserByIdController = async (req: Request, res: Response) => {
     }
 }
 
-const recordRoleChangeAudit = async (req: Request, userId: number, previousRole: UserRole, nextRole: UserRole) => {
+const recordRoleChangeAudit = async (
+    req: Request,
+    userId: number,
+    targetEmail: string,
+    previousRole: UserRole,
+    nextRole: UserRole,
+) => {
     await recordAuthSecurityEvent({
         type: AuthSecurityEventType.ROLE_CHANGED,
         actorUserId: req.user?.id,
@@ -77,6 +84,12 @@ const recordRoleChangeAudit = async (req: Request, userId: number, previousRole:
         req,
         metadata: { reason: 'ROLE_CHANGED' },
     });
+    void notifyRoleChanged({
+        targetEmail,
+        actorEmail: req.user?.email,
+        fromRole: previousRole,
+        toRole: nextRole,
+    }).catch((error) => console.error('Failed to send role-changed Telegram notification:', error));
 };
 
 const recordEnabledChangeAudit = async (req: Request, userId: number, previousEnabled: boolean, nextEnabled: boolean) => {
@@ -142,7 +155,7 @@ export const updateUserController = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'User not found' });
         }
         if (role !== undefined && role !== previousUser.role) {
-            await recordRoleChangeAudit(req, userId, previousUser.role, role);
+            await recordRoleChangeAudit(req, userId, previousUser.email, previousUser.role, role);
         }
         if (isEnabled !== undefined && isEnabled !== previousUser.isEnabled) {
             await recordEnabledChangeAudit(req, userId, previousUser.isEnabled, isEnabled);
