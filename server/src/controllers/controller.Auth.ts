@@ -21,6 +21,7 @@ import {
     verifyTwoFactorChallenge,
 } from '../services/service.TwoFactorAuth';
 import { logger } from '../logger';
+import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured } from '../services/service.Captcha';
 
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';
 /** True when MODE=production — controls secure-flag on cookies. Named constant so Skylos can prove it's boolean. */
@@ -86,6 +87,17 @@ export const buildAuthenticatedUserData = (user: AuthenticatedUser, lastLogin: D
     isActive: user.isActive,
     lastLogin,
 });
+
+export const buildCaptchaPrewarmLoginError = (message: string, attemptCount: unknown) => {
+    if (!isCaptchaConfigured()) return null;
+    if (typeof attemptCount !== 'number' || attemptCount < CAPTCHA_THRESHOLD - 1) return null;
+
+    return {
+        code: 'CAPTCHA_REQUIRED',
+        message,
+        siteKey: captchaSiteKey(),
+    };
+};
 
 // Shared by the trusted-device bypass and by 2fa/verify's success path — both
 // end in exactly the same "you are now logged in" outcome as today's direct login.
@@ -226,6 +238,12 @@ export const login = async (req: Request<{}, {}, loginType>, res: Response, next
 
         return requestTwoFactor(user, req, res);
     } catch (error) {
+        if (error instanceof ApiError && error.status === 401) {
+            const captchaPrewarm = buildCaptchaPrewarmLoginError(error.message, res.locals.loginRateLimitCount);
+            if (captchaPrewarm) {
+                return res.status(error.status).json(captchaPrewarm);
+            }
+        }
         console.error('Login error:', error);
         next(error)
     }

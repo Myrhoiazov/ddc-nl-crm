@@ -38,6 +38,7 @@ const createRes = () => {
         statusCode: 200,
         headers: {} as Record<string, unknown>,
         body: undefined as unknown,
+        locals: {} as Record<string, unknown>,
         setHeader(name: string, value: unknown) {
             this.headers[name] = value;
         },
@@ -57,6 +58,7 @@ const createRes = () => {
     return response as unknown as Response & {
         statusCode: number;
         body: unknown;
+        locals: Record<string, unknown>;
     };
 };
 
@@ -77,6 +79,20 @@ const hitUntilCaptchaRequired = async (email: string, captchaToken?: string) => 
     }
     return { res, nextCalled };
 };
+
+test('loginRateLimit exposes the login attempt count to downstream handlers', async () => {
+    await withTurnstileEnv(async () => {
+        const email = `count-${Date.now()}@example.com`;
+
+        const first = await hitUntilCaptchaRequired(email);
+        const second = await hitUntilCaptchaRequired(email);
+
+        assert.equal(first.nextCalled, true);
+        assert.equal(first.res.locals.loginRateLimitCount, 1);
+        assert.equal(second.nextCalled, true);
+        assert.equal(second.res.locals.loginRateLimitCount, 2);
+    });
+});
 
 test('loginRateLimit rejects missing captchaToken on the captcha threshold attempt', async () => {
     await withTurnstileEnv(async () => {
