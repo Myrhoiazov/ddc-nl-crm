@@ -13,7 +13,7 @@
         "test:payment-reminders": "node --test -r ts-node/register src/services/service.PaymentReminders.test.ts src/services/service.PaymentReminderContent.test.ts",
         "test:invoice-delivery": "node --test -r ts-node/register src/services/service.InvoiceDelivery.test.ts",
         "test:transactions": "node --test -r ts-node/register src/services/service.Transaction.test.ts",
-        "test:ci": "npm run test:auth && node --test -r ts-node/register src/controllers/controller.Invoices.test.ts src/routes/router.Health.test.ts && npm run test:mollie && npm run test:search && npm run test:email && npm run test:payment-reminders && npm run test:invoice-delivery && npm run test:transactions",
+        "test:ci": "npm run test:auth && node --test -r ts-node/register src/controllers/controller.Invoices.test.ts src/routes/router.Health.test.ts src/services/service.Clients.test.ts && npm run test:mollie && npm run test:search && npm run test:email && npm run test:payment-reminders && npm run test:invoice-delivery && npm run test:transactions",
         "user:reset-password": "ts-node scripts/reset-user-password.ts",
         "start": "MODE=development nodemon",
         "pgc": "npm run prisma:generate",
