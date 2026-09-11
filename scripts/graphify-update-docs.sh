@@ -10,7 +10,7 @@
 #   3) если Ollama поднять не удалось -> откат на --code-only (без падения).
 #
 # Модель Ollama переопределяется:
-#   GRAPHIFY_OLLAMA_MODEL=qwen2.5-coder:14b bash scripts/graphify-update-docs.sh
+#   GRAPHIFY_OLLAMA_MODE=qwen2.5-coder:7b bash scripts/graphify-update-docs.sh
 
 set -euo pipefail
 

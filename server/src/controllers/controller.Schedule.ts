@@ -164,9 +164,9 @@ const studentSelect = {
     expiresAt: true,
 };
 
-const isStudentActive = (expiresAt: Date | null) => !expiresAt || expiresAt >= new Date();
+export const isStudentActive = (expiresAt: Date | null) => !expiresAt || expiresAt >= new Date();
 
-const studentSummary = (student: {
+export const studentSummary = (student: {
     id: number;
     firstName: string | null;
     lastName: string | null;
@@ -197,7 +197,7 @@ const loadManagementBranches = () => prisma.branch.findMany({
     orderBy: { name: 'asc' },
 });
 
-const buildBranchStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.map((branch) => {
+export const buildBranchStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.map((branch) => {
     const students = branch.clients.map(studentSummary);
     const activeStudents = students.filter((student) => student.isActive);
     const inactiveStudents = students.filter((student) => !student.isActive);
@@ -221,7 +221,7 @@ const buildBranchStats = (branches: Awaited<ReturnType<typeof loadManagementBran
     };
 });
 
-const buildGroupStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.flatMap((branch) => branch.groups.map((group) => {
+export const buildGroupStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.flatMap((branch) => branch.groups.map((group) => {
     const students = group.clientMemberships.map((membership) => studentSummary(membership.client));
     const activeStudents = students.filter((student) => student.isActive);
     const inactiveStudents = students.filter((student) => !student.isActive);

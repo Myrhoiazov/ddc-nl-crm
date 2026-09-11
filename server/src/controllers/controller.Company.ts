@@ -5,7 +5,7 @@ import prisma from '../../prisma/prisma-client';
 import * as mollieService from '../services/service.Mollie';
 
 const nullableText = z.string().trim().max(191).nullable().optional().or(z.literal(''));
-const organizationSchema = z.object({
+export const organizationSchema = z.object({
     legalName: z.string().trim().min(1).max(191),
     kvkNumber: nullableText,
     vatNumber: nullableText,
@@ -20,7 +20,7 @@ const organizationSchema = z.object({
     iban: nullableText,
     mollieOrganizationId: nullableText,
 });
-const brandSchema = z.object({
+export const brandSchema = z.object({
     organizationId: z.coerce.number().int().positive(),
     name: z.string().trim().min(1).max(191),
     slug: z.string().trim().min(1).max(191).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
@@ -34,7 +34,7 @@ const brandSchema = z.object({
     isDefault: z.boolean().default(false),
     isActive: z.boolean().default(true),
 });
-const emptyToNull = <T extends Record<string, unknown>>(value: T): T => Object.fromEntries(
+export const emptyToNull = <T extends Record<string, unknown>>(value: T): T => Object.fromEntries(
     Object.entries(value).map(([key, nested]) => [key, nested === '' ? null : nested]),
 ) as T;
 
