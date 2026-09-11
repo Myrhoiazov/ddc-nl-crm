@@ -84,7 +84,7 @@ export interface CreateClientOptions {
     groupIds?: number[];
 }
 
-const normalizeClientData = (data: Partial<TClient> & { status?: unknown }) => {
+export const normalizeClientData = (data: Partial<TClient> & { status?: unknown }) => {
     delete data.id;
     delete data.status;
     delete data.createdAt;

@@ -3,7 +3,7 @@ import prisma from '../../prisma/prisma-client';
 import { createInvoicePdf } from './service.InvoicePdf';
 import { getMolliePaymentNetCents } from './service.InvoiceMollie';
 
-const customerName = (customer: {
+export const customerName = (customer: {
     payerName: string | null;
     givenName: string | null;
     familyName: string | null;
@@ -31,11 +31,11 @@ const PAYMENT_QUERY_INCLUDE = {
     },
 } as const;
 
-type MolliePaymentForPdf = Prisma.PaymentGetPayload<{
+export type MolliePaymentForPdf = Prisma.PaymentGetPayload<{
     include: typeof PAYMENT_QUERY_INCLUDE;
 }>;
 
-const paymentStatusFor = (
+export const paymentStatusFor = (
     payment: MolliePaymentForPdf,
     paidAmountCents: number,
     balanceDueCents: number,
@@ -48,14 +48,14 @@ const paymentStatusFor = (
         : InvoiceStatus.ISSUED;
 };
 
-const buildMollieInvoiceNote = (payment: MolliePaymentForPdf) => [
+export const buildMollieInvoiceNote = (payment: MolliePaymentForPdf) => [
     `Mollie status: ${payment.status}`,
     `Payment method: ${payment.method || 'unknown'}`,
     Number(payment.refundedAmount) > 0 ? `Refunded: ${payment.refundedAmount} ${payment.amountCurrency}` : null,
     Number(payment.chargedBackAmount) > 0 ? `Charged back: ${payment.chargedBackAmount} ${payment.amountCurrency}` : null,
 ].filter(Boolean).join('\n');
 
-const buildMollieInvoiceItem = (
+export const buildMollieInvoiceItem = (
     payment: MolliePaymentForPdf,
     totalCents: number,
 ): NonNullable<Parameters<typeof createInvoicePdf>[0]['items']>[number] => ({
@@ -69,7 +69,7 @@ const buildMollieInvoiceItem = (
     totalCents,
 });
 
-const buildMollieInvoiceDraft = (
+export const buildMollieInvoiceDraft = (
     payment: MolliePaymentForPdf,
     totals: { totalCents: number; paidAmountCents: number; balanceDueCents: number },
     status: InvoiceStatus,
