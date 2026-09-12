@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { UserRole } from '@prisma/client';
-import { paymentCustomerName, rankAndLimit, shouldIncludeTransactions } from './service.Search';
+import { paymentCustomerName, rankAndLimit, shouldIncludeTransactions } from './search.service';
 
 test('rankAndLimit ranks exact match above startsWith above contains', () => {
     const rows = [
