@@ -2,7 +2,7 @@ import config from './config/config';
 import server from './app';
 import prisma from '../prisma/prisma-client';
 import { startInvoiceReminderCron } from './services/service.InvoiceReminders';
-import { startEmailSyncCron } from './services/service.EmailSyncCron';
+import { startEmailSyncCron } from './modules/communication/email/email-sync-cron.service';
 import { startPaymentReminderCron } from './services/service.PaymentReminderCron';
 import { startAuthSecurityCleanupCron } from './services/service.AuthSecurityCleanup';
 

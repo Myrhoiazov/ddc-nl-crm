@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildReplySubject, stripHtmlToText } from './service.EmailSmtp';
+import { buildReplySubject, stripHtmlToText } from './email-smtp.service';
 
 test('buildReplySubject adds a "Re:" prefix when none exists', () => {
     assert.equal(buildReplySubject('Booking question'), 'Re: Booking question');

@@ -1,8 +1,8 @@
 import nodemailer from 'nodemailer';
-import prisma from '../../prisma/prisma-client';
-import { decryptEmailSecret } from './service.EmailCrypto';
-import { addressesToJson } from './service.EmailImap';
-import { storeAttachmentFile } from './service.EmailAttachmentStorage';
+import prisma from '../../../../prisma/prisma-client';
+import { decryptEmailSecret } from './email-crypto.service';
+import { addressesToJson } from './email-imap.service';
+import { storeAttachmentFile } from './email-attachment-storage.service';
 
 interface OutgoingAttachmentInput {
     filename: string;

@@ -12,7 +12,7 @@ import ApiError from '../helpers/ApiError';
 import { hashPassword, isCommonPassword, isPasswordAllowed } from '../services/service.Password';
 import { AuthSecurityEventType, UserRole } from '@prisma/client';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
-import { notifyRoleChanged } from '../services/service.Telegram';
+import { notifyRoleChanged } from '../modules/communication';
 
 /**
  * Controller to fetch all users.
