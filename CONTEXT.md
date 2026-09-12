@@ -59,16 +59,27 @@ app -> pages -> widgets -> features -> entities -> shared
 
 ## Server Architecture
 
-Layered Express:
+Feature/domain-based modules:
 
 ```
-routes/router.X.ts -> controllers/controller.X.ts -> services/service.X.ts
+modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 ```
 
-- Validation: Zod schemas in `server/src/schemas/`, applied via `middleware.ValidateSchema`.
-- Auth: cookie sessions, CSRF double-submit (`middleware.Auth`, `middleware.Csrf`), Argon2id, 2FA email flow, endpoint-specific rate limiting (`middleware.LoginRateLimit`, etc.).
+- Business modules under `server/src/modules/`: `auth`, `users`, `clients`, `company`, `schedule`,
+  `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie), `payment-reminders`,
+  `communication` (`email`/`instagram`/`telegram` sub-modules), `health`.
+- Domain-agnostic shared infrastructure under `server/src/common/`: `errors/` (ApiError + error
+  middleware), `middleware/` (query stats), `validation/` (generic Zod schema-validation
+  middleware), `logger/`, `utils/` (crypto, paths, file upload).
+- Validation: Zod schemas colocated with each module (e.g. `modules/auth/auth.schema.ts`), applied
+  via `common/validation/validate-schema.middleware.ts`.
+- Auth: cookie sessions, CSRF double-submit, Argon2id, 2FA email flow, endpoint-specific rate
+  limiting — all in `modules/auth/` (`auth.middleware.ts`, `auth.csrf.middleware.ts`,
+  `auth.login-rate-limit.middleware.ts`, `auth.two-factor-rate-limit.middleware.ts`).
 - Rate limiting: Redis-based when `REDIS_URL` is set; in-memory process-local fallback otherwise.
-- Health: `GET /api/v1/health` (no auth, no DB) — for Docker health checks.
+- Health: `GET /api/v1/health` (no auth, no DB) — for Docker health checks, `modules/health/`.
+- Migrated from a layer-first `controllers/`/`services/`/`routes/` structure — see
+  `docs/spec/BACKEND_MODULAR_REFACTORING_SPEC.md` for the migration workflow and rationale.
 
 ## Data / Prisma
 

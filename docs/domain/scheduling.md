@@ -81,8 +81,9 @@ catalog.
 - **GroupLevel** (`START`/`FAN`/`PRO`): the same tri-level used for the Start/Fan/Pro UI badge
   convention documented in `.claude/rules/code-style.md` — a confirmed, stable domain concept.
 - **Enrollment ownership**: `ClientDanceGroup` rows are created and replaced entirely inside CRM's
-  `service.Clients.ts` (client create/update), using the same replace-all pattern as
-  `ScheduleSlot` — **not** by any endpoint in `controller.Schedule.ts`. If you're changing
+  `modules/clients/clients.service.ts` (client create/update), using the same replace-all pattern
+  as `ScheduleSlot` — **not** by any endpoint in `modules/schedule/schedule.controller.ts`. If
+  you're changing
   enrollment behavior, look in the CRM domain, not here. Scheduling's only enrollment-adjacent
   code is a stats endpoint (`getGroupManagementStats`) that reads `ClientDanceGroup` rows written
   by CRM.

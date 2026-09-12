@@ -2,7 +2,7 @@
 
 **Статус:** Accepted
 **Проект:** DDC CRM
-**Область:** `server/src/controllers/*`, `server/src/services/*`
+**Область:** `server/src/modules/*/*.controller.ts`, `server/src/modules/*/*.service.ts`
 **Решение зафиксировано в:** `docs/adr/0003-manual-select-over-client-field-selection.md`
 
 ---
@@ -11,8 +11,8 @@
 
 Часть контроллеров отдаёт клиенту полные Prisma-модели без `select`/`include`
 (`prisma.branch.findMany({ orderBy: ... })` → `res.json(branches)` в
-`controller.Company.ts`), включая поля и связи, которые клиент не использует.
-Другая часть (`controller.Clients.ts`: `customerBasicSelect`, `customerPayerSelect`)
+`modules/company/company.controller.ts`), включая поля и связи, которые клиент не использует.
+Другая часть (`modules/clients/clients.controller.ts`: `customerBasicSelect`, `customerPayerSelect`)
 уже сужает выборку под конкретного потребителя — эта спецификация делает второй
 подход обязательным стандартом, а не случайно возникшим паттерном в одном файле.
 
@@ -24,7 +24,7 @@
 - **Проекция — именованный объект, а не инлайн-литерал в вызове**, если она
   переиспользуется более одного раза или занимает больше 2-3 полей:
   `const <entity><purpose>Select = { ... } satisfies Prisma.<Entity>Select;`
-  Пример: `customerBasicSelect`, `customerPayerSelect` в `controller.Clients.ts`.
+  Пример: `customerBasicSelect`, `customerPayerSelect` в `modules/clients/clients.controller.ts`.
 - **`<purpose>` называет конкретного потребителя/сценарий**, не абстрактное
   "short"/"full" — например `customerPayerSelect` (для payer-специфичного вида),
   а не `customerSelect2`.
