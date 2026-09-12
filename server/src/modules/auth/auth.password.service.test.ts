@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { authentication, generateSalt } from '../helpers';
-import { hashPassword, isCommonPassword, isPasswordAllowed, verifyPassword } from './service.Password';
+import { authentication, generateSalt } from '../../helpers';
+import { hashPassword, isCommonPassword, isPasswordAllowed, verifyPassword } from './auth.password.service';
 
 process.env.SECRET_SALT ||= 'test-secret-salt';
 

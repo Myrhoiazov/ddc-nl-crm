@@ -6,8 +6,8 @@ import {
     listSessionsController,
     revokeSessionController,
     revokeOtherSessionsController,
-} from "../controllers/controller.Profiles"
-import { asyncHandler, isToken, requireOwnerOrRole } from "../middlewares/middleware.Auth";
+} from "./auth.profiles.controller"
+import { asyncHandler, isToken, requireOwnerOrRole } from "./auth.middleware";
 import { UserRole } from "@prisma/client";
 
 const router = express.Router();

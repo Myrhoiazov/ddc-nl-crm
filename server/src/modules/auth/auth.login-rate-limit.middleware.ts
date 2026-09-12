@@ -1,9 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import { AuthSecurityEventType } from '@prisma/client';
-import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
-import { calculateProgressiveDelayMs, hitRateLimit, resetRateLimit } from '../services/service.RateLimit';
-import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured, verifyCaptchaToken } from '../services/service.Captcha';
-import { notifyLoginBlocked } from '../modules/communication';
+import { recordAuthSecurityEvent } from './auth.security-audit.service';
+import { calculateProgressiveDelayMs, hitRateLimit, resetRateLimit } from './auth.rate-limit.service';
+import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured, verifyCaptchaToken } from './auth.captcha.service';
+import { notifyLoginBlocked } from '../communication';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;

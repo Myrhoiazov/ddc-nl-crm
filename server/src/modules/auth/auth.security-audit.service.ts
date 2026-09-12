@@ -1,6 +1,6 @@
 import { AuthSecurityEventType, Prisma } from '@prisma/client';
 import { Request } from 'express';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 type JsonValue = string | number | boolean | JsonValue[] | { [key: string]: JsonValue };
 type SafeMetadata = Record<string, unknown>;

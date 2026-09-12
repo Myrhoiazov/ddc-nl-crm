@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios from 'axios';
-import { captchaSiteKey, isCaptchaConfigured, verifyCaptchaToken } from './service.Captcha';
+import { captchaSiteKey, isCaptchaConfigured, verifyCaptchaToken } from './auth.captcha.service';
 
 const withEnv = (vars: Record<string, string | undefined>, fn: () => void) => {
     const previous: Record<string, string | undefined> = {};

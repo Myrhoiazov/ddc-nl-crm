@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 export const AUTH_SECURITY_EVENT_RETENTION_DAYS = 90;
 const DAY_MS = 24 * 60 * 60 * 1000;

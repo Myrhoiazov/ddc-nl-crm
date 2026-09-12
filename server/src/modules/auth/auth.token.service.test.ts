@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { generateSessionToken, hashSessionToken } from './service.Token';
+import { generateSessionToken, hashSessionToken } from './auth.token.service';
 
 process.env.JWT_ACCESS_SECRET ||= 'test-access-secret';
 process.env.JWT_REFRESH_SECRET ||= 'test-refresh-secret';

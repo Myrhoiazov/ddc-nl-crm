@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sanitizeAuthSecurityMetadata } from './service.AuthSecurityAudit';
+import { sanitizeAuthSecurityMetadata } from './auth.security-audit.service';
 
 test('auth security metadata sanitizer removes sensitive fields', () => {
     const metadata = sanitizeAuthSecurityMetadata({

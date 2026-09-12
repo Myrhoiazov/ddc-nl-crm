@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { AUTH_SECURITY_EVENT_RETENTION_DAYS, authSecurityEventCutoffDate } from './service.AuthSecurityCleanup';
+import { AUTH_SECURITY_EVENT_RETENTION_DAYS, authSecurityEventCutoffDate } from './auth.security-cleanup.service';
 
 test('cutoff date is exactly the retention window before now', () => {
     const now = new Date('2026-09-10T12:00:00.000Z');

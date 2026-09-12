@@ -1,6 +1,6 @@
 import express from 'express';
 import { UserRole } from '@prisma/client';
-import { asyncHandler, isToken, requireRole } from '../../middlewares/middleware.Auth';
+import { asyncHandler, isToken, requireRole } from '../auth/auth.middleware';
 import {
     getPaymentReminderDeliveriesController,
     getPaymentReminderSettingsController,

@@ -1,5 +1,5 @@
 import express from "express";
-import { asyncHandler } from "../../../middlewares/middleware.Auth";
+import { asyncHandler } from "../../auth/auth.middleware";
 import { instagramReceiveMessageController, instagramWebhookController } from "./instagram.controller";
 
 const router = express.Router();

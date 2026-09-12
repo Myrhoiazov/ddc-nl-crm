@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
-import { asyncHandler, isToken } from '../../middlewares/middleware.Auth';
+import { asyncHandler, isToken } from '../auth/auth.middleware';
 import {
     getGroups, getGroupById, createGroup, updateGroup, deleteGroup,
     getGroupManagementStats,

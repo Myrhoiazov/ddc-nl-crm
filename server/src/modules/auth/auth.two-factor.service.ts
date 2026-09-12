@@ -2,8 +2,8 @@ import crypto from 'crypto';
 import dayjs from 'dayjs';
 import nodemailer from 'nodemailer';
 import { TwoFactorChannel } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
-import { decryptEmailSecret } from '../modules/communication/email/email-crypto.service';
+import prisma from '../../../prisma/prisma-client';
+import { decryptEmailSecret } from '../communication/email/email-crypto.service';
 
 export const CODE_TTL_MINUTES = 10;
 export const MAX_ATTEMPTS = 5;

@@ -1,7 +1,7 @@
 import express from "express";
-import authinticationRouter from "./router.Auth";
+import authinticationRouter from "../modules/auth/auth.routes";
 import usersRouter from "../modules/users/users.routes";
-import profileRouter from './router.Profiles'
+import profileRouter from '../modules/auth/auth.profiles.routes'
 import clientsRouter from '../modules/clients/clients.routes'
 import commentsRouter from '../modules/comments/comments.routes'
 import transactionsRouter from '../modules/transactions/transactions.routes'
@@ -14,7 +14,7 @@ import emailRouter from '../modules/communication/email/email.routes'
 import searchRouter from '../modules/search/search.routes'
 import paymentRemindersRouter from '../modules/payment-reminders/payment-reminders.routes'
 import healthRouter from '../modules/health/health.routes'
-import authSecurityEventsRouter from './router.AuthSecurityEvents'
+import authSecurityEventsRouter from '../modules/auth/auth.security-events.routes'
 
 const router = express.Router();
 

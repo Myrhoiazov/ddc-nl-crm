@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { hitRateLimit, resetRateLimit, calculateProgressiveDelayMs } from './service.RateLimit';
+import { hitRateLimit, resetRateLimit, calculateProgressiveDelayMs } from './auth.rate-limit.service';
 
 test('in-memory rate limit blocks after max attempts and can be reset', async () => {
     const key = `test-rate-limit:${Date.now()}:${Math.random()}`;
