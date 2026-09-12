@@ -3,7 +3,7 @@ import path from 'path';
 import PDFDocument from 'pdfkit';
 import QRCode from 'qrcode';
 import { Invoice, InvoiceItem } from '@prisma/client';
-import { ROOT_DIR } from '../../utils/paths';
+import { ROOT_DIR } from '../../common/utils/paths';
 
 type InvoiceWithItems = Invoice & {
     items: InvoiceItem[];

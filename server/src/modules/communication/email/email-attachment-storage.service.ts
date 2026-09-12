@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../../../prisma/prisma-client';
-import { ROOT_DIR } from '../../../utils/paths';
+import { ROOT_DIR } from '../../../common/utils/paths';
 
 // Attachments can contain sensitive client documents (IDs, contracts, photos),
 // unlike brand logos or avatars — they must NOT be reachable through the public

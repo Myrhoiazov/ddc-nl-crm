@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import * as path from 'path';
 import { Jimp } from 'jimp';
-import { ROOT_DIR } from '../utils/paths';
+import { ROOT_DIR } from './paths';
 
 const isDev = process.env.MODE === 'development';
 const url = isDev ? 'http://localhost:8080' : process.env.CLIENT_URL;

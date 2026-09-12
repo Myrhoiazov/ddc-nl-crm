@@ -4,7 +4,7 @@ import { AuthSecurityEventType } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client'
 import { getUserByEmail } from '../users/users.service';
 import { findToken, generateSessionToken, refreshToken, removeToken, replaceToken, saveToken } from './auth.token.service';
-import ApiError from '../../helpers/ApiError';
+import ApiError from '../../common/errors/api-error';
 import { loginType, twoFactorVerifyType } from './auth.schema';
 import { hashPassword, verifyPassword } from './auth.password.service';
 import { upgradeUserPasswordHash } from '../users/users.service';
@@ -20,7 +20,7 @@ import {
     TRUSTED_DEVICE_DAYS,
     verifyTwoFactorChallenge,
 } from './auth.two-factor.service';
-import { logger } from '../../logger';
+import { logger } from '../../common/logger';
 import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured } from './auth.captcha.service';
 
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';

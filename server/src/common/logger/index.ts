@@ -10,8 +10,8 @@ export const logger = createLogger({
     level: 'info',
     format: logFormat,
     transports: [
-        new transports.File({ filename: path.join(__dirname, '..', '/logs', 'error.log'), level: 'error' }),
-        new transports.File({ filename: path.join(__dirname, '..', '/logs', 'combined.log') }),
+        new transports.File({ filename: path.join(__dirname, '..', '..', 'logs', 'error.log'), level: 'error' }),
+        new transports.File({ filename: path.join(__dirname, '..', '..', 'logs', 'combined.log') }),
     ],
 });
 

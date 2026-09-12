@@ -1,5 +1,5 @@
 import { ClientLanguage, Prisma, User } from "@prisma/client";
-import { generateSalt } from "../../helpers";
+import { generateSalt } from "../../common/utils/crypto";
 import { oauthClient } from "../../config/oauthClient";
 import { Request, Response } from "express";
 import dotenv from 'dotenv';

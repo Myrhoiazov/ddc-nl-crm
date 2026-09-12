@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { queryStatsContext } from '../../prisma/prisma-client';
+import { queryStatsContext } from '../../../prisma/prisma-client';
 import { logger } from '../logger';
 
 const QUERY_COUNT_WARNING_THRESHOLD = Number(process.env.QUERY_COUNT_WARNING_THRESHOLD ?? 10);
