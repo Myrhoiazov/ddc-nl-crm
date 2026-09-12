@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { ClientLanguage, PaymentReminderStatus, Prisma } from '@prisma/client';
 import { z } from 'zod';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 import {
     getAllPaymentReminderTemplates,
     getPaymentReminderSettings,
@@ -9,9 +9,9 @@ import {
     reminderSettingsSelect,
     reminderTemplateSelect,
     runPaymentReminders,
-} from '../services/service.PaymentReminders';
-import { buildReminderEmail, PAYMENT_REMINDER_PLACEHOLDERS } from '../services/service.PaymentReminderContent';
-import { composeEmail } from '../modules/communication/email/email-smtp.service';
+} from './payment-reminders.service';
+import { buildReminderEmail, PAYMENT_REMINDER_PLACEHOLDERS } from './payment-reminders.content.service';
+import { composeEmail } from '../communication/email/email-smtp.service';
 
 export const getPaymentReminderSettingsController = async (_req: Request, res: Response) => {
     const settings = await getPaymentReminderSettings();

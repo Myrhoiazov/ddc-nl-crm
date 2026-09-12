@@ -8,7 +8,7 @@ import {
     buildReminderEmail,
     renderReminderTemplate,
     wrapReminderEmailHtml,
-} from './service.PaymentReminderContent';
+} from './payment-reminders.content.service';
 
 const studio: StudioInfo = {
     name: 'DDC Studio',

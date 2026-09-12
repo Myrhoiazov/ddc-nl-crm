@@ -1,7 +1,7 @@
 import { ClientLanguage, PaymentReminderStatus, Prisma } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
-import { buildReminderEmail, DEFAULT_REMINDER_TEMPLATES, StudioInfo } from './service.PaymentReminderContent';
-import { composeEmail } from '../modules/communication/email/email-smtp.service';
+import prisma from '../../../prisma/prisma-client';
+import { buildReminderEmail, DEFAULT_REMINDER_TEMPLATES, StudioInfo } from './payment-reminders.content.service';
+import { composeEmail } from '../communication/email/email-smtp.service';
 
 // Same convention as service.Files.ts: uploaded assets are stored as paths relative to the
 // server's own public/ dir, and become absolute URLs by prefixing the server's public origin.

@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { getPaymentReminderSettings, runPaymentReminders } from './service.PaymentReminders';
+import { getPaymentReminderSettings, runPaymentReminders } from './payment-reminders.service';
 
 // Ticks every minute and compares against the configured sendHour/sendMinute, since the send
 // time is stored in the DB and can change at runtime — a fixed cron expression can't react to
