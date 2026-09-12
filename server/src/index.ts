@@ -3,7 +3,7 @@ import server from './app';
 import prisma from '../prisma/prisma-client';
 import { startInvoiceReminderCron } from './modules/invoices/invoices.reminders.service';
 import { startEmailSyncCron } from './modules/communication/email/email-sync-cron.service';
-import { startPaymentReminderCron } from './services/service.PaymentReminderCron';
+import { startPaymentReminderCron } from './modules/payment-reminders/payment-reminders.cron.service';
 import { startAuthSecurityCleanupCron } from './services/service.AuthSecurityCleanup';
 
 const start = async () => {

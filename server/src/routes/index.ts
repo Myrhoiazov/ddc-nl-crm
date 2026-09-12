@@ -12,7 +12,7 @@ import companyRouter from '../modules/company/company.routes'
 import invoicesRouter from '../modules/invoices/invoices.routes'
 import emailRouter from '../modules/communication/email/email.routes'
 import searchRouter from '../modules/search/search.routes'
-import paymentRemindersRouter from './router.PaymentReminders'
+import paymentRemindersRouter from '../modules/payment-reminders/payment-reminders.routes'
 import healthRouter from '../modules/health/health.routes'
 import authSecurityEventsRouter from './router.AuthSecurityEvents'
 
