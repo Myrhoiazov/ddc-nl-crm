@@ -9,9 +9,9 @@ import {
 } from './users.service';
 import ApiError from '../../helpers/ApiError';
 
-import { hashPassword, isCommonPassword, isPasswordAllowed } from '../../services/service.Password';
+import { hashPassword, isCommonPassword, isPasswordAllowed } from '../auth/auth.password.service';
 import { AuthSecurityEventType, UserRole } from '@prisma/client';
-import { recordAuthSecurityEvent } from '../../services/service.AuthSecurityAudit';
+import { recordAuthSecurityEvent } from '../auth/auth.security-audit.service';
 import { notifyRoleChanged } from '../communication';
 
 /**

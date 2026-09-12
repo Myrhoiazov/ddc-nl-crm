@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthSecurityEventType, Prisma } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;

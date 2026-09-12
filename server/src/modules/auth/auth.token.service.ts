@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 import dayjs from 'dayjs';
-import prisma from '../../prisma/prisma-client'
-import ApiError from '../helpers/ApiError';
-import { timingSafeEqualStrings } from '../helpers';
-import { getUserById } from '../modules/users/users.service';
+import prisma from '../../../prisma/prisma-client'
+import ApiError from '../../helpers/ApiError';
+import { timingSafeEqualStrings } from '../../helpers';
+import { getUserById } from '../users/users.service';
 
 const Session = prisma.session
 const SESSION_DAYS = 7;

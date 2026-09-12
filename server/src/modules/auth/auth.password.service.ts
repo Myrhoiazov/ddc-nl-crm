@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import argon2 from 'argon2';
-import { authentication } from '../helpers';
-import { COMMON_PASSWORDS } from '../data/commonPasswords';
+import { authentication } from '../../helpers';
+import { COMMON_PASSWORDS } from '../../data/commonPasswords';
 
 const ARGON2_OPTIONS = {
     type: argon2.argon2id,

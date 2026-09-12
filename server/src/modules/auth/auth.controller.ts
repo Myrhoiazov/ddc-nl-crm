@@ -1,16 +1,16 @@
 
 import { NextFunction, Request, Response } from 'express';
 import { AuthSecurityEventType } from '@prisma/client';
-import prisma from '../../prisma/prisma-client'
-import { getUserByEmail } from '../modules/users/users.service';
-import { findToken, generateSessionToken, refreshToken, removeToken, replaceToken, saveToken } from '../services/service.Token';
-import ApiError from '../helpers/ApiError';
-import { loginType, twoFactorVerifyType } from '../schemas/schema.auth';
-import { hashPassword, verifyPassword } from '../services/service.Password';
-import { upgradeUserPasswordHash } from '../modules/users/users.service';
-import { createCsrfToken } from '../services/service.Csrf';
-import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
-import { notifyNewDeviceAfterFailures } from '../modules/communication';
+import prisma from '../../../prisma/prisma-client'
+import { getUserByEmail } from '../users/users.service';
+import { findToken, generateSessionToken, refreshToken, removeToken, replaceToken, saveToken } from './auth.token.service';
+import ApiError from '../../helpers/ApiError';
+import { loginType, twoFactorVerifyType } from './auth.schema';
+import { hashPassword, verifyPassword } from './auth.password.service';
+import { upgradeUserPasswordHash } from '../users/users.service';
+import { createCsrfToken } from './auth.csrf.service';
+import { recordAuthSecurityEvent } from './auth.security-audit.service';
+import { notifyNewDeviceAfterFailures } from '../communication';
 import {
     CODE_TTL_MINUTES,
     createTrustedDevice,
@@ -19,9 +19,9 @@ import {
     resendTwoFactorChallenge,
     TRUSTED_DEVICE_DAYS,
     verifyTwoFactorChallenge,
-} from '../services/service.TwoFactorAuth';
-import { logger } from '../logger';
-import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured } from '../services/service.Captcha';
+} from './auth.two-factor.service';
+import { logger } from '../../logger';
+import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured } from './auth.captcha.service';
 
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';
 /** True when MODE=production — controls secure-flag on cookies. Named constant so Skylos can prove it's boolean. */
