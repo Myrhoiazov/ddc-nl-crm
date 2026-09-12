@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InvoiceDeliveryType } from '@prisma/client';
-import { resolveDueReminderType } from './service.InvoiceDelivery';
+import { resolveDueReminderType } from './invoices.delivery.service';
 
 const now = new Date(2026, 7, 5, 12, 0, 0);
 const inThreeDays = new Date(2026, 7, 8, 12, 0, 0);

@@ -1,5 +1,5 @@
 import { InvoiceStatus, Prisma } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 const toCents = (value: Prisma.Decimal | number | string) => Math.round(Number(value) * 100);
 

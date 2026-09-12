@@ -9,7 +9,7 @@ import instagramRouter from '../modules/communication/instagram/instagram.routes
 import mollieRouter from './router.Mollie'
 import scheduleRouter from '../modules/schedule/schedule.routes'
 import companyRouter from '../modules/company/company.routes'
-import invoicesRouter from './router.Invoices'
+import invoicesRouter from '../modules/invoices/invoices.routes'
 import emailRouter from '../modules/communication/email/email.routes'
 import searchRouter from '../modules/search/search.routes'
 import paymentRemindersRouter from './router.PaymentReminders'
