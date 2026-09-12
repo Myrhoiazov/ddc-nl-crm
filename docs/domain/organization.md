@@ -6,10 +6,10 @@ The studio's own structural/master data: legal entity, billing brands, and physi
 This is reference data consumed by other domains, not owned by any of them.
 
 Not part of the task's starter domain list — added because `company.prisma` defines these models
-with their own dedicated controller/router (`controller.Company.ts` / `router.Company.ts`),
-distinct behavior (singleton legal entity, transactional default-brand enforcement, soft-archive
-vs hard-delete), and consumers spanning three other domains. See `docs/domain/README.md` for the
-justification summary.
+with their own dedicated controller/router (`modules/company/company.controller.ts` /
+`company.routes.ts`), distinct behavior (singleton legal entity, transactional default-brand
+enforcement, soft-archive vs hard-delete), and consumers spanning three other domains. See
+`docs/domain/README.md` for the justification summary.
 
 ## Scope
 
