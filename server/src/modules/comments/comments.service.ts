@@ -1,4 +1,4 @@
-import prisma from '../../prisma/prisma-client'
+import prisma from '../../../prisma/prisma-client'
 import { Comment as TComment, User } from '@prisma/client';
 
 const Comment = prisma.comment

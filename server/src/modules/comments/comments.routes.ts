@@ -3,10 +3,11 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asyncHandler, isToken } from "../middlewares/middleware.Auth";
-import { createCommentController, fetchByClientIdController } from "../controllers/controller.Comments";
+import { asyncHandler, isToken } from "../../middlewares/middleware.Auth";
+import { createCommentController, fetchByClientIdController } from "./comments.controller";
+import { ROOT_DIR } from "../../utils/paths";
 
-const publicPath = path.resolve(__dirname, '../../', 'public/upload');
+const publicPath = path.resolve(ROOT_DIR, 'public/upload');
 
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
