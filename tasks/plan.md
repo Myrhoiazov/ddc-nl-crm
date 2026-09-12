@@ -1,31 +1,33 @@
-# Implementation Plan: Health Module Migration
+# Backend Module Refactor Plan
 
-## Overview
-Move the existing Health API surface from layer-first files into `server/src/modules/health/` without changing `GET /api/v1/health` behavior.
+## Completed
 
-## Relevant Context
-- Reference module: `server/src/modules/comments/` colocates route, controller, and tests where useful.
-- Current Health dependency map: `routes/index.ts` -> `routes/router.Health.ts` -> `controllers/controller.Health.ts` -> fixed JSON response.
-- Health has no Prisma usage, schemas, DTOs, frontend consumers, or external integrations.
-- Baseline: `node --test -r ts-node/register src/routes/router.Health.test.ts` passed when run with local port permissions.
+- Health: moved route/controller/test into `server/src/modules/health/`.
+- Transactions: moved route/controller/service/tests into `server/src/modules/transactions/`.
 
-## Task List
-- [x] Task 1: Move Health route/controller/test into `server/src/modules/health/`.
-- [x] Task 2: Verify Health contract and module boundary.
+## Current Scope
 
-## Verification Plan
-- [x] Health test: `node --test -r ts-node/register src/modules/health/health.routes.test.ts`
-- [x] Server build: `npm run build`
-- [x] Server CI: `npm run test:ci`
-- [x] Root CI: `npm run ci`
-- [x] Diff review: `git diff --stat` and `git diff`
+Migrate only the Transactions backend module from the legacy layer-first folders into
+`server/src/modules/transactions/`.
 
-## Risks and Mitigations
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| Health endpoint path changes | High | Only update import path; keep `router.use('/health', healthRouter)` and `router.get('/')`. |
-| Test requires binding a local port | Low | Run with permission when sandbox blocks `listen`. |
-| Over-engineering DTO/projection | Low | Do not add DTO, mapper, service, repository, or select files; endpoint returns a constant response. |
+## Dependency Map
 
-## Open Questions
-- None
+```text
+transactions.routes
+-> auth middleware
+-> transactions.controller
+-> transactions.service
+-> Prisma transaction/payment models
+-> Mollie sync service
+-> Mollie CSV helper
+```
+
+## Phases
+
+1. Move Transactions route/controller/service/test into `server/src/modules/transactions/`.
+2. Update route wiring and module test script.
+3. Verify structural migration before API/data changes.
+4. Inventory API responses and frontend consumers.
+5. Add safe Prisma projections where the current response contract is clear.
+6. Add or update focused contract/projection tests only if they protect real behavior.
+7. Run module, server, and root checks.

@@ -1,6 +1,6 @@
 import express from "express";
-import { asyncHandler, isToken } from "../middlewares/middleware.Auth"
-import { createTransactionController, deleteTransactionByIdController, exportMonthlyRevenueController, fetchAllTransactionsController, getTransactionChartController, getTransactionSummaryController } from "../controllers/controller.Transactions";
+import { asyncHandler, isToken } from "../../middlewares/middleware.Auth"
+import { createTransactionController, deleteTransactionByIdController, exportMonthlyRevenueController, fetchAllTransactionsController, getTransactionChartController, getTransactionSummaryController } from "./transactions.controller";
 
 const router = express.Router();
 
