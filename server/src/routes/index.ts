@@ -1,6 +1,6 @@
 import express from "express";
 import authinticationRouter from "./router.Auth";
-import usersRouter from "./router.Users";
+import usersRouter from "../modules/users/users.routes";
 import profileRouter from './router.Profiles'
 import clientsRouter from '../modules/clients/clients.routes'
 import commentsRouter from '../modules/comments/comments.routes'

@@ -1,6 +1,6 @@
 import express from "express";
-import { createUserController, deleteUserByIdController, gettAllUsersController, getUserByIdController, updateUserController } from "../controllers/controller.Users";
-import { asyncHandler, isToken, requireOwnerOrRole, requireRole } from "../middlewares/middleware.Auth";
+import { createUserController, deleteUserByIdController, gettAllUsersController, getUserByIdController, updateUserController } from "./users.controller";
+import { asyncHandler, isToken, requireOwnerOrRole, requireRole } from "../../middlewares/middleware.Auth";
 import { UserRole } from "@prisma/client";
 
 const router = express.Router();
