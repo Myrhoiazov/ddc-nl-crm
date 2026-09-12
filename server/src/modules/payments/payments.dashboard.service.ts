@@ -1,5 +1,5 @@
 import dayjs from 'dayjs';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 const paymentIssueStatuses = ['failed', 'canceled', 'expired', 'charged_back', 'chargeback'];
 

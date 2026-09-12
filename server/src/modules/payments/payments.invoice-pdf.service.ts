@@ -1,7 +1,7 @@
 import { InvoiceDocumentType, InvoiceStatus, Prisma } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
-import { createInvoicePdf } from '../modules/invoices/invoices.pdf.service';
-import { getMolliePaymentNetCents } from '../modules/invoices/invoices.mollie.service';
+import prisma from '../../../prisma/prisma-client';
+import { createInvoicePdf } from '../invoices/invoices.pdf.service';
+import { getMolliePaymentNetCents } from '../invoices/invoices.mollie.service';
 
 export const customerName = (customer: {
     payerName: string | null;
