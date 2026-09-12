@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeClientData } from './service.Clients';
+import { normalizeClientData } from './clients.service';
 
 test('strips protected/computed fields to prevent mass-assignment', () => {
     const result = normalizeClientData({

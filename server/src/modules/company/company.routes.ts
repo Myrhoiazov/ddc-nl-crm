@@ -3,12 +3,12 @@ import multer, { MulterError } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { asyncHandler, isToken } from '../middlewares/middleware.Auth';
+import { asyncHandler, isToken } from '../../middlewares/middleware.Auth';
 import {
     archiveBrand, createBrand, getBranches, getBranchById, createBranch, updateBranch, deleteBranch,
     getBrands, getOrganization, syncOrganizationFromMollie, updateBrand, upsertOrganization,
-} from '../controllers/controller.Company';
-import { ROOT_DIR } from '../utils/paths';
+} from './company.controller';
+import { ROOT_DIR } from '../../utils/paths';
 
 const router = express.Router();
 const brandUploadDir = path.resolve(ROOT_DIR, 'public/upload/brands');

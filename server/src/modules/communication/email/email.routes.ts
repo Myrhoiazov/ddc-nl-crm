@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
 import multer, { MulterError } from 'multer';
 import { UserRole } from '@prisma/client';
-import { asyncHandler, isToken, requireRole } from '../middlewares/middleware.Auth';
+import { asyncHandler, isToken, requireRole } from '../../../middlewares/middleware.Auth';
 import {
     createAccount,
     deleteAccount,
@@ -15,7 +15,7 @@ import {
     replyToMessageController,
     sendMessageController,
     syncAccount,
-} from '../controllers/controller.Email';
+} from './email.controller';
 
 const router = express.Router();
 

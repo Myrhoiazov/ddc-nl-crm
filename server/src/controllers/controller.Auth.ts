@@ -10,7 +10,7 @@ import { hashPassword, verifyPassword } from '../services/service.Password';
 import { upgradeUserPasswordHash } from '../services/service.Users';
 import { createCsrfToken } from '../services/service.Csrf';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
-import { notifyNewDeviceAfterFailures } from '../services/service.Telegram';
+import { notifyNewDeviceAfterFailures } from '../modules/communication';
 import {
     CODE_TTL_MINUTES,
     createTrustedDevice,

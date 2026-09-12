@@ -1,7 +1,7 @@
 import cron from 'node-cron';
-import prisma from '../../prisma/prisma-client';
-import { logger } from '../logger';
-import { syncEmailAccount } from './service.EmailImap';
+import prisma from '../../../../prisma/prisma-client';
+import { logger } from '../../../logger';
+import { syncEmailAccount } from './email-imap.service';
 
 // Every 5 minutes, per account, so one slow/broken mailbox connection can't
 // delay or block syncing the others.

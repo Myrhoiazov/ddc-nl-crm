@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 // ─── Halls ────────────────────────────────────────────────────────────────────
 

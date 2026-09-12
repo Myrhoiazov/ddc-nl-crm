@@ -1,5 +1,5 @@
 import { Prisma, UserRole } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
+import prisma from '../../../prisma/prisma-client';
 
 const RESULT_LIMIT = 5;
 const FETCH_POOL = 25;
