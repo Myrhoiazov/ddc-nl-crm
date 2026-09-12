@@ -8,14 +8,14 @@ webhook endpoint and an internal Telegram notification utility.
 ## Scope
 
 - `EmailAccount`, `EmailMessage`, `EmailAttachment`.
-- Instagram webhook handling (`controller.Instagram.ts`).
-- Telegram notification sending (`service.Telegram.ts`).
+- Instagram webhook handling (`modules/communication/instagram/instagram.controller.ts`).
+- Telegram notification sending (`modules/communication/telegram/telegram.service.ts`).
 
 ## Out of Scope
 
 - **Invoice delivery email** — Billing has its own independent SMTP transport
-  (`service.InvoiceDelivery.ts`, built directly from env vars), sharing no code with this module;
-  invoice emails never create an `EmailMessage` row here.
+  (`modules/invoices/invoices.delivery.service.ts`, built directly from env vars), sharing no code
+  with this module; invoice emails never create an `EmailMessage` row here.
 - **2FA email** — Identity sends 2FA codes directly via nodemailer using the `EmailAccount` whose
   `username` matches `TWO_FACTOR_SENDER_EMAIL`, bypassing this module's send path and not creating
   an `EmailMessage`.
@@ -71,10 +71,10 @@ webhook endpoint and an internal Telegram notification utility.
   functional, but the message-receiving handler only logs incoming events — it does not persist
   anything or associate with a `Client`. Document as scaffolding, not active client communication.
   It's also the only fully unauthenticated, CSRF-exempt API surface besides `/health`.
-- **Telegram — internal ops notification, not a customer channel**: `service.Telegram.ts` posts to
-  one fixed chat ID configured via env, and is triggered exclusively from the Payments domain's
-  Mollie webhook handling (payment paid/failed/canceled/expired/chargeback/refund) — it has no
-  other caller in the codebase today.
+- **Telegram — internal ops notification, not a customer channel**:
+  `modules/communication/telegram/telegram.service.ts` posts to one fixed chat ID configured via
+  env, and is triggered exclusively from the Payments domain's Mollie webhook handling (payment
+  paid/failed/canceled/expired/chargeback/refund) — it has no other caller in the codebase today.
 
 ## Relationships
 

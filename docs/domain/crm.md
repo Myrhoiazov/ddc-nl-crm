@@ -41,8 +41,8 @@ notes, and cross-domain search.
     enforces directly.
   - Group membership is **replace-on-write**: update deletes all existing `ClientDanceGroup` rows
     for the client and recreates them from the submitted `groupIds`, inside one transaction — not
-    a diff/patch. **This write path lives in CRM's `service.Clients.ts`, not in Scheduling's
-    controller**, even though `DanceGroup` is a Scheduling entity — see `scheduling.md`.
+    a diff/patch. **This write path lives in CRM's `modules/clients/clients.service.ts`, not in
+    Scheduling's controller**, even though `DanceGroup` is a Scheduling entity — see `scheduling.md`.
   - Delete is a **hard delete** (no soft-delete/archival), relying on the schema's cascade/set-null
     rules for dependent rows.
   - An optional `mollieCustomerId` on create links the new client to an existing Mollie `Customer`

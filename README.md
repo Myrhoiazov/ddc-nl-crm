@@ -136,7 +136,7 @@ npm run test:search
 npm run test:email
 npm run test:payment-reminders
 # or a single file directly:
-node --test -r ts-node/register src/services/service.Password.test.ts
+node --test -r ts-node/register src/modules/auth/auth.password.service.test.ts
 ```
 
 ## Environment Variables
@@ -172,15 +172,22 @@ Most page/feature state is mounted lazily with `DynamicModuleLoader`. API access
 `@/shared/api/api.ts`: `$api` for unauthenticated calls and `$apiPrivate` for cookie-session calls
 that automatically attach the CSRF token.
 
-### Server — Layered Express
+### Server — Feature/Domain Modules
 
 ```text
-routes/router.X.ts -> controllers/controller.X.ts -> services/service.X.ts
+modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 ```
 
-- Validation via Zod schemas (`server/src/schemas/`) applied through validation middleware
+- Business modules live under `server/src/modules/`: `auth`, `users`, `clients`, `company`,
+  `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie),
+  `payment-reminders`, `communication` (`email`/`instagram`/`telegram`), `health`
+- Domain-agnostic infrastructure lives under `server/src/common/`: `errors/`, `middleware/`,
+  `validation/`, `logger/`, `utils/`
+- Validation via Zod schemas colocated with each module, applied through
+  `common/validation/validate-schema.middleware.ts`
 - Authentication: cookie sessions, CSRF double-submit, Argon2id password hashing, 2FA email flow,
   endpoint-specific rate limiting (Redis when `REDIS_URL` is set, in-memory process-local fallback)
+  — all in `modules/auth/`
 - Prisma schema is split across `server/prisma/schema/*.prisma` (client, company, email, invoice,
   mollie, payment-reminder, schedule, user) pointed at MySQL via `DATABASE_URL`
 - `GET /api/v1/health` (no auth, no DB) supports Docker health checks and deploy smoke tests
