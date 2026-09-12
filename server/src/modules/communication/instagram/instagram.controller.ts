@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import { env } from 'process';
 // import axios from "axios";
 import crypto from "crypto";
-import { timingSafeEqualStrings } from "../../../helpers";
-import ApiError from "../../../helpers/ApiError";
+import { timingSafeEqualStrings } from "../../../common/utils/crypto";
+import ApiError from "../../../common/errors/api-error";
 
 const VERIFY_TOKEN = env.VERIFY_MARKER_SECRET || "myverifytoken123";
 

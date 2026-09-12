@@ -7,7 +7,7 @@ import {
     getUserById,
     updateUserSecurity,
 } from './users.service';
-import ApiError from '../../helpers/ApiError';
+import ApiError from '../../common/errors/api-error';
 
 import { hashPassword, isCommonPassword, isPasswordAllowed } from '../auth/auth.password.service';
 import { AuthSecurityEventType, UserRole } from '@prisma/client';

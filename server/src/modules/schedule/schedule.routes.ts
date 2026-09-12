@@ -11,7 +11,7 @@ import {
     getChoreographers, createChoreographer, updateChoreographer, deleteChoreographer,
     getStyles, getStyleCards, createStyleCard, updateStyleCard, deleteStyleCard,
 } from './schedule.controller';
-import { ROOT_DIR } from '../../utils/paths';
+import { ROOT_DIR } from '../../common/utils/paths';
 
 const choreographerUploadDir = path.resolve(ROOT_DIR, 'public/upload/choreographers');
 const styleUploadDir = path.resolve(ROOT_DIR, 'public/upload/styles');

@@ -8,7 +8,7 @@ import {
     archiveBrand, createBrand, getBranches, getBranchById, createBranch, updateBranch, deleteBranch,
     getBrands, getOrganization, syncOrganizationFromMollie, updateBrand, upsertOrganization,
 } from './company.controller';
-import { ROOT_DIR } from '../../utils/paths';
+import { ROOT_DIR } from '../../common/utils/paths';
 
 const router = express.Router();
 const brandUploadDir = path.resolve(ROOT_DIR, 'public/upload/brands');

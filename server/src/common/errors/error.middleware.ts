@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction, ErrorRequestHandler } from 'express';
-import ApiError from '../helpers/ApiError';
+import ApiError from './api-error';
 import { logger } from '../logger';
 
 const errorMiddleware: ErrorRequestHandler = function errorMiddleware(

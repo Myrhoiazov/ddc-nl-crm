@@ -9,10 +9,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import routes from './routes';
-import errorMiddleware from './middlewares/middlewares.Error';
+import errorMiddleware from './common/errors/error.middleware';
 import { csrfProtection } from './modules/auth/auth.csrf.middleware';
-import { queryStats } from './middlewares/middleware.QueryStats';
-import { logger } from './logger';
+import { queryStats } from './common/middleware/query-stats.middleware';
+import { logger } from './common/logger';
 import { env } from 'process';
 import { verifyRequestSignature } from './modules/communication/instagram/instagram.controller';
 
