@@ -1,7 +1,7 @@
 import { ImapFlow, type FetchMessageObject } from 'imapflow';
 import { simpleParser, Attachment as ParsedAttachment } from 'mailparser';
 import prisma from '../../../../prisma/prisma-client';
-import { logger } from '../../../logger';
+import { logger } from '../../../common/logger';
 import { decryptEmailSecret } from './email-crypto.service';
 import { storeAttachmentFile } from './email-attachment-storage.service';
 

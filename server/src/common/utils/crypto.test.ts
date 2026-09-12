@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { timingSafeEqualStrings } from './index';
+import { timingSafeEqualStrings } from './crypto';
 
 test('timingSafeEqualStrings returns true for identical strings', () => {
     assert.equal(timingSafeEqualStrings('same-value', 'same-value'), true);
