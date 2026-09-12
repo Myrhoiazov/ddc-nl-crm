@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { paymentLinkExpiry } from './service.InvoicePaymentLink';
+import { paymentLinkExpiry } from './invoices.payment-link.service';
 
 describe('invoice Mollie payment link expiry', () => {
     it('expires at the end of the due date in Amsterdam during summer time', () => {

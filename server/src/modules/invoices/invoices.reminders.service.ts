@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import { sendDueInvoiceReminders } from './service.InvoiceDelivery';
+import { sendDueInvoiceReminders } from './invoices.delivery.service';
 
 export const startInvoiceReminderCron = () => {
     cron.schedule('0 9 * * *', async () => {

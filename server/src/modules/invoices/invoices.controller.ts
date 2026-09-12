@@ -1,12 +1,12 @@
 import { Request, Response } from 'express';
 import { InvoiceDeliveryType, InvoiceDocumentType, InvoiceStatus, Prisma } from '@prisma/client';
 import { z } from 'zod';
-import prisma from '../../prisma/prisma-client';
-import { createInvoicePdf } from '../services/service.InvoicePdf';
-import * as mollieService from '../services/service.Mollie';
-import * as mollieSyncService from '../services/service.MollieSync';
-import { sendInvoiceEmail } from '../services/service.InvoiceDelivery';
-import { archiveInvoicePaymentLinks, ensureInvoicePaymentLink } from '../services/service.InvoicePaymentLink';
+import prisma from '../../../prisma/prisma-client';
+import { createInvoicePdf } from './invoices.pdf.service';
+import * as mollieService from '../../services/service.Mollie';
+import * as mollieSyncService from '../../services/service.MollieSync';
+import { sendInvoiceEmail } from './invoices.delivery.service';
+import { archiveInvoicePaymentLinks, ensureInvoicePaymentLink } from './invoices.payment-link.service';
 
 const editableStatuses = [InvoiceStatus.DRAFT, InvoiceStatus.ISSUED] as const;
 const getActorId = (req: Request) => {

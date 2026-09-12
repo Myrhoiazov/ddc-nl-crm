@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
-import { buildAdjustmentInvoiceData, buildOverdueAuditRecords } from './controller.Invoices';
+import { buildAdjustmentInvoiceData, buildOverdueAuditRecords } from './invoices.controller';
 
 const original = {
     id: 42,

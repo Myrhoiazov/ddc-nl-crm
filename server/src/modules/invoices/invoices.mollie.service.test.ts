@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InvoiceStatus } from '@prisma/client';
-import { calculateInvoiceStatus, getMolliePaymentNetCents } from './service.InvoiceMollie';
+import { calculateInvoiceStatus, getMolliePaymentNetCents } from './invoices.mollie.service';
 
 const paidPayment = {
     amountValue: '80.00',
