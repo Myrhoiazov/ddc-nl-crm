@@ -2,7 +2,7 @@ import express from "express";
 import authinticationRouter from "./router.Auth";
 import usersRouter from "./router.Users";
 import profileRouter from './router.Profiles'
-import clientsRouter from './router.Clients'
+import clientsRouter from '../modules/clients/clients.routes'
 import commentsRouter from '../modules/comments/comments.routes'
 import transactionsRouter from './router.Transactions'
 import instagramRouter from './router.Instagram'
