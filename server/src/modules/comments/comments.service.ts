@@ -1,12 +1,12 @@
-import prisma from '../../../prisma/prisma-client'
-import { Comment as TComment, User } from '@prisma/client';
+import prisma from '../../../prisma/prisma-client';
+import {
+    CommentListItemDto,
+    CreateCommentDto,
+    CreateCommentInput,
+} from './comments.dto';
+import { commentListSelect, commentListSelectWithAuthor } from './comments.select';
 
 const Comment = prisma.comment
-
-export type CommentWithAuthor =
-    TComment & {
-        author?: User | null;
-    };
 
 export interface FindCommentsParams {
     entityType: 'client';
@@ -15,22 +15,12 @@ export interface FindCommentsParams {
 }
 
 
-export const findManyComments = async (data: FindCommentsParams): Promise<CommentWithAuthor[]> => {
+export const findManyComments = async (data: FindCommentsParams): Promise<CommentListItemDto[]> => {
 
     const comments = await Comment.findMany({
         where: { clientId: Number(data.entityId) },
         orderBy: { createdAt: 'desc' },
-        include: {
-            author: data.expandUser
-                ? {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                    },
-                }
-                : false,
-        },
+        select: data.expandUser ? commentListSelectWithAuthor : commentListSelect,
     });
 
     return comments
@@ -38,17 +28,22 @@ export const findManyComments = async (data: FindCommentsParams): Promise<Commen
 }
 
 
-export const createComment = async (data: TComment) => {
+export const createComment = async (data: CreateCommentInput): Promise<CreateCommentDto> => {
 
-    // No `include` here: the client discards this response and refetches the comment list
-    // separately (see addCommentsForClient.ts), and `include: { author: true, client: true }`
-    // used to send the full User row — including the password hash and salt — back to the
-    // browser on every comment post.
+    // The client discards this response and refetches the comment list separately
+    // (see addCommentsForClient.ts), so `select` returns only identity + rendered
+    // fields and `include: { author: true, client: true }` is never used — the full
+    // User row (including the password hash and salt) must not leave the server.
     return await Comment.create({
         data: {
             text: data?.text,
             userId: Number(data.userId),
             clientId: data.clientId ? Number(data.clientId) : undefined,
+        },
+        select: {
+            id: true,
+            text: true,
+            createdAt: true,
         },
     });
 };
