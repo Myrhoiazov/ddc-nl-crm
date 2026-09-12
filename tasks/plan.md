@@ -1,8 +1,14 @@
-# Transactions Module Refactor Plan
+# Backend Module Refactor Plan
 
-## Scope
+## Completed
 
-Migrate only the Transactions backend module from the legacy layer-first folders into `server/src/modules/transactions/`.
+- Health: moved route/controller/test into `server/src/modules/health/`.
+- Transactions: moved route/controller/service/tests into `server/src/modules/transactions/`.
+
+## Current Scope
+
+Migrate only the Transactions backend module from the legacy layer-first folders into
+`server/src/modules/transactions/`.
 
 ## Dependency Map
 

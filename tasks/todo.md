@@ -1,4 +1,6 @@
-# Transactions Module Refactor Checklist
+# Backend Module Refactor Checklist
+
+- [x] Health module migration merged into `develop`.
 
 - [x] Phase 1 discovery: route/controller/service/test/front-end consumers identified.
 - [x] Baseline verification: `npm run test:transactions`.
