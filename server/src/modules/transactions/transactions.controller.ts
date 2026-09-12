@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { createTransaction, getAllTransactions, getTransactionsChart, getTransactionsSummary, TransactionChartPeriod } from "./transactions.service";
 import { Transaction } from '@prisma/client';
 import { deleteTransactionById } from "./transactions.service";
-import { createCsv } from "../../services/service.MollieUtils";
+import { createCsv } from "../payments/payments.utils.service";
 
 export const fetchAllTransactionsController = async (req: Request, res: Response) => {
 

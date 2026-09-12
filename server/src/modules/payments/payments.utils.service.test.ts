@@ -9,7 +9,7 @@ import {
     mapClientLanguageToMollieLocale,
     normalizePaymentStatus,
     parseIncidentKey,
-} from './service.MollieUtils';
+} from './payments.utils.service';
 
 test('webhook classifies paid, incident and neutral payment statuses', () => {
     assert.equal(getWebhookAttentionLevel('paid'), 'success');

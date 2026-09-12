@@ -4,7 +4,7 @@ import {
     resolveSyncStatus,
     buildMandateUpsertArgs,
     buildSubscriptionUpsertArgs,
-} from './service.MollieSync';
+} from './payments.sync.service';
 
 test('resolveSyncStatus is skipped when the Mollie record has no id', () => {
     assert.equal(resolveSyncStatus(null, new Set()), 'skipped');
