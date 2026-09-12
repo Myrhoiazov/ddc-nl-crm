@@ -1,8 +1,9 @@
 import { ExpenseCategory, PaymentMethod, Prisma, TransactionType, Transaction as TTransaction } from '@prisma/client';
 
-import prisma from '../../prisma/prisma-client'
+import prisma from '../../../prisma/prisma-client'
 import dayjs from 'dayjs';
-import { syncMolliePayments } from './service.MollieSync';
+import { syncMolliePayments } from '../../services/service.MollieSync';
+import { manualTransactionSelect, molliePaymentTransactionSelect } from './transactions.select';
 
 const Transaction = prisma.transaction
 const MOLLIE_SYNC_INTERVAL_MS = 2 * 60 * 1000;
@@ -113,7 +114,11 @@ const getCustomerName = (customer?: {
     return fullName || customer?.consumerName || customer?.email || null;
 };
 
-const mapManualTransaction = (transaction: TTransaction): FinancialTransaction => ({
+type ManualTransaction = Prisma.TransactionGetPayload<{
+    select: typeof manualTransactionSelect;
+}>;
+
+const mapManualTransaction = (transaction: ManualTransaction): FinancialTransaction => ({
     ...transaction,
     id: String(transaction.id),
     currency: 'EUR',
@@ -122,16 +127,7 @@ const mapManualTransaction = (transaction: TTransaction): FinancialTransaction =
 });
 
 type MolliePaymentWithCustomer = Prisma.PaymentGetPayload<{
-    include: {
-        customer: {
-            select: {
-                givenName: true;
-                familyName: true;
-                consumerName: true;
-                email: true;
-            };
-        };
-    };
+    select: typeof molliePaymentTransactionSelect;
 }>;
 
 const molliePaymentCommon = (payment: MolliePaymentWithCustomer) => {
@@ -220,7 +216,9 @@ const invalidateFinancialTransactionsCache = () => {
 
 const loadFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
     const [manualTransactions, molliePayments] = await Promise.all([
-        Transaction.findMany(),
+        Transaction.findMany({
+            select: manualTransactionSelect,
+        }),
         prisma.payment.findMany({
             where: {
                 OR: [
@@ -230,16 +228,7 @@ const loadFinancialTransactions = async (): Promise<FinancialTransaction[]> => {
                     { chargedBackAmount: { gt: 0 } },
                 ],
             },
-            include: {
-                customer: {
-                    select: {
-                        givenName: true,
-                        familyName: true,
-                        consumerName: true,
-                        email: true,
-                    },
-                },
-            },
+            select: molliePaymentTransactionSelect,
         }),
     ]);
 

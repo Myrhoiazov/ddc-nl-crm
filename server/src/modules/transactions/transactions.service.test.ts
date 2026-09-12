@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isCacheFresh } from './service.Transaction';
+import { isCacheFresh } from './transactions.service';
 
 test('isCacheFresh is false when there is no cache entry', () => {
     assert.equal(isCacheFresh(null, Date.now()), false);
