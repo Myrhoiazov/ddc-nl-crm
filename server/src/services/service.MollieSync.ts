@@ -2,7 +2,7 @@ import { Customer, Mandate, Payment, Subscription } from '@mollie/api-client';
 import prisma from '../../prisma/prisma-client';
 import * as mollieService from './service.Mollie';
 import { normalizePaymentStatus } from './service.MollieUtils';
-import { reconcileInvoiceMolliePayments } from './service.InvoiceMollie';
+import { reconcileInvoiceMolliePayments } from '../modules/invoices/invoices.mollie.service';
 
 export interface SyncResult {
     created: number;

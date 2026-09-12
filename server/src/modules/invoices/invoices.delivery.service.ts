@@ -1,9 +1,9 @@
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
 import { InvoiceDeliveryStatus, InvoiceDeliveryType, InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
-import { createInvoicePdf } from './service.InvoicePdf';
-import { ensureInvoicePaymentLink } from './service.InvoicePaymentLink';
+import prisma from '../../../prisma/prisma-client';
+import { createInvoicePdf } from './invoices.pdf.service';
+import { ensureInvoicePaymentLink } from './invoices.payment-link.service';
 
 // publicToken/paymentUrl/invoiceId/createdById are intentionally omitted from every
 // InvoiceDelivery response — publicToken is the unauthenticated bearer token that grants

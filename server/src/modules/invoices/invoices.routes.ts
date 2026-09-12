@@ -1,5 +1,5 @@
 import express from 'express';
-import { asyncHandler, isToken } from '../middlewares/middleware.Auth';
+import { asyncHandler, isToken } from '../../middlewares/middleware.Auth';
 import {
     confirmPaidInvoice,
     createInvoice,
@@ -17,7 +17,7 @@ import {
     updateInvoice,
     updateInvoiceStatus,
     viewPublicInvoice,
-} from '../controllers/controller.Invoices';
+} from './invoices.controller';
 
 const router = express.Router();
 

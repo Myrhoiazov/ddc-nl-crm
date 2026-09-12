@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
-import prisma from '../../prisma/prisma-client';
-import * as mollieService from './service.Mollie';
+import prisma from '../../../prisma/prisma-client';
+import * as mollieService from '../../services/service.Mollie';
 
 export interface PayableInvoice {
     id: number;
