@@ -4,7 +4,7 @@ import usersRouter from "./router.Users";
 import profileRouter from './router.Profiles'
 import clientsRouter from '../modules/clients/clients.routes'
 import commentsRouter from '../modules/comments/comments.routes'
-import transactionsRouter from './router.Transactions'
+import transactionsRouter from '../modules/transactions/transactions.routes'
 import instagramRouter from '../modules/communication/instagram/instagram.routes'
 import mollieRouter from './router.Mollie'
 import scheduleRouter from '../modules/schedule/schedule.routes'
@@ -13,7 +13,7 @@ import invoicesRouter from './router.Invoices'
 import emailRouter from '../modules/communication/email/email.routes'
 import searchRouter from '../modules/search/search.routes'
 import paymentRemindersRouter from './router.PaymentReminders'
-import healthRouter from './router.Health'
+import healthRouter from '../modules/health/health.routes'
 import authSecurityEventsRouter from './router.AuthSecurityEvents'
 
 const router = express.Router();
