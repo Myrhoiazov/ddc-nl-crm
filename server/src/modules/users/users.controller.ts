@@ -6,13 +6,13 @@ import {
     getUserByEmail,
     getUserById,
     updateUserSecurity,
-} from '../services/service.Users';
-import ApiError from '../helpers/ApiError';
+} from './users.service';
+import ApiError from '../../helpers/ApiError';
 
-import { hashPassword, isCommonPassword, isPasswordAllowed } from '../services/service.Password';
+import { hashPassword, isCommonPassword, isPasswordAllowed } from '../../services/service.Password';
 import { AuthSecurityEventType, UserRole } from '@prisma/client';
-import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
-import { notifyRoleChanged } from '../modules/communication';
+import { recordAuthSecurityEvent } from '../../services/service.AuthSecurityAudit';
+import { notifyRoleChanged } from '../communication';
 
 /**
  * Controller to fetch all users.

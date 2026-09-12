@@ -1,5 +1,5 @@
-import { IUserAttributes } from '../models/user/model/user.types';
-import prisma from '../../prisma/prisma-client'
+import { IUserAttributes } from './users.types';
+import prisma from '../../../prisma/prisma-client'
 import { UserRole } from '@prisma/client';
 
 const User = prisma.user
