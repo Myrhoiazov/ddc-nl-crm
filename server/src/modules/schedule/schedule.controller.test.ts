@@ -5,7 +5,7 @@ import {
     buildGroupStats,
     isStudentActive,
     studentSummary,
-} from './controller.Schedule';
+} from './schedule.controller';
 
 type ManagementBranches = Parameters<typeof buildBranchStats>[0];
 type Student = Parameters<typeof studentSummary>[0];
