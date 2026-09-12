@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { brandSchema, emptyToNull, organizationSchema } from './controller.Company';
+import { brandSchema, emptyToNull, organizationSchema } from './company.controller';
 
 const validOrganization = {
     legalName: 'DDC Studio B.V.',

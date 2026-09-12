@@ -3,15 +3,15 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
-import { asyncHandler, isToken } from '../middlewares/middleware.Auth';
+import { asyncHandler, isToken } from '../../middlewares/middleware.Auth';
 import {
     getGroups, getGroupById, createGroup, updateGroup, deleteGroup,
     getGroupManagementStats,
     getHalls, createHall, deleteHall,
     getChoreographers, createChoreographer, updateChoreographer, deleteChoreographer,
     getStyles, getStyleCards, createStyleCard, updateStyleCard, deleteStyleCard,
-} from '../controllers/controller.Schedule';
-import { ROOT_DIR } from '../utils/paths';
+} from './schedule.controller';
+import { ROOT_DIR } from '../../utils/paths';
 
 const choreographerUploadDir = path.resolve(ROOT_DIR, 'public/upload/choreographers');
 const styleUploadDir = path.resolve(ROOT_DIR, 'public/upload/styles');

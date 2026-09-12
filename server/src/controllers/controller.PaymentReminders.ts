@@ -11,7 +11,7 @@ import {
     runPaymentReminders,
 } from '../services/service.PaymentReminders';
 import { buildReminderEmail, PAYMENT_REMINDER_PLACEHOLDERS } from '../services/service.PaymentReminderContent';
-import { composeEmail } from '../services/service.EmailSmtp';
+import { composeEmail } from '../modules/communication/email/email-smtp.service';
 
 export const getPaymentReminderSettingsController = async (_req: Request, res: Response) => {
     const settings = await getPaymentReminderSettings();

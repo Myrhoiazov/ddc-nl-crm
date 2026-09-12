@@ -1,11 +1,11 @@
 import { ImapFlow, type FetchMessageObject } from 'imapflow';
 import { simpleParser, Attachment as ParsedAttachment } from 'mailparser';
-import prisma from '../../prisma/prisma-client';
-import { logger } from '../logger';
-import { decryptEmailSecret } from './service.EmailCrypto';
-import { storeAttachmentFile } from './service.EmailAttachmentStorage';
+import prisma from '../../../../prisma/prisma-client';
+import { logger } from '../../../logger';
+import { decryptEmailSecret } from './email-crypto.service';
+import { storeAttachmentFile } from './email-attachment-storage.service';
 
-export { ATTACHMENTS_DIR } from './service.EmailAttachmentStorage';
+export { ATTACHMENTS_DIR } from './email-attachment-storage.service';
 
 const MAX_ATTACHMENT_SIZE = 15 * 1024 * 1024;
 
