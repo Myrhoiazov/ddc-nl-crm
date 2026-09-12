@@ -16,6 +16,14 @@ export SKYLOS_GREP_BUDGET="${SKYLOS_GREP_BUDGET:-120}"
 
 EXCLUDES=(--exclude coverage --exclude graphify-out)
 CONFIG=(--config-file "$ROOT_DIR/pyproject.toml")
+DIFF_BASE_REF="${SKYLOS_DIFF_BASE:-origin/${GITHUB_BASE_REF:-develop}}"
+DIFF_ARGS=()
+
+if git rev-parse --verify --quiet "$DIFF_BASE_REF" >/dev/null; then
+    DIFF_ARGS=(--diff-base "$DIFF_BASE_REF")
+else
+    echo "WARN: Skylos diff base '$DIFF_BASE_REF' not found; falling back to full repository scan."
+fi
 
 # --format и --github взаимоисключающие флаги Skylos (нельзя запросить и читаемый лог,
 # и GitHub PR-аннотации одной командой) — гоняем анализ дважды: один раз для читаемого
@@ -23,11 +31,11 @@ CONFIG=(--config-file "$ROOT_DIR/pyproject.toml")
 # inline-аннотаций прямо на diff в PR.
 echo "==> Skylos audit (readable log)"
 concise_status=0
-skylos . -a --format concise --baseline "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
+skylos . -a --format concise --baseline "${DIFF_ARGS[@]}" "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
 
 echo
 echo "==> Skylos audit (GitHub PR annotations)"
 github_status=0
-skylos . -a --github --baseline "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
+skylos . -a --github --baseline "${DIFF_ARGS[@]}" "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
 
 exit "$concise_status"

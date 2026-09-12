@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import server from '../app';
+import server from '../../app';
 
 process.env.SECRET_SALT ||= 'test-secret-salt';
 

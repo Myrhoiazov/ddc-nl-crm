@@ -13,7 +13,7 @@ import invoicesRouter from './router.Invoices'
 import emailRouter from '../modules/communication/email/email.routes'
 import searchRouter from '../modules/search/search.routes'
 import paymentRemindersRouter from './router.PaymentReminders'
-import healthRouter from './router.Health'
+import healthRouter from '../modules/health/health.routes'
 import authSecurityEventsRouter from './router.AuthSecurityEvents'
 
 const router = express.Router();
