@@ -3,7 +3,7 @@ import authinticationRouter from "./router.Auth";
 import usersRouter from "./router.Users";
 import profileRouter from './router.Profiles'
 import clientsRouter from './router.Clients'
-import commentsRouter from './router.Comments'
+import commentsRouter from '../modules/comments/comments.routes'
 import transactionsRouter from './router.Transactions'
 import instagramRouter from './router.Instagram'
 import mollieRouter from './router.Mollie'

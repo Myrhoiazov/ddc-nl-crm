@@ -1,6 +1,6 @@
 
 import { Request, Response } from 'express';
-import { createComment, FindCommentsParams, findManyComments } from '../services/service.Comments';
+import { createComment, FindCommentsParams, findManyComments } from './comments.service';
 
 export const fetchByClientIdController = async (req: Request, res: Response) => {
 
