@@ -1,5 +1,5 @@
 import { Client as TClient, Prisma } from '@prisma/client';
-import prisma from '../../prisma/prisma-client'
+import prisma from '../../../prisma/prisma-client'
 
 const Client = prisma.client
 const paymentIssueStatuses = ['failed', 'canceled', 'charged_back', 'chargeback'];
