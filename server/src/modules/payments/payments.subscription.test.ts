@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
     buildCustomerDeleteDependencyWhere,
     parseSubscriptionCustomerId,
-} from './conteroller.Mollie';
+} from './payments.controller';
 
 test('parseSubscriptionCustomerId accepts positive integer ids from requests', () => {
     assert.equal(parseSubscriptionCustomerId(26), 26);

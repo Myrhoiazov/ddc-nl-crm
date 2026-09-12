@@ -2,7 +2,7 @@ import { Prisma } from '@prisma/client';
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import prisma from '../../../prisma/prisma-client';
-import * as mollieService from '../../services/service.Mollie';
+import * as mollieService from '../payments/payments.mollie.service';
 
 const nullableText = z.string().trim().max(191).nullable().optional().or(z.literal(''));
 export const organizationSchema = z.object({

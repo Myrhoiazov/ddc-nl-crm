@@ -3,8 +3,8 @@ import { InvoiceDeliveryType, InvoiceDocumentType, InvoiceStatus, Prisma } from 
 import { z } from 'zod';
 import prisma from '../../../prisma/prisma-client';
 import { createInvoicePdf } from './invoices.pdf.service';
-import * as mollieService from '../../services/service.Mollie';
-import * as mollieSyncService from '../../services/service.MollieSync';
+import * as mollieService from '../payments/payments.mollie.service';
+import * as mollieSyncService from '../payments/payments.sync.service';
 import { sendInvoiceEmail } from './invoices.delivery.service';
 import { archiveInvoicePaymentLinks, ensureInvoicePaymentLink } from './invoices.payment-link.service';
 

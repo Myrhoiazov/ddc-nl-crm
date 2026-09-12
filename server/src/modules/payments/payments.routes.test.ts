@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import mollieRouter from './router.Mollie';
+import mollieRouter from './payments.routes';
 
 type RouteLayer = {
     route?: {

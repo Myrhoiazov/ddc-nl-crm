@@ -1,10 +1,10 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
 import axios from 'axios';
 import { createMollieClient, MollieClient } from '@mollie/api-client';
-import prisma from '../../prisma/prisma-client';
-import { getMollieTokenExpiresAt } from './service.MollieUtils';
+import prisma from '../../../prisma/prisma-client';
+import { getMollieTokenExpiresAt } from './payments.utils.service';
 
-export { getMollieTokenExpiresAt } from './service.MollieUtils';
+export { getMollieTokenExpiresAt } from './payments.utils.service';
 
 const TOKEN_VERSION = 'v1';
 const REFRESH_WINDOW_MS = 5 * 60 * 1000;

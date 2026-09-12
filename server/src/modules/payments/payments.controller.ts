@@ -1,21 +1,21 @@
 import { ClientLanguage, Prisma, User } from "@prisma/client";
-import { generateSalt } from "../helpers";
-import { oauthClient } from "../config/oauthClient";
+import { generateSalt } from "../../helpers";
+import { oauthClient } from "../../config/oauthClient";
 import { Request, Response } from "express";
 import dotenv from 'dotenv';
 import axios from "axios";
-import * as mollieService from '../services/service.Mollie';
-import { getCostomerByMollieId, TCustomer } from "../services/service.Customer";
-import { MandateFormData } from "types/mollie.types";
-import prisma from "../../prisma/prisma-client";
+import * as mollieService from './payments.mollie.service';
+import { getCostomerByMollieId, TCustomer } from "./payments.customer.service";
+import { MandateFormData } from "./payments.types";
+import prisma from "../../../prisma/prisma-client";
 import { MandateMethod, Locale } from "@mollie/api-client";
-import * as mollieSyncService from "../services/service.MollieSync";
-import * as mollieDashboardService from "../services/service.MollieDashboard";
-import { getMollieTokenExpiresAt, saveMollieAccount } from "../services/service.MollieAuth";
-import { buildMollieWebhookDedupeKey, createCsv, getWebhookAttentionLevel, mapClientLanguageToMollieLocale, parseIncidentKey, paymentIssueStatuses as molliePaymentIssueStatuses } from "../services/service.MollieUtils";
+import * as mollieSyncService from "./payments.sync.service";
+import * as mollieDashboardService from "./payments.dashboard.service";
+import { getMollieTokenExpiresAt, saveMollieAccount } from "./payments.auth.service";
+import { buildMollieWebhookDedupeKey, createCsv, getWebhookAttentionLevel, mapClientLanguageToMollieLocale, parseIncidentKey, paymentIssueStatuses as molliePaymentIssueStatuses } from "./payments.utils.service";
 import { z } from "zod";
-import { createMolliePaymentInvoicePdf } from "../services/service.MolliePaymentInvoicePdf";
-import { isTelegramConfigured, notifyMolliePayment, sendTelegramMessage } from "../modules/communication";
+import { createMolliePaymentInvoicePdf } from "./payments.invoice-pdf.service";
+import { isTelegramConfigured, notifyMolliePayment, sendTelegramMessage } from "../communication";
 
 dotenv.config();
 

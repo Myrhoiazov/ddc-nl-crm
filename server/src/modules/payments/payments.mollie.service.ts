@@ -1,6 +1,6 @@
 import { Payment, Mandate, MandateMethod, Customer, Profile, SequenceType, Subscription, Locale } from '@mollie/api-client';
 import dotenv from 'dotenv';
-import { getMollieClient } from './service.MollieAuth';
+import { getMollieClient } from './payments.auth.service';
 
 dotenv.config();
 

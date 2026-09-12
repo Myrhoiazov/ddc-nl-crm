@@ -8,7 +8,7 @@ import {
     buildMollieInvoiceNote,
     customerName,
     paymentStatusFor,
-} from './service.MolliePaymentInvoicePdf';
+} from './payments.invoice-pdf.service';
 
 const basePayment = {
     id: 42,
