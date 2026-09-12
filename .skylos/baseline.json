@@ -580,7 +580,7 @@
     "SKY-S101:server/node_modules/typescript/lib/zh-cn/diagnosticMessages.generated.json:1602",
     "SKY-S101:server/node_modules/typescript/lib/zh-cn/diagnosticMessages.generated.json:1818",
     "SKY-S101:server/node_modules/typescript/lib/zh-tw/diagnosticMessages.generated.json:1818",
-    "SKY-S101:server/src/controllers/controller.Clients.ts:333",
+    "SKY-S101:server/src/modules/clients/clients.controller.ts:333",
     "SKY-S102:client/node_modules/.package-lock.json:10",
     "SKY-S102:client/node_modules/.package-lock.json:1000",
     "SKY-S102:client/node_modules/.package-lock.json:10014",
