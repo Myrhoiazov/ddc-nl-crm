@@ -1,12 +1,12 @@
 import fs from 'fs';
 import path from 'path';
 import { Request, Response } from 'express';
-import prisma from '../../prisma/prisma-client';
-import ApiError from '../helpers/ApiError';
-import { logger } from '../logger';
-import { encryptEmailSecret } from '../services/service.EmailCrypto';
-import { ATTACHMENTS_DIR, moveMessageOnServer, syncEmailAccount, verifyImapConnection } from '../services/service.EmailImap';
-import { composeEmail, replyToMessage } from '../services/service.EmailSmtp';
+import prisma from '../../../../prisma/prisma-client';
+import ApiError from '../../../helpers/ApiError';
+import { logger } from '../../../logger';
+import { encryptEmailSecret } from './email-crypto.service';
+import { ATTACHMENTS_DIR, moveMessageOnServer, syncEmailAccount, verifyImapConnection } from './email-imap.service';
+import { composeEmail, replyToMessage } from './email-smtp.service';
 
 const attachmentSelect = {
     id: true,
@@ -176,7 +176,7 @@ export const listMessages = async (req: Request, res: Response) => {
 };
 
 // Incoming messages default to isRead: false; outgoing ones are always created
-// with isRead: true (see service.EmailSmtp.ts), so this is exactly "unread inbox mail".
+// with isRead: true (see email-smtp.service.ts), so this is exactly "unread inbox mail".
 export const getUnreadMessageCount = async (req: Request, res: Response) => {
     const count = await prisma.emailMessage.count({ where: { isRead: false } });
 
@@ -276,7 +276,7 @@ export const downloadAttachment = async (req: Request, res: Response) => {
         throw ApiError.BadRequest('Вложение не найдено');
     }
 
-    // storagePath is just a filename (see service.EmailImap saveAttachments) —
+    // storagePath is just a filename (see email-imap.service saveAttachments) —
     // resolving it against the fixed ATTACHMENTS_DIR keeps this from ever being
     // tricked into reading a path outside that directory.
     const filePath = path.join(ATTACHMENTS_DIR, path.basename(attachment.storagePath));

@@ -14,7 +14,7 @@ import { csrfProtection } from './middlewares/middleware.Csrf';
 import { queryStats } from './middlewares/middleware.QueryStats';
 import { logger } from './logger';
 import { env } from 'process';
-import { verifyRequestSignature } from './controllers/controller.Instagram';
+import { verifyRequestSignature } from './modules/communication/instagram/instagram.controller';
 
 dotenv.config();
 const ROOT_DIR = process.cwd();

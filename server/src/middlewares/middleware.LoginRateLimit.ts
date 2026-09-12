@@ -3,7 +3,7 @@ import { AuthSecurityEventType } from '@prisma/client';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
 import { calculateProgressiveDelayMs, hitRateLimit, resetRateLimit } from '../services/service.RateLimit';
 import { CAPTCHA_THRESHOLD, captchaSiteKey, isCaptchaConfigured, verifyCaptchaToken } from '../services/service.Captcha';
-import { notifyLoginBlocked } from '../services/service.Telegram';
+import { notifyLoginBlocked } from '../modules/communication';
 
 const WINDOW_MS = 15 * 60 * 1000;
 const MAX_ATTEMPTS = 5;

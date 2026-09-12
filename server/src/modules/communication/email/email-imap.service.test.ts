@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { addressesToJson } from './service.EmailImap';
+import { addressesToJson } from './email-imap.service';
 
 test('addressesToJson keeps only entries with an address, dropping the rest', () => {
     const result = addressesToJson([

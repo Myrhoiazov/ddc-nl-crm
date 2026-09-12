@@ -9,7 +9,7 @@ import {
     notifyLoginBlocked,
     notifyNewDeviceAfterFailures,
     notifyRoleChanged,
-} from './service.Telegram';
+} from './telegram.service';
 
 const payment = {
     mollieId: 'tr_test',

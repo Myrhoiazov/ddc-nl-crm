@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 import nodemailer from 'nodemailer';
 import { TwoFactorChannel } from '@prisma/client';
 import prisma from '../../prisma/prisma-client';
-import { decryptEmailSecret } from './service.EmailCrypto';
+import { decryptEmailSecret } from '../modules/communication/email/email-crypto.service';
 
 export const CODE_TTL_MINUTES = 10;
 export const MAX_ATTEMPTS = 5;
@@ -49,7 +49,7 @@ const buildCodeEmail = (code: string) => ({
     `,
 });
 
-// Deliberately bypasses service.EmailSmtp.ts/composeEmail — that path writes an
+// Deliberately bypasses email-smtp.service.ts/composeEmail — that path writes an
 // EmailMessage row and lands in the "Письма" module's inbox, which would mix
 // security codes into client correspondence. This sends directly via nodemailer
 // using the same EmailAccount SMTP credentials, without persisting anything.

@@ -15,7 +15,7 @@ import { getMollieTokenExpiresAt, saveMollieAccount } from "../services/service.
 import { buildMollieWebhookDedupeKey, createCsv, getWebhookAttentionLevel, mapClientLanguageToMollieLocale, parseIncidentKey, paymentIssueStatuses as molliePaymentIssueStatuses } from "../services/service.MollieUtils";
 import { z } from "zod";
 import { createMolliePaymentInvoicePdf } from "../services/service.MolliePaymentInvoicePdf";
-import { isTelegramConfigured, notifyMolliePayment, sendTelegramMessage } from "../services/service.Telegram";
+import { isTelegramConfigured, notifyMolliePayment, sendTelegramMessage } from "../modules/communication";
 
 dotenv.config();
 

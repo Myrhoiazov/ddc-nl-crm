@@ -3,7 +3,7 @@ import test from 'node:test';
 
 process.env.EMAIL_CREDENTIALS_ENCRYPTION_KEY ??= 'test-only-encryption-key';
 
-import { decryptEmailSecret, encryptEmailSecret } from './service.EmailCrypto';
+import { decryptEmailSecret, encryptEmailSecret } from './email-crypto.service';
 
 test('encrypted email secret round-trips back to the original value', () => {
     const original = 'super-secret-imap-password';
