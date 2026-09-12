@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { searchAll } from '../services/service.Search';
+import { searchAll } from './search.service';
 
 const MIN_QUERY_LENGTH = 2;
 

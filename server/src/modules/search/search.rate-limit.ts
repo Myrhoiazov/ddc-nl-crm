@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { hitRateLimit } from '../services/service.RateLimit';
+import { hitRateLimit } from '../../services/service.RateLimit';
 
 const WINDOW_MS = 60 * 1000;
 const MAX_ATTEMPTS = 60;
