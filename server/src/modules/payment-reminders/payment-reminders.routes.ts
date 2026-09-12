@@ -1,6 +1,6 @@
 import express from 'express';
 import { UserRole } from '@prisma/client';
-import { asyncHandler, isToken, requireRole } from '../middlewares/middleware.Auth';
+import { asyncHandler, isToken, requireRole } from '../../middlewares/middleware.Auth';
 import {
     getPaymentReminderDeliveriesController,
     getPaymentReminderSettingsController,
@@ -9,7 +9,7 @@ import {
     sendTestPaymentReminderController,
     updatePaymentReminderSettingsController,
     updatePaymentReminderTemplateController,
-} from '../controllers/controller.PaymentReminders';
+} from './payment-reminders.controller';
 
 const router = express.Router();
 

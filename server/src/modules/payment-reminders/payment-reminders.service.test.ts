@@ -3,8 +3,8 @@ import test from 'node:test';
 import { ClientLanguage } from '@prisma/client';
 import {
     computeReminderWindow, isMandateEligibleForReminder, isUniqueConstraintViolation, resolveReminderLanguage,
-} from './service.PaymentReminders';
-import { buildReminderEmail, renderReminderTemplate } from './service.PaymentReminderContent';
+} from './payment-reminders.service';
+import { buildReminderEmail, renderReminderTemplate } from './payment-reminders.content.service';
 
 test('reminder window covers today through today+offsetDays, day-inclusive', () => {
     const now = new Date(2026, 7, 5, 14, 30, 0);
