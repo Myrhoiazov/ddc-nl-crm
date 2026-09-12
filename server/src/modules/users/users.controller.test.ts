@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Request } from 'express';
 import { UserRole } from '@prisma/client';
-import { validateUpdateUserRequest } from './controller.Users';
+import { validateUpdateUserRequest } from './users.controller';
 
 const createReq = (actor?: { id: number; role: UserRole }) => ({
     user: actor,

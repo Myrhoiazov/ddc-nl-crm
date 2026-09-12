@@ -2,12 +2,12 @@
 import { NextFunction, Request, Response } from 'express';
 import { AuthSecurityEventType } from '@prisma/client';
 import prisma from '../../prisma/prisma-client'
-import { getUserByEmail } from '../services/service.Users';
+import { getUserByEmail } from '../modules/users/users.service';
 import { findToken, generateSessionToken, refreshToken, removeToken, replaceToken, saveToken } from '../services/service.Token';
 import ApiError from '../helpers/ApiError';
 import { loginType, twoFactorVerifyType } from '../schemas/schema.auth';
 import { hashPassword, verifyPassword } from '../services/service.Password';
-import { upgradeUserPasswordHash } from '../services/service.Users';
+import { upgradeUserPasswordHash } from '../modules/users/users.service';
 import { createCsrfToken } from '../services/service.Csrf';
 import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
 import { notifyNewDeviceAfterFailures } from '../modules/communication';
