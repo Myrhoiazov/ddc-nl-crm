@@ -1,5 +1,5 @@
 import express from "express";
-import { asyncHandler, isAuthenticated } from "../../middlewares/middleware.Auth";
+import { asyncHandler, isAuthenticated } from "../auth/auth.middleware";
 import * as mollieController from "./payments.controller";
 
 const router = express.Router();

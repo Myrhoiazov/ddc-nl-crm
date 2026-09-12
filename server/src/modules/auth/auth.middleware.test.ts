@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextFunction, Request, Response } from 'express';
 import { UserRole } from '@prisma/client';
-import { requireRole } from './middleware.Auth';
+import { requireRole } from './auth.middleware';
 
 const createReq = (role?: UserRole) => ({
     user: role ? { role } : undefined,

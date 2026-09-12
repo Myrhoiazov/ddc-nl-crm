@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCsrfToken, verifyCsrfToken } from './service.Csrf';
+import { createCsrfToken, verifyCsrfToken } from './auth.csrf.service';
 
 process.env.CSRF_SECRET ||= 'test-csrf-secret';
 

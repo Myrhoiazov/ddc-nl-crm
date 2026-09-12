@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { createClientsController, deleteClientByIdController, fetchAllClientsController, getClientByIdController, getClientPaymentSummaryController, updateClientByIdController } from "./clients.controller";
-import { asyncHandler, isToken } from "../../middlewares/middleware.Auth";
+import { asyncHandler, isToken } from "../auth/auth.middleware";
 import { ROOT_DIR } from "../../utils/paths";
 
 const publicPath = path.resolve(ROOT_DIR, 'public/upload');

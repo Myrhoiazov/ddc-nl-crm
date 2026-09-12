@@ -1,7 +1,7 @@
 import express, { NextFunction, Request, Response } from 'express';
 import multer, { MulterError } from 'multer';
 import { UserRole } from '@prisma/client';
-import { asyncHandler, isToken, requireRole } from '../../../middlewares/middleware.Auth';
+import { asyncHandler, isToken, requireRole } from '../../auth/auth.middleware';
 import {
     createAccount,
     deleteAccount,

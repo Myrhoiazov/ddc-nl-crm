@@ -1,5 +1,5 @@
 import { NextFunction, Request, Response } from 'express';
-import { CSRF_HEADER, verifyCsrfToken } from '../services/service.Csrf';
+import { CSRF_HEADER, verifyCsrfToken } from './auth.csrf.service';
 
 const unsafeMethods = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 

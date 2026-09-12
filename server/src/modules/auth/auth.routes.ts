@@ -1,10 +1,10 @@
 import express from "express";
-import { csrf, login, logout, refresh, resendTwoFactor, verifyTwoFactor } from "../controllers/controller.Auth";
-import { asyncHandler, isToken } from "../middlewares/middleware.Auth"
-import { validateSchema } from "../middlewares/middleware.ValidateSchema";
-import { loginSchema, twoFactorVerifySchema } from "../schemas/schema.auth";
-import { loginRateLimit } from "../middlewares/middleware.LoginRateLimit";
-import { twoFactorRateLimit } from "../middlewares/middleware.TwoFactorRateLimit";
+import { csrf, login, logout, refresh, resendTwoFactor, verifyTwoFactor } from "./auth.controller";
+import { asyncHandler, isToken } from "./auth.middleware"
+import { validateSchema } from "../../middlewares/middleware.ValidateSchema";
+import { loginSchema, twoFactorVerifySchema } from "./auth.schema";
+import { loginRateLimit } from "./auth.login-rate-limit.middleware";
+import { twoFactorRateLimit } from "./auth.two-factor-rate-limit.middleware";
 
 const router = express.Router();
 

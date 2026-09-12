@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios from 'axios';
 import { Request, Response } from 'express';
-import { loginRateLimit } from './middleware.LoginRateLimit';
+import { loginRateLimit } from './auth.login-rate-limit.middleware';
 
 const withTurnstileEnv = async (fn: () => Promise<void>) => {
     const previousSiteKey = process.env.TURNSTILE_SITE_KEY;

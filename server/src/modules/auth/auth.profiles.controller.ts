@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { get } from "lodash";
 import { AuthSecurityEventType } from '@prisma/client';
-import { IUserAttributes } from '../modules/users/users.types';
-import { updateUser, getUserWithCredentials, updateUserPassword } from '../modules/users/users.service';
-import { hashPassword, isCommonPassword, isPasswordAllowed, verifyPassword } from '../services/service.Password';
-import { recordAuthSecurityEvent } from '../services/service.AuthSecurityAudit';
-import { listUserSessions, revokeOtherUserSessions, revokeUserSession } from '../services/service.Token';
+import { IUserAttributes } from '../users/users.types';
+import { updateUser, getUserWithCredentials, updateUserPassword } from '../users/users.service';
+import { hashPassword, isCommonPassword, isPasswordAllowed, verifyPassword } from './auth.password.service';
+import { recordAuthSecurityEvent } from './auth.security-audit.service';
+import { listUserSessions, revokeOtherUserSessions, revokeUserSession } from './auth.token.service';
 
 type ProfileResponse = Omit<IUserAttributes, 'password' | 'salt'>;
 

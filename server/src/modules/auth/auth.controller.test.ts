@@ -5,7 +5,7 @@ import {
     buildCaptchaPrewarmLoginError,
     describeLoginFailure,
     maskEmail,
-} from './controller.Auth';
+} from './auth.controller';
 
 // Type-compatible with the AuthenticatedUser shape the controller works with.
 const user: NonNullable<Parameters<typeof describeLoginFailure>[0]> = {

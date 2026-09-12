@@ -10,7 +10,7 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import routes from './routes';
 import errorMiddleware from './middlewares/middlewares.Error';
-import { csrfProtection } from './middlewares/middleware.Csrf';
+import { csrfProtection } from './modules/auth/auth.csrf.middleware';
 import { queryStats } from './middlewares/middleware.QueryStats';
 import { logger } from './logger';
 import { env } from 'process';

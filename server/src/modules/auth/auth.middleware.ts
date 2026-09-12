@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { merge } from "lodash";
-import { getUserByOpaqueSessionToken } from "../services/service.Token";
+import { getUserByOpaqueSessionToken } from "./auth.token.service";
 import { UserRole } from "@prisma/client";
 
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';

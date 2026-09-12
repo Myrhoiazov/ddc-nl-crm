@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AuthSecurityEventType } from '@prisma/client';
-import { parseAuthSecurityEventsQuery } from './controller.AuthSecurityEvents';
+import { parseAuthSecurityEventsQuery } from './auth.security-events.controller';
 
 test('defaults to page 1 and limit 25 when no query params are given', () => {
     const { page, limit, where } = parseAuthSecurityEventsQuery({});

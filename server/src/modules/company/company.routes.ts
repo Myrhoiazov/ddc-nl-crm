@@ -3,7 +3,7 @@ import multer, { MulterError } from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { asyncHandler, isToken } from '../../middlewares/middleware.Auth';
+import { asyncHandler, isToken } from '../auth/auth.middleware';
 import {
     archiveBrand, createBrand, getBranches, getBranchById, createBranch, updateBranch, deleteBranch,
     getBrands, getOrganization, syncOrganizationFromMollie, updateBrand, upsertOrganization,
