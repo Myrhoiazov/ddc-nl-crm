@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InvoiceDocumentType, InvoiceStatus } from '@prisma/client';
-import { buildAdjustmentInvoiceData, buildOverdueAuditRecords } from './invoices.controller';
+import {
+    buildAdjustmentInvoiceData,
+    buildOverdueAuditRecords,
+    invoiceConfirmSelect,
+    invoicePaymentRecordSelect,
+    invoiceAdjustmentSourceSelect,
+} from './invoices.controller';
 
 const original = {
     id: 42,
@@ -67,6 +73,55 @@ test('buildAdjustmentInvoiceData creates an issued debit note that keeps payment
     assert.equal(data.showPaymentQr, true);
     assert.equal(data.createdById, undefined);
     assert.equal(data.items.create.description, 'Корректировка к INV-2026-007: Extra class');
+});
+
+test('invoiceConfirmSelect includes the fields needed for confirmPaidInvoice', () => {
+    assert.ok(invoiceConfirmSelect);
+    const select = invoiceConfirmSelect as Record<string, unknown>;
+
+    assert.equal(select.id, true);
+    assert.equal(select.documentType, true);
+    assert.equal(select.status, true);
+    assert.equal(select.totalCents, true);
+});
+
+test('invoicePaymentRecordSelect matches the PaymentRecordInvoice type', () => {
+    assert.ok(invoicePaymentRecordSelect);
+    const select = invoicePaymentRecordSelect as Record<string, unknown>;
+
+    assert.equal(select.id, true);
+    assert.equal(select.documentType, true);
+    assert.equal(select.status, true);
+    assert.equal(select.totalCents, true);
+    assert.equal(select.paidAmountCents, true);
+    assert.equal(select.creditedAmountCents, true);
+    assert.equal(select.balanceDueCents, true);
+    assert.equal(select.dueDate, true);
+});
+
+test('invoiceAdjustmentSourceSelect matches the AdjustmentSourceInvoice type', () => {
+    assert.ok(invoiceAdjustmentSourceSelect);
+    const select = invoiceAdjustmentSourceSelect as Record<string, unknown>;
+
+    assert.equal(select.id, true);
+    assert.equal(select.number, true);
+    assert.equal(select.documentType, true);
+    assert.equal(select.status, true);
+    assert.equal(select.clientId, true);
+    assert.equal(select.billToName, true);
+    assert.equal(select.billToEmail, true);
+    assert.equal(select.dueDate, true);
+    assert.equal(select.currency, true);
+    assert.equal(select.totalCents, true);
+    assert.equal(select.paidAmountCents, true);
+    assert.equal(select.creditedAmountCents, true);
+    assert.equal(select.issuerName, true);
+    assert.equal(select.issuerAddress, true);
+    assert.equal(select.issuerEmail, true);
+    assert.equal(select.bankName, true);
+    assert.equal(select.iban, true);
+    assert.equal(select.showPaymentButton, true);
+    assert.equal(select.showPaymentQr, true);
 });
 
 test('buildOverdueAuditRecords returns no records for an empty invoice list', () => {
