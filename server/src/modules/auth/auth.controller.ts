@@ -1,6 +1,6 @@
 
 import { NextFunction, Request, Response } from 'express';
-import { AuthSecurityEventType } from '@prisma/client';
+import { AuthSecurityEventType, Prisma } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client'
 import { getUserByEmail } from '../users/users.service';
 import { findToken, generateSessionToken, refreshToken, removeToken, replaceToken, saveToken } from './auth.token.service';
@@ -66,7 +66,23 @@ export const maskEmail = (email: string) => {
     return `${local[0] ?? ''}***@${domain}`;
 };
 
-type AuthenticatedUser = NonNullable<Awaited<ReturnType<typeof getUserByEmail>>>;
+// Fields the SPA needs after successful auth — never select password, salt, or
+// internal columns. This is the single source of truth; buildAuthenticatedUserData
+// must be kept in sync (verified by auth.controller.test.ts).
+export const authenticatedUserSelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    role: true,
+    email: true,
+    isEnabled: true,
+    isActive: true,
+    lastLogin: true,
+} satisfies Prisma.UserSelect;
+
+// The user shape available after auth — excludes password, salt, and internal
+// columns. Derived from authenticatedUserSelect so it stays in sync.
+type AuthenticatedUser = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: number }; select: typeof authenticatedUserSelect }>>>>;
 
 // Why login failed, surfaced as an audit reason. Distinct so security tooling
 // can tell a disabled account from wrong credentials.
@@ -305,7 +321,7 @@ export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>,
             throw new ApiError(TWO_FACTOR_FAILURE_STATUS[result.reason], TWO_FACTOR_FAILURE_MESSAGE[result.reason]);
         }
 
-        const user = await prisma.user.findUnique({ where: { id: result.userId } });
+        const user = await prisma.user.findUnique({ where: { id: result.userId }, select: authenticatedUserSelect });
         if (!user || !user.isEnabled) {
             res.clearCookie(TWO_FACTOR_PENDING_COOKIE, twoFactorPendingCookieOptions);
             throw ApiError.UnauthorizedError();

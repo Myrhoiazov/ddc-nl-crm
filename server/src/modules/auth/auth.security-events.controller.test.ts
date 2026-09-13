@@ -61,3 +61,19 @@ test('combines type and targetUserId filters', () => {
 
     assert.deepEqual(where, { type: AuthSecurityEventType.SESSION_REVOKED, targetUserId: 7 });
 });
+
+test('exports authSecurityEventListSelect with expected fields', () => {
+    const { authSecurityEventListSelect } = require('./controller.AuthSecurityEvents');
+
+    assert.ok(authSecurityEventListSelect, 'authSecurityEventListSelect should be exported');
+    assert.equal(typeof authSecurityEventListSelect, 'object');
+    assert.notEqual(authSecurityEventListSelect, null);
+
+    const select = authSecurityEventListSelect as Record<string, unknown>;
+    assert.ok(select.id === true || select.id !== undefined, 'id should be selected');
+    assert.ok(select.type === true || select.type !== undefined, 'type should be selected');
+    assert.ok(select.createdAt === true || select.createdAt !== undefined, 'createdAt should be selected');
+    assert.ok(select.metadata === true || select.metadata !== undefined, 'metadata should be selected');
+    assert.ok(select.actorUserId === true || select.actorUserId !== undefined, 'actorUserId should be selected');
+    assert.ok(select.targetUserId === true || select.targetUserId !== undefined, 'targetUserId should be selected');
+});
