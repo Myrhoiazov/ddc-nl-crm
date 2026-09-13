@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { AuthSecurityEventType } from '@prisma/client';
 import prisma from '../prisma/prisma-client';
-import { hashPassword, isPasswordAllowed } from '../src/services/service.Password';
-import { recordAuthSecurityEvent } from '../src/services/service.AuthSecurityAudit';
+import { hashPassword, isPasswordAllowed } from '../src/modules/auth/auth.password.service';
+import { recordAuthSecurityEvent } from '../src/modules/auth/auth.security-audit.service';
 
 const readHidden = (prompt: string): Promise<string> => new Promise((resolve, reject) => {
     if (!process.stdin.isTTY || !process.stdout.isTTY) {

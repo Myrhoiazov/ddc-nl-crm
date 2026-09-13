@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { authentication, generateSalt } from '../src/helpers';
+import { authentication, generateSalt } from '../src/common/utils/crypto';
 
 const prisma = new PrismaClient();
 

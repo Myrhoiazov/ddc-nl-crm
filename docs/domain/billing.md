@@ -13,8 +13,8 @@ delivery (email + public link), and reminders for unpaid invoices.
 ## Out of Scope
 
 - The Mollie sync mechanism itself, webhook processing, and the Mollie `Payment` model — owned by
-  Payments (Billing's `service.InvoiceMollie.ts` reads Payments-domain tables to reconcile, but
-  doesn't own the sync).
+  Payments (Billing's `modules/invoices/invoices.mollie.service.ts` reads Payments-domain tables to
+  reconcile, but doesn't own the sync).
 - **Recurring-subscription payment reminders** — a completely separate mechanism owned by
   Payments (`PaymentReminderDelivery`, tied to `Subscription.nextPaymentDate`). Billing's own
   reminders (`REMINDER_BEFORE_DUE`/`REMINDER_OVERDUE`) are about unpaid *invoice* balances only.
@@ -50,9 +50,9 @@ delivery (email + public link), and reminders for unpaid invoices.
   otherwise                → ISSUED
   ```
   **Needs clarification**: two near-duplicate implementations of this calculation exist
-  (`controller.Invoices.ts` and `service.InvoiceMollie.ts`) with a subtle divergence in the
-  CANCELLED guard — treat this as a documented inconsistency, not a single canonical rule, until
-  reconciled in code.
+  (`modules/invoices/invoices.controller.ts` and `invoices.mollie.service.ts`) with a subtle
+  divergence in the CANCELLED guard — treat this as a documented inconsistency, not a single
+  canonical rule, until reconciled in code.
   A daily cron (09:00) batch-marks `ISSUED`/`PARTIALLY_PAID` invoices with a past `dueDate` and
   `balanceDueCents > 0` as `OVERDUE`.
 - **Invariants**:

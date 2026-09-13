@@ -1,10 +1,10 @@
 import config from './config/config';
 import server from './app';
 import prisma from '../prisma/prisma-client';
-import { startInvoiceReminderCron } from './services/service.InvoiceReminders';
+import { startInvoiceReminderCron } from './modules/invoices/invoices.reminders.service';
 import { startEmailSyncCron } from './modules/communication/email/email-sync-cron.service';
-import { startPaymentReminderCron } from './services/service.PaymentReminderCron';
-import { startAuthSecurityCleanupCron } from './services/service.AuthSecurityCleanup';
+import { startPaymentReminderCron } from './modules/payment-reminders/payment-reminders.cron.service';
+import { startAuthSecurityCleanupCron } from './modules/auth/auth.security-cleanup.service';
 
 const start = async () => {
     try {
