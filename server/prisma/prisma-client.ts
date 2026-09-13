@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { logger } from '../src/logger';
+import { logger } from '../src/common/logger';
 
 const SLOW_QUERY_THRESHOLD_MS = Number(process.env.SLOW_QUERY_THRESHOLD_MS ?? 100);
 

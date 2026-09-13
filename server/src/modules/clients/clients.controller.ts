@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { createClient, deleteClient, getAllClients, getClientById, updateClient } from './clients.service';
 import { Client, Prisma } from '@prisma/client';
-import { imageUpload } from '../../services/service.Files';
+import { imageUpload } from '../../common/utils/file-upload';
 import prisma from '../../../prisma/prisma-client';
 import { z } from 'zod';
 

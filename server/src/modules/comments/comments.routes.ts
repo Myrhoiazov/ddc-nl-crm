@@ -3,9 +3,9 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asyncHandler, isToken } from "../../middlewares/middleware.Auth";
+import { asyncHandler, isToken } from "../auth/auth.middleware";
 import { createCommentController, fetchByClientIdController } from "./comments.controller";
-import { ROOT_DIR } from "../../utils/paths";
+import { ROOT_DIR } from "../../common/utils/paths";
 
 const publicPath = path.resolve(ROOT_DIR, 'public/upload');
 

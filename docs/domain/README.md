@@ -5,12 +5,12 @@
 `docs/domain/` is the canonical source for business/domain knowledge in DDC CRM. It documents
 bounded contexts, entities, relationships, and business rules **as they exist in the code today**
 — not an aspirational or DDD-refactored model. Every claim in these documents is grounded in
-`server/prisma/schema/*.prisma`, the controllers/services/routes, or existing committed docs.
+`server/prisma/schema/*.prisma`, the module controllers/services/routes, or existing committed docs.
 
 Where a term or rule couldn't be confirmed from code, it's marked `Needs clarification` rather
 than guessed. See [GLOSSARY.md](GLOSSARY.md) for vocabulary.
 
-Read this before touching business logic in `server/src/controllers|services|routes` or
+Read this before touching business logic in `server/src/modules/*` or
 `server/prisma/schema/*.prisma` — it tells you which bounded context owns which entity, and where
 the non-obvious cross-domain rules live.
 
@@ -30,8 +30,9 @@ DDC CRM
 These seven contexts are the ones confirmed by dedicated controllers/routers and cohesive Prisma
 models. **Organization is not in the task's starter list** — it was added because
 `company.prisma` (`Branch`, `LegalOrganization`, `BusinessBrand`) has its own controller/router
-(`controller.Company.ts` / `router.Company.ts`) and models concerns (legal identity, multi-brand
-billing presentation, physical locations) that don't belong to Clients, Invoices, or Payments.
+(`modules/company/company.controller.ts` / `company.routes.ts`) and models concerns (legal
+identity, multi-brand billing presentation, physical locations) that don't belong to Clients,
+Invoices, or Payments.
 Folding it into any of those would misrepresent the dependency direction — see
 [organization.md](organization.md) for the reasoning.
 
@@ -142,13 +143,13 @@ Identity (User)
 
 | Domain | File | Read when touching... |
 |---|---|---|
-| Identity | [identity.md](identity.md) | `controller.Auth.ts`, `controller.Users.ts`, `controller.Profiles.ts`, `service.Password/Token/Csrf/RateLimit/TwoFactorAuth/AuthSecurityAudit.ts`, `user.prisma` |
-| Organization | [organization.md](organization.md) | `controller.Company.ts`, `company.prisma` |
-| CRM | [crm.md](crm.md) | `controller.Clients.ts`, `controller.Comments.ts`, `controller.Search.ts`, `client.prisma` |
-| Scheduling | [scheduling.md](scheduling.md) | `controller.Schedule.ts`, `schedule.prisma` |
-| Billing | [billing.md](billing.md) | `controller.Invoices.ts`, `service.Invoice*.ts`, `invoice.prisma` |
-| Payments | [payments.md](payments.md) | `conteroller.Mollie.ts`, `service.Mollie*.ts`, `controller.Transactions.ts`, `controller.PaymentReminders.ts`, `mollie.prisma`, `payment-reminder.prisma`, `Transaction` model in `schema.prisma` |
-| Communication | [communication.md](communication.md) | `controller.Email.ts`, `controller.Instagram.ts`, `service.Email*.ts`, `service.Telegram.ts`, `email.prisma` |
+| Identity | [identity.md](identity.md) | `modules/auth/auth.controller.ts`, `auth.profiles.controller.ts`, `modules/users/users.controller.ts`, `modules/auth/auth.password/token/csrf/rate-limit/two-factor/security-audit.service.ts`, `user.prisma` |
+| Organization | [organization.md](organization.md) | `modules/company/company.controller.ts`, `company.prisma` |
+| CRM | [crm.md](crm.md) | `modules/clients/clients.controller.ts`, `modules/comments/comments.controller.ts`, `modules/search/search.controller.ts`, `client.prisma` |
+| Scheduling | [scheduling.md](scheduling.md) | `modules/schedule/schedule.controller.ts`, `schedule.prisma` |
+| Billing | [billing.md](billing.md) | `modules/invoices/invoices.controller.ts`, `invoices.*.service.ts`, `invoice.prisma` |
+| Payments | [payments.md](payments.md) | `modules/payments/payments.controller.ts`, `payments.*.service.ts`, `modules/transactions/transactions.controller.ts`, `modules/payment-reminders/payment-reminders.controller.ts`, `mollie.prisma`, `payment-reminder.prisma`, `Transaction` model in `schema.prisma` |
+| Communication | [communication.md](communication.md) | `modules/communication/email/email.controller.ts`, `instagram/instagram.controller.ts`, `email/email-*.service.ts`, `telegram/telegram.service.ts`, `email.prisma` |
 
 Technical implementation detail (exact function signatures, validation schemas, migration
 history) stays in the code and in `docs/spec/*` — these documents describe *what exists and why
