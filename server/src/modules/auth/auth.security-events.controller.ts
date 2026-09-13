@@ -2,6 +2,15 @@ import { Request, Response } from 'express';
 import { AuthSecurityEventType, Prisma } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client';
 
+export const authSecurityEventListSelect = {
+    id: true,
+    type: true,
+    actorUserId: true,
+    targetUserId: true,
+    metadata: true,
+    createdAt: true,
+} satisfies Prisma.AuthSecurityEventSelect;
+
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
 
@@ -37,6 +46,7 @@ export const getAuthSecurityEventsController = async (req: Request, res: Respons
     const [items, total] = await Promise.all([
         prisma.authSecurityEvent.findMany({
             where,
+            select: authSecurityEventListSelect,
             orderBy: { createdAt: 'desc' },
             skip: (page - 1) * limit,
             take: limit,

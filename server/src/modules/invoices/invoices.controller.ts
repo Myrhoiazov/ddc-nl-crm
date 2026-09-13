@@ -282,6 +282,52 @@ const invoiceListInclude = {
     },
 };
 
+// Minimum fields needed for confirmPaidInvoice — existence check + eligibility + totalCents
+// for the payment record. See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+export const invoiceConfirmSelect = {
+    id: true,
+    documentType: true,
+    status: true,
+    totalCents: true,
+} satisfies Prisma.InvoiceSelect;
+
+// Fields needed for recordInvoicePayment — eligibility check + payment calculation + audit.
+// Matches the PaymentRecordInvoice type. See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+export const invoicePaymentRecordSelect = {
+    id: true,
+    documentType: true,
+    status: true,
+    totalCents: true,
+    paidAmountCents: true,
+    creditedAmountCents: true,
+    balanceDueCents: true,
+    dueDate: true,
+} satisfies Prisma.InvoiceSelect;
+
+// Fields needed for createInvoiceAdjustment — source document data for credit/debit notes.
+// Matches the AdjustmentSourceInvoice type. See docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md.
+export const invoiceAdjustmentSourceSelect = {
+    id: true,
+    number: true,
+    documentType: true,
+    status: true,
+    clientId: true,
+    billToName: true,
+    billToEmail: true,
+    dueDate: true,
+    currency: true,
+    totalCents: true,
+    paidAmountCents: true,
+    creditedAmountCents: true,
+    issuerName: true,
+    issuerAddress: true,
+    issuerEmail: true,
+    bankName: true,
+    iban: true,
+    showPaymentButton: true,
+    showPaymentQr: true,
+} satisfies Prisma.InvoiceSelect;
+
 /** Deep-clone value for audit-log snapshot. JSON.stringify guarantees valid JSON output, so JSON.parse is safe — no runtime validation needed. */
 const snapshot = (value: unknown): Prisma.InputJsonValue => (
     JSON.parse(JSON.stringify(value, (key, nestedValue) => (
@@ -658,10 +704,12 @@ export const createPaidInvoice = async (req: Request, res: Response) => {
     return res.status(201).json(invoice);
 };
 
+type InvoiceConfirmData = NonNullable<Awaited<ReturnType<typeof prisma.invoice.findUnique<{ where: { id: number }; select: typeof invoiceConfirmSelect }>>>>;
+
 const confirmPaidInvoiceInTransaction = async (
     transaction: Prisma.TransactionClient,
     id: number,
-    existing: NonNullable<Awaited<ReturnType<typeof prisma.invoice.findUnique>>>,
+    existing: InvoiceConfirmData,
     data: z.infer<typeof confirmPaidInvoiceSchema>,
     actorId: number,
 ) => {
@@ -709,7 +757,7 @@ export const confirmPaidInvoice = async (req: Request, res: Response) => {
         });
     }
 
-    const existing = await prisma.invoice.findUnique({ where: { id } });
+    const existing = await prisma.invoice.findUnique({ where: { id }, select: invoiceConfirmSelect });
     if (!existing) return res.status(404).json({ message: 'Инвойс не найден' });
     if (existing.documentType !== InvoiceDocumentType.INVOICE || existing.status !== InvoiceStatus.DRAFT) {
         return res.status(409).json({ message: 'Подтвердить оплату можно только для черновика инвойса' });
@@ -1043,7 +1091,7 @@ export const recordInvoicePayment = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Проверьте сумму оплаты', details: parsed.success ? undefined : parsed.error.flatten() });
     }
 
-    const existing = await prisma.invoice.findUnique({ where: { id } });
+    const existing = await prisma.invoice.findUnique({ where: { id }, select: invoicePaymentRecordSelect });
     if (!existing) return res.status(404).json({ message: 'Инвойс не найден' });
 
     const eligibilityError = validateInvoicePaymentEligibility(existing, parsed.data.amountCents);
@@ -1243,7 +1291,7 @@ export const createInvoiceAdjustment = async (req: Request, res: Response) => {
         return res.status(400).json({ message: 'Проверьте данные корректировки', details: parsed.success ? undefined : parsed.error.flatten() });
     }
 
-    const original = await prisma.invoice.findUnique({ where: { id } });
+    const original = await prisma.invoice.findUnique({ where: { id }, select: invoiceAdjustmentSourceSelect });
     if (!original) return res.status(404).json({ message: 'Инвойс не найден' });
 
     const eligibilityError = validateInvoiceAdjustmentEligibility(original, parsed.data);
