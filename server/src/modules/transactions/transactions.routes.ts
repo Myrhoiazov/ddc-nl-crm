@@ -1,5 +1,5 @@
 import express from "express";
-import { asyncHandler, isToken } from "../../middlewares/middleware.Auth"
+import { asyncHandler, isToken } from "../auth/auth.middleware"
 import { createTransactionController, deleteTransactionByIdController, exportMonthlyRevenueController, fetchAllTransactionsController, getTransactionChartController, getTransactionSummaryController } from "./transactions.controller";
 
 const router = express.Router();

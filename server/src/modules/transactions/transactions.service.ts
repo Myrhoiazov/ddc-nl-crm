@@ -2,7 +2,7 @@ import { ExpenseCategory, PaymentMethod, Prisma, TransactionType, Transaction as
 
 import prisma from '../../../prisma/prisma-client'
 import dayjs from 'dayjs';
-import { syncMolliePayments } from '../../services/service.MollieSync';
+import { syncMolliePayments } from '../payments/payments.sync.service';
 import { manualTransactionSelect, molliePaymentTransactionSelect } from './transactions.select';
 
 const Transaction = prisma.transaction
