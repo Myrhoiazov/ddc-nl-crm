@@ -150,10 +150,10 @@ export const Input = memo((props: InputProps) => {
             mods={mods}
             addonLeft={addonLeft}
             addonRight={addonRight}
+            otherProps={{ 'aria-label': label, ...otherProps }}
             onChangeHandler={onChangeHandler}
             onFocus={onFocus}
             onBlur={onBlur}
-            otherProps={otherProps}
         />
     );
 
