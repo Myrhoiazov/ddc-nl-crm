@@ -73,6 +73,7 @@ Validate
 | Test-first implementation | .agents/skills/tdd/ |
 | Finished implementation review | .agents/skills/code-review/ |
 | UI / browser changes | .agents/skills/e2e-test/ or .agents/skills/manual-automation/ |
+| E2E infrastructure or Playwright business-flow tests | docs/E2E_TESTING.md, `playwright.config.ts`, `e2e/`, `docker-compose.e2e.yml` |
 | Bug investigation | .agents/skills/qa/ |
 | PR publishing | .agents/skills/pull-request/ |
 | Token/context efficiency questions | docs/spec/DDC_CRM_LOCAL_AI_TOKEN_OPTIMIZATION_SPEC.md |
@@ -105,6 +106,14 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 - Run `npm run lint:ts` and `npm test` from `client/`.
 - Check `.claude/rules/code-style.md` for UI conventions.
 - Use SCSS Modules (`*.module.scss`). Use theme tokens, not raw colors. Check dark theme.
+
+### When E2E Changes
+- Read [docs/E2E_TESTING.md](docs/E2E_TESTING.md) before modifying E2E setup, fixtures, or specs.
+- Run the narrowest affected Playwright spec first, then `npm run e2e` before publishing.
+- E2E runs only against the `ddc-e2e` compose project and its dedicated MySQL database. Never point
+  `DATABASE_URL` at development or production, and never combine `docker-compose.e2e.yml` with deploy files.
+- Keep the real Browser → React → Express → Prisma → MySQL path; mock only external third parties.
+- Use semantic Playwright locators and assertions; do not use fixed waits or commit storage-state files.
 
 ### When Server Changes
 - Run the domain test script matching the changed area (from `server/`); there is no single server-wide `test` script by design:
@@ -157,7 +166,7 @@ The Dev Loop (`.agents/agents/dev-loop.md`) is the end-to-end delivery profile. 
 ## Definition of Done
 
 - Right instruction + Right context + Right skill + Right time
-- Relevant checks pass (client: `npm run lint:ts`, `npm test`; server: domain test command; root: `npm run ci`)
+- Relevant checks pass (client: `npm run lint:ts`, `npm test`; server: domain test command; E2E: `npm run e2e` when affected; root: `npm run ci`)
 - No secrets committed, no unrelated changes, no AI attribution trailers
 - Branch created, implementation complete, review done, browser QA run when UI changed
 - PR prepared or published into `develop` when requested
