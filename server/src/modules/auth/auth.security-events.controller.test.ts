@@ -63,7 +63,7 @@ test('combines type and targetUserId filters', () => {
 });
 
 test('exports authSecurityEventListSelect with expected fields', () => {
-    const { authSecurityEventListSelect } = require('./controller.AuthSecurityEvents');
+    const { authSecurityEventListSelect } = require('./auth.security-events.controller');
 
     assert.ok(authSecurityEventListSelect, 'authSecurityEventListSelect should be exported');
     assert.equal(typeof authSecurityEventListSelect, 'object');

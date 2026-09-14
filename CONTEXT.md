@@ -31,6 +31,7 @@ TypeScript monorepo, two packages, no shared root `node_modules`:
 - `docker/` — Dockerfiles and nginx config for dev and prod
 - `docs/` — product, infrastructure, security, roadmap, Graphify documentation
 - `plugins/` — local ESLint plugins (FSD path checker)
+- `e2e/` — Playwright setup plus authentication and business-flow specs
 
 Two agent harnesses share the same Graphify-generated context: `.mcp.json` wires it into
 Claude Code, `.codex/config.toml` wires the identical `graphify-out/graph.json` into the
@@ -108,9 +109,12 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - Production: single Docker Compose stack on VPS.
 - Full topology in `docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md`.
 - `docker-compose.yml` (MySQL + Redis, shared), `docker-compose.dev.yml`, `docker-compose.prod.yml`.
+- E2E uses `docker-compose.e2e.yml` under the separate `ddc-e2e` compose project, with its own
+  MySQL container, volume, port, reset, and seed. It must never be combined with deploy compose files.
 - Container names driven by env values (`DB_CONTAINER_NAME`, etc.).
 - Deploy is manual (`npm run deploy` from repo root), not GitHub Actions.
-- GitHub Actions: CI only (`ci.yml`: `client-checks`/`server-checks`/`docs-links`/`skylos-check`).
+- GitHub Actions: CI only (`ci.yml`: `client-checks`/`server-checks`/`docs-links`/`skylos-check`; and
+  `e2e.yml`: isolated Playwright Chromium suite). Neither workflow deploys production.
 - `skylos-check` is informational (Phase A), not a required status check.
 
 ## Important Existing Decisions
@@ -128,4 +132,5 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - [AGENTS.md](AGENTS.md) — agent operating contract
 - [Docker Production Deployment](docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md)
 - [Graphify Workflow](docs/spec/GRAPHIFY_WORKFLOW.md)
+- [E2E testing](docs/E2E_TESTING.md) — isolated test topology, commands, fixture, and test authoring
 - [Schema docs](docs/schema.md)

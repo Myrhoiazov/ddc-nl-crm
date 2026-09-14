@@ -14,6 +14,7 @@ integrations, users, roles and settings.
 | ------- | ---------- |
 | Client  | React 19, Redux Toolkit, TypeScript, SCSS Modules, Webpack, Jest, Storybook |
 | Server  | Express 5, Prisma 6, MySQL 8, Redis (rate limiting), Zod, Node test runner |
+| E2E     | Playwright, Chromium, real SPA/API/Prisma path, isolated MySQL |
 | Auth    | Cookie sessions, CSRF double-submit, Argon2id, 2FA email, endpoint rate limiting |
 | Payments| Mollie (payments, subscriptions, mandates, reconciliation) |
 | Infra   | Docker Compose (dev + prod), nginx, GitHub Actions (CI only — deploy is manual) |
@@ -26,6 +27,7 @@ server/  Express API + Prisma + MySQL + Redis
 docker/  Dockerfiles and nginx config (client & server, dev + prod)
 docs/    product, security, infrastructure and roadmap documentation
 scripts/ repository-level tooling (dev, deploy, docs generation)
+e2e/     Playwright setup and end-to-end business-flow specs
 plugins/ local ESLint plugins (FSD path checker)
 ```
 
@@ -97,6 +99,9 @@ npm start             # dev server + client (non-Docker)
 npm run deploy        # production Docker deploy
 npm run deploy:docker # alias for the same production deploy
 npm run ci            # mirrors CI locally: client lint/test/build + server build/test + docs-links
+npm run e2e           # reset isolated E2E MySQL, then run Playwright Chromium suite
+npm run e2e:ui        # run the E2E suite in Playwright UI mode
+npm run e2e:down      # remove the isolated E2E MySQL container and volume
 npm run docs:links    # just the markdown link check
 npm run check:skylos  # Skylos audit (dead code / security / secrets / quality / SCA) — informational, not part of `ci`
 ```
@@ -138,6 +143,13 @@ npm run test:payment-reminders
 # or a single file directly:
 node --test -r ts-node/register src/modules/auth/auth.password.service.test.ts
 ```
+
+### End-to-end tests
+
+`npm run e2e` verifies the real Browser → React → Express → Prisma → MySQL path.
+It uses a dedicated `ddc-e2e` compose project and resets only its E2E database;
+it never uses the development or production database. See [E2E testing](docs/E2E_TESTING.md)
+for setup, authentication fixtures, debugging, and adding scenarios.
 
 ## Environment Variables
 
