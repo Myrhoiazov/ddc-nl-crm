@@ -4,7 +4,7 @@ import { IBuildOptions } from './types/config';
 export function buildDevServer({ port }: IBuildOptions): DevServerConfiguration {
     return {
         port,
-        open: true,
+        open: process.env.E2E !== 'true',
         historyApiFallback: true,
         hot: true,
     };
