@@ -21,6 +21,11 @@ every run. Tear it down, including its dedicated volume, with:
 npm run e2e:down
 ```
 
+The SPA uses port `13001` and the API uses `18081`. Playwright starts its own
+servers and fails if either port is occupied; it never reuses an existing app.
+The API receives a test-only session key from `playwright.config.ts`, so login
+does not depend on session secrets in a local `.env` file.
+
 For interactive diagnosis use `npm run e2e:ui`; use `npm run e2e:headed` to
 watch the browser. Playwright retains screenshots, video, and a trace on retry
 when a test fails.

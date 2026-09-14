@@ -10,11 +10,11 @@ test('authenticated user creates a client that remains after reload', async ({ p
     const clientName = 'E2E Created Client';
 
     await page.goto('/clients');
-    await page.getByRole('button', { name: 'Добавить клиента' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByLabel('Имя').fill('E2E');
-    await dialog.getByLabel('Фамилия').fill('Created Client');
-    await dialog.getByRole('button', { name: 'Добавить' }).click();
+    // The persistent navbar and the page filters both offer this action.
+    await page.getByRole('button', { name: 'Добавить клиента', exact: true }).first().click();
+    await page.getByLabel('Имя', { exact: true }).fill('E2E');
+    await page.getByLabel('Фамилия', { exact: true }).fill('Created Client');
+    await page.getByRole('button', { name: 'Добавить', exact: true }).click();
 
     await expect(page.getByText(clientName, { exact: true })).toBeVisible();
     await page.reload();
@@ -25,9 +25,8 @@ test('authenticated user edits a client and the change remains after reload', as
     await page.goto('/clients');
     await page.getByText('E2E Seed Client', { exact: true }).click();
     await page.getByRole('button', { name: 'Редактировать' }).click();
-    const dialog = page.getByRole('dialog');
-    await dialog.getByLabel('Фамилия').fill('Updated Client');
-    await dialog.getByRole('button', { name: 'Сохранить' }).click();
+    await page.getByLabel('Фамилия', { exact: true }).fill('Updated Client');
+    await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
 
     await expect(page.getByText('E2E Updated Client', { exact: true })).toBeVisible();
     await page.reload();

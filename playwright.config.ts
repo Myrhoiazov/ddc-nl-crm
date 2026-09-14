@@ -6,8 +6,10 @@ const serverEnvironment = {
     NODE_ENV: 'test',
     PORT: '18081',
     DATABASE_URL: e2eDatabaseUrl,
-    CLIENT_URL: 'http://127.0.0.1:3001',
+    CLIENT_URL: 'http://127.0.0.1:13001',
     COOKIE_NAME: 'ddc_e2e_session',
+    // Test-only key: keep the isolated server independent of local .env secrets.
+    SESSION_TOKEN_SECRET: 'e2e-only-session-token-secret',
     CSRF_SECRET: 'e2e-csrf-secret',
 };
 
@@ -19,7 +21,7 @@ export default defineConfig({
     workers: 1,
     reporter: process.env.CI ? 'github' : 'list',
     use: {
-        baseURL: 'http://127.0.0.1:3001',
+        baseURL: 'http://127.0.0.1:13001',
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
@@ -45,13 +47,13 @@ export default defineConfig({
         {
             command: 'npm --prefix server start',
             url: 'http://127.0.0.1:18081/api/v1/health',
-            reuseExistingServer: !process.env.CI,
+            reuseExistingServer: false,
             env: serverEnvironment,
         },
         {
             command: 'npm --prefix client run start:e2e',
-            url: 'http://127.0.0.1:3001',
-            reuseExistingServer: !process.env.CI,
+            url: 'http://127.0.0.1:13001',
+            reuseExistingServer: false,
             env: { CLIENT_API_URL: 'http://127.0.0.1:18081', E2E: 'true' },
         },
     ],
