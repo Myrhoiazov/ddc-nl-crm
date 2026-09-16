@@ -1,0 +1,48 @@
+enum KnowledgeDocumentStatus {
+  ACTIVE
+  INACTIVE
+  ERROR
+}
+
+model KnowledgeDocument {
+  id            String                  @id @db.VarChar(191)
+  sourceType    String                  @map("source_type") @db.VarChar(32)
+  sourceId      String                  @map("source_id") @db.VarChar(500)
+  sourceUrl     String                  @map("source_url") @db.VarChar(500)
+  relativePath  String?                 @map("relative_path") @db.VarChar(500)
+  folderPath    String?                 @map("folder_path") @db.VarChar(500)
+  title         String?                 @db.VarChar(500)
+  language      String?                 @db.VarChar(16)
+  contentHash   String                  @map("content_hash") @db.VarChar(64)
+  content       String                  @db.LongText
+  status        KnowledgeDocumentStatus @default(ACTIVE)
+  errorMessage  String?                 @map("error_message") @db.VarChar(500)
+  lastSyncedAt  DateTime?               @map("last_synced_at")
+  createdAt     DateTime                @default(now()) @map("created_at")
+  updatedAt     DateTime                @updatedAt @map("updated_at")
+
+  chunks        KnowledgeChunk[]
+
+  @@index([sourceId, status])
+  @@index([contentHash])
+  @@map("knowledge_documents")
+}
+
+model KnowledgeChunk {
+  id              String            @id @db.VarChar(191)
+  documentId      String            @map("document_id") @db.VarChar(191)
+  ordinal         Int
+  content         String            @db.Text
+  embedding       Json
+  embeddingModel  String            @map("embedding_model") @db.VarChar(191)
+  contentHash     String            @map("content_hash") @db.VarChar(64)
+  headingPath     Json              @map("heading_path")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  document        KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, ordinal])
+  @@index([contentHash])
+  @@map("knowledge_chunks")
+}

@@ -15,6 +15,7 @@ import searchRouter from '../modules/search/search.routes'
 import paymentRemindersRouter from '../modules/payment-reminders/payment-reminders.routes'
 import healthRouter from '../modules/health/health.routes'
 import authSecurityEventsRouter from '../modules/auth/auth.security-events.routes'
+import telegramApprovalRouter from '../modules/ai-email-assistant/telegram-approval.routes'
 
 const router = express.Router();
 
@@ -34,6 +35,7 @@ export default (): express.Router => {
     router.use('/search', searchRouter)
     router.use('/payment-reminders', paymentRemindersRouter)
     router.use('/auth-security-events', authSecurityEventsRouter)
+    router.use('/telegram', telegramApprovalRouter)
 
     router.use('/instagram', instagramRouter)
 

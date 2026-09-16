@@ -17,6 +17,7 @@ integrations, users, roles and settings.
 | E2E     | Playwright, Chromium, real SPA/API/Prisma path, isolated MySQL |
 | Auth    | Cookie sessions, CSRF double-submit, Argon2id, 2FA email, endpoint rate limiting |
 | Payments| Mollie (payments, subscriptions, mandates, reconciliation) |
+| AI      | Local LLM via Ollama (`qwen3`), local embeddings (`bge-m3`), RAG knowledge base, human-approved email drafts via Telegram |
 | Infra   | Docker Compose (dev + prod), nginx, GitHub Actions (CI only — deploy is manual) |
 
 ## Repository Layout
@@ -41,6 +42,13 @@ The root package only orchestrates project-level commands. Install dependencies 
 - **Invoicing** — invoices, PDF, payment links, reminders and Mollie reconciliation
 - **Mollie** — client profiles, subscriptions, mandates, payments and incident matrix
 - **Emails** — IMAP/SMTP accounts, messages, attachments (encrypted)
+- **Local AI email assistant** — private, on-prem (Ollama) pipeline: bounded email normalization,
+  deterministic spam checks, LLM classification, RAG retrieval, draft generation, Telegram
+  human-approval flow, and approved-only SMTP sending. Every worker is opt-in and disabled by
+  default; nothing is ever sent without human approval.
+- **Knowledge base (RAG)** — ingests the DDC website (sitemap/WordPress discovery) and files
+  (PDF/DOCX/TXT/MD/HTML), normalizes and chunks content, stores local embeddings in MySQL, and
+  retrieves attributable context for AI drafts.
 - **Users, Roles, Settings** — organization, brands, company pages, content hub
 - **Security** — Argon2id password hashing, cookie sessions with CSRF, 2FA email flow, rate limiting
   (Redis-based with in-memory fallback), security audit event log
@@ -129,6 +137,9 @@ npm run prisma:generate         # regenerate Prisma client
 npm run pmd:dev                 # apply local Prisma schema migrations
 npm run migrate:prod            # apply production migrations
 npm run user:reset-password -- <email>  # interactive Argon2id password reset
+npm run knowledge:sync -- --dry-run     # preview website knowledge discovery (index without --dry-run)
+npm run knowledge:file -- <path>        # import a file or directory into the knowledge base
+npm run ai:test-flow -- --subject "..." # run one email through the real AI pipeline locally
 ```
 
 Server tests use the Node built-in test runner and are organised per domain — there is no single
@@ -140,9 +151,13 @@ npm run test:mollie
 npm run test:search
 npm run test:email
 npm run test:payment-reminders
+npm run test:local-ai   # local AI email assistant + knowledge ingestion (config, classification, drafting, approval, send, Telegram, RAG)
 # or a single file directly:
 node --test -r ts-node/register src/modules/auth/auth.password.service.test.ts
 ```
+
+Local AI setup, benchmarking, and the opt-in worker flags are documented in
+[`docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md`](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md).
 
 ### End-to-end tests
 
@@ -161,6 +176,11 @@ The single source of documented variables is [`.env.example`](.env.example). Key
 - **Security** — `JWT_*`, `SECRET_SALT`, `CSRF_SECRET`, `VERIFY_MARKER_SECRET`, cookie names,
   token expirations
 - **Integrations** — `MOLLIE_*`, `INSTAGRAM_*`, `TELEGRAM_*`, `TWO_FACTOR_SENDER_EMAIL`
+- **Local AI / Ollama** — `OLLAMA_*` (URL, model, embedding model, container limits),
+  `LLM_*` (context length, temperature, keep-alive), `AI_MAX_CONCURRENCY`, opt-in
+  `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` worker flags, Telegram approval
+  (`TELEGRAM_APPROVER_IDS`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_POLLING_ENABLED`), and
+  `KNOWLEDGE_*` / `RAG_TOP_K` — full reference in the operations doc
 
 Only the built frontend bundle and server receive environment at runtime; the server reads env from
 the compose `environment:` block (or, when run directly with `node`/`nodemon`, from a `server/.env`
@@ -192,7 +212,12 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 
 - Business modules live under `server/src/modules/`: `auth`, `users`, `clients`, `company`,
   `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie),
-  `payment-reminders`, `communication` (`email`/`instagram`/`telegram`), `health`
+  `payment-reminders`, `communication` (`email`/`instagram`/`telegram`), `health`,
+  `ai-email-assistant`, `knowledge-ingestion`
+- The local AI email assistant stays in its own module boundary: classify → draft (RAG context) →
+  Telegram approval → approved-only SMTP send. Knowledge ingestion (website sitemap/WordPress
+  discovery, file import, embeddings, MySQL retrieval) lives in `knowledge-ingestion`. Both are
+  opt-in via feature flags (`AI_EMAIL_*_ENABLED`, `KNOWLEDGE_SYNC_ENABLED`) and default off.
 - Domain-agnostic infrastructure lives under `server/src/common/`: `errors/`, `middleware/`,
   `validation/`, `logger/`, `utils/`
 - Validation via Zod schemas colocated with each module, applied through
@@ -201,7 +226,7 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   endpoint-specific rate limiting (Redis when `REDIS_URL` is set, in-memory process-local fallback)
   — all in `modules/auth/`
 - Prisma schema is split across `server/prisma/schema/*.prisma` (client, company, email, invoice,
-  mollie, payment-reminder, schedule, user) pointed at MySQL via `DATABASE_URL`
+  mollie, payment-reminder, schedule, user, ai-email, knowledge) pointed at MySQL via `DATABASE_URL`
 - `GET /api/v1/health` (no auth, no DB) supports Docker health checks and deploy smoke tests
 
 ## Production & Deployment
@@ -239,6 +264,8 @@ Run `npm run ci` before pushing — it mirrors what CI checks.
 
 ## Documentation
 
+- [Local AI Email Assistant — Technical Specification](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_SPEC.md)
+- [Local AI Email Assistant Operations](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md)
 - [Project dependency tree](docs/spec/PROJECT_TREE.html) (Graphify)
 - [Server source tree](docs/spec/SERVER_SRC_TREE.html) and [Client source tree](docs/spec/CLIENT_SRC_TREE.html)
 - [Graphify workflow](docs/spec/GRAPHIFY_WORKFLOW.md)

@@ -534,7 +534,7 @@ This allows later migration to `pgvector` without rewriting ingestion or email o
 Embeddings MUST run locally and be configured separately from `qwen3:0.6b`.
 
 ```env
-OLLAMA_EMBEDDING_MODEL=<local-small-multilingual-embedding-model>
+OLLAMA_EMBEDDING_MODEL=bge-m3
 RAG_TOP_K=4
 ```
 

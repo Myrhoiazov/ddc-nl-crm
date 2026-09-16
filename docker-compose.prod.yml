@@ -14,7 +14,7 @@ services:
       - backend
     networks:
       - ddc-nl-network
-
+  
   backend:
     container_name: ${BACKEND_CONTAINER_NAME:?BACKEND_CONTAINER_NAME не задан — см. .env.example}
     image: ddc-nl-backend:prod
@@ -52,7 +52,25 @@ services:
       INSTGRAM_MARKER: ${INSTGRAM_MARKER}
       INSTGRAM_SECRET: ${INSTGRAM_SECRET}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+      TELEGRAM_APPROVER_IDS: ${TELEGRAM_APPROVER_IDS:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      TELEGRAM_POLLING_ENABLED: ${TELEGRAM_POLLING_ENABLED:-false}
+      OLLAMA_URL: ${OLLAMA_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:0.6b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-bge-m3}
+      RAG_TOP_K: ${RAG_TOP_K:-4}
+      KNOWLEDGE_BASE_URL: ${KNOWLEDGE_BASE_URL:-}
+      KNOWLEDGE_ALLOWED_DOMAINS: ${KNOWLEDGE_ALLOWED_DOMAINS:-}
+      KNOWLEDGE_CANONICAL_LANGUAGE: ${KNOWLEDGE_CANONICAL_LANGUAGE:-nl}
+      LLM_CONTEXT_LENGTH: ${LLM_CONTEXT_LENGTH:-2048}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.2}
+      LLM_KEEP_ALIVE: ${LLM_KEEP_ALIVE:-0}
+      AI_MAX_CONCURRENCY: ${AI_MAX_CONCURRENCY:-1}
+      AI_EMAIL_CLASSIFICATION_ENABLED: ${AI_EMAIL_CLASSIFICATION_ENABLED:-false}
+      AI_EMAIL_DRAFT_ENABLED: ${AI_EMAIL_DRAFT_ENABLED:-false}
+      AI_EMAIL_SEND_ENABLED: ${AI_EMAIL_SEND_ENABLED:-false}
+      KNOWLEDGE_SYNC_ENABLED: ${KNOWLEDGE_SYNC_ENABLED:-false}
     volumes:
       - uploads_data:/app/public/upload
       - private_uploads_data:/app/private-uploads
@@ -63,5 +81,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks:
       - ddc-nl-network

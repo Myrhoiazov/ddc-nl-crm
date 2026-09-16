@@ -6,7 +6,7 @@ Domain knowledge for AI agents working on this codebase.
 
 ## Product
 
-CRM / admin platform for dance school "DDC" (Talent Center): client/student records, dance groups, schedule/calendar, choreographers, branches, invoicing and recurring payments (Mollie), email workflows, users/roles, and settings.
+CRM / admin platform for dance school "DDC" (Talent Center): client/student records, dance groups, schedule/calendar, choreographers, branches, invoicing and recurring payments (Mollie), email workflows, users/roles, settings, and a local (Ollama) AI email assistant with a RAG knowledge base.
 
 ## Domain Language
 
@@ -21,6 +21,10 @@ CRM / admin platform for dance school "DDC" (Talent Center): client/student reco
 | Mandate | Recurring payment authorisation (Mollie). |
 | Payment reminder | Automated email sequence for unpaid invoices. |
 | Invoice audit log | Per-invoice change history (`InvoiceAuditLog`: action + before/after value snapshot). Distinct from the security audit event log. |
+| Local AI email assistant | Private, on-prem (Ollama) pipeline: reads inbound email, classifies it, drafts replies with RAG knowledge, and sends only after human approval via Telegram. No cloud LLM API. |
+| Knowledge base (RAG) | Local indexed copy of the DDC website (sitemap/WordPress discovery) plus imported files (PDF/DOCX/TXT/MD/HTML), chunked and embedded locally (`bge-m3`), stored in MySQL, retrieved as attributable draft context. |
+| Embedding | Local vector representation of a knowledge chunk; retrieval ranks chunks by cosine similarity with configurable top-K. |
+| Draft approval | Human-in-the-loop Telegram flow over a generated draft: approve / edit / reject / mark spam; SMTP sending happens only after explicit approval. |
 
 ## System Overview
 
@@ -68,7 +72,23 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 
 - Business modules under `server/src/modules/`: `auth`, `users`, `clients`, `company`, `schedule`,
   `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie), `payment-reminders`,
-  `communication` (`email`/`instagram`/`telegram` sub-modules), `health`.
+  `communication` (`email`/`instagram`/`telegram` sub-modules), `health`,
+  `ai-email-assistant`, `knowledge-ingestion`.
+- `ai-email-assistant` keeps the whole AI workflow in one module boundary: normalize/bounded
+  persistence → deterministic spam checks → LLM classification (`classifyEmail`, strict runtime
+  schema, one repair retry) → CRM read-only projection (`createPrismaCrmReader`) → RAG context →
+  draft generation (`generateEmailDraft`; reply language/subject/confidence computed
+  deterministically, only the body comes from the LLM) → Telegram approval (webhook
+  `POST /api/v1/telegram/webhook` with `X-Telegram-Bot-Api-Secret-Token`, or long-polling behind
+  `TELEGRAM_POLLING_ENABLED`) → approved-only SMTP send (`runSendPipeline`, atomic
+  `APPROVED -> SENDING -> SENT|FAILED`, idempotency-keyed so retries can't double-send).
+- `knowledge-ingestion` covers website discovery (sitemap-first, WordPress REST fallback;
+  canonical-language and domain allowlist filtering so translations are never indexed as
+  duplicates), file import (`.pdf` via pdf-parse, `.docx` via mammoth, `.txt/.md/.html`), HTML
+  normalization with content hashing, semantic chunking with overlap, local `bge-m3` embeddings
+  via Ollama, MySQL persistence (`knowledge_documents`/`knowledge_chunks`), cosine retrieval
+  (`KnowledgeRetrievalService`, `RAG_TOP_K`), and incremental sync planning. All workers are
+  opt-in cron jobs behind `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` and default off.
 - Domain-agnostic shared infrastructure under `server/src/common/`: `errors/` (ApiError + error
   middleware), `middleware/` (query stats), `validation/` (generic Zod schema-validation
   middleware), `logger/`, `utils/` (crypto, paths, file upload).
@@ -84,7 +104,7 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 
 ## Data / Prisma
 
-- Schema split across `server/prisma/schema/*.prisma`: client, company, email, invoice, mollie, payment-reminder, schedule, user.
+- Schema split across `server/prisma/schema/*.prisma`: client, company, email, invoice, mollie, payment-reminder, schedule, user, ai-email, knowledge.
 - `schema.prisma` contains datasource/generator and shared models (`Comment`, `Transaction`).
 - MySQL via `DATABASE_URL`.
 - After editing any `.prisma` file: `cd server && npm run prisma:generate` (also runs in `npm run build` via `prebuild`).
@@ -94,6 +114,7 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - **Mollie** (`@mollie/api-client`): client payment profiles, subscriptions, mandates, reconciliation.
 - **Email**: IMAP/SMTP via `imapflow`/`nodemailer`/`mailparser`. Separate model in `email.prisma`.
 - **2FA email**: Sent via nodemailer directly using SMTP creds from `EmailAccount` whose `username` matches `TWO_FACTOR_SENDER_EMAIL` env — does not go through `service.EmailSmtp` and does not create a message in the Email module.
+- **Ollama (local LLM)**: `OllamaLlmClient` in `modules/ai-email-assistant/` is the narrow LLM boundary; no application code may hard-code a model name. Classification uses `OLLAMA_MODEL` (default `qwen3:0.6b`), embeddings use `OLLAMA_EMBEDDING_MODEL` (default `bge-m3`). Compose runs an `ollama` service with env-driven memory/CPU limits; production must not enable any `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` flag until `scripts/benchmark-ollama*.sh` measurements exist for the real host.
 
 ## Security Context
 
@@ -102,6 +123,10 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - 2FA email flow on login
 - Endpoint-specific rate limiting
 - Security audit event log
+- AI email assistant: local LLM only (no cloud), the LLM has no SMTP/DB/filesystem/shell tools,
+  and **no email is ever sent without explicit human approval** — Telegram approval actions are
+  actor-allowlisted (`TELEGRAM_APPROVER_IDS`) and version-locked against the draft, so a stale
+  approval can't act on a newer draft.
 - Planned security hardening is tracked locally (gitignored `docs/roadmap/AUTH_SECURITY_ROADMAP.md`), not part of the repo.
 
 ## Infrastructure Context
@@ -125,6 +150,14 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - GitHub ruleset blocking direct pushes to `main` is planned but not yet created (as of CI/CD rebuild).
 - Old `deploy.yml` (PM2, frontend only, broken) has been deleted.
 - ADRs recorded in `docs/adr/` (gitignored, local only): branch protection rationale, manual deploy rationale.
+- AI email assistant defaults to safe: every worker flag (`AI_EMAIL_CLASSIFICATION_ENABLED`,
+  `AI_EMAIL_DRAFT_ENABLED`, `AI_EMAIL_SEND_ENABLED`, `KNOWLEDGE_SYNC_ENABLED`) is `false`, and
+  production enabling requires real-host benchmark evidence first. Sending is approved-only and
+  idempotency-keyed — retries can never double-send.
+- Draft reply language is enforced deterministically (computed from message language, not parsed
+  from model JSON); only the body text comes from the LLM.
+- The only supported sending path is the existing IMAP/SMTP mailbox that received the original
+  message (`replyToMessage`), preserving thread headers.
 
 ## Related Documentation
 
@@ -134,3 +167,5 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - [Graphify Workflow](docs/spec/GRAPHIFY_WORKFLOW.md)
 - [E2E testing](docs/E2E_TESTING.md) — isolated test topology, commands, fixture, and test authoring
 - [Schema docs](docs/schema.md)
+- [Local AI Email Assistant — Technical Specification](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_SPEC.md)
+- [Local AI Email Assistant Operations](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md)

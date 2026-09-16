@@ -1,0 +1,98 @@
+import { aiConfig } from '../../config/ai.config';
+import { logger } from '../../common/logger';
+import { buildDraftContext, generateEmailDraft, type CrmReader, type DraftKnowledgeContext, type DraftLlmClient } from './draft.service';
+import { createPrismaAiEmailDraftRepository, persistDraft, type AiEmailDraftRepository, type DraftKnowledgeRefInput } from './draft.persistence';
+import prisma from '../../../prisma/prisma-client';
+import { notifyDraftForApproval } from './telegram-notification.service';
+import type { EmailClassification } from './email-assistant.service';
+
+export interface DraftCandidate {
+    id: number;
+    sender: string;
+    subject: string;
+    normalizedBody: string;
+    classification: EmailClassification;
+}
+
+export interface DraftPipelineRepository extends AiEmailDraftRepository {
+    findDraftCandidates(limit: number): Promise<DraftCandidate[]>;
+}
+
+export interface DraftKnowledgeProvider {
+    retrieve(query: string): Promise<DraftKnowledgeContext[]>;
+}
+
+export interface DraftPipelineRunResult {
+    processed: number;
+    skipped: number;
+    failed: number;
+}
+
+export const runDraftPipeline = async (
+    repository: DraftPipelineRepository,
+    crmReader: CrmReader,
+    draftClient: DraftLlmClient,
+    knowledgeProvider?: DraftKnowledgeProvider,
+    limit = aiConfig.maxConcurrency,
+    notify: (input: Parameters<typeof notifyDraftForApproval>[0]) => Promise<boolean> = notifyDraftForApproval,
+): Promise<DraftPipelineRunResult> => {
+    const result: DraftPipelineRunResult = { processed: 0, skipped: 0, failed: 0 };
+    const candidates = await repository.findDraftCandidates(Math.max(1, limit));
+    for (const candidate of candidates) {
+        try {
+            if (candidate.classification.spam || !candidate.classification.needsReply) {
+                result.skipped += 1;
+                continue;
+            }
+            const knowledge = knowledgeProvider ? await knowledgeProvider.retrieve(`${candidate.subject}\n${candidate.normalizedBody}`) : [];
+            const email = { fromAddress: candidate.sender, subject: candidate.subject, normalizedBody: candidate.normalizedBody };
+            const draft = await generateEmailDraft(email, candidate.classification, crmReader, draftClient, knowledge);
+            if (!draft) {
+                result.skipped += 1;
+                continue;
+            }
+            const saved = await persistDraft(repository, {
+                emailId: candidate.id,
+                draft,
+                knowledge: knowledge.map((item): DraftKnowledgeRefInput => ({ id: item.id, sourceUrl: item.sourceUrl, score: item.score })),
+            });
+            const contact = await crmReader.findContactByEmail(candidate.sender);
+            await notify({
+                draftId: saved.id,
+                version: saved.version,
+                sender: candidate.sender,
+                subject: draft.subject,
+                body: draft.body,
+                language: draft.replyLanguage,
+                intent: candidate.classification.intent,
+                contactName: contact ? [contact.firstName, contact.lastName].filter(Boolean).join(' ') : null,
+                knowledgeSourceUrls: knowledge.map((item) => item.sourceUrl),
+                needsManualAnswer: draft.needsManualAnswer,
+            });
+            result.processed += 1;
+        } catch (error) {
+            result.failed += 1;
+            logger.error(`[AiEmailDraft] Failed email=${candidate.id}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
+    return result;
+};
+
+export const createPrismaDraftPipelineRepository = (): DraftPipelineRepository => {
+    return {
+        ...createPrismaAiEmailDraftRepository(),
+        async findDraftCandidates(limit) {
+            const messages = await prisma.aiEmailMessage.findMany({
+                where: { status: 'CLASSIFIED', drafts: { none: {} } },
+                orderBy: { receivedAt: 'asc' }, take: limit,
+                select: { id: true, sender: true, subject: true, normalizedBody: true, classifications: { orderBy: { createdAt: 'desc' }, take: 1 } },
+            });
+            return messages.flatMap((message) => {
+                const classification = message.classifications[0];
+                if (!classification) return [];
+                return [{ id: message.id, sender: message.sender, subject: message.subject ?? '', normalizedBody: message.normalizedBody,
+                    classification: { spam: classification.spam, needsReply: classification.needsReply, language: classification.language as EmailClassification['language'], intent: classification.intent as EmailClassification['intent'], confidence: classification.confidence, reason: classification.reason } }];
+            });
+        },
+    };
+};
