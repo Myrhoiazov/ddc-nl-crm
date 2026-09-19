@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useSelector } from 'react-redux';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import cls from './ProfilePage.module.scss';
 import {
@@ -9,7 +10,9 @@ import { ProfileCard, profileReducer } from '@/entities/Profile';
 import { ProfilePageHeader } from './ProfilePageHeader/ProfilePageHeader';
 import { RoleKey } from '@/entities/Role';
 import { Page } from '@/widgets/Page/Page';
+import { getUserAuthData } from '@/entities/User';
 import { ActiveSessions } from './ActiveSessions/ActiveSessions';
+import { TelegramConnection } from './TelegramConnection/TelegramConnection';
 import { useProfilePage } from './useProfilePage';
 import { ProfileValidateErrors } from './ProfileValidateErrors';
 
@@ -31,6 +34,8 @@ const ProfilePage = ({ className }: ProfilePageProps) => {
         isOwnProfile,
         updateField,
     } = useProfilePage();
+    const authData = useSelector(getUserAuthData);
+    const isAdmin = authData?.role === RoleKey.ADMIN;
 
     return (
         <DynamicModuleLoader reducers={reducers}>
@@ -49,6 +54,7 @@ const ProfilePage = ({ className }: ProfilePageProps) => {
                     onChangeEmail={(value) => updateField({ email: value || '' })}
                 />
                 {isOwnProfile && <ActiveSessions />}
+                {isOwnProfile && isAdmin && <TelegramConnection />}
             </Page>
         </DynamicModuleLoader>
     );

@@ -7,9 +7,9 @@ describe('Input', () => {
         expect(screen.getByDisplayValue('hello')).toBeInTheDocument();
     });
 
-    test('renders a label and associates it visually with the input', () => {
+    test('associates its label with the input for accessible form queries', () => {
         render(<Input value="" onChange={() => {}} label="First name" />);
-        expect(screen.getByText('First name')).toBeInTheDocument();
+        expect(screen.getByLabelText('First name')).toBeInTheDocument();
     });
 
     test('calls onChange with the new text value', () => {

@@ -31,6 +31,7 @@ TypeScript monorepo, two packages, no shared root `node_modules`:
 - `docker/` — Dockerfiles and nginx config for dev and prod
 - `docs/` — product, infrastructure, security, roadmap, Graphify documentation
 - `plugins/` — local ESLint plugins (FSD path checker)
+- `e2e/` — Playwright setup plus authentication and business-flow specs
 
 Two agent harnesses share the same Graphify-generated context: `.mcp.json` wires it into
 Claude Code, `.codex/config.toml` wires the identical `graphify-out/graph.json` into the
@@ -65,9 +66,12 @@ Feature/domain-based modules:
 modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 ```
 
-- Business modules under `server/src/modules/`: `auth`, `users`, `clients`, `company`, `schedule`,
-  `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie), `payment-reminders`,
-  `communication` (`email`/`instagram`/`telegram` sub-modules), `health`.
+- Business modules under `server/src/modules/`: `auth` (incl. `auth/telegram/` — Telegram OIDC
+  login/link, ADMIN-only, distinct from the notification bot below), `users`, `clients`, `company`,
+  `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie),
+  `payment-reminders`, `communication` (`email`/`instagram`/`telegram` sub-modules — this
+  `telegram` is outbound admin notifications only, a different Telegram integration from
+  `auth/telegram/`), `health`.
 - Domain-agnostic shared infrastructure under `server/src/common/`: `errors/` (ApiError + error
   middleware), `middleware/` (query stats), `validation/` (generic Zod schema-validation
   middleware), `logger/`, `utils/` (crypto, paths, file upload).
@@ -75,7 +79,10 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   via `common/validation/validate-schema.middleware.ts`.
 - Auth: cookie sessions, CSRF double-submit, Argon2id, 2FA email flow, endpoint-specific rate
   limiting — all in `modules/auth/` (`auth.middleware.ts`, `auth.csrf.middleware.ts`,
-  `auth.login-rate-limit.middleware.ts`, `auth.two-factor-rate-limit.middleware.ts`).
+  `auth.login-rate-limit.middleware.ts`, `auth.two-factor-rate-limit.middleware.ts`). Telegram OIDC
+  is an additional, ADMIN-only login provider (`modules/auth/telegram/`) — it replaces password
+  entry only, still goes through the same 2FA/session issuance; see
+  [Identity domain](docs/domain/identity.md).
 - Rate limiting: Redis-based when `REDIS_URL` is set; in-memory process-local fallback otherwise.
 - Health: `GET /api/v1/health` (no auth, no DB) — for Docker health checks, `modules/health/`.
 - Migrated from a layer-first `controllers/`/`services/`/`routes/` structure — see
@@ -93,12 +100,16 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - **Mollie** (`@mollie/api-client`): client payment profiles, subscriptions, mandates, reconciliation.
 - **Email**: IMAP/SMTP via `imapflow`/`nodemailer`/`mailparser`. Separate model in `email.prisma`.
 - **2FA email**: Sent via nodemailer directly using SMTP creds from `EmailAccount` whose `username` matches `TWO_FACTOR_SENDER_EMAIL` env — does not go through `service.EmailSmtp` and does not create a message in the Email module.
+- **Telegram** — two independent integrations, easy to conflate by name alone:
+  - *Notification bot* (`communication/telegram/`, `TELEGRAM_TOKEN`/`TELEGRAM_CHAT_ID`): one-way outbound alerts (payments, security events) via the Bot API.
+  - *Telegram Login* (`auth/telegram/`, `TELEGRAM_OIDC_CLIENT_ID`/`TELEGRAM_OIDC_CLIENT_SECRET`/`TELEGRAM_OIDC_REDIRECT_URI`): OIDC Authorization Code + PKCE against `oauth.telegram.org`, ADMIN-only additional login provider. Configured via a bot's Login Widget in `@BotFather` (OpenID Connect mode, not the legacy hash-based widget). Inert (button/widget hidden) until all three env vars are set.
 
 ## Security Context
 
 - Cookie sessions + CSRF double-submit
 - Argon2id password hashing
 - 2FA email flow on login
+- Telegram OIDC login (ADMIN-only, must be explicitly linked first — never bypasses 2FA)
 - Endpoint-specific rate limiting
 - Security audit event log
 - Planned security hardening is tracked locally (gitignored `docs/roadmap/AUTH_SECURITY_ROADMAP.md`), not part of the repo.
@@ -108,9 +119,12 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - Production: single Docker Compose stack on VPS.
 - Full topology in `docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md`.
 - `docker-compose.yml` (MySQL + Redis, shared), `docker-compose.dev.yml`, `docker-compose.prod.yml`.
+- E2E uses `docker-compose.e2e.yml` under the separate `ddc-e2e` compose project, with its own
+  MySQL container, volume, port, reset, and seed. It must never be combined with deploy compose files.
 - Container names driven by env values (`DB_CONTAINER_NAME`, etc.).
 - Deploy is manual (`npm run deploy` from repo root), not GitHub Actions.
-- GitHub Actions: CI only (`ci.yml`: `client-checks`/`server-checks`/`docs-links`/`skylos-check`).
+- GitHub Actions: CI only (`ci.yml`: `client-checks`/`server-checks`/`docs-links`/`skylos-check`; and
+  `e2e.yml`: isolated Playwright Chromium suite). Neither workflow deploys production.
 - `skylos-check` is informational (Phase A), not a required status check.
 
 ## Important Existing Decisions
@@ -128,4 +142,5 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - [AGENTS.md](AGENTS.md) — agent operating contract
 - [Docker Production Deployment](docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md)
 - [Graphify Workflow](docs/spec/GRAPHIFY_WORKFLOW.md)
+- [E2E testing](docs/E2E_TESTING.md) — isolated test topology, commands, fixture, and test authoring
 - [Schema docs](docs/schema.md)

@@ -14,7 +14,8 @@ integrations, users, roles and settings.
 | ------- | ---------- |
 | Client  | React 19, Redux Toolkit, TypeScript, SCSS Modules, Webpack, Jest, Storybook |
 | Server  | Express 5, Prisma 6, MySQL 8, Redis (rate limiting), Zod, Node test runner |
-| Auth    | Cookie sessions, CSRF double-submit, Argon2id, 2FA email, endpoint rate limiting |
+| E2E     | Playwright, Chromium, real SPA/API/Prisma path, isolated MySQL |
+| Auth    | Cookie sessions, CSRF double-submit, Argon2id, 2FA email, Telegram OIDC login (ADMIN-only), endpoint rate limiting |
 | Payments| Mollie (payments, subscriptions, mandates, reconciliation) |
 | Infra   | Docker Compose (dev + prod), nginx, GitHub Actions (CI only — deploy is manual) |
 
@@ -26,6 +27,7 @@ server/  Express API + Prisma + MySQL + Redis
 docker/  Dockerfiles and nginx config (client & server, dev + prod)
 docs/    product, security, infrastructure and roadmap documentation
 scripts/ repository-level tooling (dev, deploy, docs generation)
+e2e/     Playwright setup and end-to-end business-flow specs
 plugins/ local ESLint plugins (FSD path checker)
 ```
 
@@ -40,8 +42,9 @@ The root package only orchestrates project-level commands. Install dependencies 
 - **Mollie** — client profiles, subscriptions, mandates, payments and incident matrix
 - **Emails** — IMAP/SMTP accounts, messages, attachments (encrypted)
 - **Users, Roles, Settings** — organization, brands, company pages, content hub
-- **Security** — Argon2id password hashing, cookie sessions with CSRF, 2FA email flow, rate limiting
-  (Redis-based with in-memory fallback), security audit event log
+- **Security** — Argon2id password hashing, cookie sessions with CSRF, 2FA email flow, Telegram OIDC
+  login as an additional ADMIN-only provider, rate limiting (Redis-based with in-memory fallback),
+  security audit event log
 
 ## Getting Started
 
@@ -97,6 +100,9 @@ npm start             # dev server + client (non-Docker)
 npm run deploy        # production Docker deploy
 npm run deploy:docker # alias for the same production deploy
 npm run ci            # mirrors CI locally: client lint/test/build + server build/test + docs-links
+npm run e2e           # reset isolated E2E MySQL, then run Playwright Chromium suite
+npm run e2e:ui        # run the E2E suite in Playwright UI mode
+npm run e2e:down      # remove the isolated E2E MySQL container and volume
 npm run docs:links    # just the markdown link check
 npm run check:skylos  # Skylos audit (dead code / security / secrets / quality / SCA) — informational, not part of `ci`
 ```
@@ -139,6 +145,13 @@ npm run test:payment-reminders
 node --test -r ts-node/register src/modules/auth/auth.password.service.test.ts
 ```
 
+### End-to-end tests
+
+`npm run e2e` verifies the real Browser → React → Express → Prisma → MySQL path.
+It uses a dedicated `ddc-e2e` compose project and resets only its E2E database;
+it never uses the development or production database. See [E2E testing](docs/E2E_TESTING.md)
+for setup, authentication fixtures, debugging, and adding scenarios.
+
 ## Environment Variables
 
 The single source of documented variables is [`.env.example`](.env.example). Key groups:
@@ -148,7 +161,10 @@ The single source of documented variables is [`.env.example`](.env.example). Key
   plus their `*_PROD` counterparts
 - **Security** — `JWT_*`, `SECRET_SALT`, `CSRF_SECRET`, `VERIFY_MARKER_SECRET`, cookie names,
   token expirations
-- **Integrations** — `MOLLIE_*`, `INSTAGRAM_*`, `TELEGRAM_*`, `TWO_FACTOR_SENDER_EMAIL`
+- **Integrations** — `MOLLIE_*`, `INSTAGRAM_*`, `TELEGRAM_*` (notification bot), `TELEGRAM_OIDC_*`
+  (Telegram Login, ADMIN-only — a separate integration, set up via a bot's Login Widget in
+  @BotFather; unset by default, the login button/widget stay hidden until configured),
+  `TWO_FACTOR_SENDER_EMAIL`
 
 Only the built frontend bundle and server receive environment at runtime; the server reads env from
 the compose `environment:` block (or, when run directly with `node`/`nodemon`, from a `server/.env`
@@ -178,16 +194,19 @@ that automatically attach the CSRF token.
 modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 ```
 
-- Business modules live under `server/src/modules/`: `auth`, `users`, `clients`, `company`,
-  `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie),
-  `payment-reminders`, `communication` (`email`/`instagram`/`telegram`), `health`
+- Business modules live under `server/src/modules/`: `auth` (incl. `auth/telegram/` — Telegram
+  OIDC login), `users`, `clients`, `company`, `schedule`, `comments`, `search`, `transactions`,
+  `invoices`, `payments` (Mollie), `payment-reminders`, `communication`
+  (`email`/`instagram`/`telegram` — this `telegram` is the outbound notification bot, a separate
+  integration from `auth/telegram/`), `health`
 - Domain-agnostic infrastructure lives under `server/src/common/`: `errors/`, `middleware/`,
   `validation/`, `logger/`, `utils/`
 - Validation via Zod schemas colocated with each module, applied through
   `common/validation/validate-schema.middleware.ts`
 - Authentication: cookie sessions, CSRF double-submit, Argon2id password hashing, 2FA email flow,
-  endpoint-specific rate limiting (Redis when `REDIS_URL` is set, in-memory process-local fallback)
-  — all in `modules/auth/`
+  Telegram OIDC login (ADMIN-only, additional provider — replaces password entry only, still runs
+  through 2FA/session issuance), endpoint-specific rate limiting (Redis when `REDIS_URL` is set,
+  in-memory process-local fallback) — all in `modules/auth/`
 - Prisma schema is split across `server/prisma/schema/*.prisma` (client, company, email, invoice,
   mollie, payment-reminder, schedule, user) pointed at MySQL via `DATABASE_URL`
 - `GET /api/v1/health` (no auth, no DB) supports Docker health checks and deploy smoke tests

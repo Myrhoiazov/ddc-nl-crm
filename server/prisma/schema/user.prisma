@@ -4,10 +4,23 @@ enum UserRole {
   DOCTOR
 }
 
+enum AuthProvider {
+  TELEGRAM
+}
+
+enum TelegramAuthFlow {
+  LOGIN
+  LINK
+}
+
 enum AuthSecurityEventType {
   LOGIN_SUCCEEDED
   LOGIN_FAILED
   LOGIN_BLOCKED
+  LOGIN_TELEGRAM_SUCCEEDED
+  LOGIN_TELEGRAM_FAILED
+  TELEGRAM_LINKED
+  TELEGRAM_UNLINKED
   LOGOUT
   PASSWORD_CHANGED
   PASSWORD_RESET
@@ -70,6 +83,8 @@ model User {
   authEventsAsTarget                 AuthSecurityEvent[]        @relation("AuthSecurityEventTarget")
   twoFactorChallenges                TwoFactorChallenge[]
   trustedDevices                     TrustedDevice[]
+  authIdentities                     AuthIdentity[]
+  telegramAuthTransactions           TelegramAuthTransaction[]
   paymentReminderSettingsUpdates     PaymentReminderSettings[]  @relation("PaymentReminderSettingsUpdatedBy")
   paymentReminderDeliveriesTriggered PaymentReminderDelivery[]  @relation("PaymentReminderTriggeredBy")
   paymentReminderTemplateUpdates     PaymentReminderTemplate[]  @relation("PaymentReminderTemplateUpdatedBy")
@@ -154,4 +169,46 @@ model TrustedDevice {
 
   @@index([userId])
   @@map("trusted_devices")
+}
+
+// A Telegram identity explicitly linked to a CRM User. Telegram never creates a
+// User — this row only ever appears after an authenticated ADMIN completes the
+// link flow. providerUserId is Telegram's stable OIDC subject, never the
+// @username (display-only metadata, can change).
+model AuthIdentity {
+  id             Int          @id @default(autoincrement())
+  userId         Int          @map("user_id")
+  provider       AuthProvider
+  providerUserId String       @map("provider_user_id")
+  username       String?
+  displayName    String?      @map("display_name")
+  linkedAt       DateTime     @default(now()) @map("linked_at")
+  lastLoginAt    DateTime?    @map("last_login_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@index([userId])
+  @@map("auth_identities")
+}
+
+// One row per in-flight Telegram OIDC authorization-code+PKCE exchange — same
+// role as TwoFactorChallenge: short-lived, single-use, does not grant access by
+// itself. userId is set at LINK creation time (bound to the authenticated
+// caller server-side, never trusted from the callback) and stays null for LOGIN.
+model TelegramAuthTransaction {
+  id           Int              @id @default(autoincrement())
+  state        String           @unique @db.VarChar(191)
+  nonceHash    String           @map("nonce_hash") @db.VarChar(128)
+  codeVerifier String           @map("code_verifier") @db.VarChar(191)
+  flow         TelegramAuthFlow
+  userId       Int?             @map("user_id")
+  expiresAt    DateTime         @map("expires_at")
+  consumedAt   DateTime?        @map("consumed_at")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("telegram_auth_transactions")
 }

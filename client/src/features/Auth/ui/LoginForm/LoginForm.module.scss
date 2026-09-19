@@ -63,6 +63,34 @@
         color: #555b52;
     }
 
+    .divider {
+        display: flex;
+        align-items: center;
+        margin: 24px 0 16px;
+        font-size: 13px;
+        color: #9aa19a;
+
+        &::before,
+        &::after {
+            height: 1px;
+            background: #e3e6e0;
+            content: '';
+            flex: 1;
+        }
+
+        span {
+            padding: 0 12px;
+        }
+    }
+
+    .telegramBtn {
+        min-height: 50px;
+        font-weight: 700;
+        color: #111318;
+        border-radius: 12px;
+        border-color: #d8e1e3;
+    }
+
     @media (width <= 520px) {
         padding: 0;
         background: transparent;
