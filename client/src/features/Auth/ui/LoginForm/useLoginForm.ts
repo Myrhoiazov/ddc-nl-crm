@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { FormEvent } from 'react';
 import { getLoginEmail } from '../../model/selectors/getLoginEmail/getLoginEmail';
@@ -8,6 +8,21 @@ import { getLoginError } from '../../model/selectors/getLoginError/getLoginError
 import { loginByUsername } from '../../model/services/loginByUsername/loginByUsername';
 import { loginActions } from '../../model/slice/authSlice';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
+
+// Conceptual codes from docs/spec/DDC_CRM_TELEGRAM_AUTH_SPEC.md §13, mapped to
+// project naming (LOGIN_TELEGRAM_FAILED audit reasons on the server side).
+// TELEGRAM_NOT_LINKED gets the spec's recommended user-facing text verbatim;
+// everything else is a generic retry message — none of these disclose whether
+// a CRM account exists for the Telegram identity (avoids account enumeration).
+const TELEGRAM_ERROR_MESSAGES: Record<string, string> = {
+    TELEGRAM_NOT_LINKED: 'Этот Telegram-аккаунт не подключён к DDC CRM. Войдите с помощью электронной почты и подключите Telegram в настройках профиля.',
+    OIDC_CANCELLED: 'Вход через Telegram отменён.',
+    // Server-side this single code covers a missing/disabled account or a
+    // non-ADMIN role — deliberately collapsed to avoid disclosing which one
+    // (account enumeration), but still distinct from a generic OIDC failure.
+    USER_NOT_AUTHORIZED: 'Этот аккаунт не может войти через Telegram. Обратитесь к администратору.',
+};
+const DEFAULT_TELEGRAM_ERROR_MESSAGE = 'Не удалось войти через Telegram. Попробуйте снова.';
 
 interface UseLoginFormParams {
     onSuccess?: () => void;
@@ -22,6 +37,40 @@ export const useLoginForm = ({ onSuccess }: UseLoginFormParams) => {
     const [pendingMaskedEmail, setPendingMaskedEmail] = useState<string>();
     const [captchaWidgetKey, setCaptchaWidgetKey] = useState(0);
     const captchaTokenRef = useRef<string | undefined>(undefined);
+
+    // Reads the ?telegramStatus=.../?telegramError=... this page was redirected
+    // back to from GET /auth/telegram/callback (a full browser navigation, not
+    // an XHR — there is no other way for this result to reach the SPA) and
+    // routes it into the exact same UI a password-login outcome would use.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const telegramStatus = params.get('telegramStatus');
+        const telegramError = params.get('telegramError');
+        if (!telegramStatus && !telegramError) return;
+
+        if (telegramError) {
+            // status must not be 401 — LoginFormError hardcodes a generic
+            // "wrong email/password" message for exactly that status and would
+            // silently discard the Telegram-specific message below.
+            dispatch(loginActions.setError({
+                status: 400,
+                code: telegramError,
+                message: TELEGRAM_ERROR_MESSAGES[telegramError] ?? DEFAULT_TELEGRAM_ERROR_MESSAGE,
+            }));
+        } else if (telegramStatus === 'two_factor') {
+            const maskedEmail = params.get('maskedEmail');
+            if (maskedEmail) setPendingMaskedEmail(maskedEmail);
+        }
+
+        params.delete('telegramStatus');
+        params.delete('telegramError');
+        params.delete('maskedEmail');
+        const query = params.toString();
+        window.history.replaceState({}, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+        // Intentionally runs once on mount only — this reads the query string
+        // exactly once, the way a redirect landing is meant to be consumed.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const clearCaptchaToken = useCallback((resetWidget = false) => {
         captchaTokenRef.current = undefined;

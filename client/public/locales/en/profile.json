@@ -16,5 +16,15 @@
     "incorrect_password": "Incorrect password",
     "email_already_exists": "User with this email already exists",
     "incorrect_email": "Incorrect email",
-    "incorrect_phone": "Incorrect phone"
+    "incorrect_phone": "Incorrect phone",
+    "Telegram": "Telegram",
+    "Дополнительный способ входа в CRM.": "An additional way to sign in to the CRM.",
+    "Подключён": "Connected",
+    "Не подключён": "Not connected",
+    "Подключено": "Connected on",
+    "Последний вход": "Last login",
+    "Отключение...": "Disconnecting...",
+    "Отключить Telegram": "Disconnect Telegram",
+    "Подключить Telegram": "Connect Telegram",
+    "Не удалось загрузить статус подключения Telegram.": "Failed to load the Telegram connection status."
 }

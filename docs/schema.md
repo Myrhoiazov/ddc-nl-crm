@@ -263,12 +263,14 @@ OAuth-аккаунт Mollie пользователя (шифрованные acc
 ### Enum UserRole: ADMIN | MANAGER | DOCTOR
 ### Enum TwoFactorChannel: EMAIL | TELEGRAM (зарезервирован, не реализован)
 ### Enum LoyaltyLevel: BRONZE | SILVER | GOLD | PLATINUM
-### Enum AuthSecurityEventType: LOGIN_SUCCEEDED | LOGIN_FAILED | LOGIN_BLOCKED | LOGOUT | PASSWORD_CHANGED | PASSWORD_RESET | SESSION_CREATED | SESSION_ROTATED | SESSION_REVOKED | SESSION_REUSE_DETECTED | ROLE_CHANGED | ACCOUNT_CREATED | ACCOUNT_DISABLED | ACCOUNT_ENABLED | ACCOUNT_DELETED | TWO_FACTOR_REQUIRED | TWO_FACTOR_SUCCEEDED | TWO_FACTOR_FAILED | TWO_FACTOR_LOCKED | TWO_FACTOR_RESENT | TRUSTED_DEVICE_CREATED | TRUSTED_DEVICE_REVOKED
+### Enum AuthSecurityEventType: LOGIN_SUCCEEDED | LOGIN_FAILED | LOGIN_BLOCKED | LOGIN_TELEGRAM_SUCCEEDED | LOGIN_TELEGRAM_FAILED | TELEGRAM_LINKED | TELEGRAM_UNLINKED | LOGOUT | PASSWORD_CHANGED | PASSWORD_RESET | SESSION_CREATED | SESSION_ROTATED | SESSION_REVOKED | SESSION_REUSE_DETECTED | ROLE_CHANGED | ACCOUNT_CREATED | ACCOUNT_DISABLED | ACCOUNT_ENABLED | ACCOUNT_DELETED | TWO_FACTOR_REQUIRED | TWO_FACTOR_SUCCEEDED | TWO_FACTOR_FAILED | TWO_FACTOR_LOCKED | TWO_FACTOR_RESENT | TRUSTED_DEVICE_CREATED | TRUSTED_DEVICE_REVOKED
+### Enum AuthProvider: TELEGRAM
+### Enum TelegramAuthFlow: LOGIN | LINK
 
 ### User (таблица `users`)
 Сотрудник/админ CRM.
 - Поля: id Int @id autoincrement; firstName String?; lastName String?; email String @unique; password String; salt String?; role UserRole @default(MANAGER); isActive Boolean @default(false); isEnabled Boolean @default(true); authVersion Int @default(0); lastLogin DateTime?; createdAt; updatedAt
-- Связи: comments Comment[]; sessions Session[]; mollieAccount MollieAccount?; mollieOAuthStates MollieOAuthState[]; resolvedMollieIncidents MollieIncidentResolution[]; createdInvoices Invoice[] («InvoiceCreatedBy»); updatedInvoices Invoice[] («InvoiceUpdatedBy»); invoicePayments InvoicePayment[]; invoiceDeliveries InvoiceDelivery[]; invoiceAuditLogs InvoiceAuditLog[]; authEventsAsActor/authEventsAsTarget AuthSecurityEvent[]; twoFactorChallenges TwoFactorChallenge[]; trustedDevices TrustedDevice[]; paymentReminderSettingsUpdates PaymentReminderSettings[]; paymentReminderDeliveriesTriggered PaymentReminderDelivery[]; paymentReminderTemplateUpdates PaymentReminderTemplate[]
+- Связи: comments Comment[]; sessions Session[]; mollieAccount MollieAccount?; mollieOAuthStates MollieOAuthState[]; resolvedMollieIncidents MollieIncidentResolution[]; createdInvoices Invoice[] («InvoiceCreatedBy»); updatedInvoices Invoice[] («InvoiceUpdatedBy»); invoicePayments InvoicePayment[]; invoiceDeliveries InvoiceDelivery[]; invoiceAuditLogs InvoiceAuditLog[]; authEventsAsActor/authEventsAsTarget AuthSecurityEvent[]; twoFactorChallenges TwoFactorChallenge[]; trustedDevices TrustedDevice[]; authIdentities AuthIdentity[]; telegramAuthTransactions TelegramAuthTransaction[]; paymentReminderSettingsUpdates PaymentReminderSettings[]; paymentReminderDeliveriesTriggered PaymentReminderDelivery[]; paymentReminderTemplateUpdates PaymentReminderTemplate[]
 
 ### Session (таблица `sessions`)
 Cookie-сессия с ротацией refresh-токена.
@@ -292,6 +294,24 @@ Cookie-сессия с ротацией refresh-токена.
 - Поля: id Int @id autoincrement; userId Int; tokenHash String @unique @db.VarChar(128); userAgent/ipAddress String?; createdAt; expiresAt DateTime; lastUsedAt DateTime?; revokedAt DateTime?
 - Связи: user -> User (Cascade)
 - Индексы: userId
+
+### AuthIdentity (таблица `auth_identities`)
+Явно привязанная к CRM User внешняя identity (сейчас только Telegram). Telegram никогда не
+создаёт User — строка появляется только после link-флоу авторизованного пользователя.
+providerUserId — стабильный OIDC subject от провайдера, никогда не @username (это только
+отображаемые метаданные).
+- Поля: id Int @id autoincrement; userId Int; provider AuthProvider; providerUserId String; username String?; displayName String?; linkedAt DateTime @default(now()); lastLoginAt DateTime?
+- Связи: user -> User (Cascade)
+- Индексы: userId; уникальный [provider, providerUserId]
+
+### TelegramAuthTransaction (таблица `telegram_auth_transactions`)
+Одна строка на in-flight OIDC authorization-code+PKCE обмен с Telegram — короткоживущая,
+одноразовая, сама по себе доступ не даёт (та же роль, что у TwoFactorChallenge). userId
+проставляется на этапе создания LINK-транзакции (привязка к уже аутентифицированному
+пользователю на сервере, никогда не берётся из callback) и остаётся null для LOGIN.
+- Поля: id Int @id autoincrement; state String @unique @db.VarChar(191); nonceHash String @db.VarChar(128); codeVerifier String @db.VarChar(191); flow TelegramAuthFlow; userId Int?; expiresAt DateTime; consumedAt DateTime?; createdAt
+- Связи: user -> User? (Cascade)
+- Индексы: expiresAt
 
 ---
 

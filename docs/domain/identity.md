@@ -11,6 +11,8 @@ logging.
 - `Session` — login sessions.
 - `TwoFactorChallenge`, `TrustedDevice` — 2FA flow.
 - `AuthSecurityEvent` — security audit log.
+- `AuthIdentity`, `TelegramAuthTransaction` — Telegram OIDC as an additional, ADMIN-only login
+  provider (`server/src/modules/auth/telegram/`).
 - CSRF, rate limiting, password hashing as supporting mechanisms.
 
 ## Out of Scope
@@ -30,8 +32,9 @@ logging.
 - **Identity**: `id`.
 - **Important fields**: `email` (unique), `role` (`ADMIN`/`MANAGER`/`DOCTOR`), `isEnabled`
   (real access gate, default `true`), `isActive` (default `false`, see note below), `authVersion`.
-- **Relationships**: owns `Session[]`, `TwoFactorChallenge[]`, `TrustedDevice[]`; referenced by
-  staff-attribution FKs across Billing, Payments, CRM.
+- **Relationships**: owns `Session[]`, `TwoFactorChallenge[]`, `TrustedDevice[]`,
+  `AuthIdentity[]`, `TelegramAuthTransaction[]`; referenced by staff-attribution FKs across
+  Billing, Payments, CRM.
 - **States**: enabled/disabled via `isEnabled` (toggled by an `ADMIN` through `PATCH /users/:id`;
   an admin cannot disable their own account).
 - **Invariants / notes**:
@@ -79,6 +82,40 @@ logging.
 - **Relationships**: belongs to one `User` — the trust cookie is bound to a specific account, so
   it cannot be used to skip 2FA for a different user on the same browser.
 
+### AuthIdentity
+
+- **Purpose**: a Telegram identity explicitly linked to a CRM `User`. Telegram never creates a
+  `User` — this row only ever appears after an authenticated `ADMIN` completes the link flow, and
+  login through Telegram only succeeds when a matching row already exists.
+- **Identity**: `id`; `[provider, providerUserId]` unique — the real defense against two users
+  racing to link the same Telegram identity (the link service also pre-checks, but the constraint
+  is what's actually load-bearing under a race).
+- **Important fields**: `provider` (`TELEGRAM` only today), `providerUserId` (Telegram's stable
+  OIDC `sub`, never the `@username`), `username`/`displayName` (display-only metadata), `linkedAt`,
+  `lastLoginAt`.
+- **Relationships**: belongs to one `User`.
+- **Invariants**: at most one `AuthIdentity` per `User` is enforced at the service layer
+  (`auth.telegram.identity.service.ts`), not the schema — deliberately, so it can be relaxed later
+  without a migration if a second provider or multi-identity need shows up.
+
+### TelegramAuthTransaction
+
+- **Purpose**: one row per in-flight Telegram OIDC authorization-code+PKCE exchange. Same role as
+  `TwoFactorChallenge` — short-lived, single-use, does not grant access by itself.
+- **Identity**: `id`; `state` unique (also carried in a `sameSite=lax` cookie scoped to the
+  callback path, the same double-check `MollieOAuthState`/`mollie_oauth_state` already does for
+  Mollie's OAuth flow).
+- **Important fields**: `nonceHash` (HMAC, compared against the verified ID token's `nonce`
+  claim), `codeVerifier` (PKCE, plaintext — must be replayed to Telegram's token endpoint, never
+  exposed to a client), `flow` (`LOGIN`/`LINK`), `userId` (set at creation for `LINK`, bound to the
+  already-authenticated caller server-side — never trusted from the callback; always `null` for
+  `LOGIN`), `expiresAt` (5 minutes), `consumedAt`.
+- **Relationships**: belongs to at most one `User` (`LINK` only).
+- **Invariants**: the callback consumes a transaction via an `updateMany` guarded on
+  `consumedAt: null`, mirroring `Session`'s refresh-transaction pattern — two requests racing on
+  the same `state` cannot both succeed. Which flow (`LOGIN` vs `LINK`) a callback executes is read
+  from this row, never from the callback URL or any client-supplied parameter.
+
 ### AuthSecurityEvent
 
 - **Purpose**: append-only audit log of security-relevant actions (login success/failure/block,
@@ -106,6 +143,20 @@ logging.
   secondary layer on top of the per-challenge attempt/resend counters. Backed by Redis when
   `REDIS_URL` is configured and reachable, otherwise an in-process fallback for the rest of the
   process lifetime once a Redis error occurs (no per-call retry).
+- **Telegram login** (`server/src/modules/auth/telegram/`): an additional, **`ADMIN`-only** login
+  provider (product decision, enforced server-side with an audit event on every denial — not just
+  a hidden button) via Telegram's OIDC Authorization Code + PKCE flow
+  (`https://oauth.telegram.org`). Linking (`GET /auth/telegram/link/start`, authenticated) must
+  happen before login ever works; a verified Telegram identity with no matching `AuthIdentity` is
+  denied, never auto-creates or auto-links a `User`. A Telegram-verified login replaces the
+  password-entry step only — it still runs through the exact same trusted-device/2FA branch and
+  `issueSession()` as password login, never bypassing 2FA. `POST`-shaped start endpoints are `GET`
+  (full top-level browser navigation to Telegram and back, not an XHR — same shape as Mollie's
+  `connectMollieController`), and `GET /auth/telegram/callback` is a single endpoint shared by both
+  `LOGIN` and `LINK`, branching only on the server-side `TelegramAuthTransaction.flow`. Known
+  limitation: `TrustedDevice`'s cookie is `sameSite=strict`, so it is never sent on the callback's
+  cross-site-initiated redirect back from Telegram — a Telegram login therefore always falls
+  through to the 2FA challenge, never the trusted-device bypass (fails safe, not currently fixed).
 
 ## Relationships
 
@@ -114,6 +165,8 @@ graph TD
     User --> Session
     User --> TwoFactorChallenge
     User --> TrustedDevice
+    User --> AuthIdentity
+    User --> TelegramAuthTransaction
     User -.attribution only.-> Invoice
     User -.attribution only.-> Comment
     User -.attribution only.-> MollieAccount
