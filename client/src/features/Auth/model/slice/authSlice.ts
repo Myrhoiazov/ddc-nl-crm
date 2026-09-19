@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { LoginSchema } from '../types/loginSchema';
-import { loginByUsername } from '../services/loginByUsername/loginByUsername';
+import { loginByUsername, ServerError } from '../services/loginByUsername/loginByUsername';
 
 const initialState: LoginSchema = {
     isLoading: false,
@@ -21,6 +21,12 @@ export const loginSlice = createSlice({
         },
         cleanError: (state, action: PayloadAction<void>) => {
             state.error = undefined;
+        },
+        // Same LoginFormError-consumable shape loginByUsername.rejected produces
+        // — used to surface a ?telegramError=... redirect result (useLoginForm.ts)
+        // through the exact same error UI as a failed password login.
+        setError: (state, action: PayloadAction<ServerError | undefined>) => {
+            state.error = action.payload;
         },
     },
     extraReducers: (builder) => {

@@ -40,7 +40,10 @@ const cookieOptions = {
 const RECENT_FAILURE_LOOKBACK_MS = 15 * 60 * 1000;
 
 const TWO_FACTOR_PENDING_COOKIE = 'ddc_2fa_pending';
-const TRUSTED_DEVICE_COOKIE = 'ddc_trusted_device';
+// Exported for auth.telegram.controller.ts's login callback — it needs to check
+// the same trusted-device cookie login() does, to preserve the exact 2FA/
+// trusted-device policy for a Telegram-verified login (see docs/spec/DDC_CRM_TELEGRAM_AUTH_SPEC.md §8).
+export const TRUSTED_DEVICE_COOKIE = 'ddc_trusted_device';
 
 const twoFactorPendingCookieOptions = {
     httpOnly: true,
@@ -82,7 +85,7 @@ export const authenticatedUserSelect = {
 
 // The user shape available after auth — excludes password, salt, and internal
 // columns. Derived from authenticatedUserSelect so it stays in sync.
-type AuthenticatedUser = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: number }; select: typeof authenticatedUserSelect }>>>>;
+export type AuthenticatedUser = NonNullable<Awaited<ReturnType<typeof prisma.user.findUnique<{ where: { id: number }; select: typeof authenticatedUserSelect }>>>>;
 
 // Why login failed, surfaced as an audit reason. Distinct so security tooling
 // can tell a disabled account from wrong credentials.
@@ -117,7 +120,9 @@ export const buildCaptchaPrewarmLoginError = (message: string, attemptCount: unk
 
 // Shared by the trusted-device bypass and by 2fa/verify's success path — both
 // end in exactly the same "you are now logged in" outcome as today's direct login.
-const issueSession = async (
+// Also reused by auth.telegram.controller.ts's login callback so a Telegram-
+// verified login issues the identical CRM session, not a parallel one.
+export const issueSession = async (
     user: AuthenticatedUser,
     req: Request,
     res: Response,
@@ -194,7 +199,14 @@ const startAuthenticatedSession = async (
     return res.status(200).json(userData);
 };
 
-const requestTwoFactor = async (user: AuthenticatedUser, req: Request, res: Response) => {
+// Response-agnostic core: creates the challenge, sets the pending cookie, and
+// audits it — everything requestTwoFactor's JSON-XHR callers and a Telegram-
+// login redirect callback both need. Exported so auth.telegram.controller.ts's
+// login callback requests the exact same email 2FA challenge password login
+// does — Telegram identity verification replaces password entry only, it never
+// substitutes for 2FA — without also inheriting requestTwoFactor's JSON
+// response (a redirect flow can't send one, it needs to itself redirect after).
+export const createPendingTwoFactorChallenge = async (user: AuthenticatedUser, req: Request, res: Response) => {
     let challenge;
     try {
         challenge = await createTwoFactorChallenge({
@@ -218,9 +230,14 @@ const requestTwoFactor = async (user: AuthenticatedUser, req: Request, res: Resp
         metadata: { channel: 'EMAIL' },
     });
 
+    return { maskedEmail: maskEmail(user.email) };
+};
+
+const requestTwoFactor = async (user: AuthenticatedUser, req: Request, res: Response) => {
+    const { maskedEmail } = await createPendingTwoFactorChallenge(user, req, res);
     return res.status(200).json({
         requiresTwoFactor: true,
-        maskedEmail: maskEmail(user.email),
+        maskedEmail,
     });
 };
 

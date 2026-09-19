@@ -6,7 +6,7 @@ import { $api } from '@/shared/api/api';
 import LoginForm from './LoginForm';
 
 jest.mock('@/shared/api/api', () => ({
-    $api: { post: jest.fn() },
+    $api: { post: jest.fn(), get: jest.fn(() => Promise.resolve({ data: { telegram: false } })) },
     $apiPrivate: { get: jest.fn() },
     injectStore: jest.fn(),
     csrfActions: { reset: jest.fn() },
@@ -29,6 +29,7 @@ function renderLoginForm(onSuccess = jest.fn()) {
 beforeEach(() => {
     jest.clearAllMocks();
     window.turnstile = undefined;
+    window.history.pushState({}, '', '/login');
 });
 
 describe('LoginForm', () => {
@@ -62,6 +63,26 @@ describe('LoginForm', () => {
         fireEvent.change(screen.getByPlaceholderText('Введите пароль'), { target: { value: 'secret' } });
         fireEvent.click(screen.getByRole('button', { name: 'Войти' }));
 
+        expect(await screen.findByText('Введите код подтверждения')).toBeInTheDocument();
+    });
+
+    test('surfaces a Telegram callback error from the ?telegramError query param', async () => {
+        window.history.pushState({}, '', '/login?telegramError=TELEGRAM_NOT_LINKED');
+        renderLoginForm();
+
+        expect(await screen.findByText(/не подключён к DDC CRM/)).toBeInTheDocument();
+        // The query string is consumed once, not left for a refresh to re-trigger.
+        expect(window.location.search).toBe('');
+    });
+
+    test('switches to the two-factor step from a ?telegramStatus=two_factor redirect', async () => {
+        window.history.pushState({}, '', '/login?telegramStatus=two_factor&maskedEmail=a%2A%2A%2A%40example.com');
+        renderLoginForm();
+
+        // Same assertion 'switches to the two-factor step when a challenge is
+        // required' uses above — i18n interpolation isn't wired in this test
+        // environment (see e.g. the unresolved "{{seconds}}" in the resend
+        // button), so the masked email itself isn't independently assertable here.
         expect(await screen.findByText('Введите код подтверждения')).toBeInTheDocument();
     });
 
