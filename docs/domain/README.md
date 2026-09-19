@@ -18,7 +18,7 @@ the non-obvious cross-domain rules live.
 
 ```
 DDC CRM
-├── Identity        — staff accounts, sessions, 2FA, security audit
+├── Identity        — staff accounts, sessions, 2FA, Telegram OIDC login (ADMIN-only), security audit
 ├── Organization     — legal entity, brands, branches (shared reference data)
 ├── CRM              — clients (students/payers), notes, search
 ├── Scheduling        — dance groups, choreographers, halls, schedule slots
@@ -40,7 +40,8 @@ Folding it into any of those would misrepresent the dependency direction — see
 
 ### Identity
 - **Responsible for**: staff (`User`) accounts, login/session lifecycle, 2FA, CSRF, rate limiting,
-  security audit events (`AuthSecurityEvent`).
+  security audit events (`AuthSecurityEvent`), Telegram OIDC login as an additional ADMIN-only
+  provider (`AuthIdentity`, `TelegramAuthTransaction` — see [identity.md](identity.md)).
 - **Not responsible for**: client/student identity — `Client` records never authenticate; there
   is no login path for them anywhere in the code.
 - **Interacts with**: every other domain, but only as "who did this" attribution
@@ -143,7 +144,7 @@ Identity (User)
 
 | Domain | File | Read when touching... |
 |---|---|---|
-| Identity | [identity.md](identity.md) | `modules/auth/auth.controller.ts`, `auth.profiles.controller.ts`, `modules/users/users.controller.ts`, `modules/auth/auth.password/token/csrf/rate-limit/two-factor/security-audit.service.ts`, `user.prisma` |
+| Identity | [identity.md](identity.md) | `modules/auth/auth.controller.ts`, `auth.profiles.controller.ts`, `modules/auth/telegram/*` (OIDC login), `modules/users/users.controller.ts`, `modules/auth/auth.password/token/csrf/rate-limit/two-factor/security-audit.service.ts`, `user.prisma` |
 | Organization | [organization.md](organization.md) | `modules/company/company.controller.ts`, `company.prisma` |
 | CRM | [crm.md](crm.md) | `modules/clients/clients.controller.ts`, `modules/comments/comments.controller.ts`, `modules/search/search.controller.ts`, `client.prisma` |
 | Scheduling | [scheduling.md](scheduling.md) | `modules/schedule/schedule.controller.ts`, `schedule.prisma` |
