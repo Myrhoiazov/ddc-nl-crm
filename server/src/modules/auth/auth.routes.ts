@@ -5,6 +5,8 @@ import { validateSchema } from "../../common/validation/validate-schema.middlewa
 import { loginSchema, twoFactorVerifySchema } from "./auth.schema";
 import { loginRateLimit } from "./auth.login-rate-limit.middleware";
 import { twoFactorRateLimit } from "./auth.two-factor-rate-limit.middleware";
+import telegramRouter from "./telegram/auth.telegram.routes";
+import { getAuthProviders } from "./telegram/auth.telegram.controller";
 
 const router = express.Router();
 
@@ -14,5 +16,7 @@ router.post("/login/2fa/resend", twoFactorRateLimit, asyncHandler(resendTwoFacto
 router.get("/csrf", asyncHandler(isToken), asyncHandler(csrf));
 router.post("/logout", asyncHandler(logout));
 router.post('/refresh', asyncHandler(refresh));
+router.get("/providers", asyncHandler(getAuthProviders));
+router.use("/telegram", telegramRouter);
 
 export default router

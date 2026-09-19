@@ -11,6 +11,13 @@ const serverEnvironment = {
     // Test-only key: keep the isolated server independent of local .env secrets.
     SESSION_TOKEN_SECRET: 'e2e-only-session-token-secret',
     CSRF_SECRET: 'e2e-csrf-secret',
+    // Enables the Telegram button/widget and replaces the real oauth.telegram.org
+    // round trip with an in-process loop-back — see isOidcTestMode in
+    // auth.telegram.oidc-client.ts. Never set outside this E2E config.
+    TELEGRAM_OIDC_CLIENT_ID: 'e2e-telegram-client-id',
+    TELEGRAM_OIDC_CLIENT_SECRET: 'e2e-telegram-client-secret',
+    TELEGRAM_OIDC_REDIRECT_URI: 'http://127.0.0.1:18081/api/v1/auth/telegram/callback',
+    TELEGRAM_OIDC_TEST_MODE: 'true',
 };
 
 export default defineConfig({
@@ -25,6 +32,14 @@ export default defineConfig({
         trace: 'on-first-retry',
         screenshot: 'only-on-failure',
         video: 'retain-on-failure',
+        // This CRM's actual audience is Russian-speaking staff (every locale
+        // key defaults to Russian text, see i18n.ts's fallbackLng handling).
+        // Without this, Playwright Chromium reports en-US, i18next-browser-
+        // languagedetector picks 'en', and any UI string with a real EN
+        // translation entry (most existing keys have none and so silently
+        // fall back to their Russian-text key either way, masking this) then
+        // renders in English instead of the Russian text real users see.
+        locale: 'ru-RU',
     },
     projects: [
         {
@@ -33,13 +48,13 @@ export default defineConfig({
         },
         {
             name: 'anonymous',
-            testMatch: /app\.spec\.ts/,
+            testMatch: /(app|telegram-login)\.spec\.ts/,
             use: { ...devices['Desktop Chrome'] },
         },
         {
             name: 'chromium',
             dependencies: ['setup'],
-            testIgnore: /.*(\.setup|app\.spec)\.ts/,
+            testIgnore: /.*(\.setup|app\.spec|telegram-login\.spec)\.ts/,
             use: { ...devices['Desktop Chrome'], storageState: 'playwright/.auth/admin.json' },
         },
     ],
