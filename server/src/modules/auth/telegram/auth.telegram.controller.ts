@@ -79,6 +79,21 @@ export const mapTransactionFailureToErrorCode = (reason: TelegramTransactionFail
     reason === 'EXPIRED' ? 'OIDC_TRANSACTION_EXPIRED' : 'OIDC_STATE_INVALID'
 );
 
+export type TelegramLoginDenialReason = 'ACCOUNT_DISABLED' | 'ROLE_NOT_ALLOWED';
+
+// Pure eligibility check for a Telegram login once the CRM user behind the
+// linked identity is resolved — exported for direct unit testing. Mirrors
+// describeLoginFailure in auth.controller.ts (password login's equivalent).
+// A missing user (identity points at a deleted account) is handled by the
+// caller, not here — this only classifies a user row that does exist.
+export const resolveTelegramLoginDenialReason = (
+    user: { isEnabled: boolean; role: UserRole },
+): TelegramLoginDenialReason | null => {
+    if (!user.isEnabled) return 'ACCOUNT_DISABLED';
+    if (!isTelegramRoleAllowed(user.role)) return 'ROLE_NOT_ALLOWED';
+    return null;
+};
+
 // Role gate is enforced here (not only via requireRole on the route) so every
 // denial — link attempt, unlink attempt, or a login by an identity whose owner
 // is no longer ADMIN — is audited, per the explicit product decision that
@@ -268,18 +283,26 @@ const handleTelegramLoginCallback = async (
         select: authenticatedUserSelect,
     }) as AuthenticatedUser | null;
 
-    if (!user || !user.isEnabled) {
+    if (!user) {
         await recordAuthSecurityEvent({
             type: AuthSecurityEventType.LOGIN_TELEGRAM_FAILED,
             actorUserId: authIdentity.userId,
             targetUserId: authIdentity.userId,
             req,
-            metadata: { reason: user ? 'ACCOUNT_DISABLED' : 'ACCOUNT_MISSING' },
+            metadata: { reason: 'ACCOUNT_MISSING' },
         });
         return redirectWithError(res, 'login', 'USER_NOT_AUTHORIZED');
     }
 
-    if (await denyIfNotAdmin(req, user, AuthSecurityEventType.LOGIN_TELEGRAM_FAILED)) {
+    const denialReason = resolveTelegramLoginDenialReason(user);
+    if (denialReason) {
+        await recordAuthSecurityEvent({
+            type: AuthSecurityEventType.LOGIN_TELEGRAM_FAILED,
+            actorUserId: user.id,
+            targetUserId: user.id,
+            req,
+            metadata: { reason: denialReason },
+        });
         return redirectWithError(res, 'login', 'USER_NOT_AUTHORIZED');
     }
 

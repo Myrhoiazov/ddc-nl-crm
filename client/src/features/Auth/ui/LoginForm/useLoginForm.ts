@@ -17,6 +17,10 @@ import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch
 const TELEGRAM_ERROR_MESSAGES: Record<string, string> = {
     TELEGRAM_NOT_LINKED: 'Этот Telegram-аккаунт не подключён к DDC CRM. Войдите с помощью электронной почты и подключите Telegram в настройках профиля.',
     OIDC_CANCELLED: 'Вход через Telegram отменён.',
+    // Server-side this single code covers a missing/disabled account or a
+    // non-ADMIN role — deliberately collapsed to avoid disclosing which one
+    // (account enumeration), but still distinct from a generic OIDC failure.
+    USER_NOT_AUTHORIZED: 'Этот аккаунт не может войти через Telegram. Обратитесь к администратору.',
 };
 const DEFAULT_TELEGRAM_ERROR_MESSAGE = 'Не удалось войти через Telegram. Попробуйте снова.';
 

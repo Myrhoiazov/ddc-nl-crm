@@ -7,6 +7,7 @@ import {
     getAuthProviders,
     isTelegramRoleAllowed,
     mapTransactionFailureToErrorCode,
+    resolveTelegramLoginDenialReason,
 } from './auth.telegram.controller';
 
 process.env.JWT_ACCESS_SECRET ||= 'test-access-secret';
@@ -50,6 +51,30 @@ test('isTelegramRoleAllowed is true only for ADMIN — the product decision is T
 test('mapTransactionFailureToErrorCode distinguishes EXPIRED from every other failure reason', () => {
     assert.equal(mapTransactionFailureToErrorCode('EXPIRED'), 'OIDC_TRANSACTION_EXPIRED');
     assert.equal(mapTransactionFailureToErrorCode('NOT_FOUND'), 'OIDC_STATE_INVALID');
+});
+
+// Spec's required scenario: "linked Telegram + inactive/blocked CRM user ->
+// denied". The linked-identity lookup itself is exercised by
+// auth.telegram.identity.service.test.ts; this is the eligibility decision
+// once that user row is in hand.
+test('resolveTelegramLoginDenialReason denies a disabled account even for an ADMIN', () => {
+    const reason = resolveTelegramLoginDenialReason({ isEnabled: false, role: UserRole.ADMIN });
+    assert.equal(reason, 'ACCOUNT_DISABLED');
+});
+
+test('resolveTelegramLoginDenialReason denies an enabled non-ADMIN account', () => {
+    const reason = resolveTelegramLoginDenialReason({ isEnabled: true, role: UserRole.MANAGER });
+    assert.equal(reason, 'ROLE_NOT_ALLOWED');
+});
+
+test('resolveTelegramLoginDenialReason prioritizes ACCOUNT_DISABLED when both conditions hold', () => {
+    const reason = resolveTelegramLoginDenialReason({ isEnabled: false, role: UserRole.MANAGER });
+    assert.equal(reason, 'ACCOUNT_DISABLED');
+});
+
+test('resolveTelegramLoginDenialReason allows an enabled ADMIN', () => {
+    const reason = resolveTelegramLoginDenialReason({ isEnabled: true, role: UserRole.ADMIN });
+    assert.equal(reason, null);
 });
 
 test('getAuthProviders reports telegram enabled only when fully configured', async () => {

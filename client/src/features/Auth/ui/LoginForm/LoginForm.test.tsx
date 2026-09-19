@@ -75,6 +75,13 @@ describe('LoginForm', () => {
         expect(window.location.search).toBe('');
     });
 
+    test('surfaces a distinct message for ?telegramError=USER_NOT_AUTHORIZED, not the generic fallback', async () => {
+        window.history.pushState({}, '', '/login?telegramError=USER_NOT_AUTHORIZED');
+        renderLoginForm();
+
+        expect(await screen.findByText(/не может войти через Telegram/)).toBeInTheDocument();
+    });
+
     test('switches to the two-factor step from a ?telegramStatus=two_factor redirect', async () => {
         window.history.pushState({}, '', '/login?telegramStatus=two_factor&maskedEmail=a%2A%2A%2A%40example.com');
         renderLoginForm();
