@@ -14,6 +14,7 @@ import { LoginFormFields } from './LoginFormFields';
 import { LoginFormError } from './LoginFormError';
 import { LoginFormActions } from './LoginFormActions';
 import { TurnstileWidget } from '@/shared/ui/TurnstileWidget/TurnstileWidget';
+import { TelegramLoginButton } from './TelegramLoginButton';
 import cls from './LoginForm.module.scss';
 
 export interface LoginFormProps {
@@ -83,6 +84,7 @@ const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
                     <LoginFormError error={error} />
                     <LoginFormActions isLoading={isLoading} />
                 </form>
+                <TelegramLoginButton />
             </Card>
         </DynamicModuleLoader>
     );

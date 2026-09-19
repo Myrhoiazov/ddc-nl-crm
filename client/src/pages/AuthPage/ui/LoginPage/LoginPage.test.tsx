@@ -5,7 +5,7 @@ import { createReduxStore, ReduxStoreWithManager } from '@/app/providers/StorePr
 import LoginPage from './LoginPage';
 
 jest.mock('@/shared/api/api', () => ({
-    $api: { get: jest.fn(), post: jest.fn() },
+    $api: { get: jest.fn(() => Promise.resolve({ data: { telegram: false } })), post: jest.fn() },
     $apiPrivate: { get: jest.fn() },
     injectStore: jest.fn(),
     csrfActions: { reset: jest.fn() },
