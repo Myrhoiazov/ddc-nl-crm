@@ -53,6 +53,9 @@ services:
       INSTGRAM_SECRET: ${INSTGRAM_SECRET}
       TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
       TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
+      TELEGRAM_OIDC_CLIENT_ID: ${TELEGRAM_OIDC_CLIENT_ID}
+      TELEGRAM_OIDC_CLIENT_SECRET: ${TELEGRAM_OIDC_CLIENT_SECRET}
+      TELEGRAM_OIDC_REDIRECT_URI: ${TELEGRAM_OIDC_REDIRECT_URI}
     volumes:
       - uploads_data:/app/public/upload
       - private_uploads_data:/app/private-uploads
