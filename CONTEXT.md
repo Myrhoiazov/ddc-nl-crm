@@ -70,10 +70,12 @@ Feature/domain-based modules:
 modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 ```
 
-- Business modules under `server/src/modules/`: `auth`, `users`, `clients`, `company`, `schedule`,
-  `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie), `payment-reminders`,
-  `communication` (`email`/`instagram`/`telegram` sub-modules), `health`,
-  `ai-email-assistant`, `knowledge-ingestion`.
+- Business modules under `server/src/modules/`: `auth` (incl. `auth/telegram/` — Telegram OIDC
+  login/link, ADMIN-only, distinct from the notification bot below), `users`, `clients`, `company`,
+  `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie),
+  `payment-reminders`, `communication` (`email`/`instagram`/`telegram` sub-modules — this
+  `telegram` is outbound admin notifications only, a different Telegram integration from
+  `auth/telegram/`), `health`, `ai-email-assistant`, `knowledge-ingestion`.
 - `ai-email-assistant` keeps the whole AI workflow in one module boundary: normalize/bounded
   persistence → deterministic spam checks → LLM classification (`classifyEmail`, strict runtime
   schema, one repair retry) → CRM read-only projection (`createPrismaCrmReader`) → RAG context →
@@ -96,7 +98,10 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   via `common/validation/validate-schema.middleware.ts`.
 - Auth: cookie sessions, CSRF double-submit, Argon2id, 2FA email flow, endpoint-specific rate
   limiting — all in `modules/auth/` (`auth.middleware.ts`, `auth.csrf.middleware.ts`,
-  `auth.login-rate-limit.middleware.ts`, `auth.two-factor-rate-limit.middleware.ts`).
+  `auth.login-rate-limit.middleware.ts`, `auth.two-factor-rate-limit.middleware.ts`). Telegram OIDC
+  is an additional, ADMIN-only login provider (`modules/auth/telegram/`) — it replaces password
+  entry only, still goes through the same 2FA/session issuance; see
+  [Identity domain](docs/domain/identity.md).
 - Rate limiting: Redis-based when `REDIS_URL` is set; in-memory process-local fallback otherwise.
 - Health: `GET /api/v1/health` (no auth, no DB) — for Docker health checks, `modules/health/`.
 - Migrated from a layer-first `controllers/`/`services/`/`routes/` structure — see
@@ -114,6 +119,9 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - **Mollie** (`@mollie/api-client`): client payment profiles, subscriptions, mandates, reconciliation.
 - **Email**: IMAP/SMTP via `imapflow`/`nodemailer`/`mailparser`. Separate model in `email.prisma`.
 - **2FA email**: Sent via nodemailer directly using SMTP creds from `EmailAccount` whose `username` matches `TWO_FACTOR_SENDER_EMAIL` env — does not go through `service.EmailSmtp` and does not create a message in the Email module.
+- **Telegram** — two independent integrations, easy to conflate by name alone:
+  - *Notification bot* (`communication/telegram/`, `TELEGRAM_TOKEN`/`TELEGRAM_CHAT_ID`): one-way outbound alerts (payments, security events) via the Bot API.
+  - *Telegram Login* (`auth/telegram/`, `TELEGRAM_OIDC_CLIENT_ID`/`TELEGRAM_OIDC_CLIENT_SECRET`/`TELEGRAM_OIDC_REDIRECT_URI`): OIDC Authorization Code + PKCE against `oauth.telegram.org`, ADMIN-only additional login provider. Configured via a bot's Login Widget in `@BotFather` (OpenID Connect mode, not the legacy hash-based widget). Inert (button/widget hidden) until all three env vars are set.
 - **Ollama (local LLM)**: `OllamaLlmClient` in `modules/ai-email-assistant/` is the narrow LLM boundary; no application code may hard-code a model name. Classification uses `OLLAMA_MODEL` (default `qwen3:0.6b`), embeddings use `OLLAMA_EMBEDDING_MODEL` (default `bge-m3`). Compose runs an `ollama` service with env-driven memory/CPU limits; production must not enable any `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` flag until `scripts/benchmark-ollama*.sh` measurements exist for the real host.
 
 ## Security Context
@@ -121,6 +129,7 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - Cookie sessions + CSRF double-submit
 - Argon2id password hashing
 - 2FA email flow on login
+- Telegram OIDC login (ADMIN-only, must be explicitly linked first — never bypasses 2FA)
 - Endpoint-specific rate limiting
 - Security audit event log
 - AI email assistant: local LLM only (no cloud), the LLM has no SMTP/DB/filesystem/shell tools,
