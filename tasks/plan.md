@@ -1075,3 +1075,189 @@ change (chunking granularity only, same code paths already exercised live in the
 query-expansion/reranker sections above) — deferred to the next real ingestion run against the
 live knowledge base rather than repeating a full end-to-end simulation for a parameter-only
 change.
+
+---
+
+# Implementation Plan: Telegram Admin Bot (2026-09-23)
+
+Contract: `docs/spec/TELEGRAM_ADMIN_BOT_SPEC.md` + `docs/prompts/TELEGRAM_ADMIN_BOT_AGENT_PROMPT.md`.
+Acceptance checklist: `docs/TELEGRAM_ADMIN_BOT_CHECKLIST.md`.
+
+## Discovery summary (REUSE / REFACTOR / ADD)
+
+Three pre-existing Telegram mechanisms, one physical bot (one `TELEGRAM_TOKEN`, shared across
+features):
+- `auth/telegram/` — OIDC login only, produces `AuthIdentity{provider:'TELEGRAM', providerUserId}`
+  (`providerUserId` = OIDC `sub`, expected but not yet verified to equal the Bot API's numeric
+  `from.id` — verify this as the first Phase 1 step, before building the identity resolver on it).
+- `communication/telegram/telegram.service.ts` — low-level transport (`sendTelegramMessage`, raw
+  `axios` to the Bot API, hardcoded single `TELEGRAM_CHAT_ID`).
+- `ai-email-assistant/telegram-approval.*` — existing webhook (`POST /api/v1/telegram/webhook`,
+  `X-Telegram-Bot-Api-Secret-Token`) + polling (`TELEGRAM_POLLING_ENABLED`) dual transport, one
+  core `handleTelegramApprovalUpdate(update)`, callback routing by regex on `callback_data`
+  (`ai:draft:<id>:<version>:<action>`). Authorization is a flat `TELEGRAM_APPROVER_IDS` allowlist —
+  **not** CRM-user-based, and explicitly not reusable as-is for admin authorization (spec forbids
+  "group membership as authorization").
+
+**REUSE as-is:** `createClient`/`getAllClients` (`clients.service.ts`), `createCustomerRecord`
+(idempotent by email, `payments.controller.ts:753`), `findCustomerWithValidMandate`
+(`payments.controller.ts:2710`), `getMollieDashboardSummary` (`payments.dashboard.service.ts:86`),
+the Mollie webhook/sync (`payments.controller.ts:634`, untouched — Telegram never sets payment
+state itself), `recordAuthSecurityEvent` (`auth.security-audit.service.ts:58`), `AuthIdentity` +
+`User.role`.
+
+**REFACTOR:**
+- Export `buildPaymentSummaryPayload` (currently private in `clients.controller.ts:352`) — move to
+  `clients.service.ts` so both the HTTP controller and the Telegram module can call it directly
+  in-process (no HTTP round-trip needed since the bot runs in the same server).
+- Extract the subscription-creation and payment-link-creation logic currently embedded directly in
+  `mollieCreateMandateSubscriptionController` (`payments.controller.ts:2722`) and
+  `mollieCreateCustomerPaymentLinkController` (`payments.controller.ts:1974`) into named, exported,
+  HTTP-agnostic functions the existing controllers call — same pattern `clients.service.ts` already
+  follows. Scope strictly to these two extractions, not a full `payments.controller.ts` split.
+- Add `TELEGRAM_STUDENT_CREATED` / `TELEGRAM_MOLLIE_CUSTOMER_CREATED` /
+  `TELEGRAM_SUBSCRIPTION_CREATED` / `TELEGRAM_PAYMENT_LINK_CREATED` to `AuthSecurityEventType` —
+  `recordAuthSecurityEvent` itself is unchanged.
+- Extract a small shared low-level Bot API client (`sendMessage`/`answerCallbackQuery`/
+  `editMessageText`) out of `communication/telegram` + `telegram-approval.*`'s duplicated raw
+  `fetch`/`axios` calls into `server/src/common/telegram/telegram-bot-api.client.ts`, used by both
+  the existing email-approval bot and this new module.
+
+**ADD:**
+- `server/src/modules/telegram-admin-bot/` — new module (webhook dispatch by `callback_data`
+  prefix on the *existing* `/api/v1/telegram/webhook` route: `ai:draft:*` → existing handler,
+  `adm:*` or an in-progress admin flow's free text → new handler; no second bot/webhook).
+- Telegram `from.id` → CRM `User` resolver + role check (bot-side equivalent of `requireRole`),
+  built on the existing `AuthIdentity` link.
+- Per-admin flow-state store with TTL (Redis if `REDIS_URL` set, else in-memory — same convention
+  as the existing rate-limiter).
+- `getClientCount()` (`prisma.client.count()`) in `clients.service.ts` — no existing endpoint
+  returns a bare student count.
+- A short-lived per-(adminUserId, operation, targetId) in-memory/Redis lock in the new module
+  around subscription/payment-link creation calls, since neither has any existing duplicate
+  protection (confirmed: not even the web UI has one) and the spec requires more than "disable the
+  button." Scoped to the Telegram module only — not a change to the shared payments module.
+
+**OUT OF SCOPE (per spec §3, confirmed by user):** mandate *creation* via Telegram (status display
+only — see decision below), `groupIds` during Telegram student creation, reusing the generic
+`search` module (too broad, leaks unrelated domains).
+
+## Decisions (confirmed with user before implementation)
+
+1. **Mandate**: Telegram shows mandate status only (valid / none, via
+   `findCustomerWithValidMandate`). Actual mandate creation requires typing the client's IBAN
+   (`createMandateSchema` — synchronous directdebit mandate, not a checkout-URL flow as the spec
+   assumed) and stays web-CRM-only for v1. The bot's Mollie submenu shows "Mandate: ✅/❌" with a
+   note to create it in the web CRM when absent — no Telegram input flow for it.
+2. **Bot/webhook**: reuse the existing bot (`TELEGRAM_TOKEN`) and existing webhook route, dispatch
+   by `callback_data` prefix — no second BotFather registration.
+3. **Chat scope**: financial write flows run in the existing shared group
+   (`TELEGRAM_CHAT_ID`), same as email-approval and payment notifications today — not restricted
+   to an admin's private chat. Still keep messages compact per spec §18 (no full profile dumps).
+4. **RBAC**: gate the entire bot (dashboard, search, student creation, all Mollie flows) to CRM
+   users with `role === 'ADMIN'` — simplest, unambiguous, and the explicit choice for the
+   financial-write flows; applying it uniformly avoids a partial-role-gating special case for v1.
+
+## Task List
+
+- [ ] Task 1 (Phase 1 — foundation): verify `AuthIdentity.providerUserId` (OIDC `sub`) equals the
+  Bot API's numeric `from.id` for a real linked admin account; build the identity/RBAC resolver;
+  extract the shared low-level Bot API client; wire webhook dispatch by `callback_data` prefix
+  alongside the existing email-approval handler; implement the flow-state store (TTL, per-admin);
+  root menu + Back/Cancel.
+- [ ] Task 2 (Phase 2 — read-only): dashboard flow (`getMollieDashboardSummary` + new
+  `getClientCount()`); student search flow (`getAllClients`); student card
+  (`buildPaymentSummaryPayload`, exported).
+- [ ] Task 3 (Phase 3 — student creation): guided create-student flow calling `createClient`
+  as-is, with a confirmation step; audit via `recordAuthSecurityEvent`.
+- [ ] Task 4 (Phase 4a — Mollie Customer): create/link flow calling `createCustomerRecord`
+  (already idempotent by email); audit.
+- [ ] Task 5 (Phase 4b — Mandate status + Subscription): mandate status display (no creation);
+  subscription flow (extracted service fn) with prerequisite checks (customer + valid mandate),
+  preview/confirm, the new short-lived duplicate-protection lock, audit.
+- [ ] Task 6 (Phase 4c — Payment Link): payment-link flow (extracted service fn), confirm step,
+  duplicate-protection lock, checkout URL returned via inline button, audit.
+- [ ] Task 7 (Phase 5 — tests/hardening): unit tests per
+  `docs/TELEGRAM_ADMIN_BOT_CHECKLIST.md`'s Verification section; tick every checklist box; browser/
+  Telegram-live QA against the real dev stack.
+
+## Verification Plan
+
+- [ ] Server: `node --test -r ts-node/register` on new/changed files, then the matching domain
+  test script, then full `npm run test:ci`.
+- [ ] `npx tsc --noEmit` clean.
+- [ ] Live QA against the real dev bot/chat (not just unit tests) before considering any phase done
+  — matches this session's established practice for AI/Telegram features.
+- [ ] `docs/TELEGRAM_ADMIN_BOT_CHECKLIST.md` fully ticked before declaring the feature complete.
+
+## Risks and Mitigations
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| OIDC `sub` ≠ Bot API numeric `from.id` | High — identity resolver silently never matches | Verify against a real linked account in Task 1 before building on the assumption; fall back to a one-time explicit re-link step if they differ |
+| `payments.controller.ts` (~3200 lines) — extracting subscription/payment-link logic touches a large, business-critical file | Medium — regression risk in existing web flows | Extract only the two named functions verbatim (no behavior change), keep existing controllers as thin wrappers, run full `test:ci` + manual web-UI smoke test after |
+| No existing duplicate protection on subscription/payment-link creation (web UI included) | Medium — double-tap in Telegram could double-charge/double-subscribe | New Telegram-local short-lived lock (Task 5/6); flagged as a gap that also affects the web UI today, not introduced by this feature |
+| Shared-group financial messages contain client name/amount/checkout URL | Accepted by user (decision 3) | Keep messages minimal (no full profile, no IBAN, no raw errors) |
+
+## Open Questions
+
+- None outstanding — all fork points resolved by explicit user decision above.
+
+## Progress (2026-09-23, same session)
+
+**Done — Phase 1 (foundation) + Phase 2 (dashboard/search) + Phase 3 (student creation):**
+
+- `server/src/common/telegram/telegram-bot-api.client.ts` — shared low-level Bot API wrapper
+  (`sendMessage`/`editMessageText`/`answerCallbackQuery`), used only by the new module; the
+  existing `communication/telegram/telegram.service.ts` and `ai-email-assistant/telegram-approval.*`
+  were left untouched rather than migrated onto it, to keep this pass's diff to working code
+  minimal.
+- `server/src/common/telegram/telegram-update-dispatcher.ts` — routes one shared webhook/polling
+  update stream between the existing email-approval handler (`ai:draft:*` callbacks, `/edit`
+  commands) and the new admin bot (everything else, gated on an active flow or `/start`).
+  `telegram-approval.controller.ts`'s webhook controller was removed in favor of a new shared
+  `common/telegram/telegram-webhook.controller.ts` (avoids a circular import between the
+  dispatcher and the controller it dispatches to); `telegram-approval.polling.service.ts` now
+  calls the dispatcher too. `telegramApprovalWebhookController` → extracted to
+  `telegramWebhookSecretIsValid` (pure predicate), reused by the new shared controller.
+- `server/src/modules/telegram-admin-bot/` — new module: `telegram-admin-bot.auth.ts` (RBAC
+  resolver over the existing `AuthIdentity`), `telegram-admin-bot.state.ts` (flow-state store,
+  Redis-or-memory, same convention as `auth.rate-limit.service.ts`), `telegram-admin-bot.menu.ts`,
+  `telegram-admin-bot.dashboard.flow.ts`, `telegram-admin-bot.student-search.flow.ts`,
+  `telegram-admin-bot.student-create.flow.ts` (pure step logic), `telegram-admin-bot.service.ts`
+  (the core update handler, dependency-injected for testability).
+- Exports added (one-word `export` additions, no behavior change): `createClientSchema`
+  (`clients.controller.ts`), new `getClientCount()` (`clients.service.ts`).
+- Migration `20260923120000_add_telegram_admin_audit_events`: 4 new `AuthSecurityEventType`
+  values (`TELEGRAM_ADMIN_STUDENT_CREATED`/`_MOLLIE_CUSTOMER_CREATED`/`_SUBSCRIPTION_CREATED`/
+  `_PAYMENT_LINK_CREATED`) — the latter 3 added now (inert until Phase 4) to avoid a second
+  migration round-trip.
+- **Real pre-existing bug found and fixed via live testing**: `auth/auth.csrf.middleware.ts`'s
+  `csrfExempt` whitelisted `/mollie/webhook` and `/instagram/webhook` but never
+  `/telegram/webhook` — meaning the webhook transport for the *existing* email-approval bot was
+  silently 403'd by CSRF whenever `TELEGRAM_POLLING_ENABLED=false`, unrelated to anything in this
+  feature. Fixed by adding `/telegram/webhook` to the exemption list (same rationale as the other
+  two: server-to-server call, own secret-header check, no session/CSRF cookies possible). Added
+  `auth.csrf.middleware.test.ts` (didn't exist before) covering all three exemptions.
+
+**Live-verified** against the real dev stack (real MySQL, real Telegram Bot API, real configured
+group): created a temporary `AuthIdentity` linking a throwaway Telegram id to the `test@test.com`
+ADMIN user, POSTed synthetic Telegram updates directly to `POST /api/v1/telegram/webhook` with the
+real webhook secret. `/start` → real "DDC ADMIN" message sent to the real configured group.
+Removing the identity → same `/start` correctly returns "no access" with no menu/data. Dashboard
+and search rendering verified directly against the real dev DB (0 students, 0 payments — an
+empty/reset dev DB, not an error). Did **not** live-test the create-student write path itself
+(would have written a fake student into the dev DB) — covered instead by the 9/9 injected-fake
+unit tests in `telegram-admin-bot.service.test.ts`. Temporary `AuthIdentity` row deleted after
+testing.
+
+**Checks:** `npx tsc --noEmit` clean; new `npm run test:telegram-admin-bot` script (28/28); full
+`npm run test:ci` (0 failures across every suite); `npm run build` clean.
+
+**Deliberately deferred to a follow-up pass (Phase 4 — Mollie financial operations):**
+Mollie Customer create/link, mandate *status display* (not creation, per decision 1), Subscription,
+Payment Link — these need the `payments.controller.ts` extractions (`createCustomerRecord`,
+subscription/payment-link logic) noted in the REFACTOR list above, plus the new short-lived
+duplicate-protection lock, none of which are built yet. Root menu currently shows only the 3
+buttons whose flows exist (Dashboard, Новый ученик, Найти ученика); the Mollie buttons are added
+once Phase 4 lands, per the "no dead buttons for a real admin" note in `telegram-admin-bot.menu.ts`.

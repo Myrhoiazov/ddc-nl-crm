@@ -113,3 +113,30 @@
 - [ ] Code review passed
 - [x] Browser QA — not repeated; low-risk default-only change over code paths already live-verified in the sections above
 - [ ] Ready for PR (same branch as the sections above)
+
+## Telegram Admin Bot — Phase 1-3 (2026-09-23, new branch feat/telegram-admin-bot)
+
+Contract: `docs/spec/TELEGRAM_ADMIN_BOT_SPEC.md`, `docs/prompts/TELEGRAM_ADMIN_BOT_AGENT_PROMPT.md`.
+Acceptance checklist: `docs/TELEGRAM_ADMIN_BOT_CHECKLIST.md` (Discovery/Foundation/Dashboard/
+Students/Verification sections ticked; Mollie sections deliberately left for Phase 4).
+
+- [x] Discovery + REUSE/REFACTOR/ADD matrix + plan (see `tasks/plan.md`)
+- [x] Phase 1: shared Bot API client, shared update dispatcher (one webhook/bot for both
+  features), RBAC resolver over existing `AuthIdentity`, flow-state store, root menu, Back/Cancel
+- [x] Phase 2: dashboard flow (`getMollieDashboardSummary` + new `getClientCount`), student search
+  flow (`getAllClients`)
+- [x] Phase 3: guided student-creation flow (`createClient` + exported `createClientSchema`),
+  audited via `recordAuthSecurityEvent`
+- [x] Real bug found+fixed: `/telegram/webhook` was missing from `auth.csrf.middleware.ts`'s CSRF
+  exemption list (pre-existing, affected the already-shipped email-approval bot too whenever
+  polling is off) — added, with new `auth.csrf.middleware.test.ts`
+- [x] Checks passed (server: tsc clean, new `test:telegram-admin-bot` 28/28, full `test:ci` 0
+  failures, `build` clean)
+- [x] Live-verified against the real dev stack (real Telegram Bot API + real dev MySQL): temp
+  `AuthIdentity` linked/unlinked to prove authorized vs unauthorized behavior, `/start` sent a
+  real message to the real configured group, dashboard/search rendered real (empty) DB data
+  correctly; temp identity removed after
+- [ ] Code review passed
+- [ ] Phase 4 (Mollie Customer / mandate status / Subscription / Payment Link) — not started, see
+  `tasks/plan.md` "Deliberately deferred" note
+- [ ] Ready for PR (checkpoint reached deliberately before financial-write operations)
