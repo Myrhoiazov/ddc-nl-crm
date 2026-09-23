@@ -4,7 +4,7 @@
   "scripts": {
     "start": "node scripts/start-development.js",
     "deploy": "bash scripts/deploy-docker.sh",
-    "deploy:docker": "bash scripts/deploy-docker.sh",
+    "docker:rebuild": "docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build",
     "graphify:specs": "bash scripts/graphify-update-docs.sh",
     "docs:links": "bash scripts/check-markdown-links.sh",
     "check:skylos": "bash scripts/check-skylos.sh",
@@ -22,7 +22,8 @@
     "test": "Ручной прогон клиентских тестов (Jest) без остальных шагов CI — npm --prefix client test. Для серверных тестов используй domain-скрипты из server/ (test:auth, test:mollie и т.д.), единого server-wide test-скрипта нет.",
     "ci": "Зеркалит GitHub Actions CI локально: client lint/test/build + server build/test + docs-links. Требует настроенного CLIENT_API_URL (см. README) для build:prod. Гоняй перед push — PR обязателен без исключений, сюрпризов от CI быть не должно.",
     "docs:links": "Проверяет отслеживаемые Markdown-файлы на битые ссылки (тот же job, что и docs-links в CI).",
-    "check:skylos": "Гоняет Skylos (dead code / security / secrets / quality / SCA) по всему репозиторию — тот же контракт, что и job skylos-check в CI. Требует Python 3.10+ и `pip install skylos` (см. README). Phase A: informational, не входит в npm run ci и не блокирует merge."
+    "check:skylos": "Гоняет Skylos (dead code / security / secrets / quality / SCA) по всему репозиторию — тот же контракт, что и job skylos-check в CI. Требует Python 3.10+ и `pip install skylos` (см. README). Phase A: informational, не входит в npm run ci и не блокирует merge.",
+    "docker:rebuild": "Пересобирает и перезапускает локальный dev-стек (frontend/backend образы + db/redis/ollama) в фоне — docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build. Только для локальной разработки; для прод-деплоя используй npm run deploy."
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0"
