@@ -29,6 +29,21 @@ export {
     type OllamaEmbeddingClientOptions,
     type ScoredKnowledgeChunk,
 } from './embedding.service';
-export { KnowledgeRetrievalService, type RetrievalOptions } from './retrieval.service';
+export {
+    KnowledgeRetrievalService,
+    type KnowledgeRetrievalServiceOptions,
+    type RetrievalOptions,
+    type RetrievalResult,
+} from './retrieval.service';
 export { startKnowledgeSyncCron } from './sync.service';
 export { MysqlKnowledgeRepository, type PersistedKnowledgeDocument } from './mysql-knowledge.repository';
+export { Bm25Search, type Bm25Document, type Bm25ScoredDocument } from './bm25.service';
+export { fuseRankedLists, type RankedById } from './rrf.service';
+export {
+    OllamaQueryExpansionClient,
+    parseExpansionResponse,
+    type OllamaQueryExpansionClientOptions,
+    type QueryExpansion,
+    type QueryExpansionClient,
+} from './query-expansion.service';
+export { OllamaReranker, type KnowledgeReranker } from './reranker.service';

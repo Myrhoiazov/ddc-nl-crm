@@ -14,6 +14,11 @@ test('AI config uses the resource-safe local defaults', () => {
         maxConcurrency: 1,
         ollamaEmbeddingModel: 'bge-m3',
         ragTopK: 4,
+        ragQueryExpansionEnabled: false,
+        ragRerankEnabled: false,
+        ragRerankModel: 'qwen3-reranker:0.6b',
+        ragChunkSize: 700,
+        ragChunkOverlap: 100,
     });
 });
 
@@ -27,6 +32,11 @@ test('AI config is fully environment-driven', () => {
         AI_MAX_CONCURRENCY: '2',
         OLLAMA_EMBEDDING_MODEL: 'multilingual-test',
         RAG_TOP_K: '8',
+        RAG_QUERY_EXPANSION_ENABLED: 'true',
+        RAG_RERANK_ENABLED: 'true',
+        RAG_RERANK_MODEL: 'custom-reranker',
+        RAG_CHUNK_SIZE: '900',
+        RAG_CHUNK_OVERLAP: '150',
     });
 
     assert.deepEqual(config, {
@@ -38,7 +48,29 @@ test('AI config is fully environment-driven', () => {
         maxConcurrency: 2,
         ollamaEmbeddingModel: 'multilingual-test',
         ragTopK: 8,
+        ragQueryExpansionEnabled: true,
+        ragRerankEnabled: true,
+        ragRerankModel: 'custom-reranker',
+        ragChunkSize: 900,
+        ragChunkOverlap: 150,
     });
+});
+
+test('chunk size falls back to the default when zero/negative/non-numeric, overlap allows zero', () => {
+    const zeroOverlap = readAiConfig({ RAG_CHUNK_OVERLAP: '0' });
+    assert.equal(zeroOverlap.ragChunkOverlap, 0);
+
+    const invalidSize = readAiConfig({ RAG_CHUNK_SIZE: '0' });
+    assert.equal(invalidSize.ragChunkSize, 700);
+
+    const nonNumeric = readAiConfig({ RAG_CHUNK_OVERLAP: 'not-a-number' });
+    assert.equal(nonNumeric.ragChunkOverlap, 100);
+});
+
+test('boolean RAG flags fall back to false for unrecognized values', () => {
+    const config = readAiConfig({ RAG_QUERY_EXPANSION_ENABLED: 'yes', RAG_RERANK_ENABLED: '1' });
+    assert.equal(config.ragQueryExpansionEnabled, false);
+    assert.equal(config.ragRerankEnabled, false);
 });
 
 test('invalid or unsafe numeric values fall back to bounded defaults', () => {

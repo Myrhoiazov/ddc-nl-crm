@@ -1,7 +1,22 @@
 enum KnowledgeDocumentStatus {
+  PENDING
   ACTIVE
   INACTIVE
   ERROR
+}
+
+enum KnowledgeCategory {
+  BRAND
+  LOCATIONS
+  DANCE_STYLES
+  CLASSES
+  SCHEDULE
+  REGISTRATION
+  FAQ
+  CAMP
+  BUSINESS_RULES
+  SOURCES
+  OTHER
 }
 
 model KnowledgeDocument {
@@ -16,6 +31,9 @@ model KnowledgeDocument {
   contentHash   String                  @map("content_hash") @db.VarChar(64)
   content       String                  @db.LongText
   status        KnowledgeDocumentStatus @default(ACTIVE)
+  category      KnowledgeCategory       @default(OTHER)
+  priority      Int                     @default(0)
+  tags          Json                    @default("[]")
   errorMessage  String?                 @map("error_message") @db.VarChar(500)
   lastSyncedAt  DateTime?               @map("last_synced_at")
   createdAt     DateTime                @default(now()) @map("created_at")
@@ -25,6 +43,7 @@ model KnowledgeDocument {
 
   @@index([sourceId, status])
   @@index([contentHash])
+  @@index([category])
   @@map("knowledge_documents")
 }
 

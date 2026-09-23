@@ -32,16 +32,19 @@ export interface KnowledgeRepository {
 // were assembled into a prompt alongside the email/classification/instructions — confirmed live
 // (see tasks/plan.md Task 20): a 4-chunk, ~7100-character prompt made qwen3:1.7b return an empty
 // `{}` instead of a draft. Smaller chunks are also more topically focused, which spec section
-// 10.6 recommends independently of the context-budget concern.
+// 10.6 recommends independently of the context-budget concern. Configurable via
+// RAG_CHUNK_SIZE/RAG_CHUNK_OVERLAP (aiConfig.ragChunkSize/ragChunkOverlap) — every call site
+// (sync.service.ts, mysql-knowledge.repository.ts) calls this with no override, so changing the
+// env vars changes chunking for every ingestion path without touching call sites.
 export const chunkKnowledgeDocument = (
     document: NormalizedKnowledgeDocument,
-    maxCharacters = 500,
-    // Minimum ~100-token overlap between consecutive chunks so a fact landing on a chunk
-    // boundary isn't invisible to whichever half a query doesn't retrieve. This codebase budgets
-    // by character count throughout (no tokenizer wired up); modern BPE tokenizers run roughly
-    // 2-2.5 characters/token for Cyrillic (this deployment's canonical language) and more for
-    // Latin text, so 250 characters covers a 100-token minimum with margin.
-    overlapCharacters = 250,
+    maxCharacters = aiConfig.ragChunkSize,
+    // Minimum overlap between consecutive chunks so a fact landing on a chunk boundary isn't
+    // invisible to whichever half a query doesn't retrieve. This codebase budgets by character
+    // count throughout (no tokenizer wired up); modern BPE tokenizers run roughly 2-2.5
+    // characters/token for Cyrillic (this deployment's canonical language) and more for Latin
+    // text.
+    overlapCharacters = aiConfig.ragChunkOverlap,
 ): KnowledgeChunk[] => {
     if (!document.content.trim()) return [];
     const effectiveOverlap = Math.max(0, Math.min(overlapCharacters, maxCharacters - 1));
