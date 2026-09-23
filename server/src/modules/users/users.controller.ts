@@ -1,3 +1,5 @@
+import { z } from 'zod';
+import { linkMiniAppIdentity } from '../auth/telegram-miniapp/telegram-miniapp-identity.service';
 import { Request, Response } from 'express';
 import {
     createUser,
@@ -235,3 +237,38 @@ export const createUserController = async (req: Request, res: Response) => {
         throw error;
     }
 }
+
+const linkTelegramMiniAppSchema = z.object({
+    telegramUserId: z.string().trim().regex(/^[1-9]\d*$/, 'Telegram id must be numeric')
+        .refine((value) => Number.isSafeInteger(Number(value)), 'Invalid Telegram id'),
+});
+
+export const linkTelegramMiniAppController = async (req: Request, res: Response) => {
+    const targetUserId = Number(req.params.id);
+    if (!Number.isSafeInteger(targetUserId) || targetUserId <= 0) {
+        return res.status(400).json({ message: 'Invalid user id' });
+    }
+    const parsed = linkTelegramMiniAppSchema.safeParse(req.body);
+    if (!parsed.success) {
+        return res.status(400).json({ message: 'Проверьте Telegram id', details: parsed.error.flatten() });
+    }
+    const target = await getUserById(targetUserId);
+    if (!target) return res.status(404).json({ message: 'User not found' });
+    if (!target.isEnabled || target.role !== UserRole.ADMIN) {
+        return res.status(403).json({ message: 'Forbidden' });
+    }
+    const result = await linkMiniAppIdentity({ userId: targetUserId, telegramUserId: parsed.data.telegramUserId });
+    if (!result.ok) {
+        return res.status(409).json({ message: result.reason === 'USER_ALREADY_LINKED'
+            ? 'У пользователя уже привязан Telegram Mini App'
+            : 'Telegram аккаунт уже привязан к другому пользователю' });
+    }
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.TELEGRAM_LINKED,
+        actorUserId: req.user?.id,
+        targetUserId,
+        metadata: { provider: 'TELEGRAM_MINIAPP' },
+        req,
+    });
+    return res.status(200).json({ message: 'Telegram Mini App привязан' });
+};

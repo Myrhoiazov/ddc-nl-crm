@@ -63,3 +63,59 @@ test('allows disabling another user\'s account', () => {
     const error = validateUpdateUserRequest(req, 7, undefined, false);
     assert.equal(error, null);
 });
+
+import type { Response } from 'express';
+import { linkTelegramMiniAppController } from './users.controller';
+import * as identityService from '../auth/telegram-miniapp/telegram-miniapp-identity.service';
+import * as usersService from './users.service';
+import * as auditService from '../auth/auth.security-audit.service';
+
+const linkResponse = () => ({
+    statusCode: 200, body: undefined as unknown,
+    status(code: number) { this.statusCode = code; return this; },
+    json(body: unknown) { this.body = body; return this; },
+});
+const linkRequest = (id = '5', telegramUserId: unknown = '348397131') => ({
+    params: { id }, body: { telegramUserId }, user: { id: 1, role: UserRole.ADMIN },
+} as unknown as Request);
+
+test('links a valid numeric Telegram id to an enabled admin and records the actor', async (t) => {
+    t.mock.method(usersService, 'getUserById', async () => ({ id: 5, role: 'ADMIN', isEnabled: true }));
+    t.mock.method(identityService, 'linkMiniAppIdentity', async () => ({ ok: true }));
+    const events: any[] = [];
+    t.mock.method(auditService, 'recordAuthSecurityEvent', async (input: unknown) => events.push(input));
+    const res = linkResponse();
+    await linkTelegramMiniAppController(linkRequest(), res as unknown as Response);
+    assert.equal(res.statusCode, 200);
+    assert.equal(events[0].actorUserId, 1);
+    assert.equal(events[0].targetUserId, 5);
+});
+for (const id of ['0', '-1', '1.5', 'oops']) {
+    test(`rejects invalid target user id ${id}`, async () => {
+        const res = linkResponse();
+        await linkTelegramMiniAppController(linkRequest(id), res as unknown as Response);
+        assert.equal(res.statusCode, 400);
+    });
+}
+for (const id of ['not-a-number', '0', '001', '9007199254740992', 348397131]) {
+    test(`rejects invalid Telegram id ${id}`, async () => {
+        const res = linkResponse();
+        await linkTelegramMiniAppController(linkRequest('5', id), res as unknown as Response);
+        assert.equal(res.statusCode, 400);
+    });
+}
+for (const [user, status] of [[null, 404], [{ role: 'MANAGER', isEnabled: true }, 403], [{ role: 'ADMIN', isEnabled: false }, 403]] as const) {
+    test(`refuses unavailable target ${JSON.stringify(user)}`, async (t) => {
+        t.mock.method(usersService, 'getUserById', async () => user);
+        const res = linkResponse();
+        await linkTelegramMiniAppController(linkRequest(), res as unknown as Response);
+        assert.equal(res.statusCode, status);
+    });
+}
+test('returns conflict when a Telegram account is already linked', async (t) => {
+    t.mock.method(usersService, 'getUserById', async () => ({ id: 5, role: 'ADMIN', isEnabled: true }));
+    t.mock.method(identityService, 'linkMiniAppIdentity', async () => ({ ok: false, reason: 'IDENTITY_ALREADY_LINKED' }));
+    const res = linkResponse();
+    await linkTelegramMiniAppController(linkRequest(), res as unknown as Response);
+    assert.equal(res.statusCode, 409);
+});
