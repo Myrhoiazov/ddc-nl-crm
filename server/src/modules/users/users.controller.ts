@@ -258,7 +258,7 @@ export const linkTelegramMiniAppController = async (req: Request, res: Response)
         return res.status(403).json({ message: 'Forbidden' });
     }
     const result = await linkMiniAppIdentity({ userId: targetUserId, telegramUserId: parsed.data.telegramUserId });
-    if (!result.ok) {
+    if (result.ok === false) {
         return res.status(409).json({ message: result.reason === 'USER_ALREADY_LINKED'
             ? 'У пользователя уже привязан Telegram Mini App'
             : 'Telegram аккаунт уже привязан к другому пользователю' });
