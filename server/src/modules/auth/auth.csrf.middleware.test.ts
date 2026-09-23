@@ -56,3 +56,19 @@ test('GET requests are never subject to CSRF checks', () => {
     assert.equal(calledNext, true);
     assert.equal(calls.status, undefined);
 });
+
+test('exempts a non-empty Telegram header on a protected API route', () => {
+    const req = fakeReq({ path: '/clients', headers: { 'x-telegram-init-data': 'signed-data' } });
+    const { res, calls } = fakeRes();
+    let next = false;
+    csrfProtection(req, res, () => { next = true; });
+    assert.equal(next, true);
+    assert.equal(calls.status, undefined);
+});
+for (const value of ['', '   ']) {
+    test(`an empty Telegram header ${JSON.stringify(value)} does not exempt CSRF`, () => {
+        const { res, calls } = fakeRes();
+        csrfProtection(fakeReq({ path: '/clients', headers: { 'x-telegram-init-data': value } }), res, () => assert.fail('must reject'));
+        assert.equal(calls.status, 403);
+    });
+}
