@@ -13,6 +13,8 @@
 | `client.prisma`          | Ученики                                          |
 | `company.prisma`         | Филиалы, юрлица, бренды                          |
 | `email.prisma`           | Почтовые ящики и сообщения                       |
+| `ai-email.prisma`        | Локальный AI email assistant                    |
+| `knowledge.prisma`       | Локальная RAG knowledge база                     |
 | `invoice.prisma`         | Инвойсы                                          |
 | `mollie.prisma`          | Mollie: аккаунты, клиенты, платежи, подписки     |
 | `payment-reminder.prisma` | Напоминания об оплате                           |
@@ -103,6 +105,79 @@
 - Поля: id Int @id autoincrement; messageId Int; filename String; mimeType String; sizeBytes Int; storagePath String @db.Text; createdAt DateTime @default(now())
 - Связи: message -> EmailMessage (Cascade)
 - Индексы: messageId
+
+## ai-email.prisma — локальный AI email assistant
+
+### Enum AiEmailDirection: INBOUND | OUTBOUND
+### Enum AiEmailStatus: RECEIVED | NORMALIZED | CLASSIFIED | IGNORED_SPAM | FAILED
+### Enum AiEmailDraftStatus: GENERATED | EDITED | APPROVED | REJECTED | SPAM | SENDING | SENT | FAILED
+### Enum AiEmailApprovalAction: APPROVE | EDIT | REJECT | SPAM
+
+### AiEmailMessage (таблица `ai_email_messages`)
+Нормализованный снимок письма для детерминированной обработки и локальной классификации.
+- Поля: id; sourceEmailMessageId (unique, ссылка на исходный EmailMessage без ORM-графа); messageId; threadKey; direction; sender; recipients; subject; normalizedBody; receivedAt; status; createdAt; updatedAt
+- Связи: classifications AiEmailClassification[]
+- Индексы: [status, receivedAt]
+
+### AiEmailClassification (таблица `ai_email_classifications`)
+Проверенный результат классификации с версией prompt/model для аудита и идемпотентных повторов.
+- Поля: id; emailId; spam; needsReply; language; intent; confidence; reason; model; promptVersion; createdAt
+- Связи: email -> AiEmailMessage (Cascade)
+- Индексы: [emailId, createdAt]; unique [emailId, promptVersion]
+
+### AiEmailDraft (таблица `ai_email_drafts`)
+Версионируемый структурированный ответ, ожидающий human-in-the-loop approval; после APPROVED
+проходит через SENDING (атомарный claim по id+version+status для идемпотентной отправки) в
+SENT/FAILED.
+- Поля: id; emailId; version; subject; body; replyLanguage; confidence; needsManualAnswer; model; promptVersion; status; sendIdempotencyKey (unique); sendAttempts; sentEmailMessageId; sentAt; sendError; createdAt; updatedAt
+- Связи: email -> AiEmailMessage (Cascade); knowledgeRefs AiEmailKnowledgeRef[]
+- Индексы: unique [emailId, version]; unique [sendIdempotencyKey]; [emailId, status, createdAt]
+
+### AiEmailKnowledgeRef (таблица `ai_email_knowledge_refs`)
+Источники RAG, использованные при генерации draft.
+- Поля: id; draftId; knowledgeId; sourceUrl; score; createdAt
+- Связи: draft -> AiEmailDraft (Cascade)
+- Индексы: unique [draftId, knowledgeId]; knowledgeId
+
+### AiEmailApproval (таблица `ai_email_approvals`)
+Неизменяемая запись действия оператора над конкретной версией draft.
+- Поля: id; draftId; draftVersion; action; actorId; editedBody; createdAt
+- Связи: draft -> AiEmailDraft (Cascade)
+- Индексы: [draftId, createdAt]
+
+### Enum AiPromptSlot: DRAFT_BODY | CLASSIFICATION
+
+### AiPrompt (таблица `ai_prompts`)
+Редактируемые через админ-страницу, версионируемые системные промты для двух LLM-вызовов
+(`classifyEmail`/`generateDraft` в `ollama.client.ts`). Хранится только текст инструкций — динамические
+данные письма (FROM/SUBJECT/BODY, ПИСЬМО_КЛИЕНТА/ДАННЫЕ_CRM/ЗНАНИЯ) всегда дописываются
+приложением после этого содержимого и не редактируются, поэтому сохранённый промт не может
+случайно потерять само письмо. На слот допускается не более одной строки с `isActive=true` —
+именно она используется реальными production-вызовами classify/draft; при отсутствии активной
+строки используется хардкодный дефолт из `prompt-library.service.ts` (пустая таблица ничего не
+меняет).
+- Поля: id; slot; name; content; tags (Json, массив строк); isActive; createdAt; updatedAt
+- Индексы: [slot, isActive]
+
+## knowledge.prisma — локальная MySQL knowledge база
+
+### Enum KnowledgeDocumentStatus: PENDING | ACTIVE | INACTIVE | ERROR
+
+### Enum KnowledgeCategory: BRAND | LOCATIONS | DANCE_STYLES | CLASSES | SCHEDULE | REGISTRATION | FAQ | CAMP | BUSINESS_RULES | SOURCES | OTHER
+
+### KnowledgeDocument (таблица `knowledge_documents`)
+Версия нормализованного сайта, файла или вручную добавленного URL с content hash, категорией и
+LLM-метаданными (приоритет + теги), статусом индексации.
+- Поля: id; sourceType; sourceId; sourceUrl; relativePath; folderPath; title; language; contentHash; content; status; category; priority; tags (Json, массив строк); errorMessage; lastSyncedAt; createdAt; updatedAt
+- Связи: chunks KnowledgeChunk[]
+- Индексы: [sourceId, status]; contentHash; category
+
+### KnowledgeChunk (таблица `knowledge_chunks`)
+Атрибутивный chunk с локальным embedding `bge-m3` в JSON. Размер/перекрытие чанка при генерации —
+`RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` (`ai.config.ts`, дефолты 700/100 символов).
+- Поля: id; documentId; ordinal; content; embedding; embeddingModel; contentHash; headingPath (Json); createdAt; updatedAt
+- Связи: document -> KnowledgeDocument (Cascade)
+- Индексы: unique [documentId, ordinal]; contentHash
 
 ---
 

@@ -131,7 +131,11 @@ export const buildMolliePaymentNotification = (payment: MolliePaymentNotificatio
     return rows.join('\n');
 };
 
-export const sendTelegramMessage = async (text: string) => {
+export interface TelegramMessageOptions {
+    inlineKeyboard?: Array<Array<{ text: string; callback_data: string }>>;
+}
+
+export const sendTelegramMessage = async (text: string, options: TelegramMessageOptions = {}) => {
     const token = process.env.TELEGRAM_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (!token || !chatId) {
@@ -145,6 +149,7 @@ export const sendTelegramMessage = async (text: string) => {
             text,
             parse_mode: 'HTML',
             disable_web_page_preview: true,
+            ...(options.inlineKeyboard ? { reply_markup: { inline_keyboard: options.inlineKeyboard } } : {}),
         },
         { timeout: 8_000 },
     );

@@ -5,6 +5,7 @@ import { startInvoiceReminderCron } from './modules/invoices/invoices.reminders.
 import { startEmailSyncCron } from './modules/communication/email/email-sync-cron.service';
 import { startPaymentReminderCron } from './modules/payment-reminders/payment-reminders.cron.service';
 import { startAuthSecurityCleanupCron } from './modules/auth/auth.security-cleanup.service';
+import { startAiEmailClassificationCron, startAiEmailDraftCron, startAiEmailSendCron, startTelegramApprovalPolling } from './modules/ai-email-assistant';
 
 const start = async () => {
     try {
@@ -18,6 +19,10 @@ const start = async () => {
             startEmailSyncCron();
             startPaymentReminderCron();
             startAuthSecurityCleanupCron();
+            startAiEmailClassificationCron();
+            startAiEmailDraftCron();
+            startAiEmailSendCron();
+            startTelegramApprovalPolling();
         });
     } catch (e) {
         console.error('error message:', e instanceof Error ? e.message : e);
