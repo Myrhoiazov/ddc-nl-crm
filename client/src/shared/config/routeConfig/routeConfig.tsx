@@ -33,6 +33,7 @@ export enum AppRoutes {
     ORGANIZATION_BRANDS = 'organization_brands',
     EMAIL = 'email',
     PAYMENT_REMINDERS = 'payment_reminders',
+    KNOWLEDGE_BASE = 'knowledge_base',
     // last
     NOT_FOUND = 'not_found',
 }
@@ -64,5 +65,6 @@ export const RoutePath: Record<AppRoutes, string> = {
     [AppRoutes.ORGANIZATION_BRANDS]: '/company/organization-brands',
     [AppRoutes.EMAIL]: '/email',
     [AppRoutes.PAYMENT_REMINDERS]: '/payment-reminders',
+    [AppRoutes.KNOWLEDGE_BASE]: '/knowledge-base',
     [AppRoutes.NOT_FOUND]: '*',
 };

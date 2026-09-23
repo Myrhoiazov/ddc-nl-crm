@@ -45,6 +45,7 @@ pnpm-debug.log*
 backups/
 deploy/
 server/src/data/*.json
+server/knowledge/
 photo/
 docs/*.png
 docs/*.jpg

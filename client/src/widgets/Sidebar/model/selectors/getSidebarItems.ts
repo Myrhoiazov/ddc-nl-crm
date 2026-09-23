@@ -25,6 +25,7 @@ export const getSidebarItems = createSelector(
             sidebarItemsList.push(
                 { path: RoutePath.transactions, Icon: Transactions, text: 'Транзакции' },
                 { path: RoutePath.email, Icon: Mail, text: 'Почта' },
+                { path: RoutePath.knowledge_base, Icon: ContentHub, text: 'База знаний', iconColor: 'stroke' },
             );
         }
 

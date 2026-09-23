@@ -37,9 +37,26 @@ services:
     networks:
       - ddc-nl-network
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ${OLLAMA_CONTAINER_NAME:-ddc-nl-ollama}
+    restart: unless-stopped
+    mem_limit: ${OLLAMA_MEM_LIMIT:-2g}
+    cpus: ${OLLAMA_CPU_LIMIT:-1.5}
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+    networks:
+      - ddc-nl-network
+
 volumes:
   mysql_data:
   redis_data:
+  ollama_data:
   uploads_data:
   private_uploads_data:
 
