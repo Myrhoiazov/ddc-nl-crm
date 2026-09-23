@@ -55,21 +55,26 @@ test('pollTelegramApprovalUpdatesOnce keeps the previous offset when Telegram re
 });
 
 test('pollTelegramApprovalUpdatesOnce does not let one failing update stop the batch, and still advances past it', async (t) => {
-    const processed: number[] = [];
+    // Routed through the shared dispatcher now (common/telegram/telegram-update-dispatcher.ts) —
+    // only /edit-shaped text reaches handleTelegramApprovalUpdate, so the poison payload has to
+    // look like a real edit command (with a from.id, like an actual Telegram update) rather than
+    // bare text, to actually exercise this code path.
+    const processed: string[] = [];
     t.mock.method(approvalController, 'handleTelegramApprovalUpdate', async (update: { message?: { text?: unknown } }) => {
-        processed.push(Number(update.message?.text));
-        if (update.message?.text === 'poison') throw new Error('boom');
+        const text = String(update.message?.text);
+        processed.push(text);
+        if (text.includes('poison')) throw new Error('boom');
         return { status: 200, body: { ok: true } };
     });
 
     const nextOffset = await pollTelegramApprovalUpdatesOnce('test-token', undefined, async () => new Response(JSON.stringify({
         ok: true,
         result: [
-            { update_id: 200, message: { text: 'poison' } },
-            { update_id: 201, message: { text: '201' } },
+            { update_id: 200, message: { text: '/edit 1 1 poison', from: { id: 111 } } },
+            { update_id: 201, message: { text: '/edit 1 1 201', from: { id: 111 } } },
         ],
     }), { status: 200 }));
 
-    assert.deepEqual(processed, [NaN, 201]);
+    assert.deepEqual(processed, ['/edit 1 1 poison', '/edit 1 1 201']);
     assert.equal(nextOffset, 202, 'offset advances past the poison update too, so it is never retried forever');
 });

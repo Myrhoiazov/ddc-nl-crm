@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import type { Request } from 'express';
 import { createPrismaDraftApprovalRepository } from './draft.persistence';
 import { applyDraftAction, parseAllowedTelegramActors, type DraftAction } from './approval.service';
 import { sendTelegramMessage } from '../communication/telegram/telegram.service';
@@ -85,12 +85,7 @@ export const handleTelegramApprovalUpdate = async (update: TelegramApprovalUpdat
     }
 };
 
-export const telegramApprovalWebhookController = async (req: Request, res: Response) => {
+export const telegramWebhookSecretIsValid = (req: Request): boolean => {
     const secret = configuredSecret();
-    if (!secret || req.header('x-telegram-bot-api-secret-token') !== secret) {
-        res.status(401).json({ message: 'Invalid Telegram webhook secret' });
-        return;
-    }
-    const { status, body } = await handleTelegramApprovalUpdate(req.body ?? {});
-    res.status(status).json(body);
+    return Boolean(secret) && req.header('x-telegram-bot-api-secret-token') === secret;
 };
