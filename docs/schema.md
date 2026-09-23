@@ -339,7 +339,7 @@ OAuth-аккаунт Mollie пользователя (шифрованные acc
 ### Enum TwoFactorChannel: EMAIL | TELEGRAM (зарезервирован, не реализован)
 ### Enum LoyaltyLevel: BRONZE | SILVER | GOLD | PLATINUM
 ### Enum AuthSecurityEventType: LOGIN_SUCCEEDED | LOGIN_FAILED | LOGIN_BLOCKED | LOGIN_TELEGRAM_SUCCEEDED | LOGIN_TELEGRAM_FAILED | TELEGRAM_LINKED | TELEGRAM_UNLINKED | LOGOUT | PASSWORD_CHANGED | PASSWORD_RESET | SESSION_CREATED | SESSION_ROTATED | SESSION_REVOKED | SESSION_REUSE_DETECTED | ROLE_CHANGED | ACCOUNT_CREATED | ACCOUNT_DISABLED | ACCOUNT_ENABLED | ACCOUNT_DELETED | TWO_FACTOR_REQUIRED | TWO_FACTOR_SUCCEEDED | TWO_FACTOR_FAILED | TWO_FACTOR_LOCKED | TWO_FACTOR_RESENT | TRUSTED_DEVICE_CREATED | TRUSTED_DEVICE_REVOKED
-### Enum AuthProvider: TELEGRAM
+### Enum AuthProvider: TELEGRAM, TELEGRAM_MINIAPP
 ### Enum TelegramAuthFlow: LOGIN | LINK
 
 ### User (таблица `users`)
@@ -369,6 +369,8 @@ Cookie-сессия с ротацией refresh-токена.
 - Поля: id Int @id autoincrement; userId Int; tokenHash String @unique @db.VarChar(128); userAgent/ipAddress String?; createdAt; expiresAt DateTime; lastUsedAt DateTime?; revokedAt DateTime?
 - Связи: user -> User (Cascade)
 - Индексы: userId
+
+Mini App использует отдельный provider `TELEGRAM_MINIAPP` с числовым Telegram user id и событие `TELEGRAM_MINIAPP_STUDENT_CREATED` для создания ученика. OIDC `TELEGRAM` продолжает хранить непрозрачный subject.
 
 ### AuthIdentity (таблица `auth_identities`)
 Явно привязанная к CRM User внешняя identity (сейчас только Telegram). Telegram никогда не
