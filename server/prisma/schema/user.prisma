@@ -6,6 +6,7 @@ enum UserRole {
 
 enum AuthProvider {
   TELEGRAM
+  TELEGRAM_MINIAPP
 }
 
 enum TelegramAuthFlow {
@@ -44,6 +45,7 @@ enum AuthSecurityEventType {
   TELEGRAM_ADMIN_MOLLIE_CUSTOMER_CREATED
   TELEGRAM_ADMIN_SUBSCRIPTION_CREATED
   TELEGRAM_ADMIN_PAYMENT_LINK_CREATED
+  TELEGRAM_MINIAPP_STUDENT_CREATED
 }
 
 enum TwoFactorChannel {
@@ -177,8 +179,8 @@ model TrustedDevice {
 
 // A Telegram identity explicitly linked to a CRM User. Telegram never creates a
 // User — this row only ever appears after an authenticated ADMIN completes the
-// link flow. providerUserId is Telegram's stable OIDC subject, never the
-// @username (display-only metadata, can change).
+// link flow. providerUserId is the OIDC subject for TELEGRAM and the numeric
+// Telegram user id for TELEGRAM_MINIAPP; usernames are display-only metadata.
 model AuthIdentity {
   id             Int          @id @default(autoincrement())
   userId         Int          @map("user_id")
