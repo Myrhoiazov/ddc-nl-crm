@@ -4,6 +4,10 @@
  * ai_email_messages/ai_email_drafts, and without notifying Telegram. Read-only against the real
  * CRM (contact lookup) and the real knowledge base (retrieval); nothing is persisted.
  *
+ * The actual pipeline run lives in `../src/modules/ai-email-assistant/simulation.service.ts`,
+ * shared with the "Симуляция письма" panel on the KnowledgeBasePage admin page (HTTP) — this
+ * file is just argument parsing and human-readable/JSON printing around that one call.
+ *
  * Usage (from server/, with the environment that points at your Ollama + MySQL):
  *   npm run ai:test-flow -- --subject "Тема" --body "Текст письма" [--from a@b.com]
  *   echo "Текст письма" | npm run ai:test-flow -- --subject "Тема"
@@ -24,17 +28,13 @@
  */
 import { readFileSync } from 'node:fs';
 import prisma from '../prisma/prisma-client';
-// Imported from their specific submodules rather than the `ai-email-assistant` barrel: the
-// barrel also re-exports send.persistence.ts, which pulls in
+// Imported directly rather than through the `ai-email-assistant` barrel: the barrel also
+// re-exports send.persistence.ts, which pulls in
 // communication/email/email-smtp.service.ts -> email-imap.service.ts, which imports back from
 // the barrel itself. That cycle resolves fine in the real app's own import order, but a script
 // that imports the barrel first hits it mid-evaluation and gets `undefined` exports. This script
 // doesn't need the SMTP-sending path at all, so it just avoids the barrel entirely.
-import { normalizeEmail, deterministicSpamReason } from '../src/modules/ai-email-assistant/email-assistant.service';
-import { OllamaLlmClient } from '../src/modules/ai-email-assistant/ollama.client';
-import { createPrismaCrmReader } from '../src/modules/ai-email-assistant/crm-context.service';
-import { buildDraftContext, generateEmailDraft, emailDraftSchema } from '../src/modules/ai-email-assistant/draft.service';
-import { KnowledgeRetrievalService, MysqlKnowledgeRepository, OllamaEmbeddingClient } from '../src/modules/knowledge-ingestion';
+import { runEmailAssistantSimulation } from '../src/modules/ai-email-assistant/simulation.service';
 import { aiConfig } from '../src/config/ai.config';
 
 interface CliArgs {
@@ -88,77 +88,42 @@ const main = async () => {
     if (!bodyText && !process.stdin.isTTY) bodyText = await readStdin();
     if (!bodyText?.trim()) throw new Error('Provide the email body via --body, --body-file, or stdin');
 
-    const json: Record<string, unknown> = {};
+    const result = await runEmailAssistantSimulation({
+        from: args.from, subject: args.subject, body: bodyText,
+        topK: args.topK, noKnowledge: args.noKnowledge, forceDraft: args.forceDraft,
+    });
 
-    // --- Stage 1: normalize ---
-    const normalized = normalizeEmail({ fromAddress: args.from, subject: args.subject, text: bodyText });
-    json.normalized = normalized;
-    if (!args.json) {
-        section('1. NORMALIZE');
-        console.log(normalized);
+    if (args.json) {
+        console.log(JSON.stringify(result, null, 2));
+        return;
     }
 
-    // --- Stage 2: deterministic spam check ---
-    const spamReason = deterministicSpamReason({ fromAddress: args.from, subject: args.subject, text: bodyText }, normalized);
-    json.deterministicSpamReason = spamReason;
-    if (!args.json) {
-        section('2. DETERMINISTIC SPAM CHECK');
-        console.log(spamReason ? `SPAM (${spamReason}) — the real pipeline would stop here` : 'not spam');
+    section('1. NORMALIZE');
+    console.log(result.normalized);
+
+    section('2. DETERMINISTIC SPAM CHECK');
+    console.log(result.deterministicSpamReason ? `SPAM (${result.deterministicSpamReason}) — the real pipeline would stop here` : 'not spam');
+
+    if (result.classification) {
+        section(`3. CLASSIFY (model: ${aiConfig.ollamaModel})`);
+        console.log(result.classification);
     }
 
-    const client = new OllamaLlmClient();
-    let classification;
-    if (!spamReason) {
-        // --- Stage 3: LLM classification ---
-        classification = await client.classifyEmail(normalized);
-        json.classification = classification;
-        if (!args.json) {
-            section(`3. CLASSIFY (model: ${aiConfig.ollamaModel})`);
-            console.log(classification);
-        }
-    }
-
-    // --- Stage 4: RAG retrieval ---
-    let knowledge: Array<{ id: string; sourceUrl: string; content: string; score: number }> = [];
     if (!args.noKnowledge) {
-        const retrieval = new KnowledgeRetrievalService(new OllamaEmbeddingClient(), new MysqlKnowledgeRepository());
-        knowledge = await retrieval.retrieve(`${normalized.subject}\n${normalized.normalizedBody}`, { topK: args.topK ?? aiConfig.ragTopK });
-        json.knowledge = knowledge.map(({ id, sourceUrl, score }) => ({ id, sourceUrl, score }));
-        if (!args.json) {
-            section(`4. RAG RETRIEVAL (embedding: ${aiConfig.ollamaEmbeddingModel}, topK: ${args.topK ?? aiConfig.ragTopK})`);
-            if (!knowledge.length) console.log('(no relevant knowledge found)');
-            for (const chunk of knowledge) console.log(`score=${chunk.score.toFixed(3)}  ${chunk.sourceUrl}\n  ${chunk.content.slice(0, 160).replace(/\n/g, ' ')}`);
-        }
+        section(`4. RAG RETRIEVAL (embedding: ${aiConfig.ollamaEmbeddingModel}, topK: ${args.topK ?? aiConfig.ragTopK})`);
+        if (!result.knowledge.length) console.log('(no relevant knowledge found)');
+        for (const chunk of result.knowledge) console.log(`score=${chunk.score.toFixed(3)}  ${chunk.sourceUrl}\n  ${chunk.content.slice(0, 160).replace(/\n/g, ' ')}`);
     }
 
-    // --- Stage 5: draft generation ---
-    const shouldDraft = classification && (args.forceDraft || (!classification.spam && classification.needsReply));
-    if (!classification) {
-        json.draft = null;
-        if (!args.json) { section('5. DRAFT'); console.log('skipped — message was deterministic spam'); }
-    } else if (!shouldDraft) {
-        json.draft = null;
-        if (!args.json) {
-            section('5. DRAFT');
-            console.log(`skipped — classification says spam=${classification.spam}, needsReply=${classification.needsReply} (use --force-draft to generate anyway)`);
-        }
+    section('5. DRAFT');
+    if (!result.classification) {
+        console.log('skipped — message was deterministic spam');
+    } else if (result.draftSkippedReason) {
+        console.log(`skipped — ${result.draftSkippedReason} (use --force-draft to generate anyway)`);
     } else {
-        const crmReader = createPrismaCrmReader();
-        const contact = await crmReader.findContactByEmail(args.from);
-        json.crmContact = contact;
-        const draft = args.forceDraft && (classification.spam || !classification.needsReply)
-            // generateEmailDraft itself refuses to draft spam/no-reply-needed emails; --force-draft
-            // bypasses that gate by calling the LLM client directly through the same context shape.
-            ? emailDraftSchema.parse(await client.generateDraft(await buildDraftContext(normalized, classification, crmReader, knowledge)))
-            : await generateEmailDraft(normalized, classification, crmReader, client, knowledge);
-        json.draft = draft;
-        if (!args.json) {
-            section(`5. DRAFT (model: ${aiConfig.ollamaModel})`);
-            console.log(draft);
-        }
+        console.log(`(model: ${aiConfig.ollamaModel})`);
+        console.log(result.draft);
     }
-
-    if (args.json) console.log(JSON.stringify(json, null, 2));
 };
 
 main()

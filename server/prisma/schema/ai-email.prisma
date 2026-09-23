@@ -115,6 +115,32 @@ model AiEmailKnowledgeRef {
   @@map("ai_email_knowledge_refs")
 }
 
+enum AiPromptSlot {
+  DRAFT_BODY
+  CLASSIFICATION
+}
+
+// User-editable, DB-backed system prompts for the two LLM calls in ollama.client.ts
+// (classifyEmail / generateDraft). Only the instructions text is stored here — the dynamic
+// per-email data (FROM/SUBJECT/BODY, or ПИСЬМО_КЛИЕНТА/ДАННЫЕ_CRM/ЗНАНИЯ) is always appended by
+// the application after this content, never editable, so a saved prompt can never omit the
+// actual email the model is supposed to act on. At most one row per slot has isActive=true; the
+// active row is what real production classify/draft calls use. No active row for a slot falls
+// back to the hardcoded default in prompt-library.service.ts, so an empty table changes nothing.
+model AiPrompt {
+  id        Int          @id @default(autoincrement())
+  slot      AiPromptSlot
+  name      String       @db.VarChar(191)
+  content   String       @db.Text
+  tags      Json         @default("[]")
+  isActive  Boolean      @default(false) @map("is_active")
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@index([slot, isActive])
+  @@map("ai_prompts")
+}
+
 model AiEmailApproval {
   id          Int                   @id @default(autoincrement())
   draftId     Int                   @map("draft_id")

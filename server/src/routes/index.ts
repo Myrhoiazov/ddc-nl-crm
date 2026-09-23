@@ -16,6 +16,9 @@ import paymentRemindersRouter from '../modules/payment-reminders/payment-reminde
 import healthRouter from '../modules/health/health.routes'
 import authSecurityEventsRouter from '../modules/auth/auth.security-events.routes'
 import telegramApprovalRouter from '../modules/ai-email-assistant/telegram-approval.routes'
+import aiEmailSimulationRouter from '../modules/ai-email-assistant/simulation.routes'
+import aiPromptRouter from '../modules/ai-email-assistant/prompt.routes'
+import knowledgeRouter from '../modules/knowledge-ingestion/knowledge-ingestion.routes'
 
 const router = express.Router();
 
@@ -36,6 +39,9 @@ export default (): express.Router => {
     router.use('/payment-reminders', paymentRemindersRouter)
     router.use('/auth-security-events', authSecurityEventsRouter)
     router.use('/telegram', telegramApprovalRouter)
+    router.use('/ai-email', aiEmailSimulationRouter)
+    router.use('/ai-email/prompts', aiPromptRouter)
+    router.use('/knowledge', knowledgeRouter)
 
     router.use('/instagram', instagramRouter)
 

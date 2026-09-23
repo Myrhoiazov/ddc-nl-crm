@@ -1,7 +1,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { OllamaLlmClient } from './ollama.client';
+import { DEFAULT_PROMPT_CONTENT, type AiPromptRepository } from './prompt-library.service';
 import type { DraftContext } from './draft.service';
+
+// No AiPrompt row is ever active in these tests — resolves straight to the built-in defaults,
+// exactly like a real, freshly-migrated ai_prompts table would, without touching Prisma/MySQL.
+const fakePromptRepository: AiPromptRepository = {
+    list: async () => [],
+    getActiveContent: async (slot) => DEFAULT_PROMPT_CONTENT[slot],
+    getContentById: async () => null,
+    create: async () => { throw new Error('not implemented in fakePromptRepository'); },
+    update: async () => { throw new Error('not implemented in fakePromptRepository'); },
+    activate: async () => { throw new Error('not implemented in fakePromptRepository'); },
+    remove: async () => { throw new Error('not implemented in fakePromptRepository'); },
+};
 
 const input = {
     fromAddress: 'parent@example.com',
@@ -18,12 +31,18 @@ const config = {
     maxConcurrency: 1,
     ollamaEmbeddingModel: '',
     ragTopK: 4,
+    ragQueryExpansionEnabled: false,
+    ragRerankEnabled: false,
+    ragRerankModel: 'test-reranker',
+    ragChunkSize: 700,
+    ragChunkOverlap: 100,
 };
 
 test('Ollama client uses configured model and validates structured output', async () => {
     const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async (url, init) => {
             requests.push({ url: String(url), body: JSON.parse(String(init?.body)) });
             return new Response(JSON.stringify({ response: JSON.stringify({
@@ -52,6 +71,7 @@ test('classification prompt gives explicit needsReply criteria', async () => {
     const requests: Array<{ body: Record<string, unknown> }> = [];
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async (_url, init) => {
             requests.push({ body: JSON.parse(String(init?.body)) });
             return new Response(JSON.stringify({ response: JSON.stringify({
@@ -67,6 +87,7 @@ test('Ollama client performs one repair retry for invalid JSON', async () => {
     let calls = 0;
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async () => {
             calls += 1;
             const response = calls === 1 ? 'not json' : JSON.stringify({
@@ -105,6 +126,7 @@ test('generateDraft asks the model for body text only, with reasoning disabled',
     const requests: Array<{ body: Record<string, unknown> }> = [];
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async (_url, init) => {
             requests.push({ body: JSON.parse(String(init?.body)) });
             return new Response(JSON.stringify({ response: 'Ja, dat kan zeker.' }), { status: 200 });
@@ -126,6 +148,7 @@ test('generateDraft prompt gives the model a consultant persona and tone in Russ
     const requests: Array<{ body: Record<string, unknown> }> = [];
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async (_url, init) => {
             requests.push({ body: JSON.parse(String(init?.body)) });
             return new Response(JSON.stringify({ response: 'Ответ.' }), { status: 200 });
@@ -141,6 +164,7 @@ test('generateDraft prompt gives the model a consultant persona and tone in Russ
 test('generateDraft fills replyLanguage/subject/usedKnowledgeIds deterministically, not from the model', async () => {
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         // A model reply that is not JSON at all — it doesn't need to be, only the body matters.
         fetchImpl: async () => new Response(JSON.stringify({ response: 'Ja hoor, een proefles kan altijd.' }), { status: 200 }),
     });
@@ -156,6 +180,7 @@ test('generateDraft fills replyLanguage/subject/usedKnowledgeIds deterministical
 test('generateDraft derives confidence/needsManualAnswer from retrieval scores, not model self-report', async () => {
     const client = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async () => new Response(JSON.stringify({ response: 'Antwoord.' }), { status: 200 }),
     });
 
@@ -176,6 +201,7 @@ test('generateDraft retries once on an empty body and fails after that', async (
     let calls = 0;
     const emptyClient = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async () => {
             calls += 1;
             return new Response(JSON.stringify({ response: calls === 1 ? '   ' : 'Een geldig antwoord.' }), { status: 200 });
@@ -187,6 +213,7 @@ test('generateDraft retries once on an empty body and fails after that', async (
 
     const alwaysEmptyClient = new OllamaLlmClient({
         config,
+        promptRepository: fakePromptRepository,
         fetchImpl: async () => new Response(JSON.stringify({ response: '' }), { status: 200 }),
     });
     await assert.rejects(alwaysEmptyClient.generateDraft(draftContext), /empty or too-short draft body/);
