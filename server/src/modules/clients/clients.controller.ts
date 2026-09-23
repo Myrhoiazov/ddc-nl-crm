@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { createClient, deleteClient, getAllClients, getClientById, updateClient } from './clients.service';
+import { getClientCount, createClient, deleteClient, getAllClients, getClientById, updateClient } from './clients.service';
 import { Client, Prisma } from '@prisma/client';
 import { imageUpload } from '../../common/utils/file-upload';
 import prisma from '../../../prisma/prisma-client';
@@ -431,4 +431,8 @@ export const deleteClientByIdController = async (req: Request, res: Response) =>
         console.error('Error deleting client:', error);
         return res.status(500).json({ message: 'Internal server error' });
     }
+};
+
+export const getClientCountController = async (_req: Request, res: Response) => {
+    return res.status(200).json({ count: await getClientCount() });
 };
