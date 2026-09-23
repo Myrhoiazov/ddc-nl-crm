@@ -22,6 +22,13 @@ const csrfExempt = (req: Request) => {
         (req.method === 'POST' && authPostExempt.has(path))
         || path === '/mollie/webhook'
         || path === '/instagram/webhook'
+        // Telegram calls this server-to-server with no Origin header and no session/CSRF
+        // cookies, exactly like the two webhooks above — its own secret-header check
+        // (telegramWebhookSecretIsValid) is the real authentication here. Found live while
+        // testing the admin bot: with TELEGRAM_POLLING_ENABLED=false, every webhook POST
+        // (both the pre-existing email-draft-approval bot and the new admin bot) was silently
+        // 403'd by this middleware before ever reaching the controller.
+        || path === '/telegram/webhook'
     );
 };
 

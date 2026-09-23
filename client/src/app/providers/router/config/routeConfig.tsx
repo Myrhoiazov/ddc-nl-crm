@@ -24,6 +24,7 @@ import { InvoicesPage } from '@/pages/InvoicesPage';
 import { OrganizationBrandsPage } from '@/pages/OrganizationBrandsPage';
 import { EmailPage } from '@/pages/EmailPage';
 import { PaymentRemindersPage } from '@/pages/PaymentRemindersPage';
+import { KnowledgeBasePage } from '@/pages/KnowledgeBasePage';
 import { AppRoutes, AppRoutesProps, RoutePath } from '@/shared/config/routeConfig/routeConfig';
 
 export const routeConfig: Record<AppRoutes, AppRoutesProps> = {
@@ -170,6 +171,11 @@ export const routeConfig: Record<AppRoutes, AppRoutesProps> = {
     [AppRoutes.PAYMENT_REMINDERS]: {
         path: RoutePath.payment_reminders,
         element: <PaymentRemindersPage />,
+        authOnly: true,
+    },
+    [AppRoutes.KNOWLEDGE_BASE]: {
+        path: RoutePath.knowledge_base,
+        element: <KnowledgeBasePage />,
         authOnly: true,
     },
     [AppRoutes.NOT_FOUND]: {

@@ -127,6 +127,8 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
   | `npm run test:payment-reminders` | Payment reminders service |
   | `npm run test:invoice-delivery` | Invoice delivery service |
   | `npm run test:transactions` | Transactions service |
+  | `npm run test:local-ai` | Local AI email assistant + knowledge ingestion (config, classification, drafting, approval, send pipeline, Telegram, RAG) |
+  | `npm run test:telegram-admin-bot` | Telegram admin bot (RBAC resolver, flow-state store, bot API client, dashboard/search/student-create flows, shared update dispatcher) |
   | `npm run test:ci` | Aggregate: all of the above + Invoices controller (what `npm run ci` at root runs) |
 
 - After editing Prisma schema: `cd server && npm run prisma:generate`.

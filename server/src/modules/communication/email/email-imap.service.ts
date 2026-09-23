@@ -4,6 +4,14 @@ import prisma from '../../../../prisma/prisma-client';
 import { logger } from '../../../common/logger';
 import { decryptEmailSecret } from './email-crypto.service';
 import { storeAttachmentFile } from './email-attachment-storage.service';
+import {
+    createPrismaAiEmailRepository,
+    deterministicSpamReason,
+    DETERMINISTIC_SPAM_PROMPT_VERSION,
+    normalizeEmail,
+    persistClassification,
+    persistNormalizedEmail,
+} from '../../ai-email-assistant';
 
 export { ATTACHMENTS_DIR } from './email-attachment-storage.service';
 
@@ -118,6 +126,7 @@ const saveAttachments = async (messageDbId: number, attachments: ParsedAttachmen
 // so a plain in-memory guard is enough; a second caller just gets a clear
 // "already syncing" error instead of a corrupted cursor.
 const accountsCurrentlySyncing = new Set<number>();
+const aiEmailRepository = createPrismaAiEmailRepository();
 
 export const syncEmailAccount = async (accountId: number): Promise<SyncResult> => {
     if (accountsCurrentlySyncing.has(accountId)) {
@@ -164,6 +173,14 @@ const processMessage = async (
 
     if (!fromAddress) return { created: false, uid: message.uid };
 
+    const normalized = normalizeEmail({
+        fromAddress,
+        subject: message.envelope?.subject ?? parsed?.subject,
+        text: parsed?.text,
+        html: typeof parsed?.html === 'string' ? parsed.html : undefined,
+        headers: parsed?.headers,
+    });
+
     const clientId = await findClientIdByAddress(fromAddress, clientIdCache);
 
     const savedMessage = await prisma.emailMessage.upsert({
@@ -182,14 +199,47 @@ const processMessage = async (
             fromName: message.envelope?.from?.[0]?.name ?? undefined,
             toAddresses: addressesToJson(message.envelope?.to),
             ccAddresses: addressesToJson(message.envelope?.cc),
-            subject: message.envelope?.subject ?? undefined,
-            bodyText: parsed?.text ?? undefined,
+            subject: normalized.subject || undefined,
+            bodyText: normalized.normalizedBody || undefined,
             bodyHtml: typeof parsed?.html === 'string' ? parsed.html : undefined,
             receivedAt: message.envelope?.date ?? new Date(),
             clientId: clientId ?? undefined,
         },
         update: {},
     });
+
+    const aiMessage = await persistNormalizedEmail(aiEmailRepository, {
+        sourceEmailMessageId: savedMessage.id,
+        messageId: message.envelope?.messageId,
+        threadKey: message.envelope?.inReplyTo ?? message.envelope?.messageId,
+        sender: normalized.fromAddress,
+        recipients: addressesToJson(message.envelope?.to),
+        subject: normalized.subject || null,
+        normalizedBody: normalized.normalizedBody,
+        receivedAt: message.envelope?.date ?? new Date(),
+    });
+
+    const spamReason = deterministicSpamReason({
+        fromAddress,
+        subject: normalized.subject,
+        text: parsed?.text,
+        html: typeof parsed?.html === 'string' ? parsed.html : undefined,
+        headers: parsed?.headers,
+    }, normalized);
+
+    if (spamReason) {
+        await persistClassification(aiEmailRepository, aiMessage.id, {
+            spam: true,
+            needsReply: false,
+            language: 'unknown',
+            intent: 'other',
+            confidence: 1,
+            reason: spamReason,
+        }, {
+            model: 'deterministic',
+            promptVersion: DETERMINISTIC_SPAM_PROMPT_VERSION,
+        });
+    }
 
     if (parsed?.attachments?.length) {
         await saveAttachments(savedMessage.id, parsed.attachments);
