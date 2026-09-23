@@ -235,6 +235,10 @@ const clientListInclude = {
     },
 };
 
+// Nothing currently exposes a bare student count — getAllClients returns the full array with no
+// pagination/count metadata. Used by the Telegram admin bot's dashboard flow (tasks/plan.md).
+export const getClientCount = () => prisma.client.count();
+
 export const getAllClients = async (params: GetClientsParams) => {
 
     const {
