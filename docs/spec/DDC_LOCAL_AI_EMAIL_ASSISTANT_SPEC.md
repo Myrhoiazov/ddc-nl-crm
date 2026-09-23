@@ -383,6 +383,13 @@ Dry-run should report discovered, eligible, excluded, new, changed, unchanged an
 
 Provide a controlled administrative ingestion path. V1 may use CLI/import directory; a CRM admin UI can be added later.
 
+**Implemented (V1.1):** the Knowledge Base admin page (`client/src/pages/KnowledgeBasePage/`)
+provides this path in the CRM UI — multipart file upload against the same allowlist/validation as
+below, plus manual single-URL crawling (fetch + normalize + embed one page on demand, reusing the
+website normalization pipeline without sitemap discovery), category assignment
+(`KnowledgeCategory` enum), and an LLM-derived priority + tags metadata trigger, in addition to the
+CLI import path.
+
 Initial supported formats:
 
 - `.pdf` — PDFs with extractable text;
@@ -512,6 +519,12 @@ The service should support:
 
 A full admin UI is not required for the first vertical slice.
 
+**Implemented (V1.1):** the Knowledge Base admin page covers list/search (paginated 20/page),
+category/priority/tags metadata, status, manual re-embed, and file/URL ingestion (§10.4) from the
+CRM UI, plus an editable prompt library and an email-simulation panel (§11) — see
+[Local AI Email Assistant Operations](DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md) for the
+operational detail.
+
 ### 10.10 Storage
 
 Keep V1 lightweight and reuse existing infrastructure where sensible.
@@ -553,7 +566,7 @@ Do not duplicate the knowledge base only to solve translation.
 
 ### 10.12 Retrieval rules
 
-- retrieve a small number of chunks (`topK` default 4);
+- retrieve a small number of chunks (`topK` default 4, `RAG_TOP_K`);
 - search active/current versions only;
 - use metadata/category/language filters when useful;
 - set a minimum relevance threshold;
@@ -564,6 +577,28 @@ Do not duplicate the knowledge base only to solve translation.
 - never invent an answer when retrieval is weak or conflicting.
 
 If reliable context is missing, set `needs_manual_answer=true`.
+
+**Implemented (V1.1):** the minimum-score bar and de-dup above run first and are never widened by
+what follows — every technique below only re-ranks/re-selects within that already-qualifying set:
+
+- **BM25 + RRF** (always on, no flag): chunks are additionally scored by lexical (BM25) overlap,
+  and the final `topK` selection is a Reciprocal Rank Fusion of the cosine and BM25 rankings
+  (`bm25.service.ts`/`rrf.service.ts`).
+- **Query expansion** (`RAG_QUERY_EXPANSION_ENABLED`, default `false`): an optional LLM pass
+  extracts/expands search keywords from the incoming message before retrieval, to disambiguate
+  vague or casual phrasing (`query-expansion.service.ts`).
+- **Reranker** (`RAG_RERANK_ENABLED`/`RAG_RERANK_MODEL`, default `false`): an optional pass
+  re-orders the selected chunks by relevance — native Ollama `/api/rerank` first, a bi-encoder
+  cosine pass as fallback, original order if both fail (`reranker.service.ts`).
+
+In every case the chunk's returned `score` field stays the original cosine similarity, never a
+BM25/RRF/rerank score, so the `needs_manual_answer` confidence threshold stays comparable across
+configurations. Both optional flags default off for the real production pipeline; they are always
+available (with opt-out toggles) in the admin "Симуляция письма" simulation panel so their effect
+can be evaluated before enabling either in production.
+
+Chunk size/overlap at ingestion time (`RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP`, default 700/100
+characters) are also configuration-driven rather than hardcoded — see §10.6.
 
 ## 11. Prompting and draft generation
 
@@ -578,7 +613,9 @@ The model receives only:
 
 It MUST NOT receive secrets, DB credentials, unrelated customers, complete CRM records, or arbitrary repository context.
 
-Draft result example:
+**Implemented (V1.1):** only `body` is model-generated. Every other field is computed
+deterministically by application code and therefore can never fail schema/language validation
+regardless of what the model returns, as long as it returns non-empty text:
 
 ```json
 {
@@ -591,6 +628,15 @@ Draft result example:
 }
 ```
 
+- `replyLanguage` — copied from the classification result, not parsed from model output;
+- `subject` — `Re: <original subject>`, not model-generated;
+- `confidence`/`needsManualAnswer` — derived from the top retrieval `score` (cosine similarity),
+  not the model's self-report;
+- `usedKnowledgeIds` — the IDs of the knowledge chunks actually supplied as context, not a
+  model-reported list;
+- `body` — the only model-generated field; the model is asked for body text only, with reasoning
+  disabled (`think: false`), no JSON schema requested from it.
+
 Generation rules:
 
 - answer in the sender's language unless CRM policy says otherwise;
@@ -599,6 +645,15 @@ Generation rules:
 - when information is insufficient, ask for manual handling instead of guessing;
 - keep replies concise and natural;
 - never claim an action was performed unless application state proves it.
+
+**Implemented (V1.1) — editable prompt library:** the instructions text of both LLM calls
+(classification and draft body) is admin-editable and DB-backed (`AiPrompt` model,
+`prompt-library.service.ts`, Knowledge Base admin page). Only the instructions are stored/editable
+— the dynamic per-email data above is always appended by application code after the stored
+content and is never part of what an admin edits, so a saved prompt can never omit the actual
+email the model must act on. At most one prompt row per slot is active; the active row drives real
+production classify/draft calls (not only the simulation panel); no active row falls back to the
+hardcoded default, so an empty table changes nothing.
 
 ## 12. Telegram human-in-the-loop
 

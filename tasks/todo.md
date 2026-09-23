@@ -28,3 +28,88 @@
 - [ ] Code review passed
 - [ ] Browser QA completed or marked not required
 - [ ] Ready for PR
+
+## Knowledge Base Admin Page (2026-09-22)
+
+- [x] Task 29: Prisma — `category`/`priority`/`tags` on `KnowledgeDocument`, new `PENDING` status
+- [x] Task 30: Backend — manual file upload + single-URL crawl staging (with SSRF guard)
+- [x] Task 31: Backend — admin API (list/patch/delete/run-embedding), ADMIN-only
+- [x] Task 32: Client — `KnowledgeBasePage` (upload/crawl forms, table, route, sidebar entry)
+- [x] Task 33: Wire new tests into `test:local-ai`; `npm run ci` green
+- [x] Checks passed (server: typecheck + test:local-ai 97 + test:ci 349; client: lint/stylelint + test 1011)
+- [ ] Code review passed
+- [x] Browser QA completed (real dev stack: crawled a real URL, uploaded a real file, ran embedding via real Ollama, dark theme, cleaned up test rows) — found and fixed 2 real bugs (see plan.md "Delivered and live-verified")
+- [ ] Ready for PR (into `feat/local-ai-email-assistant-phase0`, not `develop` — see plan.md)
+
+## Email Assistant Simulation Panel (2026-09-22, same day)
+
+- [x] Task 34: Extract `ai:test-flow` CLI's pipeline into shared `simulation.service.ts`
+- [x] Task 35: `POST /ai-email/simulate` HTTP endpoint, ADMIN-only
+- [x] Task 36: `EmailSimulationPanel` on `KnowledgeBasePage` (form + rendered model output)
+- [x] Checks passed (server: typecheck + test:local-ai 101/101; client: stylelint + test 1014/1014)
+- [ ] Code review passed
+- [x] Browser QA completed live — real pricing question correctly classified/answered with real
+  knowledge citations; deterministic-spam branch also verified live (see plan.md)
+- [ ] Ready for PR (same branch as the Knowledge Base Admin Page section above)
+
+## Knowledge Documents Pagination (2026-09-22, same day)
+
+- [x] Task 37: `GET /knowledge/documents` paginated (`_page`/`_limit`, `+pendingTotal`)
+- [x] Task 38: Client pagination UI, 20/page, reusing `InvoicesPagePagination`'s pattern
+- [x] Checks passed (server: typecheck + test:local-ai 101/101; client: stylelint + test 1015/1015)
+- [ ] Code review passed
+- [x] Browser QA completed live — real 55-document knowledge base showed 3 pages, page 2 loaded
+  real different documents on click
+- [ ] Ready for PR (same branch as the sections above)
+
+## Editable, DB-Backed System Prompts (2026-09-22, same day)
+
+- [x] Task 39: `AiPrompt` model — slot/name/content/tags, one active row per slot
+- [x] Task 40: `ollama.client.ts` resolves instructions from active/overridden prompt, not hardcoded
+- [x] Task 41: Admin CRUD API `/ai-email/prompts` (list/create/update/activate/delete), ADMIN-only
+- [x] Task 42: Simulation accepts a per-run prompt override (test without activating)
+- [x] Task 43: `PromptLibraryPanel` + prompt selects in `EmailSimulationPanel`
+- [x] Checks passed (server: test:local-ai 107/107; client: stylelint + test 1019/1019)
+- [ ] Code review passed
+- [x] Browser QA completed live — created/tested-without-activating/activated/verified
+  active-affects-default-path/deleted a test prompt; confirmed real dev server crash+recovery
+  from a `replaceAll` ts-node-only compile issue (see plan.md)
+- [ ] Ready for PR (same branch as the sections above)
+
+## Hybrid Retrieval: BM25 + RRF (2026-09-22/23, same session)
+
+- [x] Task 44: `Bm25Search` — pure-TS Okapi BM25, ported from `rag/src/bm25.ts`
+- [x] Task 45: `fuseRankedLists` — Reciprocal Rank Fusion, ported from `rag/src/rrf.ts`
+- [x] Task 46: Wired into `KnowledgeRetrievalService.retrieve()` (score-bar/de-dup unchanged, BM25/RRF only re-rank within the qualifying set)
+- [x] Checks passed (server: tsc + ts-node both clean, test:local-ai 119/119, test:ci 371/371)
+- [ ] Code review passed
+- [x] Browser QA completed live — "Lito Dance Camp" query retrieved 4 correctly-scoped real chunks (cosine scores 0.634–0.690), accurate draft with no fabricated facts
+- [ ] Ready for PR (same branch as the sections above)
+- [x] Follow-ups from this section (reranker, query expansion) — done, see next section
+
+## Query Expansion + Reranker (2026-09-23, same session)
+
+- [x] Task 47: `query-expansion.service.ts` (`OllamaQueryExpansionClient` + pure parser)
+- [x] Task 48: `reranker.service.ts` (`OllamaReranker`, native → bi-encoder → no-op fallback)
+- [x] Task 49: `ai.config.ts` flags (`ragQueryExpansionEnabled`/`ragRerankEnabled`/`ragRerankModel`, all default off for real production) + `.env.example`
+- [x] Task 50: Wired into `KnowledgeRetrievalService`, production cron (config-gated), simulation (always available + opt-out)
+- [x] Task 51: Client checkboxes + query-expansion display in `EmailSimulationPanel`
+- [x] Checks passed (server: tsc + ts-node clean, test:local-ai 135/135, test:ci 387/387; client: test 1020/1020)
+- [ ] Code review passed
+- [x] Browser QA completed live — casual/vague query ("привет а можно узнать что там с высокими
+  каблуками... это как хип хоп или другое") correctly disambiguated to the "High Heels" dance
+  style (not literal footwear) via query expansion; hybrid retrieval + reranker + draft all ran
+  without errors
+- [ ] Ready for PR (same branch as the sections above)
+
+## Configurable Chunk Size/Overlap (2026-09-23, same session)
+
+- [x] Task 52: `ai.config.ts` — `ragChunkSize`/`ragChunkOverlap` fields, defaults 700/100, `RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` env vars
+- [x] Task 53: `embedding.service.ts` — `chunkKnowledgeDocument` defaults now read from config instead of hardcoded 500/250
+- [x] Task 54: Test fixtures updated (`ai.config.test.ts`, `query-expansion.service.test.ts`, `reranker.service.test.ts`, `ollama.client.test.ts`)
+- [x] Task 55: Real gap found + fixed — `RAG_QUERY_EXPANSION_ENABLED`/`RAG_RERANK_ENABLED`/`RAG_RERANK_MODEL`/`RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` were never passed through in `docker-compose.dev.yml`/`docker-compose.prod.yml`
+- [x] Task 56: `.env.example` documented
+- [x] Checks passed (server: tsc + ts-node clean, test:local-ai 136/136, build clean, test:ci 388/388; both compose files validated with `docker compose config`)
+- [ ] Code review passed
+- [x] Browser QA — not repeated; low-risk default-only change over code paths already live-verified in the sections above
+- [ ] Ready for PR (same branch as the sections above)

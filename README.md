@@ -43,12 +43,16 @@ The root package only orchestrates project-level commands. Install dependencies 
 - **Mollie** — client profiles, subscriptions, mandates, payments and incident matrix
 - **Emails** — IMAP/SMTP accounts, messages, attachments (encrypted)
 - **Local AI email assistant** — private, on-prem (Ollama) pipeline: bounded email normalization,
-  deterministic spam checks, LLM classification, RAG retrieval, draft generation, Telegram
+  deterministic spam checks, LLM classification, hybrid RAG retrieval, draft generation, Telegram
   human-approval flow, and approved-only SMTP sending. Every worker is opt-in and disabled by
-  default; nothing is ever sent without human approval.
-- **Knowledge base (RAG)** — ingests the DDC website (sitemap/WordPress discovery) and files
-  (PDF/DOCX/TXT/MD/HTML), normalizes and chunks content, stores local embeddings in MySQL, and
-  retrieves attributable context for AI drafts.
+  default; nothing is ever sent without human approval. Both LLM prompts (classification + draft
+  body) are admin-editable and DB-backed.
+- **Knowledge base (RAG)** — ingests the DDC website (sitemap/WordPress discovery), files
+  (PDF/DOCX/TXT/MD/HTML), and manually crawled URLs; normalizes, categorizes and chunks content;
+  stores local embeddings in MySQL; retrieves via hybrid cosine+BM25+RRF search (optional LLM
+  query expansion + reranker) as attributable context for AI drafts. Managed from an in-app
+  Knowledge Base admin page — upload, crawl, categorize/tag, re-embed, plus a prompt-library editor
+  and an email-simulation panel to preview model output without sending anything.
 - **Users, Roles, Settings** — organization, brands, company pages, content hub
 - **Security** — Argon2id password hashing, cookie sessions with CSRF, 2FA email flow, Telegram OIDC
   login as an additional ADMIN-only provider, rate limiting (Redis-based with in-memory fallback),

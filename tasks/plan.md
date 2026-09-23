@@ -551,3 +551,527 @@ each is independently verifiable.
 - Telegram approval delivery for the Task 19 live test was confirmed by the user via a screenshot
   of the actual Telegram message (draft `11:1`, full formatted notification with Approve/Edit/
   Reject/Spam buttons) — the end-to-end classify → draft → Telegram-notify path genuinely works.
+
+## Knowledge Base Admin Page (2026-09-22)
+
+User request: study the standalone `rag/` reference project (hybrid RAG: query expansion, BM25,
+RRF, reranker, upload UI, MCP server) and pull in what's worth integrating, plus add a dedicated
+admin page for managing the knowledge base manually — file upload, a URL field for one-off page
+crawling, a "run embedding" action, a category per document, and LLM-facing metadata (priority,
+tags). Decisions made with the user (brainstorming session): admin page ships first; the
+BM25/RRF/reranker pipeline upgrade is deliberately deferred to a separate future task since it's a
+backend-only change independent of this UI. Category is a fixed enum mirroring the
+`server/knowledge/ddc-knowledge/` folder taxonomy already in use. Metadata fields: priority
+(weight) + free-form tags — audience/language and expiry were considered but not requested.
+"Insert a link" was clarified by the user to mean a URL to crawl for content, not a reranker
+endpoint setting.
+
+Key existing-code findings that shape this section's tasks:
+- `KnowledgeRetrievalService` (`server/src/modules/knowledge-ingestion/retrieval.service.ts`) is
+  vector-only cosine similarity today — untouched by this section.
+- `MysqlKnowledgeRepository.persistDocument` always embeds and writes chunks in one step, setting
+  `status: 'ACTIVE'` unconditionally — there is no "staged, not yet embedded" state, which the
+  user's explicit "run embedding" button requires.
+- `KnowledgeDocument`/`KnowledgeChunk` (`server/prisma/schema/knowledge.prisma`) have no
+  category/priority/tags columns today.
+- There is currently no HTTP route at all for knowledge management — everything runs through the
+  WordPress/sitemap cron (`sync.service.ts`) or the AI email assistant's internal use of
+  `KnowledgeRetrievalService`. This section adds the first admin-facing API and UI for it.
+- `isAllowedKnowledgeUrl` (`knowledge-ingestion.service.ts`) enforces a domain allowlist for the
+  existing WordPress/sitemap sources — too restrictive for an admin pasting an arbitrary URL, and
+  it does not guard against SSRF (private/loopback/link-local targets), which a new manual-crawl
+  endpoint needs independently.
+
+- [x] Task 29: Knowledge document category/priority/tags + a "staged, not yet embedded" status.
+  - Acceptance: `KnowledgeDocumentStatus` gains `PENDING` (content stored, no chunks yet);
+    `KnowledgeDocument` gains `category` (new `KnowledgeCategory` enum: `BRAND`, `LOCATIONS`,
+    `DANCE_STYLES`, `CLASSES`, `SCHEDULE`, `REGISTRATION`, `FAQ`, `CAMP`, `BUSINESS_RULES`,
+    `SOURCES`, `OTHER`), `priority` (`Int @default(0)`), `tags` (`Json`, string array); migration
+    applied; `prisma:generate` run; existing WordPress/sitemap sync path unaffected (defaults
+    `category = OTHER`, `priority = 0`, `tags = []` for documents it creates).
+  - Verification: `cd server && npm run prisma:generate`; existing
+    `knowledge-ingestion.service.test.ts`/`sync.service.test.ts` still pass unmodified.
+  - Dependencies: None.
+  - Files: `server/prisma/schema/knowledge.prisma` (+ migration).
+  - Estimated scope: S.
+- [x] Task 30: Manual ingestion staging — file upload and single-URL crawl, saved as `PENDING`.
+  - Acceptance: `MysqlKnowledgeRepository` gains a `stageDocument` method that persists a
+    `NormalizedKnowledgeDocument` + category/priority/tags with status `PENDING` and **no**
+    chunks (no embedding call made). A new `crawlKnowledgeUrl(url, options)` function
+    (`knowledge-ingestion.service.ts` or a sibling file) fetches a single page and normalizes it
+    like `importKnowledgeFile` does for files, sourceType `'manual'`. New SSRF guard rejects
+    non-`http(s)` protocols and resolves the hostname to reject loopback/private/link-local/
+    multicast ranges (10.x, 172.16–31.x, 192.168.x, 127.x, 169.254.x, `::1`, `fc00::/7`,
+    `fe80::/10`) before fetching — independent of `isAllowedKnowledgeUrl`'s domain allowlist,
+    which does not apply to an admin-supplied arbitrary URL.
+  - Verification: new unit tests for `stageDocument` (MySQL repository, mocked Prisma client) and
+    the SSRF guard (rejects `http://127.0.0.1/`, `http://169.254.169.254/`, `file:///etc/passwd`,
+    accepts a real public URL); reuse existing `importKnowledgeFile` tests unchanged.
+  - Dependencies: Task 29.
+  - Files: `server/src/modules/knowledge-ingestion/mysql-knowledge.repository.ts`,
+    `knowledge-ingestion.service.ts` (+ new SSRF guard, own test file).
+  - Estimated scope: M.
+- [x] Task 31: Knowledge admin API — upload, crawl, list, edit metadata, run embedding, delete.
+  - Acceptance: new `knowledge-ingestion.routes.ts` → `.controller.ts`, `requireRole('ADMIN')`,
+    mounted at `/knowledge` in `server/src/routes/index.ts`:
+    `POST /knowledge/documents/upload` (multipart, reuses `MAX_KNOWLEDGE_FILE_BYTES`/
+    `SUPPORTED_KNOWLEDGE_EXTENSIONS`, deletes the temp file after extraction), `POST
+    /knowledge/documents/crawl` (`{ url, category, priority, tags }`), `GET /knowledge/documents`
+    (list with category/status filter + chunk count), `PATCH /knowledge/documents/:id` (category/
+    priority/tags only), `DELETE /knowledge/documents/:id`, `POST
+    /knowledge/documents/:id/embed` and `POST /knowledge/documents/embed` (bulk: all `PENDING`) —
+    both chunk via `chunkKnowledgeDocument`, embed via `OllamaEmbeddingClient`, persist chunks,
+    flip status to `ACTIVE`.
+  - Verification: new `knowledge-ingestion.controller.test.ts` (node --test, mirrors
+    `company.controller.test.ts` conventions) covering upload/crawl/embed/list/patch/delete +
+    the ADMIN-only guard; `cd server && npm run build`.
+  - Dependencies: Task 30.
+  - Files: `server/src/modules/knowledge-ingestion/knowledge-ingestion.routes.ts` (new),
+    `knowledge-ingestion.controller.ts` (new, + test), `server/src/routes/index.ts`.
+  - Estimated scope: M.
+- [x] Task 32: `KnowledgeBasePage` — upload/crawl forms, category/priority/tags, documents table.
+  - Acceptance: new page at `client/src/pages/KnowledgeBasePage` (self-contained hooks pattern,
+    matching `OrganizationBrandsPage` — no Redux slice, direct `$apiPrivate` calls): drag-and-drop
+    or file-picker upload OR a URL field (mutually exclusive in one form), category `<select>`,
+    priority input, tags chip-input; a table of documents (title, category, status badge,
+    priority, tags, chunk count, last synced) with "Запустить эмбеддинг" (only on `PENDING`
+    rows) and delete actions; dark theme via `-redesigned` tokens per
+    `.claude/rules/code-style.md` rule 3 (status badges) and rule 5 (dark theme check). Wired into
+    `AppRoutes`/`RoutePath` (`KNOWLEDGE_BASE` / `/knowledge-base`) and the ADMIN-only sidebar
+    block in `getSidebarItems.ts` (next to "Почта"), reusing the `ContentHub` icon.
+  - Verification: `npm run lint:ts` and `npm test` from `client/`; manual browser QA (upload a
+    `.md` file, crawl a real URL, run embedding, confirm status transitions PENDING → ACTIVE,
+    check dark theme).
+  - Dependencies: Task 31.
+  - Files: `client/src/pages/KnowledgeBasePage/*` (new), `client/src/app/providers/router/config/
+    routeConfig.tsx`, `client/src/shared/config/routeConfig/routeConfig.tsx`,
+    `client/src/widgets/Sidebar/model/selectors/getSidebarItems.ts`.
+  - Estimated scope: M.
+- [x] Task 33: Wire new server tests into the domain test script; full `npm run ci` green.
+  - Acceptance: every new/changed server test file (Tasks 30/31) added to `test:local-ai` (and
+    therefore `test:ci`) in `server/package.json`'s explicit file list — this project's domain
+    scripts are hand-listed, not glob-based; nothing new introduced by this section slips out of
+    `npm run ci`.
+  - Verification: `cd server && npm run test:local-ai`; `npm run ci` from repo root.
+  - Dependencies: Tasks 29–32.
+  - Files: `server/package.json`.
+  - Estimated scope: XS.
+
+**Risks specific to this section:**
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Manual URL crawl becomes an SSRF vector (admin-supplied URL reaching internal services, e.g. the Docker-internal Ollama/MySQL hosts or cloud metadata endpoints) | High | Dedicated protocol + resolved-IP-range guard in Task 30, independent of the existing domain-allowlist guard; deny-by-default. |
+| `stageDocument`/`persistDocument` divergence causes the two paths (auto sync vs. manual staging) to drift | Medium | Task 30 extends the existing repository class rather than forking a parallel one; both share `chunkKnowledgeDocument`/`OllamaEmbeddingClient`. |
+| Uploaded file content is sensitive (student/client data mistakenly uploaded as "knowledge") | Medium | ADMIN-only route guard (Task 31); no change to existing `MAX_KNOWLEDGE_FILE_BYTES`/extension allowlist. |
+| Prisma enum migration on a table already holding rows from the WordPress/sitemap sync | Low | `category`/`priority`/`tags` all ship with defaults (Task 29), so the migration backfills existing rows without a data-migration script. |
+
+**Open questions:** None outstanding — decomposition, category taxonomy, metadata fields, and the
+"link" meaning were all confirmed with the user before this section was written.
+
+**Delivered and live-verified.** Migration applied against the real local dev DB (`docker exec
+ddc-nl-backend-dev` — `prisma migrate dev` couldn't create a shadow DB under this DB user's
+privileges, so the SQL was generated via `prisma migrate diff --from-url ... --to-schema-datamodel`
+and hand-added as a migration folder, then applied with `prisma migrate deploy`; the generated JSON
+`tags` column needed an explicit `DEFAULT (JSON_ARRAY())` added by hand — Prisma's diff omitted a
+default entirely, which would have failed against the 56 existing rows). `npm run typecheck`/
+`test:local-ai` (97 tests) and full `npm run test:ci` (349 tests) green on server; full client
+`npm test` (1011 tests) and `stylelint` green.
+
+Full manual browser QA against the real dev stack (logged in as the seeded `test@test.com` ADMIN)
+surfaced two real bugs that automated tests had missed, both fixed:
+- **Path params containing `:`/`/` (e.g. a manual URL's document id, which embeds the crawled URL
+  itself) broke the REST routes** — `/knowledge/documents/:id/embed` 404'd because the client built
+  the URL with a raw, unencoded id. Fixed by `encodeURIComponent(id)` on the embed/delete calls
+  (client); confirmed live against a real crawl of `https://example.com/` through to a real Ollama
+  embedding call and `ACTIVE` status.
+- **multer's default temp filename has no extension, but `importKnowledgeFile` picks its
+  parser (pdf/docx/txt/md/html) from the extension of the path on disk, not `req.file.originalname`
+  — every uploaded file was silently rejected as "unsupported file type".** Fixed by giving multer a
+  `filename` function that preserves the original extension (`knowledge-ingestion.routes.ts`, same
+  pattern as `company.routes.ts`'s brand-logo upload) and by passing `sourceId`/`title` from
+  `req.file.originalname` explicitly in the controller — otherwise the document's displayed title
+  and its dedup identity would have been the random temp filename instead of the uploaded file's
+  real name. Confirmed live: uploaded a real `.md` file, saw the correct title, ran embedding, got a
+  real chunk and `ACTIVE` status.
+
+Also found while driving the browser: the automated `computer type` action does not reliably fire
+React's controlled-input `onChange` in this app (login form and the new page's inputs both silently
+kept their old/placeholder value after "type") — worked around with `form_input` for simple cases
+and, when that also didn't trigger the login submit, by dispatching real `input`/`change` events via
+the native value setter and calling `.click()` directly through `javascript_tool`. Not a bug in this
+feature; noting it here in case a future browser-QA session hits the same wall.
+
+Both test knowledge-base rows created during this QA session (`test-knowledge.md`,
+`https://example.com/`) were deleted afterward — the real ~56-document knowledge base (from the
+existing WordPress/sitemap sync) was left untouched.
+
+## Email Assistant Simulation Panel (2026-09-22, same day)
+
+User's direct follow-up request: add a way to simulate a request (subject + body) and see what
+the model answers, on the same `KnowledgeBasePage`. This already existed as a local-only CLI
+(`npm run ai:test-flow`, Task 25) — normalize → deterministic spam check → LLM classify → RAG
+retrieve → draft, read-only against CRM/knowledge, nothing persisted, no Telegram notification.
+Classified as a **bounded** change (brainstorming skill): the flow already exists in this repo,
+this only exposes it over HTTP and adds a UI panel — no new design doc needed.
+
+- [x] Task 34: Extract the CLI's pipeline into a shared, reusable service.
+  - Acceptance: new `server/src/modules/ai-email-assistant/simulation.service.ts` exports
+    `runEmailAssistantSimulation(input)`, the exact same 5 stages `scripts/test-email-flow.ts` ran
+    inline; the CLI script itself refactored to call this function (arg parsing/printing only)
+    so the CLI and the new HTTP endpoint can never drift apart — mirrors how webhook/polling were
+    unified behind `handleTelegramApprovalUpdate` in Task 23.
+  - Files: `server/src/modules/ai-email-assistant/simulation.service.ts` (new),
+    `server/scripts/test-email-flow.ts` (refactored, behavior-preserving).
+- [x] Task 35: HTTP endpoint — `POST /ai-email/simulate`, ADMIN-only.
+  - Acceptance: `simulation.controller.ts` (Zod schema: `subject`/`body` required, `from`/`topK`/
+    `noKnowledge`/`forceDraft` optional) + `simulation.routes.ts`, mounted at `/ai-email` in
+    `server/src/routes/index.ts`, `requireRole(UserRole.ADMIN)`.
+  - Verification: `simulation.controller.test.ts` (Zod schema unit tests — the handler itself,
+    like the CLI it wraps, needs live Ollama/MySQL and isn't unit tested, consistent with
+    `MysqlKnowledgeRepository` being untested for the same reason); wired into `test:local-ai`.
+  - Files: `server/src/modules/ai-email-assistant/simulation.controller.ts` (+ test),
+    `simulation.routes.ts`, `server/src/routes/index.ts`, `server/package.json`.
+- [x] Task 36: `EmailSimulationPanel` on `KnowledgeBasePage` — form + rendered model output.
+  - Acceptance: new section on the same page (per the user's explicit "на той же странице"):
+    from/subject/topK/body inputs, `noKnowledge`/`forceDraft` checkboxes, "Запустить симуляцию";
+    renders deterministic-spam-stop, classification (spam/needsReply/language/intent/confidence),
+    retrieved knowledge chunks (score + sourceUrl + preview), and the generated draft (or the
+    skip reason) — i.e. the CLI's stage-by-stage output, as a web UI.
+  - Files: `client/src/pages/KnowledgeBasePage/emailSimulationTypes.ts`,
+    `useEmailSimulation.ts`, `ui/EmailSimulationPanel.tsx` (+ SCSS additions), wired into
+    `KnowledgeBasePage.tsx`.
+
+**Two things found and fixed while building/verifying this:**
+- A TS inference quirk (not the known no-strictNullChecks one): once `simulation.controller.ts`
+  also imported `simulation.service.ts`'s much larger type graph (draft/classification schemas
+  etc.), `parsed.data` from `schema.safeParse(req.body)` widened to all-fields-optional at the
+  `runEmailAssistantSimulation(parsed.data)` call site specifically — reproduced in isolation,
+  narrowed down to that combination, worked around by destructuring `parsed.data` into named
+  consts and passing a fresh object literal instead of the parsed object wholesale.
+- `t(key, { var })` interpolation does **not** work in this repo's Jest tests — `config/jest/
+  __mocks__/react-i18next.ts` mocks `t` as `(key) => key`, ignoring the options argument entirely.
+  Discovered via a real failing test (rendered literal `{{reason}}` instead of the substituted
+  value), not by reading the mock first. Fixed by dropping interpolation for these labels — static
+  label wrapped in `t()`, dynamic value rendered as a separate `{expression}` beside it (the
+  pattern already used elsewhere on this page, e.g. `STATUS_LABELS`/`doc.priority`) — works
+  identically in both the real i18next runtime and the test mock.
+
+**Delivered and live-verified** against the real dev stack (real Ollama, real ~56-document
+knowledge base, no test rows created since this feature is read-only): a real pricing question
+("Сколько стоит абонемент... для ребёнка 8 лет и есть ли пробное занятие?") correctly classified
+(`pricing`, `confidence 0.90`), retrieved 4 real relevant chunks (FAQ/pricing/trial-lesson,
+scores 0.63–0.70), and produced a coherent Russian draft citing the real prices (€1190/€1390,
+€450 deposit) and trial-lesson availability. Also verified the deterministic-spam branch live
+("you won the lottery, cryptocurrency investment opportunity" → stopped at
+`obvious_spam_keyword`, no draft attempted). Server `tsc --noEmit` clean, `test:local-ai` 101/101;
+client `stylelint` clean, full `npm test` 1014/1014.
+
+## Knowledge Documents Pagination (2026-09-22, same day)
+
+User's direct follow-up: paginate the knowledge-base materials table, reusing the existing
+pagination element, 20 per page. No dedicated shared `Pagination` component exists in this repo —
+every list page (`InvoicesPagePagination`, `MollieCustomersPagination`, etc.) has its own small
+self-contained copy of the same `←  X–Y из Z  1 / N  →` pattern with matching `.pagination`/
+`.paginationActions`/`.pageButton` SCSS. Reused that exact pattern (copied from
+`InvoicesPagePagination.tsx`, closest architecturally) plus the server's `_page`/`_limit` query-
+param and `{items, total, page, limit, totalPages}` response convention, already used by
+`GET /invoices` — `GET /knowledge/documents` now matches it exactly.
+
+- [x] Task 37: `GET /knowledge/documents` accepts `_page`/`_limit`, returns a paginated envelope.
+  - Acceptance: new `MysqlKnowledgeRepository.listDocumentsPage(filter, {page, limit})` (kept
+    separate from the existing unpaginated `listDocuments`, which
+    `embedPendingKnowledgeDocuments` — "run embedding for all pending" — still needs
+    unpaginated, across every page, not just the one currently displayed) and
+    `countDocuments(filter)`; controller parses `_page`/`_limit` the same way
+    `invoices.controller.ts` does and responds `{items, total, page, limit, totalPages,
+    pendingTotal}` — `pendingTotal` is a real fix, not cosmetic: without it the "run embedding for
+    all pending (N)" button's count would silently only reflect the current page after
+    pagination, not the true pending count the button actually acts on.
+  - Files: `server/src/modules/knowledge-ingestion/mysql-knowledge.repository.ts`,
+    `knowledge-ingestion.controller.ts`.
+- [x] Task 38: Client — 20-per-page pagination UI on the documents table.
+  - Acceptance: `useKnowledgeDocuments` sends `_page`/`_limit: 20`, exposes `page`/`setPage`/
+    `total`/`totalPages`/`pendingTotal`; new `DocumentsPagination` in `KnowledgeBasePage.tsx`,
+    copied from `InvoicesPagePagination`'s structure/props (`page`/`totalPages`/`total`/`loading`/
+    `onPageChange`) and its `.pagination`/`.paginationActions`/`.pageButton` SCSS.
+  - Verification: new test — 21 total documents across a mocked 2-page response, `1–20 из 21` /
+    `1 / 2` rendered, clicking → sends `_page: 2`, second page's document appears, next-page
+    button disabled on the last page.
+  - Files: `client/src/pages/KnowledgeBasePage/useKnowledgeDocuments.ts`, `useKnowledgeBase.ts`,
+    `ui/KnowledgeBasePage.tsx` (+ SCSS), `ui/KnowledgeBasePage.test.tsx`.
+
+**Live-verified** against the real ~55-document knowledge base (already at 3 pages): page 1
+showed `1–20 из 55` / `1 / 3`; clicking → loaded page 2 (`21–40 из 55`) with different real
+documents and a real `GET /knowledge/documents?_page=2&_limit=20` request. Server `tsc --noEmit`
+clean, `test:local-ai` 101/101; client `stylelint` clean, full `npm test` 1015/1015.
+
+## Editable, DB-Backed System Prompts (2026-09-22, same day)
+
+User's direct follow-up: make the system prompt editable via a field, saveable to the DB, testable
+with visible results, switchable between saved prompts, and taggable. Confirmed with the user
+before building: **both** prompts (`classificationPrompt` and `draftBodyPrompt`, both hardcoded in
+`ollama.client.ts`) become editable, and the **active** prompt per slot affects real production
+email classification/drafting too — not just the simulation panel.
+
+Design (kept deliberately narrow given production impact): only the *instructions* text is
+user-editable and DB-backed; the per-email dynamic data each prompt function appends
+(`FROM`/`SUBJECT`/`BODY` for classification; `ПИСЬМО_КЛИЕНТА`/`ДАННЫЕ_CRM`/`ЗНАНИЯ` for drafting)
+stays hardcoded application logic appended *after* the stored instructions — a saved prompt can
+rewrite persona/rules/tone freely but can never accidentally omit the actual email the model must
+act on. `{{replyLanguage}}` is a placeholder in the DRAFT_BODY instructions, substituted from the
+already-computed classification (the target language is a deterministic pipeline decision, not
+something free text should guess). An empty `ai_prompts` table (fresh install) changes zero
+behavior — `PrismaAiPromptRepository.getActiveContent` falls back to `DEFAULT_PROMPT_CONTENT`,
+which is exactly the pre-feature hardcoded text, verbatim.
+
+- [x] Task 39: `AiPrompt` model — slot (`DRAFT_BODY`|`CLASSIFICATION`), name, content, tags, one
+  active row per slot enforced transactionally.
+  - Files: `server/prisma/schema/ai-email.prisma` (+ migration), `prompt-library.service.ts`
+    (`DEFAULT_PROMPT_CONTENT`, `PrismaAiPromptRepository` — list/create/update/activate/remove/
+    getActiveContent/getContentById).
+- [x] Task 40: `ollama.client.ts` resolves instructions from the prompt library instead of a
+  hardcoded constant.
+  - Acceptance: `OllamaLlmClient` takes optional `promptRepository` (defaults to
+    `PrismaAiPromptRepository`) and `promptOverrides: {classificationPromptId?, draftBodyPromptId?}`
+    — an override wins for that call; otherwise the slot's active row; otherwise the built-in
+    default. `classificationPrompt`/`draftBodyPrompt` functions became
+    `buildClassificationPrompt(instructions, ...)`/`buildDraftBodyPrompt(instructions, ...)`,
+    taking the resolved instructions as a parameter instead of hardcoding them.
+  - Existing `ollama.client.test.ts` updated with a `fakePromptRepository` (resolves straight to
+    `DEFAULT_PROMPT_CONTENT`, no Prisma/MySQL) injected into every client construction — otherwise
+    every test would hit the real DB and fail with "Environment variable not found: DATABASE_URL".
+  - Files: `server/src/modules/ai-email-assistant/ollama.client.ts` (+ test).
+- [x] Task 41: Admin CRUD API — `/ai-email/prompts`, ADMIN-only.
+  - Acceptance: `GET /` (list, optional `?slot=`), `POST /` (create), `PATCH /:id` (update),
+    `POST /:id/activate` (transactional slot-exclusive activation), `DELETE /:id`.
+  - Files: `server/src/modules/ai-email-assistant/prompt.controller.ts` (+ test),
+    `prompt.routes.ts`, `server/src/routes/index.ts`, `server/package.json`.
+- [x] Task 42: `simulation.service.ts`/`.controller.ts` accept `classificationPromptId`/
+  `draftBodyPromptId` — test a candidate prompt for one run without activating it.
+- [x] Task 43: `PromptLibraryPanel` on `KnowledgeBasePage` — list (grouped by slot, active badge),
+  create/edit form (slot, name, tags, content), activate, delete; `EmailSimulationPanel` gained two
+  prompt selects (defaulting to "(активный)") wired to the new override fields.
+  - Files: `client/src/pages/KnowledgeBasePage/promptLibraryTypes.ts`, `usePromptLibrary.ts`,
+    `ui/PromptLibraryPanel.tsx` (+ SCSS), `emailSimulationTypes.ts`, `useEmailSimulation.ts`,
+    `ui/EmailSimulationPanel.tsx`, `ui/KnowledgeBasePage.tsx`, `ui/KnowledgeBasePage.test.tsx`
+    (+4 new tests: list/create/activate/select-a-specific-prompt-for-one-run).
+
+**Two real bugs found while building/verifying this, both fixed before they reached the running
+dev server (one did reach it — see below):**
+- `String.prototype.replaceAll` (used for the `{{replyLanguage}}` substitution) compiles clean
+  under plain `tsc --noEmit` but **not** under `ts-node` as this project's nodemon actually runs it
+  (`ts-node --files src/index.ts`) — `tsc --noEmit -p tsconfig.json` and `node --test -r ts-node/
+  register` disagreed on the exact same file/line, and the real dev server crashed on it
+  (confirmed in `docker logs ddc-nl-backend-dev`) while a real user was actively using the app.
+  Fixed by switching to `.split(...).join(...)`, and now treating `node --test -r ts-node/register`
+  (or an actual server restart) as the real compile check for new server code — `tsc --noEmit`
+  alone was insufficient. Fixed within about a minute of the crash; server recovered immediately.
+- The same TS inference quirk from the simulation-panel section (widening `parsed.data` to
+  all-optional once a file also imports a large type graph) recurred in the new
+  `simulation.controller.ts` change (adding the two prompt-id fields) — same destructuring
+  workaround applied.
+
+**Live-verified against the real dev stack, including the production-impact claim specifically:**
+created a test `DRAFT_BODY` prompt ("reply in at most one sentence, no persona") →
+ran it via the simulation panel *without* activating it (selected explicitly by id) → got a
+one-sentence reply, proving the per-run override works without touching production. Then
+activated it → re-ran the simulation *without* selecting any prompt (left on "(активный)") → got
+the same one-sentence style, proving the active prompt is genuinely what the no-override path
+(the same path real production classify/draft calls use) resolves to. Deleted the test prompt
+immediately after, returning both slots to "no active prompt" (i.e. the original hardcoded
+persona-based behavior) before ending the session. Server `tsc --noEmit` clean (with the caveat
+above), `test:local-ai` 107/107; client `stylelint` clean, full `npm test` 1019/1019.
+
+## Hybrid Retrieval: BM25 + RRF (2026-09-22/23, same session)
+
+User's direct follow-up, after asking "did we implement everything for the RAG/LLM
+improvement?": the answer was no — the retrieval upgrade explored in `rag/` (BM25, RRF, reranker,
+query expansion) had been explicitly deferred when the Knowledge Base Admin Page work started.
+User approved doing BM25 + RRF now, with reranker/query expansion left as optional follow-ups
+(not built this pass — see Open Questions below).
+
+Design, chosen to make this a strictly additive quality upgrade with zero risk to the production
+draft pipeline's confidence math:
+- `KnowledgeRetrievalService.retrieve()` still applies the existing `minimumScore` cosine-
+  similarity bar and document-version de-dup **first, unchanged** — BM25/RRF only re-rank and
+  re-select *within* that already-qualifying set; a chunk vector search itself would reject can
+  never be surfaced by BM25. The `score` field returned per chunk is still the plain cosine
+  similarity (never an RRF/BM25 score) — `ollama.client.ts`'s `CONFIDENT_KNOWLEDGE_SCORE` threshold
+  keeps meaning what it always meant.
+- `MysqlKnowledgeRepository`/`InMemoryKnowledgeRepository.search()` already score the *entire*
+  active-chunk corpus internally before slicing to the requested limit (pre-existing behavior) —
+  requesting a large `CANDIDATE_POOL_SIZE` (500) from `retrieve()` costs nothing extra and just
+  avoids truncating before hybrid fusion gets a chance to re-rank; the real KB (~50 docs / a few
+  hundred chunks) is nowhere near this size.
+
+- [x] Task 44: `Bm25Search` — pure-TS Okapi BM25, ported from `rag/src/bm25.ts`.
+  - Ported with two portability fixes the original rag/ code didn't need: no `\p{L}`/`u`-flag
+    Unicode regex property escapes (TS1501 under this project's ts-node target) — an explicit
+    Latin+Cyrillic character class instead; no direct `for...of`/spread over a `Set`/`Map`
+    (TS2802) — `Array.from(...)` instead, matching the existing
+    `Array.from(new Set(...))` pattern already used in `knowledge-ingestion.service.ts`.
+  - Files: `server/src/modules/knowledge-ingestion/bm25.service.ts` (+ test, 5 cases).
+- [x] Task 45: `fuseRankedLists` — Reciprocal Rank Fusion, ported from `rag/src/rrf.ts`.
+  - Files: `server/src/modules/knowledge-ingestion/rrf.service.ts` (+ test, 5 cases).
+- [x] Task 46: Wired both into `KnowledgeRetrievalService.retrieve()`.
+  - Verification: existing `retrieval.service.test.ts` case still passes unmodified (BM25 finds no
+    term overlap with "query" against single-word test content → degrades to pure vector order,
+    exactly the pre-existing expected result); two new cases added — one proving BM25 promotes a
+    lower-cosine chunk that matches query terms above a higher-cosine chunk that doesn't, one
+    proving the no-term-overlap fallback explicitly.
+  - Files: `server/src/modules/knowledge-ingestion/retrieval.service.ts` (+ test), `server/package.json`.
+
+**One bug caught before it ever reached the dev server this time** (the `tsc`-vs-`ts-node` lib
+mismatch — see the prior section's note and its own project memory — is now a known thing to check
+for): `npx tsc --noEmit` was clean, but `node --test -r ts-node/register` on the very first version
+of `bm25.service.ts` failed with `TS1501` (Unicode regex property escape) and `TS2802` (direct
+iteration over a `Set`) — both fixed (see Task 44) *before* saving triggered nodemon in the running
+container, so this time the real dev server never crashed.
+
+**Live-verified** against the real dev stack and the real ~55-document knowledge base: a query
+naming a specific real entity verbatim ("Lito Dance Camp") retrieved 4 correctly-scoped chunks
+(scores 0.634–0.690, confirming the returned score stayed plain cosine, not RRF-scaled),
+classified as `event`/`confidence 0.80`, and produced an accurate draft citing specific facts pulled
+from those chunks (4★ hotel, 3 meals/day, 2–3 dance classes/day, medical insurance, €450 deposit,
+branded T-shirt) with nothing fabricated. Server `tsc --noEmit` clean, `node --test -r ts-node/
+register` clean (both checked, per the lib-mismatch lesson), full `test:local-ai` 119/119, full
+`test:ci` 371/371.
+
+**Open questions (deliberately not built this pass):**
+- **Reranker** (cross-encoder re-scoring via a dedicated Ollama model, e.g. `qwen3-reranker`, with
+  bi-encoder-similarity fallback per the `rag/` reference) — would need a new model pulled in this
+  deployment's Ollama and adds a per-candidate round-trip; not done.
+- **Query Expansion** (LLM-cleaned/expanded query before retrieval) — adds one more LLM call to
+  every classify→retrieve→draft cycle; not done.
+- Both are natural next candidates if retrieval quality still needs work after this hybrid upgrade
+  is used for a while — ask if/when wanted.
+
+## Query Expansion + Reranker (2026-09-23, same session)
+
+User said "делай" (do it) right after the two open questions above were listed — implemented both
+this pass. Also answered a direct side-question mid-turn: `RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` are
+**not** env vars in this codebase — `chunkKnowledgeDocument`'s 500-char size / 250-char overlap are
+hardcoded default parameters (`embedding.service.ts`), and every call site (`sync.service.ts`,
+`mysql-knowledge.repository.ts`) calls it with no override; left as-is, not asked for.
+
+Design, extending the same "additive, never lowers the confidence bar" principle from the BM25+RRF
+section:
+- **Query expansion** (`query-expansion.service.ts`): ported `parseExpansionResponse`'s robust
+  JSON extraction (direct parse → code-fence strip → balanced-brace extraction) from `rag/src/
+  queryExpansion.ts` verbatim — but **not** its `format: "json"` request option, and **not** its
+  `/api/chat` endpoint. This deployment already found (Task 24) that `format: "json"` makes qwen3
+  reliably return an empty `{}`, and the rest of `ollama.client.ts` already uses a single flat
+  `/api/generate` prompt (no chat roles) — copying the reference's exact request shape would have
+  reintroduced a bug this project already fixed twice. Also changed the prompt to keep
+  `clean_query`/`keywords` in the query's own language rather than translating to English (this
+  deployment's canonical language is Russian, and translating would hurt both embedding match and
+  BM25 literal-term matching against non-English content). Every failure mode (network error,
+  non-2xx, unparseable output) falls back to the original query + locally-extracted keywords,
+  never throws.
+- **Reranker** (`reranker.service.ts`): ported from `rag/src/reranker.ts` — tries Ollama's native
+  `/api/rerank` first, falls back to re-embedding each candidate and ranking by cosine similarity
+  to the query, falls back to the original order if even that fails. Never overwrites a chunk's
+  `score` field (same rule as BM25/RRF) — reranking only changes order/selection.
+- **Config** (`ai.config.ts`): `ragQueryExpansionEnabled`/`ragRerankEnabled` (env
+  `RAG_QUERY_EXPANSION_ENABLED`/`RAG_RERANK_ENABLED`, both default `false`) gate the **real
+  production** path (`draft-pipeline.cron.service.ts`) — each adds a model call to every
+  classify→retrieve→draft cycle on a 2 CPU/4 GB VPS, for a quality benefit that should be evaluated
+  before it runs unattended on real customer emails. `ragRerankModel` (env `RAG_RERANK_MODEL`,
+  default `qwen3-reranker:0.6b`) is only consulted if `/api/rerank` exists at all — almost
+  certainly not pulled in this deployment, so reranking will realistically always take the
+  bi-encoder fallback path unless/until someone pulls a dedicated cross-encoder model.
+- **Simulation panel**: both are always available regardless of the production flags (an admin
+  evaluates the real effect before opting production in), with `noQueryExpansion`/`noRerank`
+  checkboxes to disable either per-run for an apples-to-apples comparison. `EmailSimulationResult`
+  gained `queryExpansion: {cleanQuery, keywords} | null`, displayed in the "Найденные знания"
+  block.
+- `KnowledgeRetrievalService.retrieve()` (plain array, unchanged signature) is now a thin wrapper
+  around new `retrieveWithDetails()` (returns `{chunks, queryExpansion}`), which the simulation
+  panel uses to surface what query expansion actually did.
+
+- [x] Task 47: `query-expansion.service.ts` — `parseExpansionResponse` (pure) + `OllamaQueryExpansionClient`.
+  - Files: `server/src/modules/knowledge-ingestion/query-expansion.service.ts` (+ test, 10 cases).
+- [x] Task 48: `reranker.service.ts` — `OllamaReranker` (native → bi-encoder → no-op fallback chain).
+  - Files: `server/src/modules/knowledge-ingestion/reranker.service.ts` (+ test, 5 cases).
+- [x] Task 49: `ai.config.ts` gains `ragQueryExpansionEnabled`/`ragRerankEnabled`/`ragRerankModel`.
+  - Files: `server/src/config/ai.config.ts` (+ test), `.env.example`.
+- [x] Task 50: Wired into `KnowledgeRetrievalService` (new `retrieveWithDetails`),
+  `draft-pipeline.cron.service.ts` (config-gated), `simulation.service.ts`/`.controller.ts`
+  (always available + opt-out toggles).
+- [x] Task 51: Client — `noQueryExpansion`/`noRerank` checkboxes + query-expansion display block
+  in `EmailSimulationPanel`.
+  - Files: `client/src/pages/KnowledgeBasePage/emailSimulationTypes.ts`, `useEmailSimulation.ts`,
+    `ui/EmailSimulationPanel.tsx`, `ui/KnowledgeBasePage.test.tsx` (+1 test).
+
+**One RTL test-matching lesson, not a product bug:** the query-expansion display renders as
+sibling text nodes inside one `<p>` (label + value + label + value) — `screen.findByText('цена
+абонемента')` (exact match) found nothing even though the text was genuinely on the page, because
+RTL matches per-node `textContent`, not arbitrary substrings across sibling text nodes within the
+same element. Fixed by using a regex matcher (`/цена абонемента/`), the same fix already used
+earlier in this file for the spam-reason assertion — worth remembering for any future assertion
+against text built from multiple interpolated `t()` calls in one element.
+
+**Live-verified** against the real dev stack with both features active (their simulation-panel
+default): the deliberately casual, typo-free-but-vague query "привет а можно узнать что там с
+высокими каблуками у вас, это как хип хоп или другое, и сколько стоит" — expansion correctly
+extracted `высокие каблуки, хип хоп, цена` as keywords, hybrid retrieval correctly surfaced 4
+chunks specifically about the "High Heels" dance *style* (not literal footwear) with scores in the
+normal 0.546–0.654 cosine range, and the draft correctly told the customer about adult High Heels
+classes with no prior experience required — a real disambiguation win attributable to query
+expansion feeding better search terms into BM25/vector search. Server `tsc --noEmit` clean,
+`test:local-ai` 135/135, full `test:ci` 387/387; client full `npm test` 1020/1020.
+
+## Configurable Chunk Size/Overlap (2026-09-23, same session)
+
+**Design:** `chunkKnowledgeDocument` (`server/src/modules/knowledge-ingestion/embedding.service.ts`)
+took `maxCharacters`/`overlapCharacters` as hardcoded default parameters (`500`/`250`). Every real
+call site (`sync.service.ts`, `mysql-knowledge.repository.ts`) calls it with no override args, so
+these hardcoded defaults were the only values ever actually used across every ingestion path
+(WordPress/sitemap sync, manual file upload, manual URL crawl). Moved them into `ai.config.ts` as
+`ragChunkSize`/`ragChunkOverlap`, driven by new env vars `RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP`, with
+new defaults `700`/`100` (character-based, no tokenizer wired up in this codebase; ~2-2.5
+chars/token for Cyrillic, this deployment's canonical language). `chunkKnowledgeDocument`'s
+signature is unchanged (still takes optional override params for tests) — only its *default*
+values now read from config, so no call site needed to change and existing tests that pass
+explicit args are unaffected.
+
+**Task 52:** `ai.config.ts` — `DEFAULT_RAG_CHUNK_SIZE`/`DEFAULT_RAG_CHUNK_OVERLAP` constants +
+`ragChunkSize`/`ragChunkOverlap` fields, parsed via a new `nonNegativeInteger` helper (overlap may
+legitimately be 0) alongside the existing `positiveInteger` helper (chunk size must be >0, falls
+back to default on 0/negative/non-numeric).
+
+**Task 53:** `embedding.service.ts` — `chunkKnowledgeDocument`'s default parameters switched from
+hardcoded `500`/`250` to `aiConfig.ragChunkSize`/`aiConfig.ragChunkOverlap`.
+
+**Task 54:** Test fixtures — `ai.config.test.ts` (new defaults assertion, env-driven parsing test,
+new fallback-behavior test for zero/negative/non-numeric chunk size vs. overlap allowing zero);
+`query-expansion.service.test.ts`, `reranker.service.test.ts`, `ollama.client.test.ts` — added the
+two new required `AiConfig` fields to each full-shape fixture.
+
+**Task 55 — real gap found and fixed:** `docker-compose.dev.yml`/`docker-compose.prod.yml` were
+checked as part of this change and turned out to only pass `RAG_TOP_K` through to the backend
+service's `environment:` block — `RAG_QUERY_EXPANSION_ENABLED`/`RAG_RERANK_ENABLED`/
+`RAG_RERANK_MODEL` from the *previous* session section were never added there either, meaning none
+of those flags could actually be set via `.env` in the real dev/prod containers regardless of
+`.env` contents (they were silently stuck on their code-level defaults). Fixed by adding all five
+RAG-related passthroughs (`RAG_QUERY_EXPANSION_ENABLED`, `RAG_RERANK_ENABLED`, `RAG_RERANK_MODEL`,
+`RAG_CHUNK_SIZE`, `RAG_CHUNK_OVERLAP`) to both compose files' backend `environment:` block, same
+`${VAR:-default}` style as every other optional var there.
+
+**Task 56:** `.env.example` — documented `RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` next to
+`RAG_RERANK_MODEL`, noting the character-based/no-tokenizer caveat and that every ingestion path
+shares these defaults.
+
+**Checks:** Server `npx tsc --noEmit` clean; `node --test -r ts-node/register` on
+`ai.config.test.ts` + `embedding.service.test.ts` (10/10, both compile paths verified per the
+ts-node/tsc lib-mismatch lesson); full `npm run test:local-ai` 136/136; `npm run build` clean;
+full `npm run test:ci` 388/388. Both `docker compose -f docker-compose.yml -f
+docker-compose.dev.yml config` and the prod equivalent parse with no syntax errors after the
+compose edits. No client changes in this section — nothing to re-run there.
+
+Not independently browser-QA'd beyond the above: this is a low-risk, backward-compatible default
+change (chunking granularity only, same code paths already exercised live in the BM25/RRF and
+query-expansion/reranker sections above) — deferred to the next real ingestion run against the
+live knowledge base rather than repeating a full end-to-end simulation for a parameter-only
+change.

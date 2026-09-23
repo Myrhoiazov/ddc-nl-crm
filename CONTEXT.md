@@ -22,7 +22,7 @@ CRM / admin platform for dance school "DDC" (Talent Center): client/student reco
 | Payment reminder | Automated email sequence for unpaid invoices. |
 | Invoice audit log | Per-invoice change history (`InvoiceAuditLog`: action + before/after value snapshot). Distinct from the security audit event log. |
 | Local AI email assistant | Private, on-prem (Ollama) pipeline: reads inbound email, classifies it, drafts replies with RAG knowledge, and sends only after human approval via Telegram. No cloud LLM API. |
-| Knowledge base (RAG) | Local indexed copy of the DDC website (sitemap/WordPress discovery) plus imported files (PDF/DOCX/TXT/MD/HTML), chunked and embedded locally (`bge-m3`), stored in MySQL, retrieved as attributable draft context. |
+| Knowledge base (RAG) | Local indexed copy of the DDC website (sitemap/WordPress discovery), manually crawled URLs, and imported files (PDF/DOCX/TXT/MD/HTML), chunked and embedded locally (`bge-m3`), stored in MySQL, retrieved via hybrid cosine+BM25+RRF search as attributable draft context. |
 | Embedding | Local vector representation of a knowledge chunk; retrieval ranks chunks by cosine similarity with configurable top-K. |
 | Draft approval | Human-in-the-loop Telegram flow over a generated draft: approve / edit / reject / mark spam; SMTP sending happens only after explicit approval. |
 
@@ -83,14 +83,35 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   deterministically, only the body comes from the LLM) → Telegram approval (webhook
   `POST /api/v1/telegram/webhook` with `X-Telegram-Bot-Api-Secret-Token`, or long-polling behind
   `TELEGRAM_POLLING_ENABLED`) → approved-only SMTP send (`runSendPipeline`, atomic
-  `APPROVED -> SENDING -> SENT|FAILED`, idempotency-keyed so retries can't double-send).
+  `APPROVED -> SENDING -> SENT|FAILED`, idempotency-keyed so retries can't double-send). Both LLM
+  prompts (classification + draft body) are DB-backed and admin-editable (`prompt-library.service.ts`,
+  `AiPrompt` model, `/ai-email/prompts` API) — only the instructions text is stored/editable; the
+  dynamic per-email data is always appended programmatically and can never be omitted. At most one
+  active prompt per slot; no active row falls back to the hardcoded default, so an empty table
+  changes nothing. The active prompt drives real production classify/draft calls, not just
+  simulation.
 - `knowledge-ingestion` covers website discovery (sitemap-first, WordPress REST fallback;
   canonical-language and domain allowlist filtering so translations are never indexed as
-  duplicates), file import (`.pdf` via pdf-parse, `.docx` via mammoth, `.txt/.md/.html`), HTML
-  normalization with content hashing, semantic chunking with overlap, local `bge-m3` embeddings
-  via Ollama, MySQL persistence (`knowledge_documents`/`knowledge_chunks`), cosine retrieval
-  (`KnowledgeRetrievalService`, `RAG_TOP_K`), and incremental sync planning. All workers are
-  opt-in cron jobs behind `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` and default off.
+  duplicates), manual URL crawling and file import (`.pdf` via pdf-parse, `.docx` via mammoth,
+  `.txt/.md/.html`) from the Knowledge Base admin page, category (`KnowledgeCategory` enum) and
+  LLM-derived metadata (priority + tags) per document, HTML normalization with content hashing,
+  semantic chunking with configurable size/overlap (`RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP`, default
+  700/100 characters — no tokenizer wired up, ~2-2.5 chars/token for Cyrillic), local `bge-m3`
+  embeddings via Ollama, MySQL persistence (`knowledge_documents`/`knowledge_chunks`), and
+  incremental sync planning. Retrieval (`KnowledgeRetrievalService`) is hybrid: cosine similarity
+  first establishes the qualifying set (`minimumScore` bar + de-dup, unchanged since V1), then BM25
+  + Reciprocal Rank Fusion re-rank within that set, with an optional LLM-based query expansion pass
+  before search and an optional reranker pass after (`RAG_QUERY_EXPANSION_ENABLED`/
+  `RAG_RERANK_ENABLED`/`RAG_RERANK_MODEL`, default off in production, always available in the
+  "Симуляция письма" admin panel for evaluation first). The returned `score` field is always the
+  plain cosine similarity, never a BM25/RRF/rerank score, because `ollama.client.ts`'s
+  `CONFIDENT_KNOWLEDGE_SCORE` threshold depends on it. All ingestion/classification/draft workers
+  are opt-in cron jobs behind `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` and default off.
+- Knowledge Base admin page (`client/src/pages/KnowledgeBasePage/`, sidebar-linked) covers file
+  upload, URL crawling, category/metadata assignment, manual embedding trigger, paginated document
+  list (20/page), the prompt library editor, and an email-simulation panel that runs the real
+  classify → retrieve → draft pipeline against arbitrary test input to preview model output
+  (including query-expansion/reranker toggles) without sending anything or touching a real inbox.
 - Domain-agnostic shared infrastructure under `server/src/common/`: `errors/` (ApiError + error
   middleware), `middleware/` (query stats), `validation/` (generic Zod schema-validation
   middleware), `logger/`, `utils/` (crypto, paths, file upload).

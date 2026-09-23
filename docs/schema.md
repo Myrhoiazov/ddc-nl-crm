@@ -14,6 +14,7 @@
 | `company.prisma`         | Филиалы, юрлица, бренды                          |
 | `email.prisma`           | Почтовые ящики и сообщения                       |
 | `ai-email.prisma`        | Локальный AI email assistant                    |
+| `knowledge.prisma`       | Локальная RAG knowledge база                     |
 | `invoice.prisma`         | Инвойсы                                          |
 | `mollie.prisma`          | Mollie: аккаунты, клиенты, платежи, подписки     |
 | `payment-reminder.prisma` | Напоминания об оплате                           |
@@ -144,19 +145,37 @@ SENT/FAILED.
 - Связи: draft -> AiEmailDraft (Cascade)
 - Индексы: [draftId, createdAt]
 
+### Enum AiPromptSlot: DRAFT_BODY | CLASSIFICATION
+
+### AiPrompt (таблица `ai_prompts`)
+Редактируемые через админ-страницу, версионируемые системные промты для двух LLM-вызовов
+(`classifyEmail`/`generateDraft` в `ollama.client.ts`). Хранится только текст инструкций — динамические
+данные письма (FROM/SUBJECT/BODY, ПИСЬМО_КЛИЕНТА/ДАННЫЕ_CRM/ЗНАНИЯ) всегда дописываются
+приложением после этого содержимого и не редактируются, поэтому сохранённый промт не может
+случайно потерять само письмо. На слот допускается не более одной строки с `isActive=true` —
+именно она используется реальными production-вызовами classify/draft; при отсутствии активной
+строки используется хардкодный дефолт из `prompt-library.service.ts` (пустая таблица ничего не
+меняет).
+- Поля: id; slot; name; content; tags (Json, массив строк); isActive; createdAt; updatedAt
+- Индексы: [slot, isActive]
+
 ## knowledge.prisma — локальная MySQL knowledge база
 
-### Enum KnowledgeDocumentStatus: ACTIVE | INACTIVE | ERROR
+### Enum KnowledgeDocumentStatus: PENDING | ACTIVE | INACTIVE | ERROR
+
+### Enum KnowledgeCategory: BRAND | LOCATIONS | DANCE_STYLES | CLASSES | SCHEDULE | REGISTRATION | FAQ | CAMP | BUSINESS_RULES | SOURCES | OTHER
 
 ### KnowledgeDocument (таблица `knowledge_documents`)
-Версия нормализованного сайта или файла с content hash и статусом индексации.
-- Поля: id; sourceType; sourceId; sourceUrl; title; language; contentHash; content; status; errorMessage; lastSyncedAt; createdAt; updatedAt
+Версия нормализованного сайта, файла или вручную добавленного URL с content hash, категорией и
+LLM-метаданными (приоритет + теги), статусом индексации.
+- Поля: id; sourceType; sourceId; sourceUrl; relativePath; folderPath; title; language; contentHash; content; status; category; priority; tags (Json, массив строк); errorMessage; lastSyncedAt; createdAt; updatedAt
 - Связи: chunks KnowledgeChunk[]
-- Индексы: [sourceId, status]; contentHash
+- Индексы: [sourceId, status]; contentHash; category
 
 ### KnowledgeChunk (таблица `knowledge_chunks`)
-Атрибутивный chunk с локальным embedding `bge-m3` в JSON.
-- Поля: id; documentId; ordinal; content; embedding; embeddingModel; contentHash; createdAt; updatedAt
+Атрибутивный chunk с локальным embedding `bge-m3` в JSON. Размер/перекрытие чанка при генерации —
+`RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` (`ai.config.ts`, дефолты 700/100 символов).
+- Поля: id; documentId; ordinal; content; embedding; embeddingModel; contentHash; headingPath (Json); createdAt; updatedAt
 - Связи: document -> KnowledgeDocument (Cascade)
 - Индексы: unique [documentId, ordinal]; contentHash
 

@@ -22,6 +22,12 @@ The server reads these variables from its runtime environment:
 | `AI_EMAIL_DRAFT_ENABLED` | `false` | Enables the five-minute classified-email draft pipeline |
 | `AI_EMAIL_SEND_ENABLED` | `false` | Enables the five-minute approved-draft SMTP send pipeline |
 | `KNOWLEDGE_SYNC_ENABLED` | `false` | Enables the weekly knowledge sync cron |
+| `RAG_TOP_K` | `4` | Number of chunks returned by retrieval |
+| `RAG_QUERY_EXPANSION_ENABLED` | `false` | Adds an LLM query-expansion call before retrieval (extra model call per email; evaluate via the "Симуляция письма" admin panel first) |
+| `RAG_RERANK_ENABLED` | `false` | Reorders the retrieved set with a reranker pass after retrieval (extra model/embedding call per email) |
+| `RAG_RERANK_MODEL` | `qwen3-reranker:0.6b` | Model used when `RAG_RERANK_ENABLED=true`; falls back to a bi-encoder (re-embed + cosine) pass if Ollama doesn't expose `/api/rerank` with this model pulled, or to a no-op if that also fails |
+| `RAG_CHUNK_SIZE` | `700` | Max characters per knowledge chunk (`chunkKnowledgeDocument`); character-based, no tokenizer wired up — ~2-2.5 chars/token for Cyrillic |
+| `RAG_CHUNK_OVERLAP` | `100` | Character overlap between consecutive chunks of the same document |
 | `OLLAMA_MEM_LIMIT` | `2g` | Memory cap for the Compose `ollama` service |
 | `OLLAMA_CPU_LIMIT` | `1.5` | CPU cap for the Compose `ollama` service |
 | `TELEGRAM_APPROVER_IDS` | empty | Comma-separated Telegram actor IDs allowed to approve drafts |
@@ -224,12 +230,59 @@ computed in the application for the bounded V1 knowledge base.
 
 ## Phase 2D retrieval and incremental sync
 
-`KnowledgeRetrievalService` embeds a query, applies `RAG_TOP_K` (default 4), filters weak matches
-by a minimum cosine score, and removes duplicate document versions before returning attributable
-chunks. `planIncrementalSync` reports new, changed, unchanged, and removed sources so unchanged
-documents can skip re-embedding and removed sources can be deactivated. A weekly scheduler is
-available behind `KNOWLEDGE_SYNC_ENABLED=true`, but its sync callback remains supplied by the
-eventual repository-backed sync command.
+`KnowledgeRetrievalService` embeds a query, filters weak matches by a minimum cosine score, and
+removes duplicate document versions first — this qualifying set and its cosine `score` field never
+change regardless of which optional techniques below are enabled. `planIncrementalSync` reports
+new, changed, unchanged, and removed sources so unchanged documents can skip re-embedding and
+removed sources can be deactivated. A weekly scheduler is available behind
+`KNOWLEDGE_SYNC_ENABLED=true`, but its sync callback remains supplied by the eventual
+repository-backed sync command.
+
+## Phase 2E hybrid retrieval, query expansion, and reranking
+
+Within the qualifying set from Phase 2D, retrieval is hybrid rather than cosine-only:
+
+- **BM25 + RRF** (always on): `bm25.service.ts` scores the same candidate chunks by lexical
+  overlap; `rrf.service.ts` fuses the cosine-similarity ranking and the BM25 ranking via
+  Reciprocal Rank Fusion to pick the final `RAG_TOP_K` chunks. This never expands the qualifying
+  set or changes the returned `score` field (still plain cosine similarity) — it only re-orders
+  within it, because `ollama.client.ts`'s `CONFIDENT_KNOWLEDGE_SCORE` threshold depends on that
+  field staying comparable across runs.
+- **Query expansion** (`RAG_QUERY_EXPANSION_ENABLED`, default `false`): before retrieval,
+  `query-expansion.service.ts` asks the LLM to extract/expand search keywords from a vague or
+  casual customer message, so BM25/vector search gets better terms to match against (e.g.
+  disambiguating "высокие каблуки" as the *High Heels* dance style rather than literal footwear).
+  One extra model call per email; off by default in production because of the added latency/CPU
+  cost on the 2 CPU/4 GB target host.
+- **Reranker** (`RAG_RERANK_ENABLED`/`RAG_RERANK_MODEL`, default `false`): after the BM25+RRF
+  selection, `reranker.service.ts` re-orders the selected chunks by relevance to the query, trying
+  Ollama's native `/api/rerank` endpoint first, falling back to a bi-encoder (re-embed query +
+  chunks, cosine) pass if that endpoint or model is unavailable, and to a no-op (original order)
+  if both fail. Same score-field guarantee as BM25/RRF above.
+
+Both flags default to `false` for the real production cron (`draft-pipeline.cron.service.ts`);
+the "Симуляция письма" panel on the Knowledge Base admin page always has both available (with
+opt-out toggles) regardless of the `.env` flags, so an admin can evaluate the effect on real
+knowledge/queries before enabling either for production email.
+
+## Knowledge Base admin page
+
+`client/src/pages/KnowledgeBasePage/` (sidebar-linked) is the operator surface for everything in
+Phases 2A/2B/2E above, plus the prompt library:
+
+- **Documents tab** — paginated list (20/page) of `knowledge_documents` with status/category/
+  priority/tags, file upload (multipart, same `.pdf`/`.docx`/`.txt`/`.md`/`.html` allowlist as
+  Phase 2B), manual URL crawling (single-page fetch + normalize + embed, reusing the Phase 2A
+  normalization pipeline without the sitemap discovery step), category assignment, and an
+  LLM-metadata trigger (priority + tags) plus a manual re-embed trigger per document.
+- **Prompt library tab** — CRUD over `AiPrompt` rows per slot (`CLASSIFICATION`/`DRAFT_BODY`),
+  with tagging and one-click activation. Only the instructions text is editable; the dynamic
+  per-email data the application appends is never part of the stored/editable content. The
+  active row per slot is what real production classify/draft calls use — not only simulation.
+- **Симуляция письма (email simulation) panel** — runs the real classify → retrieve → draft
+  pipeline (`simulation.service.ts`, the same code `npm run ai:test-flow` uses) against arbitrary
+  test input from the browser, with checkboxes to try query expansion/reranker regardless of the
+  production `.env` flags, without touching a real inbox or sending anything.
 
 ## Phase 3 draft generation foundation
 
