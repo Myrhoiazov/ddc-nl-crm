@@ -1,7 +1,7 @@
 import { logger } from '../../common/logger';
-import { handleTelegramApprovalUpdate, type TelegramApprovalUpdate } from './telegram-approval.controller';
+import { dispatchTelegramUpdate, type TelegramUpdate as DispatchableTelegramUpdate } from '../../common/telegram/telegram-update-dispatcher';
 
-interface TelegramUpdate extends TelegramApprovalUpdate {
+interface TelegramUpdate extends DispatchableTelegramUpdate {
     update_id: number;
 }
 
@@ -46,7 +46,7 @@ export const pollTelegramApprovalUpdatesOnce = async (
     let nextOffset = offset;
     for (const update of updates) {
         try {
-            await handleTelegramApprovalUpdate(update);
+            await dispatchTelegramUpdate(update);
         } catch (error) {
             logger.error(`[TelegramPolling] Failed to process update ${update.update_id}: ${error instanceof Error ? error.message : String(error)}`);
         }

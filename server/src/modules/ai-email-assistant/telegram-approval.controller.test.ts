@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios from 'axios';
 import type { Request, Response } from 'express';
-import { buildDraftCallbackData, parseDraftCallbackData, parseDraftEditCommand, telegramApprovalWebhookController } from './telegram-approval.controller';
+import { buildDraftCallbackData, parseDraftCallbackData, parseDraftEditCommand } from './telegram-approval.controller';
+import { telegramWebhookController } from '../../common/telegram/telegram-webhook.controller';
 
 const withEnv = (vars: Record<string, string | undefined>, fn: () => Promise<void>) => {
     const previous: Record<string, string | undefined> = {};
@@ -64,7 +65,7 @@ test('tapping Edit sends a real Telegram message with the exact command to type 
         TELEGRAM_APPROVER_IDS: '111',
         TELEGRAM_TOKEN: 'bot-token',
         TELEGRAM_CHAT_ID: 'chat-id',
-    }, () => telegramApprovalWebhookController(editCallbackRequest(111), res));
+    }, () => telegramWebhookController(editCallbackRequest(111), res));
 
     assert.equal(postMock.mock.callCount(), 1);
     const [, body] = postMock.mock.calls[0].arguments;
@@ -81,7 +82,7 @@ test('tapping Edit as an unauthorized actor is rejected without sending a Telegr
         TELEGRAM_APPROVER_IDS: '111',
         TELEGRAM_TOKEN: 'bot-token',
         TELEGRAM_CHAT_ID: 'chat-id',
-    }, () => telegramApprovalWebhookController(editCallbackRequest(999), res));
+    }, () => telegramWebhookController(editCallbackRequest(999), res));
 
     assert.equal(postMock.mock.callCount(), 0);
     assert.equal(calls.status, 403);

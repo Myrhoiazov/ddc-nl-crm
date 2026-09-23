@@ -65,7 +65,7 @@ export { createEmailSmtpSender, createPrismaSendPipelineRepository } from './sen
 export { startAiEmailSendCron } from './send-pipeline.cron.service';
 export {
     handleTelegramApprovalUpdate,
-    telegramApprovalWebhookController,
+    telegramWebhookSecretIsValid,
     buildDraftCallbackData,
     parseDraftCallbackData,
     parseDraftEditCommand,
