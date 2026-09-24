@@ -2,6 +2,17 @@ import type { TelegramInlineKeyboard } from '../../common/telegram/telegram-bot-
 
 export const ROOT_MENU_TEXT = '<b>DDC ADMIN</b>';
 
+// Telegram rejects `web_app` inline buttons with BUTTON_TYPE_INVALID everywhere except a
+// private 1:1 chat with the bot (confirmed empirically against the live Bot API 2026-09-24) —
+// so a group/supergroup chat (this bot's actual admin chat, TELEGRAM_CHAT_ID, is one) gets a
+// plain `url` deep link into a private chat with the bot instead, where the real menu below can
+// then be sent.
+export const GROUP_MENU_TEXT = 'Откройте панель администратора в личном чате с ботом:';
+
+export const buildOpenPrivateChatKeyboard = (botUsername: string): TelegramInlineKeyboard => [
+    [{ text: '📊 Открыть DDC ADMIN', url: `https://t.me/${botUsername}?start=menu` }],
+];
+
 // Single source of truth for the root menu's buttons. Each `id` must match a key in the
 // `screens` map in client/telegram-mini-app/src/main.ts — that file is a separate, standalone
 // esbuild bundle (spec §4.2), so the two can't share a TS import; this list is the server half

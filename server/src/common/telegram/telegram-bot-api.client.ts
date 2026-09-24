@@ -3,13 +3,15 @@
 // the one place that actually calls api.telegram.org, so neither feature duplicates its own
 // raw HTTP client.
 
-// A button either triggers a bot-side callback (existing pattern: `data` routed through a
-// switch in the owning service) or opens a Telegram WebApp at a fixed URL — the two are
-// mutually exclusive per Telegram's own Bot API, mirrored here as a union rather than two
-// optional fields so a caller can't accidentally set both.
+// A button triggers exactly one of: a bot-side callback (`data` routed through a switch in the
+// owning service), a Telegram WebApp (`web_app` — Telegram rejects this with BUTTON_TYPE_INVALID
+// outside a private 1:1 chat with the bot, see telegram-admin-bot.menu.ts), or a plain external
+// link (`url` — works in any chat type, including groups). Modeled as a union rather than
+// optional fields so a caller can't accidentally set more than one.
 export type TelegramInlineButton =
     | { text: string; callback_data: string }
-    | { text: string; web_app: { url: string } };
+    | { text: string; web_app: { url: string } }
+    | { text: string; url: string };
 
 export type TelegramInlineKeyboard = TelegramInlineButton[][];
 
