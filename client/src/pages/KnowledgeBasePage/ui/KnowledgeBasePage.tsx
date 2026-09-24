@@ -88,6 +88,31 @@ const DocumentsPagination = ({ page, totalPages, total, loading, onPageChange }:
     );
 };
 
+const DocumentRow = ({ doc, embeddingId, embed, remove }: {
+    doc: KnowledgeDocument;
+    embeddingId: string | null;
+    embed: (id: string) => void;
+    remove: (id: string) => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <tr>
+            <td className={s.title} title={doc.sourceUrl}>{doc.title || doc.sourceUrl}</td>
+            <td>{CATEGORY_LABELS[doc.category]}</td>
+            <td><StatusBadge status={doc.status} /></td>
+            <td>{doc.priority}</td>
+            <td>{doc.tags.join(', ')}</td>
+            <td>{doc.chunkCount}</td>
+            <td className={s.actions}>
+                {doc.status === 'PENDING' && (
+                    <button disabled={embeddingId === doc.id} onClick={() => embed(doc.id)}>{t('Запустить эмбеддинг')}</button>
+                )}
+                <button className={s.danger} onClick={() => remove(doc.id)}>{t('Удалить')}</button>
+            </td>
+        </tr>
+    );
+};
+
 const DocumentsTable = ({ documents, page, setPage, total, totalPages, pendingTotal, loading, embeddingId, embeddingAll, embed, embedAllPending, remove }: {
     documents: KnowledgeDocument[];
     page: number;
@@ -128,20 +153,7 @@ const DocumentsTable = ({ documents, page, setPage, total, totalPages, pendingTo
                     </thead>
                     <tbody>
                         {documents.map((doc) => (
-                            <tr key={doc.id}>
-                                <td className={s.title} title={doc.sourceUrl}>{doc.title || doc.sourceUrl}</td>
-                                <td>{CATEGORY_LABELS[doc.category]}</td>
-                                <td><StatusBadge status={doc.status} /></td>
-                                <td>{doc.priority}</td>
-                                <td>{doc.tags.join(', ')}</td>
-                                <td>{doc.chunkCount}</td>
-                                <td className={s.actions}>
-                                    {doc.status === 'PENDING' && (
-                                        <button disabled={embeddingId === doc.id} onClick={() => embed(doc.id)}>{t('Запустить эмбеддинг')}</button>
-                                    )}
-                                    <button className={s.danger} onClick={() => remove(doc.id)}>{t('Удалить')}</button>
-                                </td>
-                            </tr>
+                            <DocumentRow key={doc.id} doc={doc} embeddingId={embeddingId} embed={embed} remove={remove} />
                         ))}
                         {!documents.length && <tr><td colSpan={7} className={s.empty}>{t('Материалов пока нет')}</td></tr>}
                     </tbody>
