@@ -82,17 +82,28 @@ export const createPrismaDraftPipelineRepository = (): DraftPipelineRepository =
     return {
         ...createPrismaAiEmailDraftRepository(),
         async findDraftCandidates(limit) {
+            // `drafts: { none: {} }` alone can't tell "not yet evaluated" apart from "evaluated,
+            // a draft is correctly never generated for this one" (spam / !needsReply) — both look
+            // identical to that filter, since a skipped email never gets a draft row either. With
+            // `take: limit` small (AI_MAX_CONCURRENCY throttles concurrent Ollama calls, default
+            // 1) and `orderBy: receivedAt asc`, a single old skip-forever email would occupy that
+            // slot on every future run forever, permanently starving any real, newer candidate.
+            // Fetching a wider pool and filtering out the permanently-skipped ones here (cheap —
+            // no Ollama call yet) before slicing to `limit` fixes the starvation while keeping the
+            // actual draft-generation concurrency unchanged.
             const messages = await prisma.aiEmailMessage.findMany({
                 where: { status: 'CLASSIFIED', drafts: { none: {} } },
-                orderBy: { receivedAt: 'asc' }, take: limit,
+                orderBy: { receivedAt: 'asc' }, take: Math.max(limit, 50),
                 select: { id: true, sender: true, subject: true, normalizedBody: true, classifications: { orderBy: { createdAt: 'desc' }, take: 1 } },
             });
-            return messages.flatMap((message) => {
+            const candidates = messages.flatMap((message) => {
                 const classification = message.classifications[0];
                 if (!classification) return [];
+                if (classification.spam || !classification.needsReply) return [];
                 return [{ id: message.id, sender: message.sender, subject: message.subject ?? '', normalizedBody: message.normalizedBody,
                     classification: { spam: classification.spam, needsReply: classification.needsReply, language: classification.language as EmailClassification['language'], intent: classification.intent as EmailClassification['intent'], confidence: classification.confidence, reason: classification.reason } }];
             });
+            return candidates.slice(0, limit);
         },
     };
 };
