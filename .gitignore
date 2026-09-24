@@ -15,6 +15,7 @@ node_modules/
 # client/config/build/ (real webpack config source), silently excluding it from git.
 /client/build/
 /server/build/
+/server/public/telegram-admin/
 dist/
 coverage/
 playwright-report/
