@@ -77,6 +77,14 @@ export const handleTelegramApprovalUpdate = async (update: TelegramApprovalUpdat
             createPrismaDraftApprovalRepository(),
             parseAllowedTelegramActors(process.env.TELEGRAM_APPROVER_IDS),
         );
+        // Same fix as "Edit" above, for the other three buttons: the webhook response body is
+        // invisible to the operator, so a successful tap looked identical to a dropped one.
+        const confirmation = {
+            APPROVED: '✅ Черновик одобрен', REJECTED: '❌ Черновик отклонён', SPAM: '🚫 Письмо помечено как спам',
+        }[result.status];
+        if (confirmation) {
+            await sendTelegramMessage(`${confirmation} (<code>${parsed.draftId}:${parsed.draftVersion}</code>)`);
+        }
         return { status: 200, body: { ok: true, status: result.status } };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

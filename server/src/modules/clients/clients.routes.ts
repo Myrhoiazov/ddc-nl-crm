@@ -2,7 +2,7 @@ import express from "express";
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { createClientsController, deleteClientByIdController, fetchAllClientsController, getClientByIdController, getClientPaymentSummaryController, updateClientByIdController } from "./clients.controller";
+import { getClientCountController, createClientsController, deleteClientByIdController, fetchAllClientsController, getClientByIdController, getClientPaymentSummaryController, updateClientByIdController } from "./clients.controller";
 import { asyncHandler, isToken } from "../auth/auth.middleware";
 import { ROOT_DIR } from "../../common/utils/paths";
 
@@ -29,6 +29,7 @@ const upload = multer({
 
 router.get("/", asyncHandler(isToken), asyncHandler(fetchAllClientsController));
 router.get("/:id/payment-summary", asyncHandler(isToken), asyncHandler(getClientPaymentSummaryController));
+router.get("/count", asyncHandler(isToken), asyncHandler(getClientCountController));
 router.get("/:id", asyncHandler(isToken), asyncHandler(getClientByIdController));
 router.delete("/:id", asyncHandler(isToken), asyncHandler(deleteClientByIdController));
 router.put("/:id", asyncHandler(isToken), upload.single('image'), asyncHandler(updateClientByIdController));

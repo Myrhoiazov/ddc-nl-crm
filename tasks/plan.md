@@ -1261,3 +1261,41 @@ subscription/payment-link logic) noted in the REFACTOR list above, plus the new 
 duplicate-protection lock, none of which are built yet. Root menu currently shows only the 3
 buttons whose flows exist (Dashboard, Новый ученик, Найти ученика); the Mollie buttons are added
 once Phase 4 lands, per the "no dead buttons for a real admin" note in `telegram-admin-bot.menu.ts`.
+
+## Production rollout findings (2026-09-23, same day — real deploy to the live server)
+
+Merged to `main` via Release PR #143 and deployed by the user. Two real findings surfaced only by
+testing against the actual production Telegram bot, neither reproducible in the dev sandbox:
+
+**1. The Phase-1 identity assumption was wrong — `AuthIdentity.providerUserId` (Telegram OIDC's
+`sub` claim) is NOT the Bot API's numeric `from.id`.** Confirmed live: the real stored
+`providerUserId` for the admin's web login was `8603223464270931507` (19 digits — an opaque,
+per-OIDC-client pseudonymous identifier), while the same admin's real Bot API id (via
+`@userinfobot`) is `348397131` (9 digits, the classic Telegram user id format). These are two
+different identifier spaces; a web "Войти через Telegram" login can **never** produce a row that
+`resolveTelegramAdmin` (which looks up by the raw numeric `from.id` from bot updates) will match.
+**Current production state is a manual workaround, not a code fix**: a second `AuthIdentity` row
+was inserted directly (`provider: 'TELEGRAM'`, `providerUserId: '<real numeric id>'`, same
+`userId`) for the one admin who needs bot access today. This works because the `(provider,
+providerUserId)` unique index doesn't collide (different providerUserId value) and nothing else in
+the codebase assumes exactly one Telegram identity row per user — but it does not scale (every new
+admin needs the same manual `docker exec ... prisma.authIdentity.create` treatment) and isn't
+self-service.
+**Follow-up needed**: a real bot-driven linking flow (e.g. an admin sends `/link` to the bot, which
+already sees the real numeric `from.id` on any message, and confirms it against their web session
+via a short-lived code) — a proper Phase-1 addition, not yet built. Until then, onboarding a new
+bot admin requires this same manual DB step.
+
+**2. A persistent, never-identified "phantom" process was fighting for control of the bot's
+Telegram API session** — both `getUpdates` (409 "terminated by other getUpdates request") and,
+when a webhook was registered instead, `setWebhook`/an immediate silent `deleteWebhook` (webhook
+reverted to empty within ~1 second of being set, reproduced twice, once triggered from a completely
+different machine/network than production). Ruled out exhaustively: local dev (`TELEGRAM_POLLING_ENABLED=false`
+confirmed both via env and zero open sockets to Telegram from the container), every other container
+on the production VPS (`ddc-bot-prod`, `ddc-backend-prod` — both confirmed to use different bot
+tokens), and all recent GitHub Actions runs (none in-flight). Root cause was never found. **Resolved
+by revoking and reissuing the bot token via @BotFather** — the new token has had a clean
+`getWebhookInfo` (no conflicts) since. If this recurs on the new token, the phantom process is
+still out there somewhere unaccounted for (an old forgotten script/server is the leading
+suspicion) — worth a wider search (other VPS instances, teammates' machines, old cron jobs) before
+assuming it's something in this codebase.
