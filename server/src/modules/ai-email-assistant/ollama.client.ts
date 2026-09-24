@@ -5,10 +5,10 @@ import {
     type NormalizedEmailInput,
     type LlmClient,
 } from './email-assistant.service';
-import { AiDraftProvider } from '@prisma/client';
 import { emailDraftSchema, type DraftContext, type DraftLlmClient, type EmailDraft } from './draft.service';
 import { buildReplySubject } from '../communication/email/email-smtp.service';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
+import { DRAFT_PROVIDERS } from './draft-provider';
 
 // Below this retrieval score, knowledge is treated as too weak to answer from confidently — see
 // KnowledgeRetrievalService's own default (0.35) for the floor below which a chunk isn't
@@ -78,7 +78,7 @@ export const buildDraftBodyPrompt = (instructions: string, context: DraftContext
 ].filter(Boolean).join('\n');
 
 export class OllamaLlmClient implements LlmClient, DraftLlmClient {
-    public readonly provider = AiDraftProvider.OLLAMA;
+    public readonly provider = DRAFT_PROVIDERS.OLLAMA;
     public readonly model: string;
     private readonly config: AiConfig;
     private readonly fetchImpl: typeof fetch;

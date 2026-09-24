@@ -1,15 +1,14 @@
-import { AiDraftProvider } from '@prisma/client';
 import { aiConfig, type AiConfig } from '../../config/ai.config';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
 import { buildDeterministicDraft, buildDraftBodyPrompt } from './ollama.client';
 import { emailDraftSchema, type DraftContext, type EmailDraft } from './draft.service';
-import { DraftProviderError, type DraftProvider } from './draft-provider';
+import { DRAFT_PROVIDERS, DraftProviderError, type DraftProvider } from './draft-provider';
 
 interface OpenAiResponse { choices?: Array<{ message?: { content?: string | null } }> }
 export interface OpenAiClientOptions { config?: AiConfig; fetchImpl?: typeof fetch; promptRepository?: AiPromptRepository; model?: string; }
 
 export class OpenAiDraftClient implements DraftProvider {
-  public readonly provider = AiDraftProvider.OPENAI;
+  public readonly provider = DRAFT_PROVIDERS.OPENAI;
   public readonly model: string;
   private readonly config: AiConfig;
   private readonly fetchImpl: typeof fetch;

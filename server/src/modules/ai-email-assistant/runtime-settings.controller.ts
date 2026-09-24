@@ -1,12 +1,12 @@
-import { AiDraftProvider } from '@prisma/client';
 import { z } from 'zod';
 import type { Request, Response } from 'express';
 import { createPrismaAiRuntimeSettingsRepository } from './runtime-settings.service';
 import { createDraftProviderFactory } from './draft-provider.factory';
 import { DraftProviderError } from './draft-provider';
+import { DRAFT_PROVIDERS } from './draft-provider';
 
 const repository = createPrismaAiRuntimeSettingsRepository();
-export const updateRuntimeSettingsSchema = z.object({ provider: z.nativeEnum(AiDraftProvider), model: z.string().trim().min(1).max(191) }).strict();
+export const updateRuntimeSettingsSchema = z.object({ provider: z.enum([DRAFT_PROVIDERS.OLLAMA, DRAFT_PROVIDERS.OPENAI]), model: z.string().trim().min(1).max(191) }).strict();
 export const getRuntimeSettings = async (_req: Request, res: Response) => res.json(await repository.get());
 export const updateRuntimeSettings = async (req: Request, res: Response) => {
   const parsed = updateRuntimeSettingsSchema.safeParse(req.body);

@@ -1,8 +1,9 @@
-import { AiDraftProvider, AiEmailDraftStatus } from '@prisma/client';
+import { AiEmailDraftStatus } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client';
 import { aiConfig } from '../../config/ai.config';
 import { emailDraftSchema, type EmailDraft } from './draft.service';
 import type { DraftApprovalRepository } from './approval.service';
+import { DRAFT_PROVIDERS, type DraftProviderName } from './draft-provider';
 
 export const DRAFT_PROMPT_VERSION = 'draft-v1';
 
@@ -18,7 +19,7 @@ export interface DraftRecord {
     knowledge: DraftKnowledgeRefInput[];
     model?: string;
     promptVersion?: string;
-    provider?: AiDraftProvider;
+    provider?: DraftProviderName;
     generationErrorCode?: string;
     generationErrorMessage?: string;
     status?: AiEmailDraftStatus;
@@ -48,7 +49,7 @@ export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => 
                     replyLanguage: parsed.replyLanguage,
                     confidence: parsed.confidence,
                     needsManualAnswer: parsed.needsManualAnswer,
-                    provider: record.provider ?? AiDraftProvider.OLLAMA,
+                    provider: record.provider ?? DRAFT_PROVIDERS.OLLAMA,
                     model: record.model ?? aiConfig.ollamaModel,
                     promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
                     status: record.status ?? AiEmailDraftStatus.GENERATED,
@@ -78,7 +79,7 @@ export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => 
                 replyLanguage: record.draft.replyLanguage,
                 confidence: record.draft.confidence,
                 needsManualAnswer: true,
-                provider: record.provider ?? AiDraftProvider.OLLAMA,
+                provider: record.provider ?? DRAFT_PROVIDERS.OLLAMA,
                 model: record.model ?? aiConfig.ollamaModel,
                 promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
                 status: AiEmailDraftStatus.FAILED,
