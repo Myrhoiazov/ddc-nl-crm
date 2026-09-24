@@ -3,9 +3,25 @@ import { merge } from "lodash";
 import { getUserByOpaqueSessionToken } from "./auth.token.service";
 import { UserRole } from "@prisma/client";
 
+import { verifyTelegramInitData } from './telegram-miniapp/telegram-miniapp-init-data.service';
+import { findMiniAppIdentityByTelegramUserId } from './telegram-miniapp/telegram-miniapp-identity.service';
+
 const cookieName = () => process.env.COOKIE_NAME || 'ddc_refresh';
 
 export const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+    const initData = req.header('x-telegram-init-data');
+    if (initData !== undefined) {
+        const token = process.env.TELEGRAM_TOKEN?.trim();
+        const verified = token && verifyTelegramInitData(initData, token);
+        if (!verified || !verified.ok) return res.status(401).json({ message: 'Unauthorized' });
+        const identity = await findMiniAppIdentityByTelegramUserId(verified.telegramUserId);
+        if (!identity?.user.isEnabled || identity.user.role !== UserRole.ADMIN) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        req.user = identity.user;
+        req.authMethod = 'telegram-miniapp';
+        return next();
+    }
     const sessionToken = req.cookies[cookieName()];
 
     if (!sessionToken) {

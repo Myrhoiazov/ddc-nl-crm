@@ -71,11 +71,14 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 ```
 
 - Business modules under `server/src/modules/`: `auth` (incl. `auth/telegram/` — Telegram OIDC
-  login/link, ADMIN-only, distinct from the notification bot below), `users`, `clients`, `company`,
-  `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments` (Mollie),
-  `payment-reminders`, `communication` (`email`/`instagram`/`telegram` sub-modules — this
-  `telegram` is outbound admin notifications only, a different Telegram integration from
-  `auth/telegram/`), `health`, `ai-email-assistant`, `knowledge-ingestion`.
+  login/link, ADMIN-only; `auth/telegram-miniapp/` — HMAC-verified `initData` auth for the
+  Telegram Mini App, a third, still-distinct Telegram integration, see Integrations below), `users`,
+  `clients`, `company`, `schedule`, `comments`, `search`, `transactions`, `invoices`, `payments`
+  (Mollie), `payment-reminders`, `communication` (`email`/`instagram`/`telegram` sub-modules — this
+  `telegram` is outbound admin notifications only, a different Telegram integration from either
+  `auth/telegram/` or `auth/telegram-miniapp/`), `telegram-admin-bot` (the Mini App's root-menu
+  `/start` handler — routes admins into the Mini App via `web_app`/`url` deep links depending on
+  chat type, see Integrations below), `health`, `ai-email-assistant`, `knowledge-ingestion`.
 - `ai-email-assistant` keeps the whole AI workflow in one module boundary: normalize/bounded
   persistence → deterministic spam checks → LLM classification (`classifyEmail`, strict runtime
   schema, one repair retry) → CRM read-only projection (`createPrismaCrmReader`) → RAG context →
@@ -140,9 +143,10 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - **Mollie** (`@mollie/api-client`): client payment profiles, subscriptions, mandates, reconciliation.
 - **Email**: IMAP/SMTP via `imapflow`/`nodemailer`/`mailparser`. Separate model in `email.prisma`.
 - **2FA email**: Sent via nodemailer directly using SMTP creds from `EmailAccount` whose `username` matches `TWO_FACTOR_SENDER_EMAIL` env — does not go through `service.EmailSmtp` and does not create a message in the Email module.
-- **Telegram** — two independent integrations, easy to conflate by name alone:
-  - *Notification bot* (`communication/telegram/`, `TELEGRAM_TOKEN`/`TELEGRAM_CHAT_ID`): one-way outbound alerts (payments, security events) via the Bot API.
-  - *Telegram Login* (`auth/telegram/`, `TELEGRAM_OIDC_CLIENT_ID`/`TELEGRAM_OIDC_CLIENT_SECRET`/`TELEGRAM_OIDC_REDIRECT_URI`): OIDC Authorization Code + PKCE against `oauth.telegram.org`, ADMIN-only additional login provider. Configured via a bot's Login Widget in `@BotFather` (OpenID Connect mode, not the legacy hash-based widget). Inert (button/widget hidden) until all three env vars are set.
+- **Telegram** — three independent integrations sharing one physical bot/token, easy to conflate by name alone:
+  - *Notification bot* (`communication/telegram/`, `TELEGRAM_TOKEN`/`TELEGRAM_CHAT_ID`): one-way outbound alerts (payments, login-blocked, new-device, role-changed) to the shared admin group via the Bot API. A second, personal channel exists on the same module: `TELEGRAM_EMAIL_NOTIFY_CHAT_ID` pings one admin's own private chat with the bot when a new non-spam email arrives (`notifyNewEmail`, wired into `communication/email/email-imap.service.ts`'s IMAP sync) — deliberately not posted to the shared group.
+  - *Telegram Login* (`auth/telegram/`, `TELEGRAM_OIDC_CLIENT_ID`/`TELEGRAM_OIDC_CLIENT_SECRET`/`TELEGRAM_OIDC_REDIRECT_URI`): OIDC Authorization Code + PKCE against `oauth.telegram.org`, ADMIN-only additional login provider. Configured via a bot's Login Widget in `@BotFather` (OpenID Connect mode, not the legacy hash-based widget). Inert (button/widget hidden) until all three env vars are set. `AuthIdentity.providerUserId` here is an opaque OIDC `sub`, **not** the Bot API numeric user id — see [identity.md](docs/domain/identity.md).
+  - *Telegram Mini App* (`auth/telegram-miniapp/` + `telegram-admin-bot/` + `client/telegram-mini-app/`, `TELEGRAM_MINIAPP_URL`/`TELEGRAM_BOT_USERNAME`): a small dependency-free TS/esbuild web app (Dashboard/student search/new-student screens) reusing the existing REST API, authenticated via a `X-Telegram-Init-Data` header (HMAC-verified against `TELEGRAM_TOKEN`, distinct `AuthProvider.TELEGRAM_MINIAPP` identity — see [identity.md](docs/domain/identity.md)). Production is served by the **frontend** nginx container (`client/build/telegram-admin/`, built by `client/package.json`'s `build:prod`), not the backend's own `express.static` copy (`server/public/telegram-admin/`, dev-only). The bot's `/start` opens it via `web_app` inline buttons in a private chat, or a `url` deep-link into a private chat first if `/start` came from a group — Telegram rejects `web_app` buttons everywhere except a private 1:1 chat with the bot. Design/rollout history: `docs/superpowers/specs/2026-09-23-telegram-mini-app-design.md`, `docs/superpowers/plans/2026-09-23-telegram-mini-app.md`.
 - **Ollama (local LLM)**: `OllamaLlmClient` in `modules/ai-email-assistant/` is the narrow LLM boundary; no application code may hard-code a model name. Classification uses `OLLAMA_MODEL` (default `qwen3:0.6b`), embeddings use `OLLAMA_EMBEDDING_MODEL` (default `bge-m3`). Compose runs an `ollama` service with env-driven memory/CPU limits; production must not enable any `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` flag until `scripts/benchmark-ollama*.sh` measurements exist for the real host.
 
 ## Security Context
@@ -151,6 +155,9 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - Argon2id password hashing
 - 2FA email flow on login
 - Telegram OIDC login (ADMIN-only, must be explicitly linked first — never bypasses 2FA)
+- Telegram Mini App auth (`X-Telegram-Init-Data` header, HMAC-SHA256-verified against
+  `TELEGRAM_TOKEN`, distinct `AuthProvider.TELEGRAM_MINIAPP` identity, ADMIN-only, CSRF-exempt
+  since it carries no session cookie — its own HMAC signature is the authenticity proof)
 - Endpoint-specific rate limiting
 - Security audit event log
 - AI email assistant: local LLM only (no cloud), the LLM has no SMTP/DB/filesystem/shell tools,

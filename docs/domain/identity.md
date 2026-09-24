@@ -90,13 +90,20 @@ logging.
 - **Identity**: `id`; `[provider, providerUserId]` unique — the real defense against two users
   racing to link the same Telegram identity (the link service also pre-checks, but the constraint
   is what's actually load-bearing under a race).
-- **Important fields**: `provider` (`TELEGRAM` only today), `providerUserId` (Telegram's stable
-  OIDC `sub`, never the `@username`), `username`/`displayName` (display-only metadata), `linkedAt`,
-  `lastLoginAt`.
+- **Important fields**: `provider` — two distinct values today, **not interchangeable**:
+  `TELEGRAM` (OIDC login, `providerUserId` is Telegram's opaque OIDC `sub` — confirmed in
+  production to be a ~19-digit number, nothing like a real Telegram id) and `TELEGRAM_MINIAPP`
+  (Mini App, `providerUserId` is the *real* numeric Telegram Bot API user id, the same one the bot
+  sees as `from.id` on every message/callback). `username`/`displayName` (display-only metadata),
+  `linkedAt`, `lastLoginAt`.
 - **Relationships**: belongs to one `User`.
-- **Invariants**: at most one `AuthIdentity` per `User` is enforced at the service layer
-  (`auth.telegram.identity.service.ts`), not the schema — deliberately, so it can be relaxed later
-  without a migration if a second provider or multi-identity need shows up.
+- **Invariants**: at most one `AuthIdentity` per `(User, provider)` pair is enforced at each
+  provider's own service layer (`auth.telegram.identity.service.ts` for `TELEGRAM`,
+  `auth/telegram-miniapp/telegram-miniapp-identity.service.ts` for `TELEGRAM_MINIAPP`) — not the
+  schema, and not shared between the two providers, so a `User` can validly hold one of each at
+  once. A production admin resolving "which CRM user is messaging the bot right now" from the raw
+  numeric `from.id` must query `TELEGRAM_MINIAPP` (or the manually-inserted real-id `TELEGRAM` row
+  some admins have as a legacy workaround) — never the OIDC `sub` row, which cannot match.
 
 ### TelegramAuthTransaction
 
@@ -157,6 +164,18 @@ logging.
   limitation: `TrustedDevice`'s cookie is `sameSite=strict`, so it is never sent on the callback's
   cross-site-initiated redirect back from Telegram — a Telegram login therefore always falls
   through to the 2FA challenge, never the trusted-device bypass (fails safe, not currently fixed).
+- **Telegram Mini App auth** (`server/src/modules/auth/telegram-miniapp/`): a third, distinct
+  Telegram-based auth path, layered into the *existing* `isAuthenticated` middleware rather than a
+  parallel one — a request carrying an `X-Telegram-Init-Data` header is HMAC-SHA256-verified
+  against `TELEGRAM_TOKEN` (Telegram's documented WebApp `initData` check), resolved to a
+  `TELEGRAM_MINIAPP` `AuthIdentity`, and rejected (`403`) unless that identity's `User` is an
+  enabled `ADMIN` — same ADMIN-only policy as Telegram OIDC login, enforced independently. Carries
+  no session cookie, so it's exempted from CSRF (`auth.csrf.middleware.ts`) on the header's
+  presence alone; the HMAC signature itself is what proves authenticity instead. A brand-new
+  admin's first `TELEGRAM_MINIAPP` identity is created via an ADMIN-only linking endpoint
+  (`POST /users/:id/telegram-miniapp-link`, `users.controller.ts`) using their real numeric
+  Telegram id (obtained out-of-band, e.g. via `@userinfobot`) — `initData` alone can prove *who is
+  asking right now*, never *which CRM user that Telegram account belongs to* on first contact.
 
 ## Relationships
 

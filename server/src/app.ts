@@ -38,7 +38,7 @@ app.use(helmet({
             defaultSrc: ["'self'"],
             baseUri: ["'self'"],
             objectSrc: ["'none'"],
-            scriptSrc: ["'self'"],
+            scriptSrc: ["'self'", 'https://telegram.org'],
             styleSrc: ["'self'", "'unsafe-inline'"],
             imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
             fontSrc: ["'self'", 'data:'],
@@ -84,7 +84,14 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 app.use(compression());
-app.use(express.static(path.join(ROOT_DIR, 'public'), { maxAge: 31557600000 }));
+app.use(express.static(path.join(ROOT_DIR, 'public'), {
+    maxAge: 31557600000,
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith(path.join('telegram-admin', 'index.html'))) {
+            res.setHeader('Cache-Control', 'no-cache');
+        }
+    },
+}));
 
 app.use('/api/v1', csrfProtection);
 app.use('/api/v1', routes());

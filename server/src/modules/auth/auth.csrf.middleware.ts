@@ -29,6 +29,9 @@ const csrfExempt = (req: Request) => {
         // (both the pre-existing email-draft-approval bot and the new admin bot) was silently
         // 403'd by this middleware before ever reaching the controller.
         || path === '/telegram/webhook'
+        // Header requests authenticate exclusively through initData in isAuthenticated;
+        // even an invalid header never falls back to a cookie session.
+        || Boolean(req.header('x-telegram-init-data')?.trim())
     );
 };
 
