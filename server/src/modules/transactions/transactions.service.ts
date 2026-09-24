@@ -38,7 +38,7 @@ export interface ITransactionsAttributes {
     description?: string;
 }
 
-export enum Month {
+enum Month {
     ALL = 'all',
     JANUARY = 'january',
     FEBRUARY = 'february',

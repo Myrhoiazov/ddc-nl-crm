@@ -27,7 +27,7 @@ const getEncryptionKey = () => {
     return createHash('sha256').update(secret).digest();
 };
 
-export const encryptMollieToken = (value: string) => {
+const encryptMollieToken = (value: string) => {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', getEncryptionKey(), iv);
     const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
@@ -36,7 +36,7 @@ export const encryptMollieToken = (value: string) => {
     return [TOKEN_VERSION, iv.toString('base64'), authTag.toString('base64'), encrypted.toString('base64')].join('.');
 };
 
-export const decryptMollieToken = (value: string) => {
+const decryptMollieToken = (value: string) => {
     const [version, iv, authTag, encrypted] = value.split('.');
 
     if (version !== TOKEN_VERSION || !iv || !authTag || !encrypted) {

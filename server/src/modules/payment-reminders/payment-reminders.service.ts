@@ -74,7 +74,7 @@ export const getPaymentReminderSettings = () => prisma.paymentReminderSettings.u
 
 // Seeds a DB row with the built-in default copy on first access, so opening the template
 // editor for a language always has something to show/edit rather than a blank form.
-export const getPaymentReminderTemplate = (language: ClientLanguage) => prisma.paymentReminderTemplate.upsert({
+const getPaymentReminderTemplate = (language: ClientLanguage) => prisma.paymentReminderTemplate.upsert({
     where: { language },
     update: {},
     create: {
@@ -110,7 +110,7 @@ export const computeReminderWindow = (offsetDays: number, now = new Date()) => {
 // subscriptions are eligible for a reminder.
 export const isMandateEligibleForReminder = (mandateStatus?: string | null) => mandateStatus !== 'invalid';
 
-export const selectSubscriptionsDueForReminder = async (offsetDays: number, now = new Date()) => {
+const selectSubscriptionsDueForReminder = async (offsetDays: number, now = new Date()) => {
     const { windowStart, windowEnd } = computeReminderWindow(offsetDays, now);
 
     const subscriptions = await prisma.subscription.findMany({
@@ -234,7 +234,7 @@ export interface ReminderRunContext {
 // settings are singletons; templates only vary by language, of which there are 3 at most), so
 // re-fetching them per subscription was a pure-waste N+1 (see docs/spec/DDC_CRM_API_RESPONSE_SHAPE_SPEC.md
 // for the same principle applied server-wide).
-export const sendReminderForSubscription = async (
+const sendReminderForSubscription = async (
     subscription: DueSubscription,
     targetPaymentDate: Date,
     runContext: ReminderRunContext,

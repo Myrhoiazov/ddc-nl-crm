@@ -6,7 +6,7 @@ const initialState: UserSchema = {
     _inited: false,
 };
 
-export const userSlice = createSlice({
+const userSlice = createSlice({
     name: 'user',
     initialState,
     reducers: {

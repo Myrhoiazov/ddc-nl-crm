@@ -9,7 +9,7 @@ const initialState: MollieClientDetailsSchema = {
     data: undefined,
 };
 
-export const mollieClientDetailsSlice = createSlice({
+const mollieClientDetailsSlice = createSlice({
     name: 'mollieClientDetailsSlice',
     initialState,
     reducers: {

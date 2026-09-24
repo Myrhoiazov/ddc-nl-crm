@@ -9,9 +9,11 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
   --config-file pyproject.toml
 ```
 
-Дата снимка: **2026-09-24**. Overall grade прогона: **D- (62/100)**
-(`security` F из-за находок ниже — все реальные security-находки закрыты веткой
-`chore/skylos-findings-wave1`, остальное — false positives, см. разбор).
+Дата снимка: **2026-09-24** (начальный прогон — grade **D- (62/100)**, `security` F).
+После wave1–3 (та же дата, ветка `chore/skylos-findings-wave1`): **D (66/100)** — все
+реальные security-находки закрыты, `SKY-T103` закрыт полностью, `SKY-E004` закрыт на
+37/54 (остаток — false positive), остальное — false positives/by design, см. разбор
+по волнам ниже.
 
 ## Известное ограничение пайплайна (важно прочитать перед новой волной)
 
@@ -40,9 +42,9 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
    CI-раннера) или устанавливать `--diff-base`/`--baseline` только в контексте, где
    путь стабилен (CI-раннер с фиксированным checkout-путём).
 
-## Итоговые счётчики (полный прогон, до wave1/wave2)
+## Итоговые счётчики (полный прогон, после wave1–3)
 
-| Категория | Найдено | Реально закрыто wave1 | False positive / by design (задокументировано) | Осталось на новую волну |
+| Категория | Найдено | Реально закрыто | False positive / by design (задокументировано) | Осталось на новую волну |
 |---|---|---|---|---|
 | `SKY-D226` (XSS via innerHTML) | 6 | 0 | 6 | 0 |
 | `SKY-D212` (predicted command injection) | 1 | 0 | 1 | 0 |
@@ -53,8 +55,8 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
 | `SKY-S102` (client-side secret exposure) | 8 | 0 | 8 | 0 |
 | `SKY-U002` (unused import) | 1 | 1 | 0 | 0 |
 | `SKY-U001`/`U003`/`U004` (unused func/var, tooling) | 6 | 0 | 6 | 0 |
-| `SKY-E003` (unused file) | 51 | 0 | ~51 (в основном stories/config) | нужна поштучная сверка |
-| `SKY-E004` (unnecessary export) | 54 | 0 | 0 | 54 (FSD alias — как `SKY-L012`) |
+| `SKY-E003` (unused file) | 51 | 0 | 51 (stories/jest/storybook/build-config — не входят в граф импортов Skylos) | 0 |
+| `SKY-E004` (unnecessary export) | 54 | 37 (`export` снят — символ реально нигде не импортируется извне) | 17 (Storybook CSF named exports — тот же класс, что `SKY-E003`) | 0 |
 | `SKY-C304` (функция > 50 строк) | ~45 | 0 | 0 | ~45 (production vs test policy) |
 | `SKY-Q301` (цикломатическая сложность > 10) | ~10 | 0 | 0 | ~10 |
 | `SKY-C303` (> 5 параметров) | 3 | 0 | 0 | 3 |
@@ -136,31 +138,6 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
 — `SKY-D292` больше не встречается; `skylos server/src/modules/ai-email-assistant/draft-pipeline.service.ts -a`
 — `SKY-U002` больше не встречается.
 
-## На следующую волну (не входит в wave1)
-
-- **`SKY-E004`** (54, unnecessary export — Redux slice-файлы) — тот же корневой
-  паттерн, что уже задокументирован для `SKY-L012`: FSD `index.ts`-барели +
-  `@/`-алиас, которые статический резолвер Skylos не проходит. Раз конфиг-`ignore`
-  для этого правила не работает (см. «Известное ограничение» выше), решение по
-  этой категории — просто задокументировать как false positive class целиком
-  (не подавлять построчно 54 находки).
-- **`SKY-E003`** (51, unused file) — судя по путям, почти все — `*.stories.tsx`
-  (Storybook подхватывает по glob, не по импорту), `client/config/jest/**`
-  (Jest/Storybook-конфиги, не входящие в основной граф импортов), `webpack.config.ts`,
-  `stylelint.config.mjs`, `prisma.config.ts`, `prisma/seed.ts` — CLI-конвенция запуска,
-  не прямой импорт. Требуется поштучная сверка перед итоговым закрытием (не делалась
-  в рамках wave1).
-- **`SKY-C304`/`SKY-Q301`/`SKY-C303`** — по историческому паттерну этого чек-листа
-  (волны 16–24, см. git history файла) тестовые файлы (`*.test.ts(x)`) сознательно не
-  декомпозируются ради метрики; production-хиты (`useLoginForm.ts`,
-  `auth.controller.ts:320`, `auth.telegram.controller.ts:164,266`,
-  `email-imap.service.ts:164`, `embedding.service.ts:39`, `file-ingestion.service.ts:22,55`,
-  `query-expansion.service.ts:46`, `retrieval.service.ts:53`,
-  `telegram-admin-bot.service.ts:55`, `telegram-approval.controller.ts:47`,
-  `telegram-miniapp-init-data.service.ts:19`, `KnowledgeBasePage.tsx:91`,
-  `usePromptLibrary.ts:7`, `LoginForm.tsx:29`, `email-assistant.persistence.ts:36`,
-  `auth.login-rate-limit.middleware.ts:18`) — реальные кандидаты на декомпозицию,
-  отдельной волной/PR.
 ## Волна 2 (2026-09-24, та же ветка) — SKY-T103 (`@total-typescript/shoehorn`)
 
 **Закрыто полностью — 44/44.** Тот же паттерн, что уже закрывал 47 находок T103 в
@@ -197,6 +174,82 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
 
 **Проверено:** `tsc --noEmit` (server) — 0 ошибок; `npm run test:ci` (server, все 10
 сьютов) — 0 fail; `skylos . --select SKY-T103` по всему репозиторию — 0 находок.
-- **`SKY-U001`/`U003`/`U004`** (6, jest/storybook config helpers) — та же категория,
-  что уже закрыта как false positive в прошлых волнах (`client/config/**` не входит
-  в граф импортов) — просто задокументировать, без правок.
+
+## Волна 3 (2026-09-24, та же ветка) — SKY-E004 (снятие лишнего `export`)
+
+**Закрыто 37/54, оставшиеся 17 — false positive (Storybook CSF), задокументировано.**
+
+Важная поправка к тому, что было заявлено про эту категорию в конце wave1: это
+**не** тот же корневой паттерн, что `SKY-L012` (FSD-барели). Проверено вручную по
+каждому из 54 symbol'ов (`grep` по всему репозиторию, включая тестовые файлы, на
+точное имя символа) — большинство реально нигде не импортируется:
+
+- **37 реальных находок закрыто** — у каждой снят только `export` (сам код/поведение
+  не менялся, только видимость символа за пределы модуля):
+  - 15 Redux-слайсов (`client/src/{entities,features}/**/model/slice*/*.ts`) —
+    паттерн Redux Toolkit: наружу нужен только `xReducer`/`xActions` (сам объект
+    `createSlice(...)` — `xSlice` — потребляется только внутри своего файла для их
+    получения). Подтверждено по каждому файлу: внешние импортёры (UI-компоненты,
+    `index.ts`-барели, `*.test.ts`) всегда берут `xReducer`/`xActions`, никогда сам
+    `xSlice`.
+  - 21 находка в `server/` — константы/хелперы уровня модуля (`MAX_ATTEMPTS`,
+    `MAX_RESENDS`, `RESEND_COOLDOWN_SECONDS`, `sendTwoFactorCodeEmail` в
+    `auth.two-factor.service.ts`; `cleanupAuthSecurityEvents`;
+    `telegramOidcClientId/Secret/RedirectUri`; `TRANSACTION_TTL_MINUTES`;
+    `createClientSchema`; `syncAllActiveEmailAccounts`; `isEmailNotifyConfigured` +
+    `buildNewEmailNotification`; `getPaymentReminderTemplate` +
+    `selectSubscriptionsDueForReminder` + `sendReminderForSubscription`;
+    `encryptMollieToken` + `decryptMollieToken`; `csvEscape`; `MINI_APP_SCREENS`;
+    enum `Month` в `transactions.service.ts`) и `client/telegram-mini-app/src/telegram.ts`'s
+    `telegramWebApp` — каждый вызывается только внутри своего файла (координирующей
+    функцией того же модуля — cron-обёрткой, контроллером, другим хелпером того же
+    файла), внешних импортёров нет ни в коде, ни в тестах.
+  - Осторожность с наивным `grep`: общие имена (`MAX_ATTEMPTS`, `Month`, `Dark`,
+    `Primary`) дают ложные совпадения на одноимённые, но не связанные символы в
+    других файлах (например, 4 разных модуля rate-limit независимо друг от друга
+    объявляют свой собственный module-private `const MAX_ATTEMPTS`) — каждое
+    совпадение проверялось конкретным импортом (`import { X } from '...'`), а не
+    просто наличием слова в файле.
+- **17 findings — false positive, тот же класс, что `SKY-E003`**: именованные
+  экспорты Storybook CSF (`Primary`, `Dark`, `Normal`, `Light`, `Secondary`,
+  `SecondaryDark`, `Red`, `RedDark`, `PrimaryDark`, `OutlineDark` в
+  `AppLink.stories.tsx` / `Button.stories.tsx` / `Loader.stories.tsx` /
+  `Modal.stories.tsx` / `ThemeSwitcher.stories.tsx` / `ErrorPage.stories.tsx` /
+  `Navbar.stories.tsx` / `Sidebar.stories.tsx`) — Storybook подхватывает их по
+  glob-паттерну файла, не через JS `import`, поэтому Skylos не видит потребителя;
+  снятие `export` здесь сломало бы соответствующий сторис. Конфиг-`ignore` не
+  применим (см. «Известное ограничение» выше — `SKY-E004` в списке `ignore`, но не
+  подавляется), так что решение по этим 17 — просто зафиксировать здесь, без правок.
+
+**Проверено:** `tsc --noEmit` (client + server) — 0 ошибок сверх baseline (20
+предсуществующих ошибок в `node_modules/@types/{mdx,react-router-dom}`, не в этой
+работе); `npm run lint:ts` (client) — 0 errors, 62 baseline warnings без изменений;
+`npm test` (client) — 287/287 suites, 1020/1020 тестов; `npm run test:ci` (server,
+все 10 сьютов) — 0 fail; `npm run test:telegram-admin-bot` — 18/18;
+`skylos . --exclude coverage --exclude graphify-out` — `unused_exports` 54 → 17
+(только Storybook CSF).
+
+## На следующую волну
+
+- **`SKY-C304`/`SKY-Q301`/`SKY-C303`** — по историческому паттерну этого чек-листа
+  (волны 16–24, см. git history файла) тестовые файлы (`*.test.ts(x)`) сознательно не
+  декомпозируются ради метрики; production-хиты (`useLoginForm.ts`,
+  `auth.controller.ts:320`, `auth.telegram.controller.ts:164,266`,
+  `email-imap.service.ts:164`, `embedding.service.ts:39`, `file-ingestion.service.ts:22,55`,
+  `query-expansion.service.ts:46`, `retrieval.service.ts:53`,
+  `telegram-admin-bot.service.ts:55`, `telegram-approval.controller.ts:47`,
+  `telegram-miniapp-init-data.service.ts:19`, `KnowledgeBasePage.tsx:91`,
+  `usePromptLibrary.ts:7`, `LoginForm.tsx:29`, `email-assistant.persistence.ts:36`,
+  `auth.login-rate-limit.middleware.ts:18`) — реальные кандидаты на декомпозицию,
+  отдельной волной/PR.
+
+## Постоянно задокументированные false positive классы (без действий)
+
+- **`SKY-E003`** (51, unused file) — `*.stories.tsx` (Storybook, glob-загрузка),
+  `client/config/jest/**` + `client/config/storybook/**` (не входят в основной граф
+  импортов Skylos), `webpack.config.ts`, `stylelint.config.mjs`, `prisma.config.ts`,
+  `prisma/seed.ts` — все запускаются CLI-конвенцией инструмента, не прямым импортом.
+- **`SKY-E004`** (17, см. волну 3) — именованные Storybook CSF экспорты, тот же
+  root cause, что `SKY-E003`.
+- **`SKY-U001`/`U003`/`U004`** (6, jest/storybook config helpers) — та же категория:
+  `client/config/**` не входит в граф импортов Skylos.

@@ -9,7 +9,7 @@ const initialState: AddTransactionFormSchema = {
     data: undefined,
 };
 
-export const addTransactionFormSlice = createSlice({
+const addTransactionFormSlice = createSlice({
     name: 'addTransactionForm',
     initialState,
     reducers: {

@@ -8,7 +8,7 @@ export const authSecurityEventCutoffDate = (now: Date = new Date()): Date => (
     new Date(now.getTime() - AUTH_SECURITY_EVENT_RETENTION_DAYS * DAY_MS)
 );
 
-export const cleanupAuthSecurityEvents = async () => {
+const cleanupAuthSecurityEvents = async () => {
     const result = await prisma.authSecurityEvent.deleteMany({
         where: { createdAt: { lt: authSecurityEventCutoffDate() } },
     });
