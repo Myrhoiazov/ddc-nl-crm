@@ -26,23 +26,48 @@ const initialReducers: ReducersList = {
     loginForm: loginReducer,
 };
 
+type CredentialsViewProps = ReturnType<typeof useLoginForm> & { className?: string };
+
+const CredentialsView = ({
+    className, email, password, isLoading, error, onChangeEmail, onChangePassword, onSubmit,
+    captchaRequired, captchaSiteKey, captchaWidgetKey, onCaptchaVerify, onCaptchaReset,
+}: CredentialsViewProps) => (
+    <DynamicModuleLoader reducers={initialReducers}>
+        <Card
+            className={classNames(cls.LoginForm, {}, [className])}
+            padding="40"
+        >
+            <form onSubmit={onSubmit}>
+                <VStack align="center">
+                    <LoginFormHeader />
+                </VStack>
+                <LoginFormFields
+                    email={email}
+                    password={password}
+                    onChangeEmail={onChangeEmail}
+                    onChangePassword={onChangePassword}
+                />
+                {captchaRequired && captchaSiteKey && (
+                    <VStack align="center" className={cls.captcha}>
+                        <TurnstileWidget
+                            key={captchaWidgetKey}
+                            siteKey={captchaSiteKey}
+                            onVerify={onCaptchaVerify}
+                            onReset={onCaptchaReset}
+                        />
+                    </VStack>
+                )}
+                <LoginFormError error={error} />
+                <LoginFormActions isLoading={isLoading} />
+            </form>
+            <TelegramLoginButton />
+        </Card>
+    </DynamicModuleLoader>
+);
+
 const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
-    const {
-        email,
-        password,
-        isLoading,
-        error,
-        pendingMaskedEmail,
-        onChangeEmail,
-        onChangePassword,
-        onSubmit,
-        onBackToCredentials,
-        captchaRequired,
-        captchaSiteKey,
-        captchaWidgetKey,
-        onCaptchaVerify,
-        onCaptchaReset,
-    } = useLoginForm({ onSuccess });
+    const loginForm = useLoginForm({ onSuccess });
+    const { pendingMaskedEmail, onBackToCredentials } = loginForm;
 
     if (pendingMaskedEmail) {
         return (
@@ -55,39 +80,7 @@ const LoginForm = memo(({ className, onSuccess }: LoginFormProps) => {
         );
     }
 
-    return (
-        <DynamicModuleLoader reducers={initialReducers}>
-            <Card
-                className={classNames(cls.LoginForm, {}, [className])}
-                padding="40"
-            >
-                <form onSubmit={onSubmit}>
-                    <VStack align="center">
-                        <LoginFormHeader />
-                    </VStack>
-                    <LoginFormFields
-                        email={email}
-                        password={password}
-                        onChangeEmail={onChangeEmail}
-                        onChangePassword={onChangePassword}
-                    />
-                    {captchaRequired && captchaSiteKey && (
-                        <VStack align="center" className={cls.captcha}>
-                            <TurnstileWidget
-                                key={captchaWidgetKey}
-                                siteKey={captchaSiteKey}
-                                onVerify={onCaptchaVerify}
-                                onReset={onCaptchaReset}
-                            />
-                        </VStack>
-                    )}
-                    <LoginFormError error={error} />
-                    <LoginFormActions isLoading={isLoading} />
-                </form>
-                <TelegramLoginButton />
-            </Card>
-        </DynamicModuleLoader>
-    );
+    return <CredentialsView className={className} {...loginForm} />;
 });
 
 export default LoginForm;
