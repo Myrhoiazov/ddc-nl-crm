@@ -1,5 +1,20 @@
 # DDC CRM — Telegram Admin Bot Specification
 
+> **Status (2026-09-24): superseded for the implemented subset.** Only Dashboard (§7), Student
+> Search (§8), and Create Student (§9) were ever built as bot-driven conversational flows; Mollie
+> Customer/Mandate/Subscription/Payment Link (§10-13) were never implemented. The flows that *were*
+> built have since been retired — `/start` no longer drives §6's callback-menu conversation at all.
+> Those three screens now live in the **Telegram Mini App** instead (a real web UI, not a
+> chat-message flow); `/start` sends `web_app` deep-link buttons straight into it (or a `url`
+> link into a private chat first, if `/start` came from a group — see below). §4 (Architecture),
+> §5 (Access and Security), §14 (Conversation/Flow State — the flow-state store this described no
+> longer exists), and §6 (Bot UX) describe the **retired** architecture; treat them as historical,
+> not current. Current design/rollout history:
+> `docs/superpowers/specs/2026-09-23-telegram-mini-app-design.md`,
+> `docs/superpowers/plans/2026-09-23-telegram-mini-app.md`, and
+> [docs/domain/identity.md](../domain/identity.md)'s "Telegram Mini App auth" section. §15 (Audit
+> Logging), §16-18 (Error Handling/Reliability/Privacy principles) remain generally applicable.
+
 ## 1. Purpose
 
 Implement a private Telegram Admin Bot as a **thin operational interface** over the existing DDC CRM.

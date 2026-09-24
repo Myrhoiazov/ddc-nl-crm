@@ -12,6 +12,7 @@ import {
     persistClassification,
     persistNormalizedEmail,
 } from '../../ai-email-assistant';
+import { notifyNewEmail } from '../telegram/telegram.service';
 
 export { ATTACHMENTS_DIR } from './email-attachment-storage.service';
 
@@ -163,6 +164,7 @@ const connectToAccount = async (accountId: number) => {
 const processMessage = async (
     message: FetchMessageObject,
     accountId: number,
+    accountLabel: string,
     startUid: number,
     clientIdCache: Map<string, number | null>,
 ): Promise<{ created: boolean; uid: number } | null> => {
@@ -245,6 +247,16 @@ const processMessage = async (
         await saveAttachments(savedMessage.id, parsed.attachments);
     }
 
+    // Fire-and-forget — a Telegram outage must never fail the sync itself.
+    if (!spamReason) {
+        void notifyNewEmail({
+            fromAddress,
+            fromName: message.envelope?.from?.[0]?.name,
+            subject: normalized.subject,
+            accountLabel,
+        }).catch((error) => logger.error(`Failed to send new-email Telegram notification for message=${savedMessage.id}: ${error}`));
+    }
+
     return { created: true, uid: message.uid };
 };
 
@@ -269,7 +281,7 @@ const syncEmailAccountUnguarded = async (accountId: number): Promise<SyncResult>
             { uid: true },
         )) {
             try {
-                const outcome = await processMessage(message, account.id, startUid, clientIdCache);
+                const outcome = await processMessage(message, account.id, account.label, startUid, clientIdCache);
 
                 if (!outcome) continue; // already synced
 
