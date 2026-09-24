@@ -37,6 +37,13 @@ describe('MollieClientForm', () => {
     test('renders the card fields', () => {
         renderForm();
         expect(screen.getByPlaceholderText('Имя')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('Фамилия')).toBeInTheDocument();
+        expect(screen.getByPlaceholderText('example@gmail.com')).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('cst_bhiubi')).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Consumer Name')).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Consumer Account')).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Consumer Bic')).not.toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('Deventer')).not.toBeInTheDocument();
         expect(screen.getByRole('button', { name: 'Добавить' })).toBeInTheDocument();
     });
 
@@ -64,6 +71,8 @@ describe('MollieClientForm', () => {
         const { onSuccess, reloadPage } = renderForm();
 
         fireEvent.change(screen.getByPlaceholderText('Имя'), { target: { value: 'Ivan' } });
+        fireEvent.change(screen.getByPlaceholderText('Фамилия'), { target: { value: 'Petrov' } });
+        fireEvent.change(screen.getByPlaceholderText('example@gmail.com'), { target: { value: 'ivan@example.com' } });
         fireEvent.click(screen.getByRole('button', { name: 'Добавить' }));
 
         await waitFor(() => expect(onSuccess).toHaveBeenCalled());

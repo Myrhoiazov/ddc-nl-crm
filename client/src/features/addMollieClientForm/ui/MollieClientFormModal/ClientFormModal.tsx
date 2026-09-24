@@ -18,10 +18,6 @@ const mollieClientFormSkeleton = (
         <Skeleton width="100%" height={72} border="14px" />
         <Skeleton width="100%" height={72} border="14px" />
         <Skeleton width="100%" height={72} border="14px" />
-        <Skeleton width="100%" height={72} border="14px" />
-        <Skeleton width="100%" height={72} border="14px" />
-        <Skeleton width="100%" height={72} border="14px" />
-        <Skeleton width="100%" height={72} border="14px" />
         <Skeleton width="100%" height={44} border="32px" />
     </VStack>
 );

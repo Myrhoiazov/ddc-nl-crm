@@ -19,6 +19,7 @@ export interface MollieClientCardProps {
     onChangeConsumerBic?: (value?: string) => void;
     onChangeConsumerName?: (value?: string) => void;
     onChangePreferredLanguage?: (value?: ClientLanguage) => void;
+    mode?: 'create' | 'edit';
 }
 
 export const MollieClientCard = memo((props: MollieClientCardProps) => {
@@ -33,6 +34,7 @@ export const MollieClientCard = memo((props: MollieClientCardProps) => {
         onChangeConsumerBic,
         onChangeConsumerName,
         onChangePreferredLanguage,
+        mode = 'edit',
     } = props;
 
     return (
@@ -42,18 +44,21 @@ export const MollieClientCard = memo((props: MollieClientCardProps) => {
                 onChangeFirstName={onChangeFirstName}
                 onChangeLastName={onChangeLastName}
             />
-            <MollieClientCardAccountFields
-                data={data}
-                onChangeConsumerAccount={onChangeConsumerAccount}
-                onChangeConsumerBic={onChangeConsumerBic}
-                onChangeConsumerName={onChangeConsumerName}
-            />
+            {mode === 'edit' && (
+                <MollieClientCardAccountFields
+                    data={data}
+                    onChangeConsumerAccount={onChangeConsumerAccount}
+                    onChangeConsumerBic={onChangeConsumerBic}
+                    onChangeConsumerName={onChangeConsumerName}
+                />
+            )}
             <MollieClientCardContactFields
                 data={data}
                 onChangeCity={onChangeCity}
                 onChangeEmail={onChangeEmail}
                 onChangePreferredLanguage={onChangePreferredLanguage}
                 readonly={readonly}
+                minimal={mode === 'create'}
             />
         </>
     );
