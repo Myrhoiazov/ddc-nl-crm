@@ -1281,10 +1281,33 @@ interfaces run in parallel until the Mini App is verified against real Telegram.
 > array entry, not a multi-file edit. `telegram-admin-bot.state.ts` and the
 > dashboard/search/student-create `.flow.ts` files were deleted as planned (nothing sends the
 > `callback_data` values they responded to anymore). `telegram-update-dispatcher.ts`'s
-> `hasActiveFlow` branch was removed for the same reason. Code + tests for this are done (Step
-> 3/4 below); Steps 1 (real-Telegram verification) and 2 (Menu Button) are still pending — see
-> chat history for why the Menu Button was set and then reverted on 2026-09-24 (production did
-> not yet have this branch deployed).
+> `hasActiveFlow` branch was removed for the same reason.
+>
+> **2026-09-24 update #2 — real-Telegram verification (Step 1) surfaced two production-only
+> bugs, both fixed and confirmed working end to end:**
+> 1. Telegram rejects `web_app` inline buttons outside a private 1:1 chat
+>    (`BUTTON_TYPE_INVALID`) — this bot's real admin chat is a supergroup. `/start` now branches
+>    on `chat.type`: private gets the real menu, anything else gets a `url` deep link into a
+>    private chat with the bot (new `TELEGRAM_BOT_USERNAME` env var). See
+>    [[project-telegram-miniapp-group-chat-webapp-restriction]] (agent memory).
+> 2. Both `docker-compose.dev.yml`/`docker-compose.prod.yml` list env vars explicitly under
+>    `environment:` (no `env_file: .env`) — `TELEGRAM_MINIAPP_URL` and `TELEGRAM_BOT_USERNAME`
+>    both needed an explicit line added to each compose file, not just `.env`/`.env.example`.
+> 3. Production's Mini App is actually served by the **frontend** nginx container
+>    (`client/build/telegram-admin/`, via `client/package.json`'s `build:prod` already calling
+>    `npm --prefix telegram-mini-app run build:client`) — not by the backend's `express.static`
+>    (`server/public/telegram-admin/`), which is only reachable directly in local dev. No code
+>    change needed here, just noting it so a future agent doesn't re-debug the same routing.
+> 4. The Mini App identity link for the real production admin (Denis, `user_id=1`) didn't exist
+>    yet under `AuthProvider.TELEGRAM_MINIAPP` — created via direct SQL insert using the real
+>    numeric Telegram id already known from the OIDC workaround row (`348397131`).
+>
+> Confirmed working end to end in production 2026-09-24: `/start` in the group → deep link → real
+> menu in private chat → all 3 Mini App screens loading live data. Step 2 (Menu Button) is set.
+> Still open: retest the second-admin self-link path (Step 1's third bullet) whenever a second
+> real admin is available, and Step 5 (final commit/cleanup) — Steps 3/4's code is already
+> committed across several commits this session, not one final "chore:" commit as originally
+> drafted.
 
 **Files:**
 - Delete: `server/src/modules/telegram-admin-bot/telegram-admin-bot.dashboard.flow.ts`,
