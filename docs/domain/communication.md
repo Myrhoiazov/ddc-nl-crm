@@ -72,9 +72,19 @@ webhook endpoint and an internal Telegram notification utility.
   anything or associate with a `Client`. Document as scaffolding, not active client communication.
   It's also the only fully unauthenticated, CSRF-exempt API surface besides `/health`.
 - **Telegram — internal ops notification, not a customer channel**:
-  `modules/communication/telegram/telegram.service.ts` posts to one fixed chat ID configured via
-  env, and is triggered exclusively from the Payments domain's Mollie webhook handling (payment
-  paid/failed/canceled/expired/chargeback/refund) — it has no other caller in the codebase today.
+  `modules/communication/telegram/telegram.service.ts` exposes several `notify*()` functions
+  (`notifyMolliePayment`, `notifyLoginBlocked`, `notifyNewDeviceAfterFailures`,
+  `notifyRoleChanged`, `notifyNewEmail`), each gated on Telegram being configured and each
+  fire-and-forget (a Telegram send failure never affects the triggering action's own response).
+  Callers span three other domains: Payments (Mollie webhook: paid/failed/canceled/expired/
+  chargeback/refund), Identity (login-blocked, new-device-after-failures, role-changed), and this
+  module's own IMAP sync (new non-spam email). Two distinct recipients, not one: `TELEGRAM_CHAT_ID`
+  (the shared admin group — every notifier above except `notifyNewEmail`) vs.
+  `TELEGRAM_EMAIL_NOTIFY_CHAT_ID` (one admin's own private chat with the bot —
+  `sendTelegramMessage`'s `chatId` option overrides the group default). This is a separate
+  integration from the Telegram Mini App admin tool (`auth/telegram-miniapp/` +
+  `telegram-admin-bot/`, documented in [identity.md](identity.md) — Mini App auth is genuinely
+  Identity's concern) and from Telegram OIDC login (also identity.md).
 
 ## Relationships
 
