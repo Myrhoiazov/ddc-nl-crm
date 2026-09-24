@@ -91,6 +91,17 @@ your `.env` (defaults: frontend `3000`, backend `18080`, MySQL and Redis on Dock
 > DB credentials or ports, remove the corresponding volumes (`docker compose down -v`) — this
 > re-runs the MySQL init scripts.
 
+To populate the local admin with demo data, run:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml exec backend npm run prisma:seed:demo
+```
+
+This adds 100 students, 4 branches, 8 halls, 8 choreographers, 6 dance styles, 12 groups with
+weekly schedules, 100 invoices with manual payments, and 180 transactions. Existing users and
+data are preserved; Mollie and external delivery are not used. Repeating the command skips the
+existing demo dataset. The script requires `MODE=development` and rejects `NODE_ENV=production`.
+
 ### Running without Docker
 
 Dependencies must be installed separately in each package:

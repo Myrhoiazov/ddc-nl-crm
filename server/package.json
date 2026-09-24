@@ -21,6 +21,7 @@
         "pgc": "npm run prisma:generate",
         "prisma:generate": "prisma generate --schema prisma/schema",
         "prisma:seed": "prisma db seed",
+        "prisma:seed:demo": "ts-node prisma/seed-demo.ts",
         "pmd:dev": "prisma migrate dev",
         "migrate:prod": "prisma migrate deploy",
         "knowledge:sync": "ts-node scripts/knowledge-sync.ts",
