@@ -1,6 +1,6 @@
 import { aiConfig } from '../../config/ai.config';
 import { logger } from '../../common/logger';
-import { buildDraftContext, generateEmailDraft, type CrmReader, type DraftKnowledgeContext, type DraftLlmClient } from './draft.service';
+import { generateEmailDraft, type CrmReader, type DraftKnowledgeContext, type DraftLlmClient } from './draft.service';
 import { createPrismaAiEmailDraftRepository, persistDraft, type AiEmailDraftRepository, type DraftKnowledgeRefInput } from './draft.persistence';
 import prisma from '../../../prisma/prisma-client';
 import { notifyDraftForApproval } from './telegram-notification.service';
