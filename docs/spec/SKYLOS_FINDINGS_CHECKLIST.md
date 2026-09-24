@@ -42,9 +42,9 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
    CI-раннера) или устанавливать `--diff-base`/`--baseline` только в контексте, где
    путь стабилен (CI-раннер с фиксированным checkout-путём).
 
-## Итоговые счётчики (полный прогон, после wave1–3)
+## Итоговые счётчики (полный прогон, после wave1–5)
 
-| Категория | Найдено | Реально закрыто | False positive / by design (задокументировано) | Осталось на новую волну |
+| Категория | Найдено | Реально закрыто | False positive / by design (задокументировано) | Осталось |
 |---|---|---|---|---|
 | `SKY-D226` (XSS via innerHTML) | 6 | 0 | 6 | 0 |
 | `SKY-D212` (predicted command injection) | 1 | 0 | 1 | 0 |
@@ -57,10 +57,16 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
 | `SKY-U001`/`U003`/`U004` (unused func/var, tooling) | 6 | 0 | 6 | 0 |
 | `SKY-E003` (unused file) | 51 | 0 | 51 (stories/jest/storybook/build-config — не входят в граф импортов Skylos) | 0 |
 | `SKY-E004` (unnecessary export) | 54 | 37 (`export` снят — символ реально нигде не импортируется извне) | 17 (Storybook CSF named exports — тот же класс, что `SKY-E003`) | 0 |
-| `SKY-C304` (функция > 50 строк) | ~45 | 0 | 0 | ~45 (production vs test policy) |
-| `SKY-Q301` (цикломатическая сложность > 10) | ~10 | 0 | 0 | ~10 |
-| `SKY-C303` (> 5 параметров) | 3 | 0 | 0 | 3 |
+| `SKY-C304` (функция > 50 строк, production) | 13 функций/файлов | 13 | 0 | 0 |
+| `SKY-Q301` (цикломатическая сложность > 10, production) | 11 функций | 9 | 0 | 2 (`server/scripts/test-email-flow.ts` — dev CLI, не production) |
+| `SKY-C303` (> 5 параметров, production) | 3 | 2 | 0 | 1 (`embedding.service.ts` — недостоверная находка сканера, см. ниже) |
 | `SKY-T103` (`as unknown as X` в тестах) | 44 | 44 | 0 | 0 |
+| `SKY-C304` (test-файлы) | ~49 | 0 | ~49 (test-файлы не декомпозируются ради метрики, тот же принцип, что в волнах 16–24) | 0 |
+
+Новая находка вне периметра этой серии волн (обнаружена случайно на `develop` после
+слияния — код появился параллельно из другой ветки, не из этого аудита):
+`server/prisma/seed-demo.ts` — две функции с `SKY-Q301`/`SKY-C304` (сложность 20/21,
+длина 181/189 строк). Не трогалось в рамках wave1–5; кандидат на отдельную волну.
 
 ## Волна 1 (2026-09-24, ветка `chore/skylos-findings-wave1`) — Security/CI
 
@@ -229,19 +235,78 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
 `skylos . --exclude coverage --exclude graphify-out` — `unused_exports` 54 → 17
 (только Storybook CSF).
 
-## На следующую волну
+## Волна 4 (2026-09-24, ветка `chore/skylos-findings-wave1`) — server `SKY-C304`/`SKY-Q301`/`SKY-C303`
 
-- **`SKY-C304`/`SKY-Q301`/`SKY-C303`** — по историческому паттерну этого чек-листа
-  (волны 16–24, см. git history файла) тестовые файлы (`*.test.ts(x)`) сознательно не
-  декомпозируются ради метрики; production-хиты (`useLoginForm.ts`,
-  `auth.controller.ts:320`, `auth.telegram.controller.ts:164,266`,
-  `email-imap.service.ts:164`, `embedding.service.ts:39`, `file-ingestion.service.ts:22,55`,
-  `query-expansion.service.ts:46`, `retrieval.service.ts:53`,
-  `telegram-admin-bot.service.ts:55`, `telegram-approval.controller.ts:47`,
-  `telegram-miniapp-init-data.service.ts:19`, `KnowledgeBasePage.tsx:91`,
-  `usePromptLibrary.ts:7`, `LoginForm.tsx:29`, `email-assistant.persistence.ts:36`,
-  `auth.login-rate-limit.middleware.ts:18`) — реальные кандидаты на декомпозицию,
-  отдельной волной/PR.
+**Закрыто 9 из 11 production-функций** (тестовые файлы не декомпозируются ради
+метрики — тот же принцип, что в волнах 16–24, см. git history файла), поведение не
+менялось ни в одной из них:
+
+- `knowledge-ingestion`: `embedding.service.ts` (`chunkKnowledgeDocument` →
+  `splitIntoRawChunks`/`withOverlapPrefix`), `file-ingestion.service.ts`
+  (`importKnowledgeFile` → `rejectIfInvalid`/`importPdfFile`/`importDocxFile`/
+  `importTextLikeFile`; `toReadyOrEmptyResult` избавился от лишнего `fileName`),
+  `query-expansion.service.ts` (`parseExpansionResponse` →
+  `parseExpansionJson`/`extractKeywords`), `retrieval.service.ts`
+  (`retrieveWithDetails` → `resolveExpansion`/`selectQualifiedCandidates`/
+  `fuseAndRerank`).
+- `auth`: `auth.controller.ts` (`verifyTwoFactor` →
+  `rejectTwoFactorFailure`/`notifyNewDeviceIfRecentFailures`),
+  `auth.login-rate-limit.middleware.ts` (`loginRateLimit` →
+  `recordAndNotifyBlocked`/`respondBlocked`/`checkCaptchaIfRequired`/
+  `respondCaptchaRequired`), `auth.telegram.controller.ts`
+  (`handleTelegramCallback` → `resolveTelegramCallbackFlow`/
+  `exchangeAndVerifyTelegramCode`; `handleTelegramLoginCallback` →
+  `denyTelegramLogin`/`completeTelegramLoginSession`),
+  `telegram-miniapp-init-data.service.ts` (`verifyTelegramInitData` →
+  `verifyInitDataSignature`/`checkAuthDateFreshness`/`parseInitDataUser`).
+- `communication/email`: `email-imap.service.ts` (`processMessage` →
+  `resolveFromAddress`/`upsertEmailMessage`/`classifyAndPersistSpamIfDetected`/
+  `notifyIfNotSpam`; первая попытка сама завела 2 новых `SKY-C303` — исправлено
+  группировкой email-контекста в объекты).
+- `telegram-admin-bot.service.ts` (`handleTelegramAdminBotUpdate` →
+  `respondUnauthorized`/`handleStartCommand`).
+- `ai-email-assistant`: `draft-pipeline.service.ts` (`runDraftPipeline` — 3
+  опциональных параметра сгруппированы в `RunDraftPipelineOptions`, оба call site
+  и тесты обновлены), `email-assistant.persistence.ts`
+  (`createPrismaAiEmailRepository` — 4 метода вынесены в top-level функции),
+  `telegram-approval.controller.ts` (`handleTelegramApprovalUpdate` →
+  `resolveTelegramApprovalRequest`/`handleTelegramEditAction`/
+  `applyAndConfirmDraftAction`; первая попытка оставила координатор над лимитом
+  сложности — понадобилась вторая экстракция).
+
+**Осталось 2 (по решению, не фиксится):** `server/scripts/test-email-flow.ts` —
+CLI dev-скрипт (`parseArgs`/`main`), без покрытия тестами, не часть production
+пути; `switch`-парсер флагов и координатор чтения аргументов по тому же принципу,
+что и «линейные координаторы» из волн 16–24 — разбиение снизило бы читаемость
+больше, чем дало бы пользы.
+
+**Проверено на каждом файле:** `tsc --noEmit` (server) — 0 ошибок; домен-сьют
+файла (`test:auth` 169/169, `test:local-ai` 142/142, `test:email` 11/11,
+`test:telegram-admin-bot` 18/18, plus `test:ci` целиком — 0 fail) — после каждого
+изменения; `skylos <файл> --quality` — целевая находка снята.
+
+## Волна 5 (2026-09-24, та же ветка) — client `SKY-C304`/`SKY-Q301`
+
+**Закрыто 4 из 4 production-функций/файлов:**
+
+- `useLoginForm.ts` (117 строк, сложность 12) → `resolveTelegramRedirectOutcome`
+  (чистая функция) + `useTelegramRedirectOutcome` (эффект чтения
+  `?telegramStatus=`/`?telegramError=`), `useCaptchaChallenge` (токен/виджет),
+  `useLoginSubmit` (email/password/submit/логин-клик). Первая попытка не убрала
+  длину до конца (73 строки) — понадобилось разбить ещё раз (`useLoginSubmit`).
+- `LoginForm.tsx` (63 строки) → JSX credentials-ветки вынесен в `CredentialsView`
+  в том же файле, типизированный через `ReturnType<typeof useLoginForm>`.
+- `usePromptLibrary.ts` (73 строки) → `usePromptForm` (форма/editingId) +
+  `usePromptMutations` (`save`/`activate`/`remove`); `usePromptMutations` сама
+  осталась на 1 строку выше лимита — `activate` дополнительно вынесен в
+  `activatePrompt`.
+- `KnowledgeBasePage.tsx` (`DocumentsTable`, 63 строки) → строка таблицы вынесена
+  в `DocumentRow`.
+
+**Проверено:** `tsc --noEmit` (client) — та же базовая линия из 20
+предсуществующих ошибок в `node_modules/@types/{mdx,react-router-dom}`, ни одной
+новой; `npm run lint:ts` — 0 errors, 62 baseline warnings без изменений; `npm
+test` — 287/287 suites, 1020/1020 тестов — после каждого изменения.
 
 ## Постоянно задокументированные false positive классы (без действий)
 
@@ -253,3 +318,9 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
   root cause, что `SKY-E003`.
 - **`SKY-U001`/`U003`/`U004`** (6, jest/storybook config helpers) — та же категория:
   `client/config/**` не входит в граф импортов Skylos.
+- **`SKY-C303` на `embedding.service.ts:100`** (`chunkKnowledgeDocument`, «8
+  параметров») — недостоверная находка сканера: у функции 3 параметра, и во всём
+  файле нет ни одной функции/метода с 8 параметрами при любом прочтении кода.
+  Тот же класс инструментальной неточности, что уже задокументирован для
+  `SKY-D312`'s line-misattribution в волне 1 (правило репортит номер строки/сигнатуру
+  не той функции). Оставлено как заметка, не как задача.
