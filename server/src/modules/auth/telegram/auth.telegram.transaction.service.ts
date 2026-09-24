@@ -10,7 +10,7 @@ import {
     generateState,
 } from './auth.telegram.oidc-client';
 
-export const TRANSACTION_TTL_MINUTES = 5;
+const TRANSACTION_TTL_MINUTES = 5;
 
 // Same fallback chain as service.Token.ts's sessionSecret() and
 // service.TwoFactor.ts's twoFactorSecret() — kept as its own copy rather than a

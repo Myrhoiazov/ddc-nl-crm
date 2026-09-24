@@ -5,7 +5,7 @@ import { syncEmailAccount } from './email-imap.service';
 
 // Every 5 minutes, per account, so one slow/broken mailbox connection can't
 // delay or block syncing the others.
-export const syncAllActiveEmailAccounts = async () => {
+const syncAllActiveEmailAccounts = async () => {
     const accounts = await prisma.emailAccount.findMany({
         where: { isActive: true },
         select: { id: true, label: true },

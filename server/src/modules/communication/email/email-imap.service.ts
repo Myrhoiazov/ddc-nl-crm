@@ -161,6 +161,89 @@ const connectToAccount = async (accountId: number) => {
     return { account, client };
 };
 
+type ParsedEmail = Awaited<ReturnType<typeof simpleParser>> | undefined;
+type NormalizedEmail = ReturnType<typeof normalizeEmail>;
+
+const resolveFromAddress = (message: FetchMessageObject, parsed: ParsedEmail): string => (
+    message.envelope?.from?.[0]?.address ?? parsed?.from?.value?.[0]?.address ?? ''
+);
+
+const upsertEmailMessage = (
+    accountId: number,
+    message: FetchMessageObject,
+    email: { normalized: NormalizedEmail; fromAddress: string; parsed: ParsedEmail },
+    clientId: number | null,
+) => prisma.emailMessage.upsert({
+    where: {
+        mailboxId_imapUid: {
+            mailboxId: accountId,
+            imapUid: message.uid,
+        },
+    },
+    create: {
+        mailboxId: accountId,
+        imapUid: message.uid,
+        messageId: message.envelope?.messageId ?? undefined,
+        inReplyToMessageId: message.envelope?.inReplyTo ?? undefined,
+        fromAddress: email.fromAddress,
+        fromName: message.envelope?.from?.[0]?.name ?? undefined,
+        toAddresses: addressesToJson(message.envelope?.to),
+        ccAddresses: addressesToJson(message.envelope?.cc),
+        subject: email.normalized.subject || undefined,
+        bodyText: email.normalized.normalizedBody || undefined,
+        bodyHtml: typeof email.parsed?.html === 'string' ? email.parsed.html : undefined,
+        receivedAt: message.envelope?.date ?? new Date(),
+        clientId: clientId ?? undefined,
+    },
+    update: {},
+});
+
+const classifyAndPersistSpamIfDetected = async (
+    aiMessageId: number,
+    fromAddress: string,
+    normalized: NormalizedEmail,
+    parsed: ParsedEmail,
+): Promise<string | null> => {
+    const spamReason = deterministicSpamReason({
+        fromAddress,
+        subject: normalized.subject,
+        text: parsed?.text,
+        html: typeof parsed?.html === 'string' ? parsed.html : undefined,
+        headers: parsed?.headers,
+    }, normalized);
+
+    if (spamReason) {
+        await persistClassification(aiEmailRepository, aiMessageId, {
+            spam: true,
+            needsReply: false,
+            language: 'unknown',
+            intent: 'other',
+            confidence: 1,
+            reason: spamReason,
+        }, {
+            model: 'deterministic',
+            promptVersion: DETERMINISTIC_SPAM_PROMPT_VERSION,
+        });
+    }
+    return spamReason;
+};
+
+// Fire-and-forget — a Telegram outage must never fail the sync itself.
+const notifyIfNotSpam = (
+    message: FetchMessageObject,
+    email: { fromAddress: string; subject: string },
+    accountLabel: string,
+    outcome: { spamReason: string | null; savedMessageId: number },
+): void => {
+    if (outcome.spamReason) return;
+    void notifyNewEmail({
+        fromAddress: email.fromAddress,
+        fromName: message.envelope?.from?.[0]?.name,
+        subject: email.subject,
+        accountLabel,
+    }).catch((error) => logger.error(`Failed to send new-email Telegram notification for message=${outcome.savedMessageId}: ${error}`));
+};
+
 const processMessage = async (
     message: FetchMessageObject,
     accountId: number,
@@ -171,8 +254,7 @@ const processMessage = async (
     if (message.uid < startUid) return null;
 
     const parsed = message.source ? await simpleParser(message.source) : undefined;
-    const fromAddress = message.envelope?.from?.[0]?.address ?? parsed?.from?.value?.[0]?.address ?? '';
-
+    const fromAddress = resolveFromAddress(message, parsed);
     if (!fromAddress) return { created: false, uid: message.uid };
 
     const normalized = normalizeEmail({
@@ -184,31 +266,7 @@ const processMessage = async (
     });
 
     const clientId = await findClientIdByAddress(fromAddress, clientIdCache);
-
-    const savedMessage = await prisma.emailMessage.upsert({
-        where: {
-            mailboxId_imapUid: {
-                mailboxId: accountId,
-                imapUid: message.uid,
-            },
-        },
-        create: {
-            mailboxId: accountId,
-            imapUid: message.uid,
-            messageId: message.envelope?.messageId ?? undefined,
-            inReplyToMessageId: message.envelope?.inReplyTo ?? undefined,
-            fromAddress,
-            fromName: message.envelope?.from?.[0]?.name ?? undefined,
-            toAddresses: addressesToJson(message.envelope?.to),
-            ccAddresses: addressesToJson(message.envelope?.cc),
-            subject: normalized.subject || undefined,
-            bodyText: normalized.normalizedBody || undefined,
-            bodyHtml: typeof parsed?.html === 'string' ? parsed.html : undefined,
-            receivedAt: message.envelope?.date ?? new Date(),
-            clientId: clientId ?? undefined,
-        },
-        update: {},
-    });
+    const savedMessage = await upsertEmailMessage(accountId, message, { normalized, fromAddress, parsed }, clientId);
 
     const aiMessage = await persistNormalizedEmail(aiEmailRepository, {
         sourceEmailMessageId: savedMessage.id,
@@ -221,41 +279,13 @@ const processMessage = async (
         receivedAt: message.envelope?.date ?? new Date(),
     });
 
-    const spamReason = deterministicSpamReason({
-        fromAddress,
-        subject: normalized.subject,
-        text: parsed?.text,
-        html: typeof parsed?.html === 'string' ? parsed.html : undefined,
-        headers: parsed?.headers,
-    }, normalized);
-
-    if (spamReason) {
-        await persistClassification(aiEmailRepository, aiMessage.id, {
-            spam: true,
-            needsReply: false,
-            language: 'unknown',
-            intent: 'other',
-            confidence: 1,
-            reason: spamReason,
-        }, {
-            model: 'deterministic',
-            promptVersion: DETERMINISTIC_SPAM_PROMPT_VERSION,
-        });
-    }
+    const spamReason = await classifyAndPersistSpamIfDetected(aiMessage.id, fromAddress, normalized, parsed);
 
     if (parsed?.attachments?.length) {
         await saveAttachments(savedMessage.id, parsed.attachments);
     }
 
-    // Fire-and-forget — a Telegram outage must never fail the sync itself.
-    if (!spamReason) {
-        void notifyNewEmail({
-            fromAddress,
-            fromName: message.envelope?.from?.[0]?.name,
-            subject: normalized.subject,
-            accountLabel,
-        }).catch((error) => logger.error(`Failed to send new-email Telegram notification for message=${savedMessage.id}: ${error}`));
-    }
+    notifyIfNotSpam(message, { fromAddress, subject: normalized.subject }, accountLabel, { spamReason, savedMessageId: savedMessage.id });
 
     return { created: true, uid: message.uid };
 };

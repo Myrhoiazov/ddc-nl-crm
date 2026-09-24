@@ -239,11 +239,11 @@ export const notifyRoleChanged = async (params: {
 // Personal, not the shared group — a specific admin's own private chat with the bot
 // (TELEGRAM_EMAIL_NOTIFY_CHAT_ID), separate from TELEGRAM_CHAT_ID used by every other
 // notify*() in this file.
-export const isEmailNotifyConfigured = () => Boolean(
+const isEmailNotifyConfigured = () => Boolean(
     process.env.TELEGRAM_TOKEN && process.env.TELEGRAM_EMAIL_NOTIFY_CHAT_ID,
 );
 
-export const buildNewEmailNotification = (params: {
+const buildNewEmailNotification = (params: {
     fromAddress: string;
     fromName?: string | null;
     subject?: string | null;

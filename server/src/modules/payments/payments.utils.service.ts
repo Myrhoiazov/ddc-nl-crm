@@ -32,7 +32,7 @@ export const buildMollieWebhookDedupeKey = (payment: {
     payment.amountChargedBack?.value ?? '0',
 ].join(':');
 
-export const csvEscape = (value: unknown) => {
+const csvEscape = (value: unknown) => {
     const normalized = value instanceof Date
         ? value.toISOString()
         : value === null || value === undefined

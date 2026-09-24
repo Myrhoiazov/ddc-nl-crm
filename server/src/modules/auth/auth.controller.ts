@@ -317,26 +317,52 @@ const createTrustedDeviceIfRequested = async (req: Request, res: Response, userI
     });
 };
 
+// Records the failure, clears the pending cookie for terminal reasons (see
+// isTerminalTwoFactorReason), then throws the matching ApiError — never returns normally.
+const rejectTwoFactorFailure = async (reason: string, req: Request, res: Response): Promise<never> => {
+    await recordAuthSecurityEvent({
+        type: reason === 'LOCKED' ? AuthSecurityEventType.TWO_FACTOR_LOCKED : AuthSecurityEventType.TWO_FACTOR_FAILED,
+        req,
+        metadata: { reason },
+    });
+
+    if (isTerminalTwoFactorReason(reason)) {
+        res.clearCookie(TWO_FACTOR_PENDING_COOKIE, twoFactorPendingCookieOptions);
+    }
+
+    throw new ApiError(TWO_FACTOR_FAILURE_STATUS[reason], TWO_FACTOR_FAILURE_MESSAGE[reason]);
+};
+
+// Reaching 2FA at all already means no trusted-device cookie was present (see login()) — so
+// this success is by definition "a new/untrusted device". Only alert when it follows recent
+// failed attempts, to avoid paging on every ordinary first-time-device login.
+//
+// This is a DB query, not state threaded from login()'s rate-limit hit: login() and this verify
+// step are two separate HTTP requests (the user re-enters the app between them to type the 2FA
+// code), so nothing set on the login() request object survives to here. The query is indexed
+// (@@index([targetUserId, createdAt]) on AuthSecurityEvent) and only runs on the already-low-
+// frequency 2FA-success path, not per keystroke.
+const notifyNewDeviceIfRecentFailures = async (user: { id: number; email: string }, req: Request): Promise<void> => {
+    const recentFailures = await prisma.authSecurityEvent.count({
+        where: {
+            type: AuthSecurityEventType.LOGIN_FAILED,
+            targetUserId: user.id,
+            createdAt: { gte: new Date(Date.now() - RECENT_FAILURE_LOOKBACK_MS) },
+        },
+    });
+    if (recentFailures > 0) {
+        void notifyNewDeviceAfterFailures({ email: user.email, ip: req.ip, recentFailures })
+            .catch((error) => console.error('Failed to send new-device Telegram notification:', error));
+    }
+};
+
 export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>, res: Response, next: NextFunction) => {
     const pendingToken = req.cookies[TWO_FACTOR_PENDING_COOKIE];
     const { code, trustDevice } = req.body;
 
     try {
         const result = await verifyTwoFactorChallenge(pendingToken, code);
-
-        if ('reason' in result) {
-            await recordAuthSecurityEvent({
-                type: result.reason === 'LOCKED' ? AuthSecurityEventType.TWO_FACTOR_LOCKED : AuthSecurityEventType.TWO_FACTOR_FAILED,
-                req,
-                metadata: { reason: result.reason },
-            });
-
-            if (isTerminalTwoFactorReason(result.reason)) {
-                res.clearCookie(TWO_FACTOR_PENDING_COOKIE, twoFactorPendingCookieOptions);
-            }
-
-            throw new ApiError(TWO_FACTOR_FAILURE_STATUS[result.reason], TWO_FACTOR_FAILURE_MESSAGE[result.reason]);
-        }
+        if ('reason' in result) return await rejectTwoFactorFailure(result.reason, req, res);
 
         const user = await prisma.user.findUnique({ where: { id: result.userId }, select: authenticatedUserSelect });
         if (!user || !user.isEnabled) {
@@ -351,28 +377,7 @@ export const verifyTwoFactor = async (req: Request<{}, {}, twoFactorVerifyType>,
             req,
         });
 
-        // Reaching 2FA at all already means no trusted-device cookie was present
-        // (see login()) — so this success is by definition "a new/untrusted
-        // device". Only alert when it follows recent failed attempts, to avoid
-        // paging on every ordinary first-time-device login.
-        //
-        // This is a DB query, not state threaded from login()'s rate-limit hit:
-        // login() and this verify step are two separate HTTP requests (the user
-        // re-enters the app between them to type the 2FA code), so nothing set
-        // on the login() request object survives to here. The query is indexed
-        // (@@index([targetUserId, createdAt]) on AuthSecurityEvent) and only
-        // runs on the already-low-frequency 2FA-success path, not per keystroke.
-        const recentFailures = await prisma.authSecurityEvent.count({
-            where: {
-                type: AuthSecurityEventType.LOGIN_FAILED,
-                targetUserId: user.id,
-                createdAt: { gte: new Date(Date.now() - RECENT_FAILURE_LOOKBACK_MS) },
-            },
-        });
-        if (recentFailures > 0) {
-            void notifyNewDeviceAfterFailures({ email: user.email, ip: req.ip, recentFailures })
-                .catch((error) => console.error('Failed to send new-device Telegram notification:', error));
-        }
+        await notifyNewDeviceIfRecentFailures(user, req);
 
         const userData = await issueSession(user, req, res, { twoFactor: 'VERIFIED' });
         res.clearCookie(TWO_FACTOR_PENDING_COOKIE, twoFactorPendingCookieOptions);

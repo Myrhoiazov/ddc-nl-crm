@@ -9,7 +9,7 @@ const initialState: UserFormSchema = {
     data: undefined,
 };
 
-export const newUserSlice = createSlice({
+const newUserSlice = createSlice({
     name: 'newUser',
     initialState,
     reducers: {

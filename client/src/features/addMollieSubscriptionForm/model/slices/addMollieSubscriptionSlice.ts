@@ -12,7 +12,7 @@ const initialState: AddMollieSubscriptionSchema = {
     error: undefined
 };
 
-export const addMollieSubscriptionSlice = createSlice({
+const addMollieSubscriptionSlice = createSlice({
     name: 'addMollieSubscriptionForm',
     initialState,
     reducers: {

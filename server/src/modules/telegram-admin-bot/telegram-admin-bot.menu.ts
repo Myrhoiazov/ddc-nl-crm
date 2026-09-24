@@ -18,7 +18,7 @@ export const buildOpenPrivateChatKeyboard = (botUsername: string): TelegramInlin
 // esbuild bundle (spec §4.2), so the two can't share a TS import; this list is the server half
 // of that contract. Adding a new Mini App screen later is: one entry here + one screen module
 // on the client side, per the pattern already used for dashboard/search/new-student.
-export const MINI_APP_SCREENS: ReadonlyArray<{ id: string; label: string; emoji: string }> = [
+const MINI_APP_SCREENS: ReadonlyArray<{ id: string; label: string; emoji: string }> = [
     { id: 'dashboard', label: 'Dashboard', emoji: '📊' },
     { id: 'new-student', label: 'Новый ученик', emoji: '👤' },
     { id: 'search', label: 'Найти ученика', emoji: '🔎' },

@@ -5,7 +5,7 @@ const initialState: AddCommentFormSchema = {
     text: '',
 };
 
-export const addCommentFormSlice = createSlice({
+const addCommentFormSlice = createSlice({
     name: 'addCommentForm',
     initialState,
     reducers: {

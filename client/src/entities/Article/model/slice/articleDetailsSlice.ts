@@ -9,7 +9,7 @@ const initialState: ArticleDetailsSchema = {
     data: undefined,
 };
 
-export const articleDetailsSlice = createSlice({
+const articleDetailsSlice = createSlice({
     name: 'articleDetails',
     initialState,
     reducers: {},

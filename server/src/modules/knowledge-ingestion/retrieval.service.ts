@@ -54,17 +54,7 @@ export class KnowledgeRetrievalService {
         const topK = options.topK ?? aiConfig.ragTopK;
         const minimumScore = options.minimumScore ?? 0.35;
 
-        // Best-effort only: OllamaQueryExpansionClient itself already falls back to the original
-        // query on any failure, but an injected test double could still throw, so this is not
-        // allowed to take retrieval down.
-        let expansion: QueryExpansion | null = null;
-        if (this.queryExpansion) {
-            try { expansion = await this.queryExpansion.expand(query); } catch { expansion = null; }
-        }
-        const vectorQuery = expansion?.cleanQuery || query;
-        // BM25 sees the expanded keywords *and* the original raw query text (not just the cleaned
-        // version) — matches the rag/ reference's own wiring, maximizing literal term coverage.
-        const bm25Query = expansion?.keywords.length ? `${expansion.keywords.join(' ')} ${query}` : query;
+        const { expansion, vectorQuery, bm25Query } = await this.resolveExpansion(query);
 
         const vector = await this.embeddings.embed(vectorQuery);
         const candidates = await this.repository.search(vector, CANDIDATE_POOL_SIZE);
@@ -76,8 +66,31 @@ export class KnowledgeRetrievalService {
         // similarity (downstream confidence math in ollama.client.ts's CONFIDENT_KNOWLEDGE_SCORE
         // is keyed off it) and keeps the hybrid upgrade purely additive: strictly re-ranks/
         // re-selects within the previously-qualifying set, never expands it.
+        const qualified = this.selectQualifiedCandidates(candidates, minimumScore);
+        if (!qualified.length) return { chunks: [], queryExpansion: expansion };
+
+        const fused = await this.fuseAndRerank(qualified, bm25Query, query);
+        return { chunks: fused.slice(0, topK), queryExpansion: expansion };
+    }
+
+    // Best-effort only: OllamaQueryExpansionClient itself already falls back to the original
+    // query on any failure, but an injected test double could still throw, so this is not
+    // allowed to take retrieval down.
+    private async resolveExpansion(query: string): Promise<{ expansion: QueryExpansion | null; vectorQuery: string; bm25Query: string }> {
+        let expansion: QueryExpansion | null = null;
+        if (this.queryExpansion) {
+            try { expansion = await this.queryExpansion.expand(query); } catch { expansion = null; }
+        }
+        const vectorQuery = expansion?.cleanQuery || query;
+        // BM25 sees the expanded keywords *and* the original raw query text (not just the cleaned
+        // version) — matches the rag/ reference's own wiring, maximizing literal term coverage.
+        const bm25Query = expansion?.keywords.length ? `${expansion.keywords.join(' ')} ${query}` : query;
+        return { expansion, vectorQuery, bm25Query };
+    }
+
+    private selectQualifiedCandidates(candidates: ScoredKnowledgeChunk[], minimumScore: number): ScoredKnowledgeChunk[] {
         const seen = new Set<string>();
-        const qualified = candidates
+        return candidates
             .filter((chunk) => chunk.score >= minimumScore)
             .filter((chunk) => {
                 const key = `${chunk.documentId}:${chunk.contentHash}`;
@@ -85,21 +98,20 @@ export class KnowledgeRetrievalService {
                 seen.add(key);
                 return true;
             });
+    }
 
-        if (!qualified.length) return { chunks: [], queryExpansion: expansion };
-
-        // `qualified` is already vector-rank order (the repository sorts by score desc). BM25
-        // over the same qualifying set surfaces exact keyword/term matches vector similarity can
-        // under-rank; when the query shares no literal terms with any chunk, Bm25Search returns
-        // an empty list and RRF degrades to plain vector-rank order.
-        const vectorRanked = qualified;
+    // `qualified` is already vector-rank order (the repository sorts by score desc). BM25 over
+    // the same qualifying set surfaces exact keyword/term matches vector similarity can
+    // under-rank; when the query shares no literal terms with any chunk, Bm25Search returns an
+    // empty list and RRF degrades to plain vector-rank order.
+    private async fuseAndRerank(qualified: ScoredKnowledgeChunk[], bm25Query: string, rawQuery: string): Promise<ScoredKnowledgeChunk[]> {
         const bm25Ranked = new Bm25Search(qualified).search(bm25Query).map((scored) => scored.doc);
-        let fused = fuseRankedLists(vectorRanked, bm25Ranked);
+        let fused = fuseRankedLists(qualified, bm25Ranked);
 
         if (this.reranker) {
-            try { fused = await this.reranker.rerank(query, fused, fused.length); } catch { /* keep RRF order */ }
+            try { fused = await this.reranker.rerank(rawQuery, fused, fused.length); } catch { /* keep RRF order */ }
         }
 
-        return { chunks: fused.slice(0, topK), queryExpansion: expansion };
+        return fused;
     }
 }

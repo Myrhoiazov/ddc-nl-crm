@@ -1,22 +1,23 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { Request, Response } from 'express';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { csrfProtection } from './auth.csrf.middleware';
 
-const fakeReq = (overrides: Partial<{ method: string; path: string; headers: Record<string, string>; cookies: Record<string, string> }> = {}): Request => ({
+const fakeReq = (overrides: Partial<{ method: string; path: string; headers: Record<string, string>; cookies: Record<string, string> }> = {}): Request => fromPartial({
     method: overrides.method ?? 'POST',
     path: overrides.path ?? '/some/route',
     cookies: overrides.cookies ?? {},
     get: (name: string) => overrides.headers?.[name.toLowerCase()],
     header: (name: string) => overrides.headers?.[name.toLowerCase()],
-} as unknown as Request);
+});
 
 const fakeRes = () => {
     const calls: { status?: number; body?: unknown } = {};
-    const res = {
+    const res: Response = fromPartial({
         status(code: number) { calls.status = code; return res; },
         json(body: unknown) { calls.body = body; return res; },
-    } as unknown as Response;
+    });
     return { res, calls };
 };
 

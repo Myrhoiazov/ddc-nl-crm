@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { InvoiceStatus } from '@prisma/client';
+import { fromAny, fromPartial } from '@total-typescript/shoehorn';
 import {
     MolliePaymentForPdf,
     buildMollieInvoiceDraft,
@@ -10,13 +11,13 @@ import {
     paymentStatusFor,
 } from './payments.invoice-pdf.service';
 
-const basePayment = {
+const basePayment: MolliePaymentForPdf = fromPartial({
     id: 42,
     mollieId: 'tr_test123',
-    amountValue: '80.00' as unknown as MolliePaymentForPdf['amountValue'],
+    amountValue: fromAny('80.00') as MolliePaymentForPdf['amountValue'],
     amountCurrency: 'EUR',
-    refundedAmount: '0.00' as unknown as MolliePaymentForPdf['refundedAmount'],
-    chargedBackAmount: '0.00' as unknown as MolliePaymentForPdf['chargedBackAmount'],
+    refundedAmount: fromAny('0.00') as MolliePaymentForPdf['refundedAmount'],
+    chargedBackAmount: fromAny('0.00') as MolliePaymentForPdf['chargedBackAmount'],
     adjustmentAt: null,
     description: 'Dance classes',
     method: 'ideal',
@@ -36,7 +37,7 @@ const basePayment = {
         email: 'ada@example.com',
     },
     invoice: null,
-} as unknown as MolliePaymentForPdf;
+});
 
 test('customerName prefers payerName over given/family name and email', () => {
     assert.equal(customerName({
@@ -98,8 +99,8 @@ test('buildMollieInvoiceNote includes status and method, omits refund/chargeback
 test('buildMollieInvoiceNote includes refund and chargeback lines when present', () => {
     const note = buildMollieInvoiceNote({
         ...basePayment,
-        refundedAmount: '10.00' as unknown as MolliePaymentForPdf['refundedAmount'],
-        chargedBackAmount: '5.00' as unknown as MolliePaymentForPdf['chargedBackAmount'],
+        refundedAmount: fromAny('10.00') as MolliePaymentForPdf['refundedAmount'],
+        chargedBackAmount: fromAny('5.00') as MolliePaymentForPdf['chargedBackAmount'],
     });
     assert.match(note, /Refunded: 10\.00 EUR/);
     assert.match(note, /Charged back: 5\.00 EUR/);

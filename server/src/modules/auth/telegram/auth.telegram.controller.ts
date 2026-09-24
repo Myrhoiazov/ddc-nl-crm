@@ -17,6 +17,7 @@ import {
     isTelegramOidcConfigured,
 } from './auth.telegram.oidc-client';
 import {
+    ConsumeTelegramTransactionResult,
     consumeTelegramAuthTransaction,
     createTelegramAuthTransaction,
     TelegramTransactionFailureReason,
@@ -161,6 +162,49 @@ export const startTelegramLink = async (req: Request, res: Response, next: NextF
 // server-side transaction row, never trusted from the URL or any request
 // parameter (spec section 7: "The callback must distinguish LOGIN and LINK
 // using trusted server-side transaction state, not arbitrary query parameters").
+type TelegramTransaction = Extract<ConsumeTelegramTransactionResult, { ok: true }>;
+
+// transaction.userId is always set for a LINK transaction (bound at creation in
+// startTelegramLink) — errorTarget falls back to '/login' in the defensive case that
+// invariant ever breaks, since a profile link can't be built without an id.
+const resolveTelegramCallbackFlow = (transaction: TelegramTransaction): { flow: 'login' | 'link'; errorTarget: 'login' | { link: number } } => {
+    const flow: 'login' | 'link' = transaction.flow === TelegramAuthFlow.LINK ? 'link' : 'login';
+    const errorTarget: 'login' | { link: number } = flow === 'link' && transaction.userId !== null
+        ? { link: transaction.userId }
+        : 'login';
+    return { flow, errorTarget };
+};
+
+// Returns null (having already redirected the response) when the code is missing, the exchange
+// fails, or the nonce doesn't match — callers just need to check for null and return.
+const exchangeAndVerifyTelegramCode = async (
+    code: unknown,
+    transaction: TelegramTransaction,
+    errorTarget: 'login' | { link: number },
+    res: Response,
+) => {
+    if (typeof code !== 'string') {
+        redirectWithError(res, errorTarget, 'OIDC_TOKEN_INVALID');
+        return null;
+    }
+
+    let exchange;
+    try {
+        exchange = await completeAuthorizationCodeExchange(code, transaction.codeVerifier);
+    } catch (exchangeError) {
+        console.error('Telegram OIDC code exchange/verification failed:', exchangeError);
+        redirectWithError(res, errorTarget, 'OIDC_TOKEN_INVALID');
+        return null;
+    }
+
+    if (!verifyTelegramNonce(exchange.nonce, transaction.nonceHash)) {
+        redirectWithError(res, errorTarget, 'OIDC_NONCE_INVALID');
+        return null;
+    }
+
+    return exchange.identity;
+};
+
 export const handleTelegramCallback = async (req: Request, res: Response) => {
     // Flow (LOGIN vs LINK) only becomes known once the transaction row is read
     // below — until then there's no trustworthy way to tell which page issued
@@ -190,38 +234,18 @@ export const handleTelegramCallback = async (req: Request, res: Response) => {
         return redirectWithError(res, EARLY_FAILURE_FLOW, mapTransactionFailureToErrorCode(transaction.reason));
     }
 
-    const flow: 'login' | 'link' = transaction.flow === TelegramAuthFlow.LINK ? 'link' : 'login';
-    // transaction.userId is always set for a LINK transaction (bound at
-    // creation in startTelegramLink) — errorTarget falls back to '/login' in
-    // the defensive case that invariant ever breaks, since a profile link
-    // can't be built without an id.
-    const errorTarget: 'login' | { link: number } = flow === 'link' && transaction.userId !== null
-        ? { link: transaction.userId }
-        : 'login';
+    const { flow, errorTarget } = resolveTelegramCallbackFlow(transaction);
 
-    if (typeof code !== 'string') {
-        return redirectWithError(res, errorTarget, 'OIDC_TOKEN_INVALID');
-    }
-
-    let exchange;
-    try {
-        exchange = await completeAuthorizationCodeExchange(code, transaction.codeVerifier);
-    } catch (exchangeError) {
-        console.error('Telegram OIDC code exchange/verification failed:', exchangeError);
-        return redirectWithError(res, errorTarget, 'OIDC_TOKEN_INVALID');
-    }
-
-    if (!verifyTelegramNonce(exchange.nonce, transaction.nonceHash)) {
-        return redirectWithError(res, errorTarget, 'OIDC_NONCE_INVALID');
-    }
+    const identity = await exchangeAndVerifyTelegramCode(code, transaction, errorTarget, res);
+    if (!identity) return;
 
     if (flow === 'link') {
         if (transaction.userId === null) {
             return redirectWithError(res, 'login', 'OIDC_TOKEN_INVALID');
         }
-        return handleTelegramLinkCallback(req, res, transaction.userId, exchange.identity);
+        return handleTelegramLinkCallback(req, res, transaction.userId, identity);
     }
-    return handleTelegramLoginCallback(req, res, exchange.identity);
+    return handleTelegramLoginCallback(req, res, identity);
 };
 
 const handleTelegramLinkCallback = async (
@@ -263,70 +287,34 @@ const handleTelegramLinkCallback = async (
     return redirectWithStatus(res, profilePath(userId), { telegramStatus: 'linked' });
 };
 
-const handleTelegramLoginCallback = async (
+const denyTelegramLogin = async (
     req: Request,
     res: Response,
-    identity: { providerUserId: string; username: string | null; displayName: string | null },
+    errorCode: string,
+    metadata: { reason: string; actorUserId?: number; targetUserId?: number },
 ) => {
-    const authIdentity = await findTelegramIdentityByProviderUserId(identity.providerUserId);
-    if (!authIdentity) {
-        await recordAuthSecurityEvent({
-            type: AuthSecurityEventType.LOGIN_TELEGRAM_FAILED,
-            req,
-            metadata: { reason: 'TELEGRAM_NOT_LINKED' },
-        });
-        return redirectWithError(res, 'login', 'TELEGRAM_NOT_LINKED');
-    }
-
-    const user = await prisma.user.findUnique({
-        where: { id: authIdentity.userId },
-        select: authenticatedUserSelect,
-    }) as AuthenticatedUser | null;
-
-    if (!user) {
-        await recordAuthSecurityEvent({
-            type: AuthSecurityEventType.LOGIN_TELEGRAM_FAILED,
-            actorUserId: authIdentity.userId,
-            targetUserId: authIdentity.userId,
-            req,
-            metadata: { reason: 'ACCOUNT_MISSING' },
-        });
-        return redirectWithError(res, 'login', 'USER_NOT_AUTHORIZED');
-    }
-
-    const denialReason = resolveTelegramLoginDenialReason(user);
-    if (denialReason) {
-        await recordAuthSecurityEvent({
-            type: AuthSecurityEventType.LOGIN_TELEGRAM_FAILED,
-            actorUserId: user.id,
-            targetUserId: user.id,
-            req,
-            metadata: { reason: denialReason },
-        });
-        return redirectWithError(res, 'login', 'USER_NOT_AUTHORIZED');
-    }
-
-    await touchTelegramIdentityLastLogin(authIdentity.id);
     await recordAuthSecurityEvent({
-        type: AuthSecurityEventType.LOGIN_TELEGRAM_SUCCEEDED,
-        actorUserId: user.id,
-        targetUserId: user.id,
+        type: AuthSecurityEventType.LOGIN_TELEGRAM_FAILED,
+        actorUserId: metadata.actorUserId,
+        targetUserId: metadata.targetUserId,
         req,
+        metadata: { reason: metadata.reason },
     });
+    return redirectWithError(res, 'login', errorCode);
+};
 
-    // From here on this is exactly login()'s post-password-check branch in
-    // auth.controller.ts — Telegram identity verification replaces password
-    // entry only; 2FA/trusted-device/session issuance are all unchanged.
-    //
-    // Known limitation: ddc_trusted_device is sameSite:'strict' (auth.controller.ts),
-    // and this request is itself a cross-site-initiated redirect back from
-    // oauth.telegram.org — so the browser never attaches it here, even for a
-    // genuinely trusted device. Telegram login therefore always falls through
-    // to the 2FA branch below (never the trusted-device bypass). This fails
-    // safe (more 2FA, never less) and isn't fixed by loosening that cookie's
-    // sameSite, which would weaken the existing password-login trusted-device
-    // mechanism repo-wide — out of scope here. Documented as a known
-    // limitation, not silently accepted.
+// From here on this is exactly login()'s post-password-check branch in auth.controller.ts —
+// Telegram identity verification replaces password entry only; 2FA/trusted-device/session
+// issuance are all unchanged.
+//
+// Known limitation: ddc_trusted_device is sameSite:'strict' (auth.controller.ts), and this
+// request is itself a cross-site-initiated redirect back from oauth.telegram.org — so the
+// browser never attaches it here, even for a genuinely trusted device. Telegram login therefore
+// always falls through to the 2FA branch below (never the trusted-device bypass). This fails
+// safe (more 2FA, never less) and isn't fixed by loosening that cookie's sameSite, which would
+// weaken the existing password-login trusted-device mechanism repo-wide — out of scope here.
+// Documented as a known limitation, not silently accepted.
+const completeTelegramLoginSession = async (user: AuthenticatedUser, req: Request, res: Response) => {
     const trustedDeviceToken = req.cookies?.[TRUSTED_DEVICE_COOKIE];
     const hasTrustedDevice = await isTrustedDeviceValid(trustedDeviceToken, user.id);
     const isLocalDev = process.env.MODE === 'development';
@@ -344,6 +332,47 @@ const handleTelegramLoginCallback = async (
         telegramStatus: 'two_factor',
         maskedEmail,
     });
+};
+
+const handleTelegramLoginCallback = async (
+    req: Request,
+    res: Response,
+    identity: { providerUserId: string; username: string | null; displayName: string | null },
+) => {
+    const authIdentity = await findTelegramIdentityByProviderUserId(identity.providerUserId);
+    if (!authIdentity) return denyTelegramLogin(req, res, 'TELEGRAM_NOT_LINKED', { reason: 'TELEGRAM_NOT_LINKED' });
+
+    const user = await prisma.user.findUnique({
+        where: { id: authIdentity.userId },
+        select: authenticatedUserSelect,
+    }) as AuthenticatedUser | null;
+
+    if (!user) {
+        return denyTelegramLogin(req, res, 'USER_NOT_AUTHORIZED', {
+            reason: 'ACCOUNT_MISSING',
+            actorUserId: authIdentity.userId,
+            targetUserId: authIdentity.userId,
+        });
+    }
+
+    const denialReason = resolveTelegramLoginDenialReason(user);
+    if (denialReason) {
+        return denyTelegramLogin(req, res, 'USER_NOT_AUTHORIZED', {
+            reason: denialReason,
+            actorUserId: user.id,
+            targetUserId: user.id,
+        });
+    }
+
+    await touchTelegramIdentityLastLogin(authIdentity.id);
+    await recordAuthSecurityEvent({
+        type: AuthSecurityEventType.LOGIN_TELEGRAM_SUCCEEDED,
+        actorUserId: user.id,
+        targetUserId: user.id,
+        req,
+    });
+
+    return completeTelegramLoginSession(user, req, res);
 };
 
 export const unlinkTelegram = async (req: Request, res: Response, next: NextFunction) => {
