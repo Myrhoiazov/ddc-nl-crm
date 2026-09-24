@@ -11,22 +11,15 @@ interface MollieClientCardContactFieldsProps {
     onChangeEmail?: (value?: string) => void;
     onChangePreferredLanguage?: (value?: ClientLanguage) => void;
     readonly?: boolean;
+    minimal?: boolean;
 }
 
 export const MollieClientCardContactFields = memo((props: MollieClientCardContactFieldsProps) => {
-    const { data, onChangeCity, onChangeEmail, onChangePreferredLanguage, readonly } = props;
+    const { data, onChangeCity, onChangeEmail, onChangePreferredLanguage, readonly, minimal } = props;
     const { t } = useTranslation();
 
     return (
         <>
-            <Input
-                fullWidth
-                label="City"
-                type="text"
-                placeholder={t('Deventer')}
-                onChange={onChangeCity}
-                value={data?.city || ''}
-            />
             <Input
                 fullWidth
                 label="E-mail"
@@ -35,13 +28,25 @@ export const MollieClientCardContactFields = memo((props: MollieClientCardContac
                 onChange={onChangeEmail}
                 value={data?.email || ''}
             />
-            <Select<ClientLanguage>
-                label="Язык письма-напоминания (кому платит Mollie)"
-                options={CLIENT_LANGUAGE_OPTIONS}
-                value={data?.preferredLanguage ?? 'RU'}
-                onChange={onChangePreferredLanguage}
-                readonly={readonly}
-            />
+            {!minimal && (
+                <>
+                    <Input
+                        fullWidth
+                        label="City"
+                        type="text"
+                        placeholder={t('Deventer')}
+                        onChange={onChangeCity}
+                        value={data?.city || ''}
+                    />
+                    <Select<ClientLanguage>
+                        label="Язык письма-напоминания (кому платит Mollie)"
+                        options={CLIENT_LANGUAGE_OPTIONS}
+                        value={data?.preferredLanguage ?? 'RU'}
+                        onChange={onChangePreferredLanguage}
+                        readonly={readonly}
+                    />
+                </>
+            )}
         </>
     );
 });

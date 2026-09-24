@@ -807,8 +807,8 @@ export const createCustomerController = async (req: Request<{}, {}, TCustomer>, 
         clientId?: number | string | null;
     }
 
-    if (!email || !givenName) {
-        return res.status(400).json({ error: 'Name && email is requered' });
+    if (!email?.trim() || !givenName?.trim() || !familyName?.trim()) {
+        return res.status(400).json({ error: 'Email, given name, and family name are required' });
     }
 
     try {

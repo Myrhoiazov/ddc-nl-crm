@@ -11,6 +11,9 @@ const stateWithForm: StateSchema = fromPartial({
             givenName: 'Иван',
             familyName: 'Петров',
             email: 'ivan@example.com',
+            city: 'Amsterdam',
+            consumerAccount: 'NL00TEST',
+            consumerBic: 'TESTNL2A',
         },
     },
 });
@@ -27,7 +30,11 @@ describe('addMolieClientData', () => {
 
         const result = await addMolieClientData()(dispatch, () => stateWithForm, extra as never);
 
-        expect(extra.apiPrivate.post).toHaveBeenCalledWith('/mollie/customers', stateWithForm.addMollieClientForm?.data);
+        expect(extra.apiPrivate.post).toHaveBeenCalledWith('/mollie/customers', {
+            givenName: 'Иван',
+            familyName: 'Петров',
+            email: 'ivan@example.com',
+        });
         expect(result.meta.requestStatus).toBe('fulfilled');
         expect(result.payload).toEqual(mollieClient);
     });
