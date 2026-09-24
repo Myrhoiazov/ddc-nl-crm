@@ -5,6 +5,7 @@ import type { TelegramInlineKeyboard, TelegramSentMessage } from '../../common/t
 
 const admin = { userId: 5, email: 'admin@ddc.nl', firstName: 'Anna', lastName: 'K' };
 const MINI_APP_URL = 'https://ddc-nl.denys-myr.com/telegram-admin/index.html';
+const BOT_USERNAME = 'denysmyr_bot';
 
 const makeDeps = (overrides: Partial<TelegramAdminBotDeps> = {}): TelegramAdminBotDeps & {
     sent: Array<{ chatId: unknown; text: string; inlineKeyboard?: TelegramInlineKeyboard }>;
@@ -28,11 +29,12 @@ const makeDeps = (overrides: Partial<TelegramAdminBotDeps> = {}): TelegramAdminB
 
 test.beforeEach(() => {
     process.env.TELEGRAM_MINIAPP_URL = MINI_APP_URL;
+    process.env.TELEGRAM_BOT_USERNAME = BOT_USERNAME;
 });
 
 test('unauthorized user gets no CRM data and a plain rejection on /start', async () => {
     const deps = makeDeps({ resolveAdmin: async () => null });
-    await handleTelegramAdminBotUpdate({ message: { text: '/start', from: { id: 999 }, chat: { id: 1 } } }, deps);
+    await handleTelegramAdminBotUpdate({ message: { text: '/start', from: { id: 999 }, chat: { id: 1, type: 'private' } } }, deps);
     assert.equal(deps.sent.length, 1);
     assert.match(deps.sent[0].text, /нет доступа/i);
 });
@@ -57,9 +59,9 @@ test('an authorized callback (e.g. a stale pre-rollout menu tap) is just dismiss
     assert.equal(deps.answered[0].showAlert, undefined);
 });
 
-test('/start shows the root menu with web_app buttons deep-linking into the Mini App', async () => {
+test('/start in a private chat shows the root menu with web_app buttons deep-linking into the Mini App', async () => {
     const deps = makeDeps();
-    await handleTelegramAdminBotUpdate({ message: { text: '/start', from: { id: 1 }, chat: { id: 1 } } }, deps);
+    await handleTelegramAdminBotUpdate({ message: { text: '/start', from: { id: 1 }, chat: { id: 1, type: 'private' } } }, deps);
 
     assert.equal(deps.sent.length, 1);
     assert.match(deps.sent[0].text, /DDC ADMIN/);
@@ -75,16 +77,40 @@ test('/start shows the root menu with web_app buttons deep-linking into the Mini
     assert.ok(urls.includes(`${MINI_APP_URL}?screen=new-student`));
 });
 
-test('/start replies with a config error instead of crashing when TELEGRAM_MINIAPP_URL is unset', async () => {
+test('/start in a private chat replies with a config error instead of crashing when TELEGRAM_MINIAPP_URL is unset', async () => {
     delete process.env.TELEGRAM_MINIAPP_URL;
     const deps = makeDeps();
-    await handleTelegramAdminBotUpdate({ message: { text: '/start', from: { id: 1 }, chat: { id: 1 } } }, deps);
+    await handleTelegramAdminBotUpdate({ message: { text: '/start', from: { id: 1 }, chat: { id: 1, type: 'private' } } }, deps);
     assert.equal(deps.sent.length, 1);
     assert.match(deps.sent[0].text, /TELEGRAM_MINIAPP_URL/);
 });
 
+test('/start in a group sends a url deep link into a private chat instead of a web_app button', async () => {
+    const deps = makeDeps();
+    await handleTelegramAdminBotUpdate({
+        message: { text: '/start', from: { id: 1 }, chat: { id: -1004310025484, type: 'supergroup' } },
+    }, deps);
+
+    assert.equal(deps.sent.length, 1);
+    const buttons = (deps.sent[0].inlineKeyboard ?? []).flat();
+    assert.equal(buttons.length, 1);
+    const [button] = buttons;
+    assert.ok('url' in button, `expected a url button (web_app is invalid outside private chats), got ${JSON.stringify(button)}`);
+    if ('url' in button) assert.equal(button.url, `https://t.me/${BOT_USERNAME}?start=menu`);
+});
+
+test('/start in a group replies with a config error instead of crashing when TELEGRAM_BOT_USERNAME is unset', async () => {
+    delete process.env.TELEGRAM_BOT_USERNAME;
+    const deps = makeDeps();
+    await handleTelegramAdminBotUpdate({
+        message: { text: '/start', from: { id: 1 }, chat: { id: -1004310025484, type: 'supergroup' } },
+    }, deps);
+    assert.equal(deps.sent.length, 1);
+    assert.match(deps.sent[0].text, /TELEGRAM_BOT_USERNAME/);
+});
+
 test('unrelated text from an authorized admin is a safe no-op', async () => {
     const deps = makeDeps();
-    await handleTelegramAdminBotUpdate({ message: { text: 'hello', from: { id: 1 }, chat: { id: 1 } } }, deps);
+    await handleTelegramAdminBotUpdate({ message: { text: 'hello', from: { id: 1 }, chat: { id: 1, type: 'private' } } }, deps);
     assert.equal(deps.sent.length, 0);
 });

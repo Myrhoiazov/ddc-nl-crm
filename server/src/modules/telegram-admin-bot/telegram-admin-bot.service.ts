@@ -2,13 +2,15 @@ import {
     answerTelegramCallbackQuery, sendTelegramBotMessage, type TelegramInlineKeyboard,
 } from '../../common/telegram/telegram-bot-api.client';
 import { resolveTelegramAdmin, type ResolvedTelegramAdmin } from './telegram-admin-bot.auth';
-import { buildRootMenuKeyboard, ROOT_MENU_TEXT } from './telegram-admin-bot.menu';
+import {
+    buildOpenPrivateChatKeyboard, buildRootMenuKeyboard, GROUP_MENU_TEXT, ROOT_MENU_TEXT,
+} from './telegram-admin-bot.menu';
 
 export interface TelegramAdminBotUpdate {
     message?: {
         text?: unknown;
         from?: { id?: unknown };
-        chat?: { id?: unknown };
+        chat?: { id?: unknown; type?: unknown };
     };
     callback_query?: {
         id?: unknown;
@@ -33,9 +35,10 @@ interface Render { text: string; keyboard?: TelegramInlineKeyboard }
 
 // Every root-menu button is now a `web_app` button (see telegram-admin-bot.menu.ts) that opens
 // the Mini App directly — nothing sends `callback_data` for this bot anymore, so there is no
-// conversational flow state to hold. TELEGRAM_MINIAPP_URL is read directly from the environment
-// (not injected via deps), matching how telegram-bot-api.client.ts reads TELEGRAM_TOKEN.
+// conversational flow state to hold. Both env vars below are read directly (not injected via
+// deps), matching how telegram-bot-api.client.ts reads TELEGRAM_TOKEN.
 const resolveMiniAppUrl = (): string | undefined => process.env.TELEGRAM_MINIAPP_URL?.trim() || undefined;
+const resolveBotUsername = (): string | undefined => process.env.TELEGRAM_BOT_USERNAME?.trim() || undefined;
 
 const renderRootMenu = (miniAppUrl: string): Render => ({ text: ROOT_MENU_TEXT, keyboard: buildRootMenuKeyboard(miniAppUrl) });
 
@@ -82,6 +85,21 @@ export const handleTelegramAdminBotUpdate = async (
 
     const text = typeof update.message?.text === 'string' ? update.message.text : '';
     if (/^\/start(\s|$)/.test(text.trim())) {
+        // web_app buttons are only valid in a private 1:1 chat with the bot — Telegram rejects
+        // them with BUTTON_TYPE_INVALID anywhere else (confirmed against the live Bot API
+        // 2026-09-24), and this bot's actual admin chat is a supergroup. So a group/supergroup
+        // gets a plain `url` deep link into a private chat instead, where /start?start=menu
+        // lands back here with chat.type === 'private' and gets the real menu.
+        if (update.message?.chat?.type !== 'private') {
+            const botUsername = resolveBotUsername();
+            if (!botUsername) {
+                await deps.send({ chatId, text: '⚠️ Бот не настроен (TELEGRAM_BOT_USERNAME).' });
+                return { status: 200, body: { ok: true } };
+            }
+            await deps.send({ chatId, text: GROUP_MENU_TEXT, inlineKeyboard: buildOpenPrivateChatKeyboard(botUsername) });
+            return { status: 200, body: { ok: true } };
+        }
+
         const miniAppUrl = resolveMiniAppUrl();
         if (!miniAppUrl) {
             await deps.send({ chatId, text: '⚠️ Mini App не настроен (TELEGRAM_MINIAPP_URL).' });
