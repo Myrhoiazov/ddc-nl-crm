@@ -8,6 +8,7 @@ import {
     buildRoleChangedNotification,
     notifyLoginBlocked,
     notifyNewDeviceAfterFailures,
+    notifyNewEmail,
     notifyRoleChanged,
 } from './telegram.service';
 
@@ -127,6 +128,7 @@ const withTelegramEnv = (vars: Record<string, string | undefined>, fn: () => Pro
     const previous: Record<string, string | undefined> = {
         TELEGRAM_TOKEN: process.env.TELEGRAM_TOKEN,
         TELEGRAM_CHAT_ID: process.env.TELEGRAM_CHAT_ID,
+        TELEGRAM_EMAIL_NOTIFY_CHAT_ID: process.env.TELEGRAM_EMAIL_NOTIFY_CHAT_ID,
     };
     for (const key of Object.keys(vars)) {
         if (vars[key] === undefined) delete process.env[key];
@@ -209,4 +211,56 @@ test('notifyRoleChanged sends the built message via axios when Telegram is confi
     const [url, body] = postMock.mock.calls[0].arguments;
     assert.match(String(url), /api\.telegram\.org\/bottoken\/sendMessage/);
     assert.match((body as { text: string }).text, /Изменена роль/);
+});
+
+test('notifyNewEmail does not call axios when TELEGRAM_EMAIL_NOTIFY_CHAT_ID is unset', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: 'token', TELEGRAM_CHAT_ID: 'group-chat-id', TELEGRAM_EMAIL_NOTIFY_CHAT_ID: undefined }, async () => {
+        const result = await notifyNewEmail({
+            fromAddress: 'parent@example.com',
+            fromName: 'Test Parent',
+            subject: 'Вопрос про расписание',
+            accountLabel: 'ddc nl',
+        });
+        assert.equal(result, false);
+    });
+
+    assert.equal(postMock.mock.callCount(), 0);
+});
+
+test('notifyNewEmail sends to TELEGRAM_EMAIL_NOTIFY_CHAT_ID, not the group chat', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: 'token', TELEGRAM_CHAT_ID: 'group-chat-id', TELEGRAM_EMAIL_NOTIFY_CHAT_ID: 'personal-chat-id' }, async () => {
+        const result = await notifyNewEmail({
+            fromAddress: 'parent@example.com',
+            fromName: 'Test Parent',
+            subject: 'Вопрос про расписание',
+            accountLabel: 'ddc nl',
+        });
+        assert.equal(result, true);
+    });
+
+    assert.equal(postMock.mock.callCount(), 1);
+    const [url, body] = postMock.mock.calls[0].arguments;
+    assert.match(String(url), /api\.telegram\.org\/bottoken\/sendMessage/);
+    const sentBody = body as { chat_id: string; text: string };
+    assert.equal(sentBody.chat_id, 'personal-chat-id');
+    assert.match(sentBody.text, /Новое письмо/);
+    assert.match(sentBody.text, /Test Parent/);
+    assert.match(sentBody.text, /parent@example\.com/);
+    assert.match(sentBody.text, /Вопрос про расписание/);
+    assert.match(sentBody.text, /ddc nl/);
+});
+
+test('notifyNewEmail falls back to "(без темы)" when subject is missing', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: 'token', TELEGRAM_EMAIL_NOTIFY_CHAT_ID: 'personal-chat-id' }, async () => {
+        await notifyNewEmail({ fromAddress: 'parent@example.com', accountLabel: 'ddc nl' });
+    });
+
+    const [, body] = postMock.mock.calls[0].arguments;
+    assert.match((body as { text: string }).text, /без темы/);
 });
