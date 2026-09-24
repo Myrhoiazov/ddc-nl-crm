@@ -1,9 +1,11 @@
 # Local AI Email Assistant Operations
 
-This document covers the local Ollama runtime and the opt-in email/knowledge workers.
+This document covers the local Ollama runtime, the optional OpenAI draft provider, and the opt-in email/knowledge workers.
 Classification, drafting, sending, and knowledge sync all stay disabled unless their own feature
 flag is set to `true`; with every flag at its `false` default, no email is ever sent by the
-AI assistant.
+AI assistant. Classification, spam checks, CRM lookup, embeddings, query expansion, and reranking
+remain local. Only final reply-body generation can use the provider selected in the admin Knowledge
+Base page.
 
 ## Configuration
 
@@ -12,7 +14,11 @@ The server reads these variables from its runtime environment:
 | Variable | Default | Purpose |
 |---|---:|---|
 | `OLLAMA_URL` | `http://127.0.0.1:11434` (direct) / `http://ollama:11434` (Compose dev) | Ollama HTTP endpoint |
-| `OLLAMA_MODEL` | `qwen3:0.6b` | Model tag; configurable per environment |
+| `OLLAMA_MODEL` | `qwen3:0.6b` | Local model tag; configurable per environment |
+| `OPENAI_API_KEY` | empty | OpenAI secret; environment-only, never stored in the database |
+| `OPENAI_BASE_URL` | unset | Optional OpenAI-compatible API base URL |
+| `OPENAI_DEFAULT_MODEL` | `gpt-4o-mini` | Default OpenAI draft model |
+| `OPENAI_ALLOWED_MODELS` | empty | Optional comma-separated allow-list for admin-selected OpenAI models |
 | `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Local multilingual embedding model |
 | `LLM_CONTEXT_LENGTH` | `2048` | Maximum inference context |
 | `LLM_TEMPERATURE` | `0.2` | Sampling temperature, from 0 to 2 |
@@ -39,6 +45,16 @@ maps `host.docker.internal` to the Docker host so an Ollama process installed on
 reached; set `OLLAMA_URL` explicitly when Ollama runs elsewhere. The model default lives in the
 configuration module; provider and workflow code must consume that configuration and must not embed
 a model name.
+
+
+## Runtime provider switch
+
+An ADMIN can select `Ollama` or `OpenAI` and a model in the Knowledge Base AI controls. The setting
+is stored in `ai_runtime_settings` and takes effect on the next draft or simulation without a
+restart. The OpenAI test endpoint sends only synthetic data. If the selected provider is missing
+configuration, rate-limited, unavailable, or returns invalid output, the draft is marked `FAILED`
+with a bounded error code and remains for manual processing; the system never silently switches
+providers. Human approval in Telegram is still required before SMTP delivery.
 
 ## Preparing Ollama
 

@@ -7,6 +7,10 @@ test('AI config uses the resource-safe local defaults', () => {
 
     assert.deepEqual(config, {
         ollamaUrl: 'http://127.0.0.1:11434',
+        openAiApiKey: '',
+        openAiBaseUrl: undefined,
+        openAiDefaultModel: 'gpt-4o-mini',
+        openAiAllowedModels: [],
         ollamaModel: 'qwen3:0.6b',
         contextLength: 2048,
         temperature: 0.2,
@@ -41,6 +45,10 @@ test('AI config is fully environment-driven', () => {
 
     assert.deepEqual(config, {
         ollamaUrl: 'http://ollama:11434/',
+        openAiApiKey: '',
+        openAiBaseUrl: undefined,
+        openAiDefaultModel: 'gpt-4o-mini',
+        openAiAllowedModels: [],
         ollamaModel: 'custom-model',
         contextLength: 1024,
         temperature: 0.7,

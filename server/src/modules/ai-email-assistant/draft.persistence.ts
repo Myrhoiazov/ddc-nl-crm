@@ -1,3 +1,4 @@
+import { AiDraftProvider, AiEmailDraftStatus } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client';
 import { aiConfig } from '../../config/ai.config';
 import { emailDraftSchema, type EmailDraft } from './draft.service';
@@ -17,10 +18,15 @@ export interface DraftRecord {
     knowledge: DraftKnowledgeRefInput[];
     model?: string;
     promptVersion?: string;
+    provider?: AiDraftProvider;
+    generationErrorCode?: string;
+    generationErrorMessage?: string;
+    status?: AiEmailDraftStatus;
 }
 
 export interface AiEmailDraftRepository {
     createNextVersion(record: DraftRecord): Promise<{ id: number; version: number }>;
+    createFailureVersion?(record: DraftRecord): Promise<{ id: number; version: number }>;
 }
 
 export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => ({
@@ -42,8 +48,12 @@ export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => 
                     replyLanguage: parsed.replyLanguage,
                     confidence: parsed.confidence,
                     needsManualAnswer: parsed.needsManualAnswer,
+                    provider: record.provider ?? AiDraftProvider.OLLAMA,
                     model: record.model ?? aiConfig.ollamaModel,
                     promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
+                    status: record.status ?? AiEmailDraftStatus.GENERATED,
+                    generationErrorCode: record.generationErrorCode,
+                    generationErrorMessage: record.generationErrorMessage?.slice(0, 500),
                     knowledgeRefs: {
                         create: record.knowledge.slice(0, 20).map((ref) => ({
                             knowledgeId: ref.id,
@@ -55,6 +65,27 @@ export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => 
                 select: { id: true, version: true },
             });
             return created;
+        });
+    },
+    async createFailureVersion(record) {
+        const latest = await prisma.aiEmailDraft.findFirst({ where: { emailId: record.emailId }, orderBy: { version: 'desc' }, select: { version: true } });
+        return prisma.aiEmailDraft.create({
+            data: {
+                emailId: record.emailId,
+                version: (latest?.version ?? 0) + 1,
+                subject: record.draft.subject,
+                body: record.draft.body,
+                replyLanguage: record.draft.replyLanguage,
+                confidence: record.draft.confidence,
+                needsManualAnswer: true,
+                provider: record.provider ?? AiDraftProvider.OLLAMA,
+                model: record.model ?? aiConfig.ollamaModel,
+                promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
+                status: AiEmailDraftStatus.FAILED,
+                generationErrorCode: record.generationErrorCode,
+                generationErrorMessage: record.generationErrorMessage?.slice(0, 500),
+            },
+            select: { id: true, version: true },
         });
     },
 });

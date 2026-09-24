@@ -12,6 +12,7 @@ import {
     OllamaQueryExpansionClient, OllamaReranker, type QueryExpansion,
 } from '../knowledge-ingestion';
 import { aiConfig } from '../../config/ai.config';
+import { createDraftProviderFactory } from './draft-provider.factory';
 
 export interface EmailSimulationInput {
     from?: string;
@@ -51,10 +52,10 @@ export const runEmailAssistantSimulation = async (input: EmailSimulationInput): 
     const normalized = normalizeEmail(raw);
     const spamReason = deterministicSpamReason(raw, normalized);
 
-    const client = new OllamaLlmClient({
+    const classificationClient = new OllamaLlmClient({
         promptOverrides: { classificationPromptId: input.classificationPromptId, draftBodyPromptId: input.draftBodyPromptId },
     });
-    const classification = spamReason ? null : await client.classifyEmail(normalized);
+    const classification = spamReason ? null : await classificationClient.classifyEmail(normalized);
 
     let knowledge: DraftKnowledgeContext[] = [];
     let queryExpansion: QueryExpansion | null = null;
@@ -80,12 +81,13 @@ export const runEmailAssistantSimulation = async (input: EmailSimulationInput): 
     }
 
     const crmReader = createPrismaCrmReader();
+    const draftClient = await createDraftProviderFactory().getSelectedProvider();
     const crmContact = await crmReader.findContactByEmail(from);
     // generateEmailDraft itself refuses to draft spam/no-reply-needed emails; forceDraft bypasses
     // that gate by calling the LLM client directly through the same context shape (mirrors the CLI).
     const draft = input.forceDraft && (classification.spam || !classification.needsReply)
-        ? emailDraftSchema.parse(await client.generateDraft(await buildDraftContext(normalized, classification, crmReader, knowledge)))
-        : await generateEmailDraft(normalized, classification, crmReader, client, knowledge);
+        ? emailDraftSchema.parse(await draftClient.generateDraft(await buildDraftContext(normalized, classification, crmReader, knowledge)))
+        : await generateEmailDraft(normalized, classification, crmReader, draftClient, knowledge);
 
     return { normalized, deterministicSpamReason: spamReason, classification, knowledge, queryExpansion, crmContact, draft, draftSkippedReason: null };
 };

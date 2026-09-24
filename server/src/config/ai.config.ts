@@ -11,6 +11,10 @@ const DEFAULT_RAG_CHUNK_OVERLAP = 100;
 
 export interface AiConfig {
     ollamaUrl: string;
+    openAiApiKey?: string;
+    openAiBaseUrl?: string;
+    openAiDefaultModel?: string;
+    openAiAllowedModels?: string[];
     ollamaModel: string;
     contextLength: number;
     temperature: number;
@@ -63,6 +67,10 @@ const booleanFlag = (value: string | undefined, fallback: boolean): boolean => {
 
 export const readAiConfig = (environment: NodeJS.ProcessEnv = process.env): AiConfig => ({
     ollamaUrl: environment.OLLAMA_URL?.trim() || DEFAULT_OLLAMA_URL,
+    openAiApiKey: environment.OPENAI_API_KEY?.trim() || "",
+    openAiBaseUrl: environment.OPENAI_BASE_URL?.trim() || undefined,
+    openAiDefaultModel: environment.OPENAI_DEFAULT_MODEL?.trim() || "gpt-4o-mini",
+    openAiAllowedModels: (environment.OPENAI_ALLOWED_MODELS || "").split(",").map((v) => v.trim()).filter(Boolean),
     ollamaModel: environment.OLLAMA_MODEL?.trim() || DEFAULT_OLLAMA_MODEL,
     contextLength: positiveInteger(environment.LLM_CONTEXT_LENGTH, DEFAULT_CONTEXT_LENGTH),
     temperature: boundedTemperature(environment.LLM_TEMPERATURE, DEFAULT_TEMPERATURE),
