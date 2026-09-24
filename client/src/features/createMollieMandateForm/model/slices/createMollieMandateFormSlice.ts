@@ -12,7 +12,7 @@ const initialState: CreateMollieMandateFormSchema = {
     error: undefined
 };
 
-export const createMollieMandateFormSlice = createSlice({
+const createMollieMandateFormSlice = createSlice({
     name: 'createMollieMandateForm',
     initialState,
     reducers: {

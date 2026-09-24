@@ -5,7 +5,7 @@ const initialState: UISchema = {
     scroll: {},
 };
 
-export const uiSlice = createSlice({
+const uiSlice = createSlice({
     name: 'ui',
     initialState,
     reducers: {

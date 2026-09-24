@@ -2,19 +2,23 @@ import prisma from '../../../prisma/prisma-client'
 
 
 export interface TCustomer {
-    id?: number;
-    mollieId: string
-    city: string
-    country: string
     email: string
-    phone?: string
-    consumerName: string
-    familyName: string
     givenName: string
-    postalCode: string
-    streetAndNumber: string
-    consumerAccount: string
-    consumerBic: string
+    familyName: string
+    payerName?: string
+    payerRelation?: string
+    clientId?: number | string | null
+    // Fields below belong to the later customer-edit/bank-details flow.
+    id?: number;
+    mollieId?: string
+    city?: string
+    country?: string
+    phone?: string
+    consumerName?: string
+    postalCode?: string
+    streetAndNumber?: string
+    consumerAccount?: string
+    consumerBic?: string
 }
 
 export const getCostomerByMollieId = async (id: string) => {

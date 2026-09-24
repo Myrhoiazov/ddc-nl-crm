@@ -29,7 +29,7 @@ export const startAiEmailDraftCron = (): boolean => {
                 createPrismaDraftPipelineRepository(),
                 createPrismaCrmReader(),
                 new OllamaLlmClient(),
-                buildRetrievalService(),
+                { knowledgeProvider: buildRetrievalService() },
             );
             logger.info(`[AiEmailDraft] processed=${result.processed}, skipped=${result.skipped}, failed=${result.failed}`);
         } catch (error) {

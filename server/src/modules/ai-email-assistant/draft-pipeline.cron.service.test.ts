@@ -17,7 +17,8 @@ test('scheduled drafts receive knowledge retrieved from the persistent store', a
     });
     t.mock.method(MysqlKnowledgeRepository.prototype, 'search', async () => [{ id: 'trial-1', documentId: 'trial', contentHash: 'v1', ordinal: 0, content: 'Contact the administrator to book a trial.', sourceUrl: 'https://example.com/trial', score: 0.95 }]);
     let checked = false;
-    t.mock.method(pipeline, 'runDraftPipeline', async (_repository: unknown, _crm: unknown, _llm: unknown, knowledge?: pipeline.DraftKnowledgeProvider) => {
+    t.mock.method(pipeline, 'runDraftPipeline', async (_repository: unknown, _crm: unknown, _llm: unknown, options?: pipeline.RunDraftPipelineOptions) => {
+        const knowledge = options?.knowledgeProvider;
         assert.ok(knowledge, 'Scheduled pipeline must receive a knowledge provider');
         const results = await knowledge.retrieve('Can I book a trial lesson?');
         assert.equal(results[0].id, 'trial-1');

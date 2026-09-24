@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import axios from 'axios';
 import type { Request, Response } from 'express';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { buildDraftCallbackData, parseDraftCallbackData, parseDraftEditCommand } from './telegram-approval.controller';
 import { telegramWebhookController } from '../../common/telegram/telegram-webhook.controller';
 import prisma from '../../../prisma/prisma-client';
@@ -23,22 +24,22 @@ const withEnv = (vars: Record<string, string | undefined>, fn: () => Promise<voi
 
 const fakeResponse = () => {
     const calls: { status?: number; body?: unknown } = {};
-    const res = {
+    const res: Response = fromPartial({
         status(code: number) { calls.status = code; return res; },
         json(body: unknown) { calls.body = body; return res; },
-    } as unknown as Response;
+    });
     return { res, calls };
 };
 
-const editCallbackRequest = (fromId: number) => ({
+const editCallbackRequest = (fromId: number): Request => fromPartial({
     header: (name: string) => (name === 'x-telegram-bot-api-secret-token' ? 'webhook-secret' : undefined),
     body: { callback_query: { data: 'ai:draft:12:3:edit', from: { id: fromId } } },
-} as unknown as Request);
+});
 
-const draftCallbackRequest = (action: 'approve' | 'reject' | 'spam', fromId: number) => ({
+const draftCallbackRequest = (action: 'approve' | 'reject' | 'spam', fromId: number): Request => fromPartial({
     header: (name: string) => (name === 'x-telegram-bot-api-secret-token' ? 'webhook-secret' : undefined),
     body: { callback_query: { data: `ai:draft:12:3:${action}`, from: { id: fromId } } },
-} as unknown as Request);
+});
 
 test('Telegram callback data carries the immutable draft version', () => {
     const value = buildDraftCallbackData(12, 3, 'approve');

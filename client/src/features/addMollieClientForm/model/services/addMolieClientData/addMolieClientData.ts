@@ -12,8 +12,17 @@ export const addMolieClientData = createAsyncThunk<MollieClient, void, ThunkConf
         return rejectWithValue('Форма клиента не заполнена');
     }
 
+    const { givenName, familyName, email } = clientForm;
+    if (!givenName?.trim() || !familyName?.trim() || !email?.trim()) {
+        return rejectWithValue('Имя, фамилия и email обязательны');
+    }
+
     try {
-        const response = await extra.apiPrivate.post<MollieClient>('/mollie/customers', clientForm);
+        const response = await extra.apiPrivate.post<MollieClient>('/mollie/customers', {
+            givenName: givenName.trim(),
+            familyName: familyName.trim(),
+            email: email.trim(),
+        });
 
         if (!response.data) {
             throw new Error();

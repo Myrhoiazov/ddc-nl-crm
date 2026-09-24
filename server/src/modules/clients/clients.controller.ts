@@ -44,7 +44,7 @@ const groupIdsValue = z.preprocess(
 );
 const groupIds = groupIdsValue.default([]);
 
-export const createClientSchema = z.object({
+const createClientSchema = z.object({
     firstName: optionalText,
     lastName: optionalText,
     birthday: z.preprocess(

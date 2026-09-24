@@ -8,7 +8,7 @@ const initialState: AddMollieClientSchema = {
     data: undefined,
 };
 
-export const addMollieClientSlice = createSlice({
+const addMollieClientSlice = createSlice({
     name: 'addMollieClientForm',
     initialState,
     reducers: {

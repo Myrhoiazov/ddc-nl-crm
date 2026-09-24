@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { fromAny } from '@total-typescript/shoehorn';
 import { importKnowledgeUrl } from './url-ingestion.service';
 
 const fakeDns = (map: Record<string, string[]>) => async (hostname: string) => {
@@ -20,28 +21,28 @@ test('rejects a private/unsafe URL before making any request', async () => {
 });
 
 test('rejects when the request fails', async () => {
-    const fetchImpl = (async () => { throw new Error('network down'); }) as unknown as typeof fetch;
+    const fetchImpl: typeof fetch = fromAny(async () => { throw new Error('network down'); });
     const result = await importKnowledgeUrl('https://example.com/page', { fetchImpl, dnsLookup: dnsFor('example.com') });
     assert.equal(result.status, 'rejected');
     assert.equal(result.reason, 'request_failed');
 });
 
 test('rejects a non-2xx response', async () => {
-    const fetchImpl = (async () => new Response('not found', { status: 404 })) as unknown as typeof fetch;
+    const fetchImpl: typeof fetch = fromAny(async () => new Response('not found', { status: 404 }));
     const result = await importKnowledgeUrl('https://example.com/missing', { fetchImpl, dnsLookup: dnsFor('example.com') });
     assert.equal(result.status, 'rejected');
     assert.equal(result.reason, 'request_failed');
 });
 
 test('rejects a page with no extractable content', async () => {
-    const fetchImpl = (async () => new Response('<html><head></head><body></body></html>')) as unknown as typeof fetch;
+    const fetchImpl: typeof fetch = fromAny(async () => new Response('<html><head></head><body></body></html>'));
     const result = await importKnowledgeUrl('https://example.com/empty', { fetchImpl, dnsLookup: dnsFor('example.com') });
     assert.equal(result.status, 'rejected');
     assert.equal(result.reason, 'empty_content');
 });
 
 test('normalizes a real page into a ready document', async () => {
-    const fetchImpl = (async () => new Response('<html><body><h1>Title</h1><p>Hello world</p></body></html>')) as unknown as typeof fetch;
+    const fetchImpl: typeof fetch = fromAny(async () => new Response('<html><body><h1>Title</h1><p>Hello world</p></body></html>'));
     const result = await importKnowledgeUrl('https://example.com/page', { fetchImpl, dnsLookup: dnsFor('example.com') });
     assert.equal(result.status, 'ready');
     assert.ok(result.document);

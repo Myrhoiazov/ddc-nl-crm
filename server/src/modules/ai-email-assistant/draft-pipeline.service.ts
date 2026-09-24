@@ -1,6 +1,6 @@
 import { aiConfig } from '../../config/ai.config';
 import { logger } from '../../common/logger';
-import { buildDraftContext, generateEmailDraft, type CrmReader, type DraftKnowledgeContext, type DraftLlmClient } from './draft.service';
+import { generateEmailDraft, type CrmReader, type DraftKnowledgeContext, type DraftLlmClient } from './draft.service';
 import { createPrismaAiEmailDraftRepository, persistDraft, type AiEmailDraftRepository, type DraftKnowledgeRefInput } from './draft.persistence';
 import prisma from '../../../prisma/prisma-client';
 import { notifyDraftForApproval } from './telegram-notification.service';
@@ -28,14 +28,19 @@ export interface DraftPipelineRunResult {
     failed: number;
 }
 
+export interface RunDraftPipelineOptions {
+    knowledgeProvider?: DraftKnowledgeProvider;
+    limit?: number;
+    notify?: (input: Parameters<typeof notifyDraftForApproval>[0]) => Promise<boolean>;
+}
+
 export const runDraftPipeline = async (
     repository: DraftPipelineRepository,
     crmReader: CrmReader,
     draftClient: DraftLlmClient,
-    knowledgeProvider?: DraftKnowledgeProvider,
-    limit = aiConfig.maxConcurrency,
-    notify: (input: Parameters<typeof notifyDraftForApproval>[0]) => Promise<boolean> = notifyDraftForApproval,
+    options: RunDraftPipelineOptions = {},
 ): Promise<DraftPipelineRunResult> => {
+    const { knowledgeProvider, limit = aiConfig.maxConcurrency, notify = notifyDraftForApproval } = options;
     const result: DraftPipelineRunResult = { processed: 0, skipped: 0, failed: 0 };
     const candidates = await repository.findDraftCandidates(Math.max(1, limit));
     for (const candidate of candidates) {

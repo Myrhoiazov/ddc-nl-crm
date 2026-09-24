@@ -6,9 +6,9 @@ import prisma from '../../../prisma/prisma-client';
 import { decryptEmailSecret } from '../communication/email/email-crypto.service';
 
 export const CODE_TTL_MINUTES = 10;
-export const MAX_ATTEMPTS = 5;
-export const MAX_RESENDS = 3;
-export const RESEND_COOLDOWN_SECONDS = 60;
+const MAX_ATTEMPTS = 5;
+const MAX_RESENDS = 3;
+const RESEND_COOLDOWN_SECONDS = 60;
 export const TRUSTED_DEVICE_DAYS = 30;
 
 // Same fallback chain as service.Token.ts's sessionSecret() — deliberately reused
@@ -53,7 +53,7 @@ const buildCodeEmail = (code: string) => ({
 // EmailMessage row and lands in the "Письма" module's inbox, which would mix
 // security codes into client correspondence. This sends directly via nodemailer
 // using the same EmailAccount SMTP credentials, without persisting anything.
-export const sendTwoFactorCodeEmail = async (toEmail: string, code: string) => {
+const sendTwoFactorCodeEmail = async (toEmail: string, code: string) => {
     const senderUsername = process.env.TWO_FACTOR_SENDER_EMAIL;
     if (!senderUsername) {
         throw new Error('TWO_FACTOR_SENDER_EMAIL is not configured');

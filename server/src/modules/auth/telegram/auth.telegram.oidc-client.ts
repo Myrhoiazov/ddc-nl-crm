@@ -21,9 +21,9 @@ const getJwks = () => {
     return jwks;
 };
 
-export const telegramOidcClientId = () => process.env.TELEGRAM_OIDC_CLIENT_ID;
-export const telegramOidcClientSecret = () => process.env.TELEGRAM_OIDC_CLIENT_SECRET;
-export const telegramOidcRedirectUri = () => process.env.TELEGRAM_OIDC_REDIRECT_URI;
+const telegramOidcClientId = () => process.env.TELEGRAM_OIDC_CLIENT_ID;
+const telegramOidcClientSecret = () => process.env.TELEGRAM_OIDC_CLIENT_SECRET;
+const telegramOidcRedirectUri = () => process.env.TELEGRAM_OIDC_REDIRECT_URI;
 
 export const isTelegramOidcConfigured = () => Boolean(
     telegramOidcClientId() && telegramOidcClientSecret() && telegramOidcRedirectUri(),

@@ -12,7 +12,7 @@ declare global {
     }
 }
 
-export const telegramWebApp = () => window.Telegram?.WebApp;
+const telegramWebApp = () => window.Telegram?.WebApp;
 
 export const telegramInitData = () => telegramWebApp()?.initData?.trim() ?? '';
 
