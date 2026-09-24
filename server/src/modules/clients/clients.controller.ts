@@ -4,6 +4,8 @@ import { Client, Prisma } from '@prisma/client';
 import { imageUpload } from '../../common/utils/file-upload';
 import prisma from '../../../prisma/prisma-client';
 import { z } from 'zod';
+import { AuthSecurityEventType } from '@prisma/client';
+import { recordAuthSecurityEvent } from '../auth/auth.security-audit.service';
 
 const optionalText = z.preprocess(
     (value) => typeof value === 'string' && value.trim() === '' ? undefined : value,
@@ -280,6 +282,15 @@ export const createClientsController = async (req: Request, res: Response) => {
             payerRelation,
             groupIds: selectedGroupIds,
         });
+
+        if (req.authMethod === 'telegram-miniapp') {
+            await recordAuthSecurityEvent({
+                type: AuthSecurityEventType.TELEGRAM_MINIAPP_STUDENT_CREATED,
+                actorUserId: req.user?.id,
+                metadata: { clientId: client.id },
+                req,
+            });
+        }
 
         return res.status(200).json(client);
     } catch (error) {
