@@ -8,6 +8,7 @@ import {
 import { emailDraftSchema, type DraftContext, type DraftLlmClient, type EmailDraft } from './draft.service';
 import { buildReplySubject } from '../communication/email/email-smtp.service';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
+import { DRAFT_PROVIDERS } from './draft-provider';
 
 // Below this retrieval score, knowledge is treated as too weak to answer from confidently — see
 // KnowledgeRetrievalService's own default (0.35) for the floor below which a chunk isn't
@@ -68,7 +69,7 @@ const LANGUAGE_NAMES_RU: Record<EmailClassification['language'], string> = {
 // `instructions` may contain the `{{replyLanguage}}` placeholder (see DEFAULT_PROMPT_CONTENT) —
 // substituted here rather than left to the model, since the target language is a deterministic
 // pipeline decision (the already-run classification), not something free text should guess at.
-const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => [
+export const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => [
     instructions.split('{{replyLanguage}}').join(LANGUAGE_NAMES_RU[context.classification.language]),
     '',
     `ПИСЬМО_КЛИЕНТА: ${context.email.normalizedBody}`,
@@ -77,6 +78,8 @@ const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => [
 ].filter(Boolean).join('\n');
 
 export class OllamaLlmClient implements LlmClient, DraftLlmClient {
+    public readonly provider = DRAFT_PROVIDERS.OLLAMA;
+    public readonly model: string;
     private readonly config: AiConfig;
     private readonly fetchImpl: typeof fetch;
     private readonly prompts: AiPromptRepository;
@@ -84,6 +87,7 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
 
     public constructor(options: OllamaLlmClientOptions = {}) {
         this.config = options.config ?? aiConfig;
+        this.model = this.config.ollamaModel;
         this.fetchImpl = options.fetchImpl ?? fetch;
         this.prompts = options.promptRepository ?? new PrismaAiPromptRepository();
         this.promptOverrides = options.promptOverrides ?? {};
@@ -168,7 +172,7 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
     }
 }
 
-const buildDeterministicDraft = (context: DraftContext, body: string): EmailDraft => {
+export const buildDeterministicDraft = (context: DraftContext, body: string): EmailDraft => {
     const topScore = context.knowledge[0]?.score ?? 0;
     const draft: EmailDraft = {
         replyLanguage: context.classification.language,

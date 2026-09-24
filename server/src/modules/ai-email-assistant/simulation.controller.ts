@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { z } from 'zod';
 import { runEmailAssistantSimulation } from './simulation.service';
+import { DraftProviderError } from './draft-provider';
 
 export const simulationRequestSchema = z.object({
     from: z.string().trim().max(320).optional(),
@@ -25,10 +26,17 @@ export const simulateEmailAssistant = async (req: Request, res: Response) => {
     // sidesteps whatever inference budget/depth issue causes that.
     if (parsed.success === true) {
         const { from, subject, body, topK, noKnowledge, forceDraft, classificationPromptId, draftBodyPromptId, noQueryExpansion, noRerank } = parsed.data;
-        const result = await runEmailAssistantSimulation({
-            from, subject, body, topK, noKnowledge, forceDraft, classificationPromptId, draftBodyPromptId, noQueryExpansion, noRerank,
-        });
-        return res.json(result);
+        try {
+            const result = await runEmailAssistantSimulation({
+                from, subject, body, topK, noKnowledge, forceDraft, classificationPromptId, draftBodyPromptId, noQueryExpansion, noRerank,
+            });
+            return res.json(result);
+        } catch (error) {
+            if (error instanceof DraftProviderError) {
+                return res.status(503).json({ message: 'Выбранный AI-провайдер недоступен; обработайте письмо вручную', errorCode: error.code });
+            }
+            throw error;
+        }
     }
     return res.status(400).json({ message: 'Проверьте тему/текст письма', details: parsed.error.flatten() });
 };

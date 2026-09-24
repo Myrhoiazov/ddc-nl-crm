@@ -5,6 +5,7 @@ import { createPrismaAiEmailDraftRepository, persistDraft, type AiEmailDraftRepo
 import prisma from '../../../prisma/prisma-client';
 import { notifyDraftForApproval } from './telegram-notification.service';
 import type { EmailClassification } from './email-assistant.service';
+import { DraftProviderError, type DraftProvider } from './draft-provider';
 
 export interface DraftCandidate {
     id: number;
@@ -77,6 +78,17 @@ export const runDraftPipeline = async (
             result.processed += 1;
         } catch (error) {
             result.failed += 1;
+            if (repository.createFailureVersion && error instanceof DraftProviderError) {
+                const failedDraft = {
+                    replyLanguage: candidate.classification.language,
+                    subject: candidate.subject,
+                    body: '',
+                    confidence: candidate.classification.confidence,
+                    needsManualAnswer: true,
+                    usedKnowledgeIds: [] as string[],
+                };
+                await repository.createFailureVersion({ emailId: candidate.id, draft: failedDraft, knowledge: [], provider: (draftClient as DraftProvider).provider, model: (draftClient as DraftProvider).model, generationErrorCode: error.code, generationErrorMessage: error.message });
+            }
             logger.error(`[AiEmailDraft] Failed email=${candidate.id}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }

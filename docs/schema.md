@@ -401,3 +401,13 @@ providerUserId — стабильный OIDC subject от провайдера, 
 - **Почта**: `EmailAccount -> EmailMessage -> EmailAttachment`; письмо привязывается к ученику (`EmailMessage.clientId`); `EmailAccount` также используется как отправитель напоминаний (`PaymentReminderSettings.senderEmailAccountId`).
 - **Напоминания**: `Subscription -> PaymentReminderDelivery`, шаблоны по языку — `PaymentReminderTemplate.language`, настройки-синглтон — `PaymentReminderSettings`.
 - **Безопасность**: `User -> Session / TwoFactorChallenge / TrustedDevice / AuthSecurityEvent`; все действия инвойсов и напоминаний атрибутируются `User` через named-связи.
+
+### AiRuntimeSettings (таблица `ai_runtime_settings`)
+Синглтон runtime-настройки провайдера генерации текста ответа. `draftProvider` — `OLLAMA` или
+`OPENAI`, `draftModel` — выбранная модель; секреты OpenAI в базе не хранятся.
+- Поля: id Int @id (1); draftProvider AiDraftProvider; draftModel String; updatedById Int?; createdAt; updatedAt
+- Связи: updatedBy -> User? (SetNull)
+
+`AiEmailDraft` дополнительно хранит `provider`, `generationErrorCode` и ограниченное
+`generationErrorMessage`. Ошибка выбранного провайдера создаёт версию со статусом `FAILED` и
+`needsManualAnswer=true`; автоматического fallback нет.

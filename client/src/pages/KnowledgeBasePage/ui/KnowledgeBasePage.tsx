@@ -4,6 +4,8 @@ import { Page } from '@/widgets/Page/Page';
 import { useKnowledgeBase } from '../useKnowledgeBase';
 import { useEmailSimulation } from '../useEmailSimulation';
 import { usePromptLibrary } from '../usePromptLibrary';
+import { useAiProviderSettings } from '../useAiProviderSettings';
+import { AiProviderSettingsPanel } from './AiProviderSettingsPanel';
 import { CATEGORY_LABELS, KNOWLEDGE_CATEGORIES, KnowledgeDocument, KnowledgeUploadForm, STATUS_LABELS } from '../knowledgeBaseTypes';
 import { EmailSimulationPanel } from './EmailSimulationPanel';
 import { PromptLibraryPanel } from './PromptLibraryPanel';
@@ -176,6 +178,7 @@ const KnowledgeBasePage = () => {
         prompts, form: promptForm, setForm: setPromptForm, editingId: promptEditingId, saving: promptSaving,
         startEdit: startEditPrompt, resetForm: resetPromptForm, save: savePrompt, activate: activatePrompt, remove: removePrompt,
     } = usePromptLibrary();
+    const aiProvider = useAiProviderSettings();
 
     return (
         <Page>
@@ -189,6 +192,7 @@ const KnowledgeBasePage = () => {
                 pendingTotal={pendingTotal} loading={loading}
                 embeddingId={embeddingId} embeddingAll={embeddingAll} embed={embed} embedAllPending={embedAllPending} remove={remove}
             />
+            <AiProviderSettingsPanel {...aiProvider} />
             <PromptLibraryPanel
                 prompts={prompts} form={promptForm} setForm={setPromptForm} editingId={promptEditingId} saving={promptSaving}
                 startEdit={startEditPrompt} resetForm={resetPromptForm} save={savePrompt} activate={activatePrompt} remove={removePrompt}
