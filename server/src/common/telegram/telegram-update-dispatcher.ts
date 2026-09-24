@@ -1,6 +1,5 @@
 import { handleTelegramApprovalUpdate } from '../../modules/ai-email-assistant/telegram-approval.controller';
 import { handleTelegramAdminBotUpdate } from '../../modules/telegram-admin-bot/telegram-admin-bot.service';
-import { hasActiveFlow } from '../../modules/telegram-admin-bot/telegram-admin-bot.state';
 
 // Both bot features share one physical Telegram bot (one TELEGRAM_TOKEN, one webhook route,
 // POST /api/v1/telegram/webhook) rather than registering a second bot in BotFather — this is the
@@ -39,11 +38,9 @@ export const dispatchTelegramUpdate = async (update: TelegramUpdate): Promise<{ 
         const trimmed = text.trim();
         if (EDIT_DRAFT_COMMAND_PATTERN.test(trimmed)) return handleTelegramApprovalUpdate(update);
 
-        const fromId = update.message?.from?.id;
-        const telegramUserId = fromId === undefined ? '' : String(fromId);
-        if (telegramUserId && (START_COMMAND_PATTERN.test(trimmed) || await hasActiveFlow(telegramUserId))) {
-            return handleTelegramAdminBotUpdate(update);
-        }
+        // The admin bot no longer runs conversational flows (every menu button opens the Mini
+        // App directly) so /start is the only text command it still owns.
+        if (START_COMMAND_PATTERN.test(trimmed)) return handleTelegramAdminBotUpdate(update);
     }
 
     // Anything else (unrelated text, no from id, etc.) — safe no-op, same as either handler's
