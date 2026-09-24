@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { fromPartial } from '@total-typescript/shoehorn';
 import {
     buildBranchStats,
     buildGroupStats,
@@ -50,7 +51,7 @@ test('studentSummary adds an isActive flag while preserving the student fields',
     assert.equal(result.firstName, 'Ada');
 });
 
-const branches = [
+const branches: ManagementBranches = fromPartial([
     {
         id: 10,
         name: 'Amsterdam',
@@ -69,7 +70,7 @@ const branches = [
             },
         ],
     },
-] as unknown as ManagementBranches;
+]);
 
 test('buildBranchStats counts active/inactive students, capacity, and unassigned students', () => {
     const [stats] = buildBranchStats(branches);
@@ -84,7 +85,7 @@ test('buildBranchStats counts active/inactive students, capacity, and unassigned
 });
 
 test('buildBranchStats sums capacity across multiple groups and reports zero unassigned when everyone is in a group', () => {
-    const branchesWithTwoGroups = [
+    const branchesWithTwoGroups: ManagementBranches = fromPartial([
         {
             id: 11,
             name: 'Rotterdam',
@@ -97,7 +98,7 @@ test('buildBranchStats sums capacity across multiple groups and reports zero una
                 { id: 201, name: 'B', maxParticipants: 8, clientMemberships: [{ clientId: 2, client: inactiveStudent }] },
             ],
         },
-    ] as unknown as ManagementBranches;
+    ]);
 
     const [stats] = buildBranchStats(branchesWithTwoGroups);
 
@@ -106,7 +107,7 @@ test('buildBranchStats sums capacity across multiple groups and reports zero una
 });
 
 test('buildGroupStats reports per-group active/inactive/total counts', () => {
-    const groupsWithMixedMembership = [
+    const groupsWithMixedMembership: ManagementBranches = fromPartial([
         {
             id: 12,
             name: 'Utrecht',
@@ -122,7 +123,7 @@ test('buildGroupStats reports per-group active/inactive/total counts', () => {
                 },
             ],
         },
-    ] as unknown as ManagementBranches;
+    ]);
 
     const [group] = buildGroupStats(groupsWithMixedMembership);
 

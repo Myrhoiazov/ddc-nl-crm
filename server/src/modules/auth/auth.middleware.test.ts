@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { NextFunction, Request, Response } from 'express';
 import { UserRole } from '@prisma/client';
+import { fromPartial } from '@total-typescript/shoehorn';
 import { requireRole } from './auth.middleware';
 
-const createReq = (role?: UserRole) => ({
+const createReq = (role?: UserRole): Request => fromPartial({
     user: role ? { role } : undefined,
-} as unknown as Request);
+});
 
-const createRes = () => {
+const createRes = (): Response => {
     const response = {
         statusCode: 200,
         body: undefined as unknown,
@@ -21,7 +22,7 @@ const createRes = () => {
             return this;
         },
     };
-    return response as unknown as Response;
+    return fromPartial(response);
 };
 
 test('requireRole blocks a request with no authenticated user', () => {
@@ -31,7 +32,7 @@ test('requireRole blocks a request with no authenticated user', () => {
 
     requireRole(UserRole.ADMIN)(req, res, (() => { nextCalled = true; }) as NextFunction);
 
-    assert.equal((res as unknown as { statusCode: number }).statusCode, 403);
+    assert.equal(res.statusCode, 403);
     assert.equal(nextCalled, false);
 });
 
@@ -42,7 +43,7 @@ test('requireRole blocks a user whose role is not in the allowed list', () => {
 
     requireRole(UserRole.ADMIN)(req, res, (() => { nextCalled = true; }) as NextFunction);
 
-    assert.equal((res as unknown as { statusCode: number }).statusCode, 403);
+    assert.equal(res.statusCode, 403);
     assert.equal(nextCalled, false);
 });
 
@@ -78,10 +79,10 @@ const signedInitData = () => {
     const secret = createHmac('sha256', 'WebAppData').update(botToken).digest();
     return new URLSearchParams({ ...fields, hash: createHmac('sha256', secret).update(check).digest('hex') }).toString();
 };
-const telegramRequest = (data: string | undefined) => ({
+const telegramRequest = (data: string | undefined): Request => fromPartial({
     cookies: { ddc_refresh: 'cookie-session' },
     header: (name: string) => name.toLowerCase() === 'x-telegram-init-data' ? data : undefined,
-} as unknown as Request);
+});
 const setupTelegram = (t: test.TestContext, user: unknown) => {
     const original = process.env.TELEGRAM_TOKEN;
     process.env.TELEGRAM_TOKEN = botToken;

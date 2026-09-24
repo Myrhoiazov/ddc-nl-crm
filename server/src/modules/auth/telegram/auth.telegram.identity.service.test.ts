@@ -15,9 +15,9 @@ function stub<T extends (...args: never[]) => unknown>(
     impl: T,
 ): () => void {
     const original = delegate[method] as T;
-    delegate[method] = impl as unknown as never;
+    delegate[method] = impl;
     return () => {
-        delegate[method] = original as unknown as never;
+        delegate[method] = original;
     };
 }
 

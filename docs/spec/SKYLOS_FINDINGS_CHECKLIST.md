@@ -40,7 +40,7 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
    CI-раннера) или устанавливать `--diff-base`/`--baseline` только в контексте, где
    путь стабилен (CI-раннер с фиксированным checkout-путём).
 
-## Итоговые счётчики (полный прогон, до wave1)
+## Итоговые счётчики (полный прогон, до wave1/wave2)
 
 | Категория | Найдено | Реально закрыто wave1 | False positive / by design (задокументировано) | Осталось на новую волну |
 |---|---|---|---|---|
@@ -58,7 +58,7 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
 | `SKY-C304` (функция > 50 строк) | ~45 | 0 | 0 | ~45 (production vs test policy) |
 | `SKY-Q301` (цикломатическая сложность > 10) | ~10 | 0 | 0 | ~10 |
 | `SKY-C303` (> 5 параметров) | 3 | 0 | 0 | 3 |
-| `SKY-T103` (`as unknown as X` в тестах) | ~40 | 0 | 0 | ~40 (кандидат на `migrate-to-shoehorn`) |
+| `SKY-T103` (`as unknown as X` в тестах) | 44 | 44 | 0 | 0 |
 
 ## Волна 1 (2026-09-24, ветка `chore/skylos-findings-wave1`) — Security/CI
 
@@ -161,11 +161,42 @@ skylos . -a --format concise --exclude coverage --exclude graphify-out \
   `usePromptLibrary.ts:7`, `LoginForm.tsx:29`, `email-assistant.persistence.ts:36`,
   `auth.login-rate-limit.middleware.ts:18`) — реальные кандидаты на декомпозицию,
   отдельной волной/PR.
-- **`SKY-T103`** (~40, `as unknown as X` в тестах) — тот же паттерн, что уже был
-  закрыт для 47 находок в прошлом (`@total-typescript/shoehorn`, `fromPartial`/
-  `fromAny`, см. навык `migrate-to-shoehorn`) — это новые тестовые файлы, добавленные
-  после закрытия исходной волны (Telegram/AI email assistant/knowledge-ingestion
-  модули). Прямой кандидат на тот же навык.
+## Волна 2 (2026-09-24, та же ветка) — SKY-T103 (`@total-typescript/shoehorn`)
+
+**Закрыто полностью — 44/44.** Тот же паттерн, что уже закрывал 47 находок T103 в
+прошлом (тогда только в `client/`) — на этот раз в `server/`, который до этой волны
+не имел `@total-typescript/shoehorn` вовсе (`npm i -D` добавлен в `server/package.json`).
+
+- 12 файлов, все — тестовые (`server/src/modules/{ai-email-assistant,auth,auth/telegram,
+  clients,comments,knowledge-ingestion,payments,schedule,users}/*.test.ts`).
+- `{...} as unknown as Request/Response` → `fromPartial({...})` — реальные partial-фейки
+  Express `Request`/`Response`, где нехватка полей была осознанной.
+- `'80.00' as unknown as MolliePaymentForPdf['amountValue']` (и `refundedAmount`/
+  `chargedBackAmount`) → `fromAny('80.00') as MolliePaymentForPdf['amountValue']` —
+  намеренно "неправильный" тип (строка вместо `Prisma.Decimal`), тест проверяет только
+  `.toString()`-путь форматирования; аналогично внешний `basePayment` целиком мигрирован
+  на `fromPartial<MolliePaymentForPdf>(...)`, а не только 3 внутренних поля.
+- `(async () => new Response(...)) as unknown as typeof fetch` → `const fetchImpl: typeof
+  fetch = fromAny(async () => ...)` — явная аннотация типа переменной обязательна:
+  `fromAny<T, U>(mock: U | NoInfer<T>): T` без контекстной типизации иначе резолвит
+  `T` в `unknown`, а не в целевой тип.
+- `[...] as unknown as ManagementBranches` (вложенные Prisma-подобные фикстуры филиалов/
+  групп) → `fromPartial([...])`.
+- Общий хелпер `stub<T>()` (переиспользуется в 5 файлах: `comments.service.test.ts` —
+  оригинал с пояснением в комментарии, `auth.telegram.controller/identity/transaction
+  .service.test.ts`) — `delegate[method] = impl as unknown as never` оказался вообще
+  избыточным кастом: `delegate` типизирован как `Record<string, unknown>`, значение `T`
+  уже присваиваемо в `unknown` без каста — каст просто убран, shoehorn здесь не нужен.
+- Побочные находки при типизации через `fromPartial<Response>`: `response()`/
+  `linkResponse()` в `clients.controller.test.ts` и `users.controller.test.ts` держали
+  несуществующее у `Response` поле `body` прямо в моке (типизация `fromPartial` против
+  реального `Response` это поймала, как в прошлый раз с `fromPartial`/`StateSchema` на
+  клиенте) — `body` вынесен в отдельный `calls`-объект (тот же паттерн, что уже
+  использует `fakeResponse()` в `telegram-approval.controller.test.ts`), у
+  `linkResponse()` просто убран (никем не читался).
+
+**Проверено:** `tsc --noEmit` (server) — 0 ошибок; `npm run test:ci` (server, все 10
+сьютов) — 0 fail; `skylos . --select SKY-T103` по всему репозиторию — 0 находок.
 - **`SKY-U001`/`U003`/`U004`** (6, jest/storybook config helpers) — та же категория,
   что уже закрыта как false positive в прошлых волнах (`client/config/**` не входит
   в граф импортов) — просто задокументировать, без правок.
