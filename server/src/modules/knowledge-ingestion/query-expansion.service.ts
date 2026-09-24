@@ -37,6 +37,28 @@ const extractJsonObject = (text: string): string | null => {
     return null;
 };
 
+// Code-fence stripping → direct JSON.parse → balanced-brace extraction, mirroring the fallback
+// chain parseExpansionResponse relies on below. Returns null only when every strategy fails.
+const parseExpansionJson = (raw: string, trimmed: string): Record<string, unknown> | null => {
+    try {
+        return JSON.parse(trimmed);
+    } catch {
+        const stripped = stripCodeFence(raw);
+        if (stripped !== trimmed) {
+            try { return JSON.parse(stripped); } catch { /* fall through to extraction */ }
+        }
+        const extracted = extractJsonObject(trimmed);
+        if (!extracted) return null;
+        try { return JSON.parse(extracted); } catch { return null; }
+    }
+};
+
+const extractKeywords = (rawKeywords: unknown): string[] => {
+    if (Array.isArray(rawKeywords)) return rawKeywords.map((keyword) => String(keyword).trim()).filter(Boolean);
+    if (typeof rawKeywords === 'string') return rawKeywords.split(',').map((keyword) => keyword.trim()).filter(Boolean);
+    return [];
+};
+
 // Pure parser, ported from the rag/ reference project's src/queryExpansion.ts, ignoring its
 // `format: "json"` request option: this exact deployment already found (tasks/plan.md Task 24)
 // that `format: "json"` makes qwen3 reliably return an empty `{}` for both classification and
@@ -46,32 +68,11 @@ const extractJsonObject = (text: string): string | null => {
 export const parseExpansionResponse = (raw: string): QueryExpansion | null => {
     if (!raw || !raw.trim()) return null;
     const trimmed = raw.trim();
-    let parsed: Record<string, unknown> | undefined;
-    try {
-        parsed = JSON.parse(trimmed);
-    } catch {
-        const stripped = stripCodeFence(raw);
-        if (stripped !== trimmed) {
-            try { parsed = JSON.parse(stripped); } catch { /* fall through to extraction */ }
-        }
-        if (!parsed) {
-            const extracted = extractJsonObject(trimmed);
-            if (!extracted) return null;
-            try { parsed = JSON.parse(extracted); } catch { return null; }
-        }
-    }
+    const parsed = parseExpansionJson(raw, trimmed);
     if (!parsed || typeof parsed !== 'object') return null;
 
     const cleanQuery = String((parsed as { clean_query?: unknown }).clean_query ?? '').trim();
-    const rawKeywords = (parsed as { keywords?: unknown }).keywords;
-    let keywords: string[];
-    if (Array.isArray(rawKeywords)) {
-        keywords = rawKeywords.map((keyword) => String(keyword).trim()).filter(Boolean);
-    } else if (typeof rawKeywords === 'string') {
-        keywords = rawKeywords.split(',').map((keyword) => keyword.trim()).filter(Boolean);
-    } else {
-        keywords = [];
-    }
+    const keywords = extractKeywords((parsed as { keywords?: unknown }).keywords);
 
     if (!cleanQuery && !keywords.length) return null;
     return { cleanQuery, keywords };
