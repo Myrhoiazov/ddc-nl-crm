@@ -133,11 +133,14 @@ export const buildMolliePaymentNotification = (payment: MolliePaymentNotificatio
 
 export interface TelegramMessageOptions {
     inlineKeyboard?: Array<Array<{ text: string; callback_data: string }>>;
+    // Overrides the default TELEGRAM_CHAT_ID recipient — e.g. notifyNewEmail sends to a
+    // specific admin's private chat (TELEGRAM_EMAIL_NOTIFY_CHAT_ID) instead of the shared group.
+    chatId?: string;
 }
 
 export const sendTelegramMessage = async (text: string, options: TelegramMessageOptions = {}) => {
     const token = process.env.TELEGRAM_TOKEN;
-    const chatId = process.env.TELEGRAM_CHAT_ID;
+    const chatId = options.chatId ?? process.env.TELEGRAM_CHAT_ID;
     if (!token || !chatId) {
         throw new Error('Telegram is not configured. Set TELEGRAM_TOKEN and TELEGRAM_CHAT_ID.');
     }
@@ -230,5 +233,36 @@ export const notifyRoleChanged = async (params: {
 }) => {
     if (!isTelegramConfigured()) return false;
     await sendTelegramMessage(buildRoleChangedNotification(params));
+    return true;
+};
+
+// Personal, not the shared group — a specific admin's own private chat with the bot
+// (TELEGRAM_EMAIL_NOTIFY_CHAT_ID), separate from TELEGRAM_CHAT_ID used by every other
+// notify*() in this file.
+export const isEmailNotifyConfigured = () => Boolean(
+    process.env.TELEGRAM_TOKEN && process.env.TELEGRAM_EMAIL_NOTIFY_CHAT_ID,
+);
+
+export const buildNewEmailNotification = (params: {
+    fromAddress: string;
+    fromName?: string | null;
+    subject?: string | null;
+    accountLabel: string;
+}) => [
+    '<b>Новое письмо</b>',
+    '',
+    `<b>От:</b> ${escapeHtml(params.fromName ? `${params.fromName} <${params.fromAddress}>` : params.fromAddress)}`,
+    `<b>Тема:</b> ${escapeHtml(params.subject || '(без темы)')}`,
+    `<b>Ящик:</b> ${escapeHtml(params.accountLabel)}`,
+].join('\n');
+
+export const notifyNewEmail = async (params: {
+    fromAddress: string;
+    fromName?: string | null;
+    subject?: string | null;
+    accountLabel: string;
+}) => {
+    if (!isEmailNotifyConfigured()) return false;
+    await sendTelegramMessage(buildNewEmailNotification(params), { chatId: process.env.TELEGRAM_EMAIL_NOTIFY_CHAT_ID });
     return true;
 };
