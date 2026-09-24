@@ -1274,6 +1274,18 @@ git commit -m "feat(telegram-mini-app): add new student screen with audit loggin
 This task is deliberately last and partly operational, not pure code — per spec §8, both
 interfaces run in parallel until the Mini App is verified against real Telegram.
 
+> **2026-09-24 update — extensibility requirement changed Step 3's implementation.** Rather than
+> deleting `telegram-admin-bot.menu.ts` outright, the root menu was repurposed: its 3 buttons now
+> use `web_app` (deep-linking straight into the Mini App via `?screen=<id>`) instead of
+> `callback_data`, driven by a `MINI_APP_SCREENS` registry so a future 4th/5th screen is one
+> array entry, not a multi-file edit. `telegram-admin-bot.state.ts` and the
+> dashboard/search/student-create `.flow.ts` files were deleted as planned (nothing sends the
+> `callback_data` values they responded to anymore). `telegram-update-dispatcher.ts`'s
+> `hasActiveFlow` branch was removed for the same reason. Code + tests for this are done (Step
+> 3/4 below); Steps 1 (real-Telegram verification) and 2 (Menu Button) are still pending — see
+> chat history for why the Menu Button was set and then reverted on 2026-09-24 (production did
+> not yet have this branch deployed).
+
 **Files:**
 - Delete: `server/src/modules/telegram-admin-bot/telegram-admin-bot.dashboard.flow.ts`,
   `telegram-admin-bot.student-search.flow.ts`, `telegram-admin-bot.student-create.flow.ts`,
