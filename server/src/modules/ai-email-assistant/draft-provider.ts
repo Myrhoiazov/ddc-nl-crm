@@ -12,3 +12,11 @@ export interface DraftProvider extends DraftLlmClient {
   readonly model: string;
   generateDraft(context: DraftContext): Promise<EmailDraft>;
 }
+
+export interface LlmCallMetric {
+  durationMs: number;
+  callCount: number;
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}

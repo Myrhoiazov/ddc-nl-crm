@@ -218,3 +218,72 @@ test('generateDraft retries once on an empty body and fails after that', async (
     });
     await assert.rejects(alwaysEmptyClient.generateDraft(draftContext), /empty or too-short draft body/);
 });
+
+test('classifyEmail reports token usage and duration via onMetric', async () => {
+    const metrics: Array<{ durationMs: number; callCount: number; promptTokens?: number; completionTokens?: number; totalTokens?: number }> = [];
+    const client = new OllamaLlmClient({
+        config, promptRepository: fakePromptRepository,
+        onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => new Response(JSON.stringify({
+            response: JSON.stringify({ spam: false, needsReply: true, language: 'nl', intent: 'trial_lesson', confidence: 0.9, reason: 'test' }),
+            prompt_eval_count: 120, eval_count: 30,
+        }), { status: 200 }),
+    });
+    await client.classifyEmail(input);
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].callCount, 1);
+    assert.equal(metrics[0].promptTokens, 120);
+    assert.equal(metrics[0].completionTokens, 30);
+    assert.equal(metrics[0].totalTokens, 150);
+    assert.ok(metrics[0].durationMs >= 0);
+});
+
+test('classifyEmail sums duration and tokens across the repair retry', async () => {
+    const metrics: Array<{ callCount: number; promptTokens?: number; completionTokens?: number }> = [];
+    let call = 0;
+    const client = new OllamaLlmClient({
+        config, promptRepository: fakePromptRepository,
+        onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => {
+            call += 1;
+            if (call === 1) return new Response(JSON.stringify({ response: 'not json', prompt_eval_count: 50, eval_count: 10 }), { status: 200 });
+            return new Response(JSON.stringify({
+                response: JSON.stringify({ spam: false, needsReply: true, language: 'nl', intent: 'other', confidence: 0.5, reason: 'ok' }),
+                prompt_eval_count: 60, eval_count: 15,
+            }), { status: 200 });
+        },
+    });
+    await client.classifyEmail(input);
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].callCount, 2);
+    assert.equal(metrics[0].promptTokens, 110);
+    assert.equal(metrics[0].completionTokens, 25);
+});
+
+test('classifyEmail reports duration-only metric when the response has no token fields', async () => {
+    const metrics: Array<{ promptTokens?: number; completionTokens?: number; totalTokens?: number }> = [];
+    const client = new OllamaLlmClient({
+        config, promptRepository: fakePromptRepository,
+        onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => new Response(JSON.stringify({
+            response: JSON.stringify({ spam: false, needsReply: true, language: 'nl', intent: 'other', confidence: 0.5, reason: 'ok' }),
+        }), { status: 200 }),
+    });
+    await client.classifyEmail(input);
+    assert.equal(metrics[0].promptTokens, undefined);
+    assert.equal(metrics[0].completionTokens, undefined);
+    assert.equal(metrics[0].totalTokens, undefined);
+});
+
+test('generateDraft reports token usage via onMetric', async () => {
+    const metrics: Array<{ callCount: number; totalTokens?: number }> = [];
+    const client = new OllamaLlmClient({
+        config, promptRepository: fakePromptRepository,
+        onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => new Response(JSON.stringify({ response: 'Bedankt voor uw bericht.', prompt_eval_count: 200, eval_count: 40 }), { status: 200 }),
+    });
+    await client.generateDraft(draftContext);
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].callCount, 1);
+    assert.equal(metrics[0].totalTokens, 240);
+});

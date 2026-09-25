@@ -8,7 +8,7 @@ import {
 import { emailDraftSchema, type DraftContext, type DraftLlmClient, type EmailDraft } from './draft.service';
 import { buildReplySubject } from '../communication/email/email-smtp.service';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
-import { DRAFT_PROVIDERS } from './draft-provider';
+import { DRAFT_PROVIDERS, type LlmCallMetric } from './draft-provider';
 
 // Below this retrieval score, knowledge is treated as too weak to answer from confidently — see
 // KnowledgeRetrievalService's own default (0.35) for the floor below which a chunk isn't
@@ -21,6 +21,15 @@ const ollamaResponseSchema = (value: unknown): string => {
         throw new Error('Ollama response did not contain a text response');
     }
     return (value as { response: string }).response;
+};
+
+const extractOllamaTokenUsage = (value: unknown): { promptTokens?: number; completionTokens?: number } => {
+    if (!value || typeof value !== 'object') return {};
+    const body = value as { prompt_eval_count?: unknown; eval_count?: unknown };
+    return {
+        promptTokens: typeof body.prompt_eval_count === 'number' ? body.prompt_eval_count : undefined,
+        completionTokens: typeof body.eval_count === 'number' ? body.eval_count : undefined,
+    };
 };
 
 // `instructions` is the user-editable part — the active (or overridden) AiPrompt's content,
@@ -43,6 +52,7 @@ export interface OllamaLlmClientOptions {
     // active one — how the "Симуляция письма" panel lets an admin test a candidate prompt without
     // activating it (and therefore without touching real production emails).
     promptOverrides?: { classificationPromptId?: number; draftBodyPromptId?: number };
+    onMetric?: (metric: LlmCallMetric) => void;
 }
 
 const LANGUAGE_NAMES_RU: Record<EmailClassification['language'], string> = {
@@ -84,6 +94,7 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
     private readonly fetchImpl: typeof fetch;
     private readonly prompts: AiPromptRepository;
     private readonly promptOverrides: { classificationPromptId?: number; draftBodyPromptId?: number };
+    private readonly onMetric?: (metric: LlmCallMetric) => void;
 
     public constructor(options: OllamaLlmClientOptions = {}) {
         this.config = options.config ?? aiConfig;
@@ -91,6 +102,7 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
         this.fetchImpl = options.fetchImpl ?? fetch;
         this.prompts = options.promptRepository ?? new PrismaAiPromptRepository();
         this.promptOverrides = options.promptOverrides ?? {};
+        this.onMetric = options.onMetric;
     }
 
     private async resolveInstructions(slot: 'CLASSIFICATION' | 'DRAFT_BODY', overrideId?: number): Promise<string> {
@@ -101,8 +113,12 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
     public async classifyEmail(input: NormalizedEmailInput): Promise<EmailClassification> {
         let invalidOutput: string | undefined;
         const instructions = await this.resolveInstructions('CLASSIFICATION', this.promptOverrides.classificationPromptId);
+        let totalDurationMs = 0;
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
+            const start = Date.now();
             const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
@@ -123,14 +139,27 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
                     },
                 }),
             });
+            totalDurationMs += Date.now() - start;
 
             if (!response.ok) {
                 throw new Error(`Ollama classification failed with HTTP ${response.status}`);
             }
 
-            const raw = ollamaResponseSchema(await response.json());
+            const parsedBody = await response.json();
+            const raw = ollamaResponseSchema(parsedBody);
+            const usage = extractOllamaTokenUsage(parsedBody);
+            totalPromptTokens += usage.promptTokens ?? 0;
+            totalCompletionTokens += usage.completionTokens ?? 0;
             try {
-                return emailClassificationSchema.parse(JSON.parse(raw));
+                const classification = emailClassificationSchema.parse(JSON.parse(raw));
+                this.onMetric?.({
+                    durationMs: totalDurationMs,
+                    callCount: attempt + 1,
+                    promptTokens: totalPromptTokens || undefined,
+                    completionTokens: totalCompletionTokens || undefined,
+                    totalTokens: (totalPromptTokens || totalCompletionTokens) ? totalPromptTokens + totalCompletionTokens : undefined,
+                });
+                return classification;
             } catch (error) {
                 if (attempt === 1) {
                     throw new Error(`Ollama returned invalid classification JSON after one repair retry: ${String(error)}`);
@@ -146,7 +175,11 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
         const maxAttempts = 2;
         let lastError: unknown;
         const instructions = await this.resolveInstructions('DRAFT_BODY', this.promptOverrides.draftBodyPromptId);
+        let totalDurationMs = 0;
+        let totalPromptTokens = 0;
+        let totalCompletionTokens = 0;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            const start = Date.now();
             const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
                 method: 'POST',
                 headers: { 'content-type': 'application/json' },
@@ -163,9 +196,23 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
                     options: { num_ctx: this.config.contextLength, temperature: this.config.temperature },
                 }),
             });
+            totalDurationMs += Date.now() - start;
             if (!response.ok) throw new Error(`Ollama draft generation failed with HTTP ${response.status}`);
-            const body = ollamaResponseSchema(await response.json()).trim().slice(0, 6_000);
-            if (body.length >= 5) return buildDeterministicDraft(context, body);
+            const parsedBody = await response.json();
+            const usage = extractOllamaTokenUsage(parsedBody);
+            totalPromptTokens += usage.promptTokens ?? 0;
+            totalCompletionTokens += usage.completionTokens ?? 0;
+            const body = ollamaResponseSchema(parsedBody).trim().slice(0, 6_000);
+            if (body.length >= 5) {
+                this.onMetric?.({
+                    durationMs: totalDurationMs,
+                    callCount: attempt + 1,
+                    promptTokens: totalPromptTokens || undefined,
+                    completionTokens: totalCompletionTokens || undefined,
+                    totalTokens: (totalPromptTokens || totalCompletionTokens) ? totalPromptTokens + totalCompletionTokens : undefined,
+                });
+                return buildDeterministicDraft(context, body);
+            }
             lastError = new Error(`Ollama returned an empty or too-short draft body: ${JSON.stringify(body)}`);
         }
         throw lastError instanceof Error ? lastError : new Error('Ollama draft generation failed');
