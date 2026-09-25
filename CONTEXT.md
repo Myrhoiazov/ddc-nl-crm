@@ -115,6 +115,10 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   list (20/page), the prompt library editor, and an email-simulation panel that runs the real
   classify → retrieve → draft pipeline against arbitrary test input to preview model output
   (including query-expansion/reranker toggles) without sending anything or touching a real inbox.
+  Every LLM-touching stage of a simulation run reports its model/duration/token usage inline and
+  persists to a separate `ai_simulation_runs`/`ai_simulation_run_metrics` history (never the real
+  `ai_email_*` tables), browsable in a paginated, provider-filterable history table with a per-run
+  detail view — lets an admin compare prompts/providers over time, not just within one run.
 - Domain-agnostic shared infrastructure under `server/src/common/`: `errors/` (ApiError + error
   middleware), `middleware/` (query stats), `validation/` (generic Zod schema-validation
   middleware), `logger/`, `utils/` (crypto, paths, file upload).
