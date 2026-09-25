@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
+import { toast } from 'react-toastify';
 import { $apiPrivate } from '@/shared/api/api';
+import { extractApiErrorMessage } from './knowledgeBaseTypes';
 import { SimulationProvider } from './emailSimulationTypes';
 import { SimulationRunDetail, SimulationRunSummary } from './simulationHistoryTypes';
 
@@ -31,6 +33,8 @@ export const useSimulationHistory = () => {
             setRuns(response.data.items ?? []);
             setTotal(response.data.total ?? 0);
             setTotalPages(response.data.totalPages ?? 1);
+        } catch (error) {
+            toast.error(extractApiErrorMessage(error, 'Не удалось загрузить историю симуляций'));
         } finally {
             setLoading(false);
         }
@@ -44,8 +48,12 @@ export const useSimulationHistory = () => {
     };
 
     const openRun = async (id: number) => {
-        const response = await $apiPrivate.get<SimulationRunDetail>(`/ai-email/simulation-runs/${id}`);
-        setSelectedRun(response.data);
+        try {
+            const response = await $apiPrivate.get<SimulationRunDetail>(`/ai-email/simulation-runs/${id}`);
+            setSelectedRun(response.data);
+        } catch (error) {
+            toast.error(extractApiErrorMessage(error, 'Не удалось загрузить запуск симуляции'));
+        }
     };
     const closeRun = () => setSelectedRun(null);
 

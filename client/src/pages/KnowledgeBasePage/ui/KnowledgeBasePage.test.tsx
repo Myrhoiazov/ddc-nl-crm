@@ -410,4 +410,96 @@ describe('KnowledgeBasePage', () => {
             expect($apiPrivate.get).toHaveBeenCalledWith('/ai-email/simulation-runs', { params: { _page: 1, _limit: 20, provider: undefined } });
         });
     });
+
+    test('clicking a history row opens its detail view, and Закрыть hides it again', async () => {
+        ($apiPrivate.get as jest.Mock).mockImplementation((url: string) => {
+            if (url === '/knowledge/documents') return Promise.resolve({ data: { items: [pendingDocument], total: 1, page: 1, limit: 20, totalPages: 1, pendingTotal: 1 } });
+            if (url === '/ai-email/prompts') return Promise.resolve({ data: [] });
+            if (url === '/ai-email/simulation-runs') {
+                return Promise.resolve({
+                    data: {
+                        items: [{
+                            id: 9, fromAddress: 'test@example.com', subject: 'Вопрос про цены',
+                            classificationPromptName: null, draftBodyPromptName: null,
+                            draftProvider: 'OPENAI', draftModel: 'gpt-4o-mini',
+                            classificationSpam: false, classificationConfidence: 0.9,
+                            deterministicSpamReason: null, draftSkippedReason: null,
+                            createdAt: '2026-09-25T10:00:00.000Z',
+                            metrics: [{ stage: 'DRAFT', provider: 'OPENAI', model: 'gpt-4o-mini', callCount: 1, durationMs: 980, promptTokens: 512, completionTokens: 96, totalTokens: 608 }],
+                        }],
+                        total: 1, page: 1, limit: 20, totalPages: 1,
+                    },
+                });
+            }
+            if (url === '/ai-email/simulation-runs/9') {
+                return Promise.resolve({
+                    data: {
+                        id: 9, fromAddress: 'test@example.com', subject: 'Вопрос про цены',
+                        classificationPromptName: null, draftBodyPromptName: null,
+                        draftProvider: 'OPENAI', draftModel: 'gpt-4o-mini',
+                        classificationSpam: false, classificationConfidence: 0.9,
+                        deterministicSpamReason: null, draftSkippedReason: null,
+                        createdAt: '2026-09-25T10:00:00.000Z',
+                        body: 'Сколько стоит абонемент?',
+                        classification: { spam: false, needsReply: true, language: 'ru', intent: 'pricing', confidence: 0.9, reason: '' },
+                        knowledge: [{ id: 'k1', sourceUrl: 'https://ddc.example/pricing', content: 'Абонемент стоит 100 евро', score: 0.8 }],
+                        draft: { replyLanguage: 'ru', subject: 'Re: Вопрос про цены', body: 'Здравствуйте! Абонемент стоит 100 евро.', confidence: 0.85, needsManualAnswer: false, usedKnowledgeIds: ['k1'] },
+                        metrics: [{ stage: 'DRAFT', provider: 'OPENAI', model: 'gpt-4o-mini', callCount: 1, durationMs: 980, promptTokens: 512, completionTokens: 96, totalTokens: 608 }],
+                    },
+                });
+            }
+            return Promise.resolve({ data: {} });
+        });
+        renderPage();
+        const row = await screen.findByText('Вопрос про цены');
+        fireEvent.click(row);
+
+        expect(await screen.findByText('Здравствуйте! Абонемент стоит 100 евро.')).toBeInTheDocument();
+        expect(screen.getByText('Абонемент стоит 100 евро')).toBeInTheDocument();
+
+        fireEvent.click(screen.getByText('Закрыть'));
+        await waitFor(() => {
+            expect(screen.queryByText('Здравствуйте! Абонемент стоит 100 евро.')).not.toBeInTheDocument();
+        });
+    });
+
+    test('shows an error toast, without crashing, when loading simulation history fails', async () => {
+        ($apiPrivate.get as jest.Mock).mockImplementation((url: string) => {
+            if (url === '/knowledge/documents') return Promise.resolve({ data: { items: [pendingDocument], total: 1, page: 1, limit: 20, totalPages: 1, pendingTotal: 1 } });
+            if (url === '/ai-email/prompts') return Promise.resolve({ data: [] });
+            if (url === '/ai-email/simulation-runs') return Promise.reject(new Error('network down'));
+            return Promise.resolve({ data: {} });
+        });
+        renderPage();
+        await screen.findByText('Прайс на занятия');
+        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    });
+
+    test('shows an error toast when loading a history row detail fails', async () => {
+        ($apiPrivate.get as jest.Mock).mockImplementation((url: string) => {
+            if (url === '/knowledge/documents') return Promise.resolve({ data: { items: [pendingDocument], total: 1, page: 1, limit: 20, totalPages: 1, pendingTotal: 1 } });
+            if (url === '/ai-email/prompts') return Promise.resolve({ data: [] });
+            if (url === '/ai-email/simulation-runs') {
+                return Promise.resolve({
+                    data: {
+                        items: [{
+                            id: 9, fromAddress: 'test@example.com', subject: 'Вопрос про цены',
+                            classificationPromptName: null, draftBodyPromptName: null,
+                            draftProvider: 'OPENAI', draftModel: 'gpt-4o-mini',
+                            classificationSpam: false, classificationConfidence: 0.9,
+                            deterministicSpamReason: null, draftSkippedReason: null,
+                            createdAt: '2026-09-25T10:00:00.000Z', metrics: [],
+                        }],
+                        total: 1, page: 1, limit: 20, totalPages: 1,
+                    },
+                });
+            }
+            if (url === '/ai-email/simulation-runs/9') return Promise.reject(new Error('down'));
+            return Promise.resolve({ data: {} });
+        });
+        renderPage();
+        const row = await screen.findByText('Вопрос про цены');
+        fireEvent.click(row);
+        await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    });
 });
