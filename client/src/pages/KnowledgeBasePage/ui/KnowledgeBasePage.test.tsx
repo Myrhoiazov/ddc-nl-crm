@@ -30,6 +30,7 @@ beforeEach(() => {
             return Promise.resolve({ data: { items: [pendingDocument], total: 1, page: 1, limit: 20, totalPages: 1, pendingTotal: 1 } });
         }
         if (url === '/ai-email/prompts') return Promise.resolve({ data: [] });
+        if (url === '/ai-email/simulation-runs') return Promise.resolve({ data: { items: [], total: 0, page: 1, limit: 20, totalPages: 1 } });
         return Promise.resolve({ data: {} });
     });
 });
@@ -340,6 +341,50 @@ describe('KnowledgeBasePage', () => {
 
         await waitFor(() => {
             expect($apiPrivate.post).toHaveBeenCalledWith('/ai-email/simulate', expect.objectContaining({ draftBodyPromptId: 1 }));
+        });
+    });
+
+    test('lists saved simulation runs with their summed tokens and duration', async () => {
+        ($apiPrivate.get as jest.Mock).mockImplementation((url: string) => {
+            if (url === '/knowledge/documents') return Promise.resolve({ data: { items: [pendingDocument], total: 1, page: 1, limit: 20, totalPages: 1, pendingTotal: 1 } });
+            if (url === '/ai-email/prompts') return Promise.resolve({ data: [] });
+            if (url === '/ai-email/simulation-runs') {
+                return Promise.resolve({
+                    data: {
+                        items: [{
+                            id: 1, fromAddress: 'test@example.com', subject: 'Вопрос про цены',
+                            classificationPromptName: null, draftBodyPromptName: 'v2 — strict grounded reply',
+                            draftProvider: 'OPENAI', draftModel: 'gpt-4o-mini',
+                            classificationSpam: false, classificationConfidence: 0.9,
+                            deterministicSpamReason: null, draftSkippedReason: null,
+                            createdAt: '2026-09-25T10:00:00.000Z',
+                            metrics: [{ stage: 'DRAFT', provider: 'OPENAI', model: 'gpt-4o-mini', callCount: 1, durationMs: 980, promptTokens: 512, completionTokens: 96, totalTokens: 608 }],
+                        }],
+                        total: 1, page: 1, limit: 20, totalPages: 1,
+                    },
+                });
+            }
+            return Promise.resolve({ data: {} });
+        });
+        renderPage();
+        expect(await screen.findByText('Вопрос про цены')).toBeInTheDocument();
+        expect(screen.getByText('v2 — strict grounded reply')).toBeInTheDocument();
+        expect(screen.getByText('608')).toBeInTheDocument();
+    });
+
+    test('shows an empty state when no simulations have been saved yet', async () => {
+        renderPage();
+        expect(await screen.findByText('Симуляции ещё не запускались')).toBeInTheDocument();
+    });
+
+    test('filters simulation history by provider', async () => {
+        renderPage();
+        await screen.findByText('Симуляции ещё не запускались');
+        fireEvent.change(screen.getByLabelText('История симуляций — провайдер'), { target: { value: 'OPENAI' } });
+        await waitFor(() => {
+            expect($apiPrivate.get).toHaveBeenCalledWith('/ai-email/simulation-runs', {
+                params: { _page: 1, _limit: 20, provider: 'OPENAI' },
+            });
         });
     });
 });

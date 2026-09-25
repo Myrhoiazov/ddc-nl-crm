@@ -9,6 +9,8 @@ import { AiProviderSettingsPanel } from './AiProviderSettingsPanel';
 import { CATEGORY_LABELS, KNOWLEDGE_CATEGORIES, KnowledgeDocument, KnowledgeUploadForm, STATUS_LABELS } from '../knowledgeBaseTypes';
 import { EmailSimulationPanel } from './EmailSimulationPanel';
 import { PromptLibraryPanel } from './PromptLibraryPanel';
+import { SimulationHistoryPanel } from './SimulationHistoryPanel';
+import { useSimulationHistory } from '../useSimulationHistory';
 import s from './KnowledgeBasePage.module.scss';
 
 const IngestForm = ({ uploadForm, setUploadForm, crawlUrl, setCrawlUrl, busy, uploadFile, crawl }: {
@@ -179,6 +181,7 @@ const KnowledgeBasePage = () => {
         startEdit: startEditPrompt, resetForm: resetPromptForm, save: savePrompt, activate: activatePrompt, remove: removePrompt,
     } = usePromptLibrary();
     const aiProvider = useAiProviderSettings();
+    const simulationHistory = useSimulationHistory();
 
     return (
         <Page>
@@ -198,6 +201,7 @@ const KnowledgeBasePage = () => {
                 startEdit={startEditPrompt} resetForm={resetPromptForm} save={savePrompt} activate={activatePrompt} remove={removePrompt}
             />
             <EmailSimulationPanel form={simulationForm} setForm={setSimulationForm} running={simulationRunning} result={simulationResult} run={runSimulation} prompts={prompts} />
+            <SimulationHistoryPanel {...simulationHistory} />
         </Page>
     );
 };

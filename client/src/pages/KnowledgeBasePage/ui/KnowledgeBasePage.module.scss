@@ -156,6 +156,14 @@ button {
     text-transform: uppercase;
 }
 
+.clickableRow {
+    cursor: pointer;
+}
+
+.clickableRow:hover {
+    background: var(--sidebar-hover-bg-redesigned);
+}
+
 .title {
     max-width: 320px;
     color: var(--sidebar-text-hover-redesigned);
