@@ -85,3 +85,32 @@ test('OllamaQueryExpansionClient falls back when the model output cannot be pars
     const result = await client.expand('где вы находитесь');
     assert.equal(result.cleanQuery, 'где вы находитесь');
 });
+
+test('expand reports token usage and duration via onMetric on success', async () => {
+    const metrics: Array<{ durationMs: number; promptTokens?: number; completionTokens?: number; totalTokens?: number }> = [];
+    const client = new OllamaQueryExpansionClient({
+        config, onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => new Response(JSON.stringify({
+            response: JSON.stringify({ clean_query: 'цена абонемента', keywords: ['цена', 'абонемент'] }),
+            prompt_eval_count: 80, eval_count: 20,
+        }), { status: 200 }),
+    });
+    await client.expand('Сколько стоит абонемент?');
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].promptTokens, 80);
+    assert.equal(metrics[0].completionTokens, 20);
+    assert.equal(metrics[0].totalTokens, 100);
+});
+
+test('expand reports duration-only metric when the HTTP call fails', async () => {
+    const metrics: Array<{ durationMs: number; promptTokens?: number }> = [];
+    const client = new OllamaQueryExpansionClient({
+        config, onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => { throw new Error('network down'); },
+    });
+    const result = await client.expand('query');
+    assert.equal(result.cleanQuery, 'query');
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].promptTokens, undefined);
+    assert.ok(metrics[0].durationMs >= 0);
+});
