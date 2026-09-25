@@ -159,7 +159,6 @@ export class OllamaQueryExpansionClient implements QueryExpansionClient {
             });
             const durationMs = Date.now() - start;
             if (!response.ok) {
-                this.onMetric?.({ durationMs });
                 return { cleanQuery: query, keywords: fallbackKeywords(query) };
             }
             const parsedBody = await response.json();
@@ -178,7 +177,6 @@ export class OllamaQueryExpansionClient implements QueryExpansionClient {
                 keywords: parsed.keywords.length ? parsed.keywords : fallbackKeywords(query),
             };
         } catch {
-            this.onMetric?.({ durationMs: Date.now() - start });
             return { cleanQuery: query, keywords: fallbackKeywords(query) };
         }
     }

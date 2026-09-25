@@ -102,15 +102,24 @@ test('expand reports token usage and duration via onMetric on success', async ()
     assert.equal(metrics[0].totalTokens, 100);
 });
 
-test('expand reports duration-only metric when the HTTP call fails', async () => {
-    const metrics: Array<{ durationMs: number; promptTokens?: number }> = [];
+test('expand emits no metric when the HTTP call throws (network error)', async () => {
+    const metrics: unknown[] = [];
     const client = new OllamaQueryExpansionClient({
         config, onMetric: (metric) => metrics.push(metric),
         fetchImpl: async () => { throw new Error('network down'); },
     });
     const result = await client.expand('query');
     assert.equal(result.cleanQuery, 'query');
-    assert.equal(metrics.length, 1);
-    assert.equal(metrics[0].promptTokens, undefined);
-    assert.ok(metrics[0].durationMs >= 0);
+    assert.equal(metrics.length, 0);
+});
+
+test('expand emits no metric when the HTTP response is non-2xx', async () => {
+    const metrics: unknown[] = [];
+    const client = new OllamaQueryExpansionClient({
+        config, onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => new Response('error', { status: 500 }),
+    });
+    const result = await client.expand('query');
+    assert.equal(result.cleanQuery, 'query');
+    assert.equal(metrics.length, 0);
 });
