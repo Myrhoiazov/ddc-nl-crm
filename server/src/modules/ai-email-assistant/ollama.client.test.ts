@@ -10,6 +10,7 @@ const fakePromptRepository: AiPromptRepository = {
     list: async () => [],
     getActiveContent: async (slot) => DEFAULT_PROMPT_CONTENT[slot],
     getContentById: async () => null,
+    getNameById: async () => null,
     create: async () => { throw new Error('not implemented in fakePromptRepository'); },
     update: async () => { throw new Error('not implemented in fakePromptRepository'); },
     activate: async () => { throw new Error('not implemented in fakePromptRepository'); },

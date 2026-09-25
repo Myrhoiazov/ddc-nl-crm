@@ -65,6 +65,7 @@ export interface AiPromptRepository {
     list(slot?: AiPromptSlot): Promise<AiPromptSummary[]>;
     getActiveContent(slot: AiPromptSlot): Promise<string>;
     getContentById(id: number): Promise<string | null>;
+    getNameById(id: number): Promise<string | null>;
     create(input: CreateAiPromptInput): Promise<AiPromptSummary>;
     update(id: number, input: UpdateAiPromptInput): Promise<AiPromptSummary>;
     activate(id: number): Promise<AiPromptSummary>;
@@ -99,6 +100,11 @@ export class PrismaAiPromptRepository implements AiPromptRepository {
     public async getContentById(id: number): Promise<string | null> {
         const row = await prisma.aiPrompt.findUnique({ where: { id } });
         return row?.content ?? null;
+    }
+
+    public async getNameById(id: number): Promise<string | null> {
+        const row = await prisma.aiPrompt.findUnique({ where: { id }, select: { name: true } });
+        return row?.name ?? null;
     }
 
     public async create(input: CreateAiPromptInput): Promise<AiPromptSummary> {
