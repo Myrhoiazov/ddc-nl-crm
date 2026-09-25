@@ -14,6 +14,7 @@
 | `company.prisma`         | Филиалы, юрлица, бренды                          |
 | `email.prisma`           | Почтовые ящики и сообщения                       |
 | `ai-email.prisma`        | Локальный AI email assistant                    |
+| `ai-simulation.prisma`   | Метрики симуляции AI email assistant             |
 | `knowledge.prisma`       | Локальная RAG knowledge база                     |
 | `invoice.prisma`         | Инвойсы                                          |
 | `mollie.prisma`          | Mollie: аккаунты, клиенты, платежи, подписки     |
@@ -158,6 +159,22 @@ SENT/FAILED.
 меняет).
 - Поля: id; slot; name; content; tags (Json, массив строк); isActive; createdAt; updatedAt
 - Индексы: [slot, isActive]
+
+## ai-simulation.prisma — метрики симуляции AI email assistant
+
+### AiSimulationRun (таблица `ai_simulation_runs`)
+Один запуск панели «Симуляция письма» — никогда не пишется реальным inbound-пайплайном.
+- Поля: id Int @id autoincrement; fromAddress String?; subject String; body String @db.Text; topK Int?; noKnowledge/forceDraft/noQueryExpansion/noRerank Boolean @default(false); classificationPromptId/draftBodyPromptId Int? + денормализованные *PromptName String?; draftProvider AiDraftProvider?; draftModel String?; classificationSpam/classificationNeedsReply Boolean?; classificationConfidence Float?; classificationJson/knowledgeJson/draftJson Json?; deterministicSpamReason/draftSkippedReason String?; createdById Int?; createdAt DateTime @default(now())
+- Связи: metrics -> AiSimulationRunMetric[]; createdBy -> User? (onDelete: SetNull)
+- Индексы: createdAt; [draftProvider, draftModel]; createdById
+
+### AiSimulationRunMetric (таблица `ai_simulation_run_metrics`)
+Одна строка метрик на стадию пайплайна для одного запуска (classification/query expansion/retrieval embedding/rerank/draft).
+- Поля: id Int @id autoincrement; runId Int; stage AiSimulationStage; provider AiDraftProvider; model String; callCount Int @default(1); durationMs Int; promptTokens/completionTokens/totalTokens Int?; meta Json?; createdAt DateTime @default(now())
+- Связи: run -> AiSimulationRun (onDelete: Cascade)
+- Индексы: runId; [stage, provider, model]
+
+### Enum AiSimulationStage: CLASSIFICATION | QUERY_EXPANSION | RETRIEVAL_EMBEDDING | RERANK | DRAFT
 
 ## knowledge.prisma — локальная MySQL knowledge база
 
