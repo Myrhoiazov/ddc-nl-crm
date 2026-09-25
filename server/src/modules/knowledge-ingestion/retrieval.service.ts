@@ -21,6 +21,7 @@ export interface KnowledgeRetrievalServiceOptions {
     // how the admin test panel always makes them available regardless of that flag.
     queryExpansion?: QueryExpansionClient;
     reranker?: KnowledgeReranker;
+    onMetric?: (metric: { durationMs: number }) => void;
 }
 
 // The repository's cosine-similarity search already scores the entire active-chunk corpus
@@ -33,6 +34,7 @@ const CANDIDATE_POOL_SIZE = 500;
 export class KnowledgeRetrievalService {
     private readonly queryExpansion?: QueryExpansionClient;
     private readonly reranker?: KnowledgeReranker;
+    private readonly onMetric?: (metric: { durationMs: number }) => void;
 
     public constructor(
         private readonly embeddings: EmbeddingClient,
@@ -41,6 +43,7 @@ export class KnowledgeRetrievalService {
     ) {
         this.queryExpansion = options.queryExpansion;
         this.reranker = options.reranker;
+        this.onMetric = options.onMetric;
     }
 
     // retrieve() is the plain-array convenience wrapper generateEmailDraft/buildDraftContext and
@@ -56,7 +59,9 @@ export class KnowledgeRetrievalService {
 
         const { expansion, vectorQuery, bm25Query } = await this.resolveExpansion(query);
 
+        const embedStart = Date.now();
         const vector = await this.embeddings.embed(vectorQuery);
+        this.onMetric?.({ durationMs: Date.now() - embedStart });
         const candidates = await this.repository.search(vector, CANDIDATE_POOL_SIZE);
 
         // The semantic relevance bar (minimumScore) and de-dup are applied exactly as before
