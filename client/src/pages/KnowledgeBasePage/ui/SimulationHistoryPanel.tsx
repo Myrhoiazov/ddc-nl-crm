@@ -114,9 +114,9 @@ export const SimulationHistoryPanel = ({
         <section className={s.card}>
             <div className={s.header}>
                 <h2>{t('История симуляций')}</h2>
-                <label>
+                <label className={s.historyFilter}>
                     {t('История симуляций — провайдер')}
-                    <select value={providerFilter} onChange={(e) => setProviderFilter(e.target.value as '' | SimulationProvider)}>
+                    <select className={s.historyFilterSelect} value={providerFilter} onChange={(e) => setProviderFilter(e.target.value as '' | SimulationProvider)}>
                         <option value="">{t('Все провайдеры')}</option>
                         <option value="OLLAMA">{t('Ollama (локально)')}</option>
                         <option value="OPENAI">{t('OpenAI (облако)')}</option>

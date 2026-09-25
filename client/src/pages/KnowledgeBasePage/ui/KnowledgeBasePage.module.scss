@@ -25,6 +25,25 @@
     color: var(--sidebar-text-hover-redesigned);
 }
 
+.historyFilter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sidebar-text-redesigned);
+    white-space: nowrap;
+}
+
+.historyFilterSelect {
+    min-height: 36px;
+    padding: 6px 10px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+}
+
 .card {
     padding: 22px;
     background: var(--sidebar-hover-bg-redesigned);
