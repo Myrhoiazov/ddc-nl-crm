@@ -19,3 +19,21 @@ test('OpenAI adapter maps missing credentials to manual-processing error', async
   const client = new OpenAiDraftClient({ config: { ...config, openAiApiKey: '' }, fetchImpl: async () => { throw new Error('must not call'); } });
   await assert.rejects(() => client.generateDraft(context), (error: unknown) => error instanceof Error && (error as DraftProviderError).code === 'PROVIDER_NOT_CONFIGURED');
 });
+
+test('OpenAI adapter reports token usage and duration via onMetric', async () => {
+  const metrics: Array<{ durationMs: number; callCount: number; promptTokens?: number; completionTokens?: number; totalTokens?: number }> = [];
+  const client = new OpenAiDraftClient({
+    config, onMetric: (metric) => metrics.push(metric),
+    fetchImpl: async () => new Response(JSON.stringify({
+      choices: [{ message: { content: 'Thanks for your message.' } }],
+      usage: { prompt_tokens: 340, completion_tokens: 52, total_tokens: 392 },
+    }), { status: 200 }),
+  });
+  await client.generateDraft(context);
+  assert.equal(metrics.length, 1);
+  assert.equal(metrics[0].callCount, 1);
+  assert.equal(metrics[0].promptTokens, 340);
+  assert.equal(metrics[0].completionTokens, 52);
+  assert.equal(metrics[0].totalTokens, 392);
+  assert.ok(metrics[0].durationMs >= 0);
+});
