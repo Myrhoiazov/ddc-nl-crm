@@ -72,6 +72,9 @@ model AiEmailClassification {
 }
 
 model AiEmailDraft {
+  provider          AiDraftProvider    @default(OLLAMA)
+  generationErrorCode String?           @map("generation_error_code") @db.VarChar(64)
+  generationErrorMessage String?        @map("generation_error_message") @db.VarChar(500)
   id                Int                @id @default(autoincrement())
   emailId           Int                @map("email_id")
   version           Int

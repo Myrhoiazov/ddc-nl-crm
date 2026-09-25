@@ -67,3 +67,41 @@ test('respects topK on both the native and fallback paths', async () => {
     });
     assert.equal((await nativeReranker.rerank('q', candidates, 1)).length, 1);
 });
+
+test('emits exactly one metric for the native rerank path, tagged nativeRerankUsed:true', async () => {
+    const metrics: Array<{ callCount: number; model: string; meta: { nativeRerankUsed: boolean; candidateCount: number } }> = [];
+    const reranker = new OllamaReranker({ embed: async () => [1, 0] }, {
+        config, onMetric: (metric) => metrics.push(metric),
+        fetchImpl: async () => new Response(JSON.stringify({ results: [{ index: 0, relevance_score: 0.5 }, { index: 1, relevance_score: 0.9 }] }), { status: 200 }),
+    });
+    await reranker.rerank('q', candidates, 5);
+    assert.equal(metrics.length, 1);
+    assert.equal(metrics[0].callCount, 1);
+    assert.equal(metrics[0].model, config.ragRerankModel);
+    assert.deepEqual(metrics[0].meta, { nativeRerankUsed: true, candidateCount: 2 });
+});
+
+test('emits exactly one aggregated metric when native fails and the bi-encoder fallback runs', async () => {
+    const metrics: Array<{ callCount: number; model: string; meta: { nativeRerankUsed: boolean; candidateCount: number } }> = [];
+    const embeddings = new Map([['q', [1, 0]], ['first', [0, 1]], ['second', [1, 0]]]);
+    const reranker = new OllamaReranker(
+        { embed: async (text: string) => embeddings.get(text) ?? [0, 0] },
+        { config, onMetric: (metric) => metrics.push(metric), fetchImpl: async () => new Response('not found', { status: 404 }) },
+    );
+    await reranker.rerank('q', candidates, 5);
+    assert.equal(metrics.length, 1);
+    // callCount = 1 query embed + 1 embed per candidate
+    assert.equal(metrics[0].callCount, 3);
+    assert.equal(metrics[0].model, config.ollamaEmbeddingModel);
+    assert.deepEqual(metrics[0].meta, { nativeRerankUsed: false, candidateCount: 2 });
+});
+
+test('emits no metric when both the native endpoint and the embedding fallback fail', async () => {
+    const metrics: unknown[] = [];
+    const reranker = new OllamaReranker(
+        { embed: async () => { throw new Error('embedding service down'); } },
+        { config, onMetric: (metric) => metrics.push(metric), fetchImpl: async () => { throw new Error('network down'); } },
+    );
+    await reranker.rerank('q', candidates, 5);
+    assert.equal(metrics.length, 0);
+});

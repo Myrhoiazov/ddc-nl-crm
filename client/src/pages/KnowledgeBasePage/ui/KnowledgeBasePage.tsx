@@ -4,9 +4,13 @@ import { Page } from '@/widgets/Page/Page';
 import { useKnowledgeBase } from '../useKnowledgeBase';
 import { useEmailSimulation } from '../useEmailSimulation';
 import { usePromptLibrary } from '../usePromptLibrary';
+import { useAiProviderSettings } from '../useAiProviderSettings';
+import { AiProviderSettingsPanel } from './AiProviderSettingsPanel';
 import { CATEGORY_LABELS, KNOWLEDGE_CATEGORIES, KnowledgeDocument, KnowledgeUploadForm, STATUS_LABELS } from '../knowledgeBaseTypes';
 import { EmailSimulationPanel } from './EmailSimulationPanel';
 import { PromptLibraryPanel } from './PromptLibraryPanel';
+import { SimulationHistoryPanel } from './SimulationHistoryPanel';
+import { useSimulationHistory } from '../useSimulationHistory';
 import s from './KnowledgeBasePage.module.scss';
 
 const IngestForm = ({ uploadForm, setUploadForm, crawlUrl, setCrawlUrl, busy, uploadFile, crawl }: {
@@ -171,11 +175,13 @@ const KnowledgeBasePage = () => {
         uploadForm, setUploadForm, crawlUrl, setCrawlUrl, busy, uploadFile, crawl,
         embeddingId, embeddingAll, embed, embedAllPending, remove,
     } = useKnowledgeBase();
-    const { form: simulationForm, setForm: setSimulationForm, running: simulationRunning, result: simulationResult, run: runSimulation } = useEmailSimulation();
+    const simulationHistory = useSimulationHistory();
+    const { form: simulationForm, setForm: setSimulationForm, running: simulationRunning, result: simulationResult, run: runSimulation } = useEmailSimulation(simulationHistory.refresh);
     const {
         prompts, form: promptForm, setForm: setPromptForm, editingId: promptEditingId, saving: promptSaving,
         startEdit: startEditPrompt, resetForm: resetPromptForm, save: savePrompt, activate: activatePrompt, remove: removePrompt,
     } = usePromptLibrary();
+    const aiProvider = useAiProviderSettings();
 
     return (
         <Page>
@@ -189,11 +195,13 @@ const KnowledgeBasePage = () => {
                 pendingTotal={pendingTotal} loading={loading}
                 embeddingId={embeddingId} embeddingAll={embeddingAll} embed={embed} embedAllPending={embedAllPending} remove={remove}
             />
+            <AiProviderSettingsPanel {...aiProvider} />
             <PromptLibraryPanel
                 prompts={prompts} form={promptForm} setForm={setPromptForm} editingId={promptEditingId} saving={promptSaving}
                 startEdit={startEditPrompt} resetForm={resetPromptForm} save={savePrompt} activate={activatePrompt} remove={removePrompt}
             />
             <EmailSimulationPanel form={simulationForm} setForm={setSimulationForm} running={simulationRunning} result={simulationResult} run={runSimulation} prompts={prompts} />
+            <SimulationHistoryPanel {...simulationHistory} />
         </Page>
     );
 };

@@ -1,6 +1,7 @@
 import cron from 'node-cron';
 import { logger } from '../../common/logger';
 import { aiConfig } from '../../config/ai.config';
+import { createDraftProviderFactory } from './draft-provider.factory';
 import { OllamaLlmClient } from './ollama.client';
 import { createPrismaCrmReader } from './crm-context.service';
 import { createPrismaDraftPipelineRepository, runDraftPipeline } from './draft-pipeline.service';
@@ -28,7 +29,7 @@ export const startAiEmailDraftCron = (): boolean => {
             const result = await runDraftPipeline(
                 createPrismaDraftPipelineRepository(),
                 createPrismaCrmReader(),
-                new OllamaLlmClient(),
+                await createDraftProviderFactory().getSelectedProvider().catch(() => new OllamaLlmClient()),
                 { knowledgeProvider: buildRetrievalService() },
             );
             logger.info(`[AiEmailDraft] processed=${result.processed}, skipped=${result.skipped}, failed=${result.failed}`);

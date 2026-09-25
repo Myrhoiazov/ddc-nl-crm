@@ -25,6 +25,25 @@
     color: var(--sidebar-text-hover-redesigned);
 }
 
+.historyFilter {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sidebar-text-redesigned);
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.historyFilterSelect {
+    min-height: 36px;
+    padding: 6px 10px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+}
+
 .card {
     padding: 22px;
     background: var(--sidebar-hover-bg-redesigned);
@@ -156,6 +175,14 @@ button {
     text-transform: uppercase;
 }
 
+.clickableRow {
+    cursor: pointer;
+}
+
+.clickableRow:hover {
+    background: var(--sidebar-hover-bg-redesigned);
+}
+
 .title {
     max-width: 320px;
     color: var(--sidebar-text-hover-redesigned);
@@ -269,6 +296,12 @@ button {
     color: var(--sidebar-text-hover-redesigned);
 }
 
+.simulationMetric {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: var(--sidebar-group-label-redesigned);
+}
+
 .simulationReason, .draftSubject, .draftBody {
     margin: 6px 0 0;
     font-size: 13px;
@@ -328,4 +361,14 @@ button {
     .knowledgeChunkHeader {
         flex-direction: column;
     }
+}
+
+.providerActions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.error {
+    color: var(--danger-text-redesigned);
 }

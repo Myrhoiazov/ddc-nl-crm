@@ -2,7 +2,7 @@
 
 **Status:** Draft / V1  
 **Project:** DDC NL CRM  
-**Primary LLM:** `qwen3:0.6b` via Ollama  
+**Primary local LLM:** `qwen3:0.6b` via Ollama
 **Deployment target:** KVM VPS — 2 CPU, 4 GB RAM, 50 GB SSD  
 **Core principle:** deterministic workflow + local LLM + human approval. No cloud LLM API. No autonomous tool-using agent in V1.
 

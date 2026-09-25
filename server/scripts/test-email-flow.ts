@@ -124,6 +124,16 @@ const main = async () => {
         console.log(`(model: ${aiConfig.ollamaModel})`);
         console.log(result.draft);
     }
+
+    section('6. METRICS');
+    console.log(`runId: ${result.runId ?? '(not saved)'}`);
+    for (const metric of result.metrics) {
+        const tokens = metric.totalTokens !== undefined
+            ? `${metric.promptTokens ?? 0}→${metric.completionTokens ?? 0} tokens`
+            : 'no token data';
+        const calls = metric.callCount > 1 ? ` (${metric.callCount} calls)` : '';
+        console.log(`${metric.stage.padEnd(20)} ${metric.provider}/${metric.model}  ${metric.durationMs}ms  ${tokens}${calls}`);
+    }
 };
 
 main()

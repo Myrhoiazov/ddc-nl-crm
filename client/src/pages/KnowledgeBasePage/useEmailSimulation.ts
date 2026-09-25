@@ -4,7 +4,7 @@ import { $apiPrivate } from '@/shared/api/api';
 import { emptySimulationForm, EmailSimulationForm, EmailSimulationResult } from './emailSimulationTypes';
 import { extractApiErrorMessage } from './knowledgeBaseTypes';
 
-export const useEmailSimulation = () => {
+export const useEmailSimulation = (onCompleted?: () => void) => {
     const [form, setForm] = useState<EmailSimulationForm>(emptySimulationForm());
     const [running, setRunning] = useState(false);
     const [result, setResult] = useState<EmailSimulationResult | null>(null);
@@ -27,6 +27,7 @@ export const useEmailSimulation = () => {
                 noRerank: form.noRerank,
             });
             setResult(response.data);
+            onCompleted?.();
         } catch (error) {
             toast.error(extractApiErrorMessage(error, 'Не удалось выполнить симуляцию'));
         } finally {

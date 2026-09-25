@@ -107,9 +107,26 @@ const ollamaResponseText = (value: unknown): string => {
     return (value as { response: string }).response;
 };
 
+export interface QueryExpansionMetric {
+    durationMs: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+}
+
+const extractOllamaTokenUsage = (value: unknown): { promptTokens?: number; completionTokens?: number } => {
+    if (!value || typeof value !== 'object') return {};
+    const body = value as { prompt_eval_count?: unknown; eval_count?: unknown };
+    return {
+        promptTokens: typeof body.prompt_eval_count === 'number' ? body.prompt_eval_count : undefined,
+        completionTokens: typeof body.eval_count === 'number' ? body.eval_count : undefined,
+    };
+};
+
 export interface OllamaQueryExpansionClientOptions {
     config?: AiConfig;
     fetchImpl?: typeof fetch;
+    onMetric?: (metric: QueryExpansionMetric) => void;
 }
 
 // Every failure mode (network error, non-2xx, unparseable output) falls back to the original
@@ -118,13 +135,16 @@ export interface OllamaQueryExpansionClientOptions {
 export class OllamaQueryExpansionClient implements QueryExpansionClient {
     private readonly config: AiConfig;
     private readonly fetchImpl: typeof fetch;
+    private readonly onMetric?: (metric: QueryExpansionMetric) => void;
 
     public constructor(options: OllamaQueryExpansionClientOptions = {}) {
         this.config = options.config ?? aiConfig;
         this.fetchImpl = options.fetchImpl ?? fetch;
+        this.onMetric = options.onMetric;
     }
 
     public async expand(query: string): Promise<QueryExpansion> {
+        const start = Date.now();
         try {
             const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
                 method: 'POST',
@@ -137,8 +157,19 @@ export class OllamaQueryExpansionClient implements QueryExpansionClient {
                     options: { num_ctx: this.config.contextLength, temperature: 0.1 },
                 }),
             });
-            if (!response.ok) return { cleanQuery: query, keywords: fallbackKeywords(query) };
-            const raw = ollamaResponseText(await response.json());
+            const durationMs = Date.now() - start;
+            if (!response.ok) {
+                return { cleanQuery: query, keywords: fallbackKeywords(query) };
+            }
+            const parsedBody = await response.json();
+            const raw = ollamaResponseText(parsedBody);
+            const usage = extractOllamaTokenUsage(parsedBody);
+            this.onMetric?.({
+                durationMs,
+                promptTokens: usage.promptTokens,
+                completionTokens: usage.completionTokens,
+                totalTokens: (usage.promptTokens || usage.completionTokens) ? (usage.promptTokens ?? 0) + (usage.completionTokens ?? 0) : undefined,
+            });
             const parsed = parseExpansionResponse(raw);
             if (!parsed) return { cleanQuery: query, keywords: fallbackKeywords(query) };
             return {

@@ -15,4 +15,4 @@ RUN npx prisma generate --schema ./prisma/schema
 
 EXPOSE 8080
 
-CMD ["sh", "-c", "npm install && npx prisma generate --schema ./prisma/schema && npm run start"]
+CMD ["sh", "-c", "npm install && npx prisma generate --schema ./prisma/schema && npm run start:dev"]

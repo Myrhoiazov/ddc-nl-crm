@@ -42,6 +42,21 @@ export interface SimulationQueryExpansion {
     keywords: string[];
 }
 
+export type SimulationStage = 'CLASSIFICATION' | 'QUERY_EXPANSION' | 'RETRIEVAL_EMBEDDING' | 'RERANK' | 'DRAFT';
+export type SimulationProvider = 'OLLAMA' | 'OPENAI';
+
+export interface SimulationMetric {
+    stage: SimulationStage;
+    provider: SimulationProvider;
+    model: string;
+    callCount: number;
+    durationMs: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    meta?: Record<string, unknown>;
+}
+
 export interface EmailSimulationResult {
     normalized: SimulationNormalized;
     deterministicSpamReason: string | null;
@@ -51,6 +66,8 @@ export interface EmailSimulationResult {
     crmContact: SimulationCrmContact | null;
     draft: SimulationDraft | null;
     draftSkippedReason: string | null;
+    runId: number | null;
+    metrics: SimulationMetric[];
 }
 
 export interface EmailSimulationForm {
