@@ -49,5 +49,13 @@ export const useSimulationHistory = () => {
     };
     const closeRun = () => setSelectedRun(null);
 
-    return { runs, loading, page, setPage, total, totalPages, providerFilter, setProviderFilter, selectedRun, openRun, closeRun };
+    // Called after a fresh simulation run persists — jumps back to page 1 so the just-run
+    // simulation is visible without a manual reload. setPage(1) alone would no-op via the load()
+    // effect when already on page 1, so that case calls load() directly instead.
+    const refresh = useCallback(() => {
+        if (page !== 1) setPage(1);
+        else load();
+    }, [page, load]);
+
+    return { runs, loading, page, setPage, total, totalPages, providerFilter, setProviderFilter, selectedRun, openRun, closeRun, refresh };
 };

@@ -175,13 +175,13 @@ const KnowledgeBasePage = () => {
         uploadForm, setUploadForm, crawlUrl, setCrawlUrl, busy, uploadFile, crawl,
         embeddingId, embeddingAll, embed, embedAllPending, remove,
     } = useKnowledgeBase();
-    const { form: simulationForm, setForm: setSimulationForm, running: simulationRunning, result: simulationResult, run: runSimulation } = useEmailSimulation();
+    const simulationHistory = useSimulationHistory();
+    const { form: simulationForm, setForm: setSimulationForm, running: simulationRunning, result: simulationResult, run: runSimulation } = useEmailSimulation(simulationHistory.refresh);
     const {
         prompts, form: promptForm, setForm: setPromptForm, editingId: promptEditingId, saving: promptSaving,
         startEdit: startEditPrompt, resetForm: resetPromptForm, save: savePrompt, activate: activatePrompt, remove: removePrompt,
     } = usePromptLibrary();
     const aiProvider = useAiProviderSettings();
-    const simulationHistory = useSimulationHistory();
 
     return (
         <Page>

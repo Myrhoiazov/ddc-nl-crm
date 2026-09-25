@@ -387,4 +387,27 @@ describe('KnowledgeBasePage', () => {
             });
         });
     });
+
+    test('refreshes the simulation history right after running a new simulation, without a page reload', async () => {
+        ($apiPrivate.post as jest.Mock).mockResolvedValue({
+            data: {
+                normalized: { fromAddress: 'test@example.com', subject: 'Вопрос про цены', normalizedBody: 'Сколько стоит абонемент?' },
+                deterministicSpamReason: null,
+                classification: { spam: false, needsReply: true, language: 'ru', intent: 'pricing', confidence: 0.9, reason: '' },
+                knowledge: [], crmContact: null, draft: null, draftSkippedReason: 'classification_gate',
+                runId: 5, metrics: [],
+            },
+        });
+        renderPage();
+        await screen.findByText('Симуляции ещё не запускались');
+        ($apiPrivate.get as jest.Mock).mockClear();
+
+        fireEvent.change(screen.getByLabelText('Тема письма *'), { target: { value: 'Вопрос про цены' } });
+        fireEvent.change(screen.getByLabelText('Текст письма *'), { target: { value: 'Сколько стоит абонемент?' } });
+        fireEvent.click(screen.getByText('Запустить симуляцию'));
+
+        await waitFor(() => {
+            expect($apiPrivate.get).toHaveBeenCalledWith('/ai-email/simulation-runs', { params: { _page: 1, _limit: 20, provider: undefined } });
+        });
+    });
 });
