@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ChangeEvent } from 'react';
-import { EmailSimulationForm, EmailSimulationResult } from '../emailSimulationTypes';
+import { EmailSimulationForm, EmailSimulationResult, SimulationMetric, SimulationStage } from '../emailSimulationTypes';
 import { AiPrompt } from '../promptLibraryTypes';
 import s from './KnowledgeBasePage.module.scss';
 
@@ -31,6 +31,18 @@ const promptSelect = (
         </select>
     </label>
 );
+
+const formatMetric = (metric: SimulationMetric): string => {
+    const tokens = metric.totalTokens !== undefined ? ` · ${metric.promptTokens ?? 0}→${metric.completionTokens ?? 0} токенов` : '';
+    const calls = metric.callCount > 1 ? ` · ${metric.callCount} вызовов` : '';
+    return `${metric.model} · ${metric.durationMs}мс${tokens}${calls}`;
+};
+
+const MetricLine = ({ result, stage }: { result: EmailSimulationResult; stage: SimulationStage }) => {
+    const metric = result.metrics.find((candidate) => candidate.stage === stage);
+    if (!metric) return null;
+    return <p className={s.simulationMetric}>{formatMetric(metric)}</p>;
+};
 
 const SimulationForm = ({ form, setForm, running, run, classificationPrompts, draftBodyPrompts }: {
     form: EmailSimulationForm;
@@ -100,6 +112,7 @@ const ClassificationBlock = ({ result }: { result: EmailSimulationResult }) => {
     return (
         <div className={s.simulationBlock}>
             <h3>{t('Классификация')}</h3>
+            <MetricLine result={result} stage="CLASSIFICATION" />
             <div className={s.simulationFields}>
                 <span>{t('spam:')} <strong>{String(c.spam)}</strong></span>
                 <span>{t('needsReply:')} <strong>{String(c.needsReply)}</strong></span>
@@ -118,6 +131,9 @@ const KnowledgeBlock = ({ result }: { result: EmailSimulationResult }) => {
     return (
         <div className={s.simulationBlock}>
             <h3>{t('Найденные знания (RAG retrieval)')}</h3>
+            <MetricLine result={result} stage="QUERY_EXPANSION" />
+            <MetricLine result={result} stage="RETRIEVAL_EMBEDDING" />
+            <MetricLine result={result} stage="RERANK" />
             {result.queryExpansion && (
                 <p className={s.simulationReason}>
                     {t('Расширенный запрос:')} {result.queryExpansion.cleanQuery}{t(' — ключевые слова:')} {result.queryExpansion.keywords.join(', ')}
@@ -154,6 +170,7 @@ const DraftBlock = ({ result }: { result: EmailSimulationResult }) => {
     return (
         <div className={s.simulationBlock}>
             <h3>{t('Черновик ответа')}</h3>
+            <MetricLine result={result} stage="DRAFT" />
             <div className={s.simulationFields}>
                 <span>{t('replyLanguage:')} <strong>{d.replyLanguage}</strong></span>
                 <span>{t('confidence:')} <strong>{d.confidence.toFixed(2)}</strong></span>

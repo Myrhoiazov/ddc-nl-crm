@@ -132,6 +132,7 @@ describe('KnowledgeBasePage', () => {
                 crmContact: null,
                 draft: { replyLanguage: 'ru', subject: 'Re: Вопрос про цены', body: 'Здравствуйте! Абонемент стоит 100 евро в месяц.', confidence: 0.85, needsManualAnswer: false, usedKnowledgeIds: ['k1'] },
                 draftSkippedReason: null,
+                runId: null, metrics: [],
             },
         });
         renderPage();
@@ -150,6 +151,36 @@ describe('KnowledgeBasePage', () => {
         expect(screen.getByText('Абонемент стоит 100 евро в месяц')).toBeInTheDocument();
     });
 
+    test('renders per-stage metrics (model, duration, tokens) after a simulation run', async () => {
+        ($apiPrivate.post as jest.Mock).mockResolvedValue({
+            data: {
+                normalized: { fromAddress: 'test@example.com', subject: 'Вопрос про цены', normalizedBody: 'Сколько стоит абонемент?' },
+                deterministicSpamReason: null,
+                classification: { spam: false, needsReply: true, language: 'ru', intent: 'pricing', confidence: 0.9, reason: '' },
+                knowledge: [],
+                crmContact: null,
+                draft: { replyLanguage: 'ru', subject: 'Re: Вопрос про цены', body: 'Здравствуйте!', confidence: 0.85, needsManualAnswer: false, usedKnowledgeIds: [] },
+                draftSkippedReason: null,
+                runId: 7,
+                metrics: [
+                    { stage: 'CLASSIFICATION', provider: 'OLLAMA', model: 'qwen3:0.6b', callCount: 1, durationMs: 214, promptTokens: 120, completionTokens: 30, totalTokens: 150 },
+                    { stage: 'DRAFT', provider: 'OPENAI', model: 'gpt-4o-mini', callCount: 1, durationMs: 980, promptTokens: 512, completionTokens: 96, totalTokens: 608 },
+                ],
+            },
+        });
+        renderPage();
+        await screen.findByText('Прайс на занятия');
+
+        fireEvent.change(screen.getByLabelText('Тема письма *'), { target: { value: 'Вопрос про цены' } });
+        fireEvent.change(screen.getByLabelText('Текст письма *'), { target: { value: 'Сколько стоит абонемент?' } });
+        fireEvent.click(screen.getByText('Запустить симуляцию'));
+
+        expect(await screen.findByText(/qwen3:0.6b/)).toBeInTheDocument();
+        expect(screen.getByText(/120→30 токенов/)).toBeInTheDocument();
+        expect(screen.getByText(/gpt-4o-mini/)).toBeInTheDocument();
+        expect(screen.getByText(/512→96 токенов/)).toBeInTheDocument();
+    });
+
     test('displays the query expansion result and can disable expansion/rerank per run', async () => {
         ($apiPrivate.post as jest.Mock).mockResolvedValue({
             data: {
@@ -161,6 +192,7 @@ describe('KnowledgeBasePage', () => {
                 crmContact: null,
                 draft: null,
                 draftSkippedReason: 'classification_gate',
+                runId: null, metrics: [],
             },
         });
         renderPage();
@@ -201,6 +233,7 @@ describe('KnowledgeBasePage', () => {
                 crmContact: null,
                 draft: null,
                 draftSkippedReason: 'deterministic_spam',
+                runId: null, metrics: [],
             },
         });
         renderPage();
@@ -294,6 +327,7 @@ describe('KnowledgeBasePage', () => {
                 deterministicSpamReason: null,
                 classification: { spam: false, needsReply: true, language: 'ru', intent: 'other', confidence: 0.5, reason: '' },
                 knowledge: [], crmContact: null, draft: null, draftSkippedReason: 'classification_gate',
+                runId: null, metrics: [],
             },
         });
         renderPage();
