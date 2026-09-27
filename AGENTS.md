@@ -17,6 +17,7 @@ DDC CRM is a TypeScript monorepo — React 19 admin SPA (`client/`) + Express 5 
 | Feature / system contract | docs/spec/* |
 | Planned module evolution | docs/roadmap/* (gitignored, local only) |
 | Architectural decisions | docs/adr/* (gitignored, local only) |
+| Code-shape quality gate (complexity/length/params/dead-code) for new modules/services/routers/features | .claude/rules/architecture-quality-gate.md |
 | Execution procedure | .agents/skills/*/SKILL.md |
 | End-to-end coordination | .agents/agents/dev-loop.md |
 
@@ -64,7 +65,7 @@ Validate
 | Docker / production deployment | docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md |
 | Graphify changes | docs/spec/GRAPHIFY_WORKFLOW.md |
 | CI/CD pipeline or Git branching changes | docs/spec/DDC_CRM_CICD_SPEC.md |
-| Skylos / dead-code / security scan changes | docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md (local run: `npm run check:skylos`). Скрипт использует `--baseline` — известные находки подавлены через `.skylos/baseline.json`. Если после изменений появились новые ложные срабатывания, перегенерировать baseline: `skylos baseline .` |
+| Skylos / dead-code / security scan changes | docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md (local run: `npm run check:skylos`). Скрипт использует `--baseline` — известные находки подавлены через `.skylos/baseline.json`. Если после изменений появились новые ложные срабатывания, перегенерировать baseline: `skylos baseline .`. For writing new architecture elements so they pass the gate from the start (not fixed after CI fails), see `.claude/rules/architecture-quality-gate.md`. |
 | Auth / security changes | docs/roadmap/AUTH_SECURITY_ROADMAP.md (gitignored, local only) |
 | Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md (gitignored, local only) |
 | Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md (gitignored, local only) |
@@ -104,7 +105,7 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 
 ### When Client Changes
 - Run `npm run lint:ts` and `npm test` from `client/`.
-- Check `.claude/rules/code-style.md` for UI conventions.
+- Check `.claude/rules/code-style.md` for UI conventions and `.claude/rules/architecture-quality-gate.md` for the Skylos-derived complexity/length/params limits — apply them from the start when adding a new feature/entity/widget, not as a post-hoc fix.
 - Use SCSS Modules (`*.module.scss`). Use theme tokens, not raw colors. Check dark theme.
 
 ### When E2E Changes
@@ -116,6 +117,7 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 - Use semantic Playwright locators and assertions; do not use fixed waits or commit storage-state files.
 
 ### When Server Changes
+- Check `.claude/rules/architecture-quality-gate.md` for the Skylos-derived complexity/length/params limits when adding a new module/service/router/script — apply them from the start, not as a post-hoc fix.
 - Run the domain test script matching the changed area (from `server/`); there is no single server-wide `test` script by design:
 
   | Script | Covers |
