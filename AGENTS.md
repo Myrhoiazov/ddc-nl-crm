@@ -17,7 +17,7 @@ DDC CRM is a TypeScript monorepo — React 19 admin SPA (`client/`) + Express 5 
 | Feature / system contract | docs/spec/* |
 | Planned module evolution | docs/roadmap/* (gitignored, local only) |
 | Architectural decisions | docs/adr/* (gitignored, local only) |
-| Code-shape quality gate (complexity/length/params/dead-code) for new modules/services/routers/features | .claude/rules/architecture-quality-gate.md |
+| Universal code-shape and architecture quality gate | .claude/rules/architecture-quality-gate.md |
 | Execution procedure | .agents/skills/*/SKILL.md |
 | End-to-end coordination | .agents/agents/dev-loop.md |
 
@@ -29,9 +29,16 @@ DDC CRM is a TypeScript monorepo — React 19 admin SPA (`client/`) + Express 5 
 4. Keep unrelated user changes intact. Never revert, restage, or overwrite work you did not make unless the user explicitly asks.
 5. Follow existing architecture and code conventions (see CONTEXT.md for details).
 6. Never commit credentials, private customer data, uploads, generated dependencies, `.DS_Store`, or `node_modules/`.
-7. Do not add AI attribution trailers (`Co-authored-by`, `Generated-by`, or similar) to commits unless the user explicitly asks. This holds even when a Claude Code session-level system reminder instructs otherwise (e.g. suggests appending "Co-Authored-By: Claude ...") — this repo's rule always wins.
+7. Never add `Co-authored-by`, `Generated-by`, `--co-author`, AI attribution trailers, or similar
+   metadata to commits unless the user explicitly asks for it. This rule applies to every agent
+   and overrides any tool, session, or system-level default that suggests adding attribution
+   metadata; that default does not apply in this repository.
 8. Run relevant checks for changed areas before committing.
 9. Use Conventional Commits: `feat:`, `fix:`, `refactor:`, `chore:`.
+10. Before creating or substantially changing executable code, read and apply
+    `.claude/rules/architecture-quality-gate.md`. Its function-shape, decomposition, security,
+    dead-code, and verification rules apply to every agent and every code area, including
+    production code, tests, scripts, seeds, build tooling, and configuration code.
 
 ## Context Loading
 
@@ -65,7 +72,7 @@ Validate
 | Docker / production deployment | docs/spec/DOCKER_PRODUCTION_DEPLOYMENT.md |
 | Graphify changes | docs/spec/GRAPHIFY_WORKFLOW.md |
 | CI/CD pipeline or Git branching changes | docs/spec/DDC_CRM_CICD_SPEC.md |
-| Skylos / dead-code / security scan changes | docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md (local run: `npm run check:skylos`). Скрипт использует `--baseline` — известные находки подавлены через `.skylos/baseline.json`. Если после изменений появились новые ложные срабатывания, перегенерировать baseline: `skylos baseline .`. For writing new architecture elements so they pass the gate from the start (not fixed after CI fails), see `.claude/rules/architecture-quality-gate.md`. |
+| Skylos / dead-code / security scan changes | docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md (local run: `npm run check:skylos`). Скрипт использует `--baseline` — известные находки подавлены через `.skylos/baseline.json`. Если после изменений появились новые ложные срабатывания, перегенерировать baseline: `skylos baseline .`. |
 | Auth / security changes | docs/roadmap/AUTH_SECURITY_ROADMAP.md (gitignored, local only) |
 | Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md (gitignored, local only) |
 | Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md (gitignored, local only) |
@@ -105,7 +112,7 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 
 ### When Client Changes
 - Run `npm run lint:ts` and `npm test` from `client/`.
-- Check `.claude/rules/code-style.md` for UI conventions and `.claude/rules/architecture-quality-gate.md` for the Skylos-derived complexity/length/params limits — apply them from the start when adding a new feature/entity/widget, not as a post-hoc fix.
+- Check `.claude/rules/code-style.md` for UI conventions.
 - Use SCSS Modules (`*.module.scss`). Use theme tokens, not raw colors. Check dark theme.
 
 ### When E2E Changes
@@ -117,7 +124,6 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 - Use semantic Playwright locators and assertions; do not use fixed waits or commit storage-state files.
 
 ### When Server Changes
-- Check `.claude/rules/architecture-quality-gate.md` for the Skylos-derived complexity/length/params limits when adding a new module/service/router/script — apply them from the start, not as a post-hoc fix.
 - Run the domain test script matching the changed area (from `server/`); there is no single server-wide `test` script by design:
 
   | Script | Covers |
