@@ -35,6 +35,73 @@ export interface RunDraftPipelineOptions {
     notify?: (input: Parameters<typeof notifyDraftForApproval>[0]) => Promise<boolean>;
 }
 
+interface ProcessDraftCandidateDeps {
+    repository: DraftPipelineRepository;
+    crmReader: CrmReader;
+    draftClient: DraftLlmClient;
+    knowledgeProvider?: DraftKnowledgeProvider;
+    notify: (input: Parameters<typeof notifyDraftForApproval>[0]) => Promise<boolean>;
+}
+
+// Records a failure-version draft when the provider itself failed in a recognized way (so the
+// admin sees "the model errored" instead of nothing) — never rethrows, the caller always counts
+// this candidate as `failed` regardless of whether the failure-version write itself succeeds.
+const recordDraftFailure = async (
+    candidate: DraftCandidate,
+    repository: DraftPipelineRepository,
+    draftClient: DraftLlmClient,
+    error: unknown,
+): Promise<void> => {
+    if (repository.createFailureVersion && error instanceof DraftProviderError) {
+        const failedDraft = {
+            replyLanguage: candidate.classification.language,
+            subject: candidate.subject,
+            body: '',
+            confidence: candidate.classification.confidence,
+            needsManualAnswer: true,
+            usedKnowledgeIds: [] as string[],
+        };
+        await repository.createFailureVersion({ emailId: candidate.id, draft: failedDraft, knowledge: [], provider: (draftClient as DraftProvider).provider, model: (draftClient as DraftProvider).model, generationErrorCode: error.code, generationErrorMessage: error.message });
+    }
+    logger.error(`[AiEmailDraft] Failed email=${candidate.id}: ${error instanceof Error ? error.message : String(error)}`);
+};
+
+const processDraftCandidate = async (
+    candidate: DraftCandidate,
+    deps: ProcessDraftCandidateDeps,
+): Promise<keyof DraftPipelineRunResult> => {
+    const { repository, crmReader, draftClient, knowledgeProvider, notify } = deps;
+    try {
+        if (candidate.classification.spam || !candidate.classification.needsReply) return 'skipped';
+        const knowledge = knowledgeProvider ? await knowledgeProvider.retrieve(`${candidate.subject}\n${candidate.normalizedBody}`) : [];
+        const email = { fromAddress: candidate.sender, subject: candidate.subject, normalizedBody: candidate.normalizedBody };
+        const draft = await generateEmailDraft(email, candidate.classification, crmReader, draftClient, knowledge);
+        if (!draft) return 'skipped';
+        const saved = await persistDraft(repository, {
+            emailId: candidate.id,
+            draft,
+            knowledge: knowledge.map((item): DraftKnowledgeRefInput => ({ id: item.id, sourceUrl: item.sourceUrl, score: item.score })),
+        });
+        const contact = await crmReader.findContactByEmail(candidate.sender);
+        await notify({
+            draftId: saved.id,
+            version: saved.version,
+            sender: candidate.sender,
+            subject: draft.subject,
+            body: draft.body,
+            language: draft.replyLanguage,
+            intent: candidate.classification.intent,
+            contactName: contact ? [contact.firstName, contact.lastName].filter(Boolean).join(' ') : null,
+            knowledgeSourceUrls: knowledge.map((item) => item.sourceUrl),
+            needsManualAnswer: draft.needsManualAnswer,
+        });
+        return 'processed';
+    } catch (error) {
+        await recordDraftFailure(candidate, repository, draftClient, error);
+        return 'failed';
+    }
+};
+
 export const runDraftPipeline = async (
     repository: DraftPipelineRepository,
     crmReader: CrmReader,
@@ -44,53 +111,10 @@ export const runDraftPipeline = async (
     const { knowledgeProvider, limit = aiConfig.maxConcurrency, notify = notifyDraftForApproval } = options;
     const result: DraftPipelineRunResult = { processed: 0, skipped: 0, failed: 0 };
     const candidates = await repository.findDraftCandidates(Math.max(1, limit));
+    const deps: ProcessDraftCandidateDeps = { repository, crmReader, draftClient, knowledgeProvider, notify };
     for (const candidate of candidates) {
-        try {
-            if (candidate.classification.spam || !candidate.classification.needsReply) {
-                result.skipped += 1;
-                continue;
-            }
-            const knowledge = knowledgeProvider ? await knowledgeProvider.retrieve(`${candidate.subject}\n${candidate.normalizedBody}`) : [];
-            const email = { fromAddress: candidate.sender, subject: candidate.subject, normalizedBody: candidate.normalizedBody };
-            const draft = await generateEmailDraft(email, candidate.classification, crmReader, draftClient, knowledge);
-            if (!draft) {
-                result.skipped += 1;
-                continue;
-            }
-            const saved = await persistDraft(repository, {
-                emailId: candidate.id,
-                draft,
-                knowledge: knowledge.map((item): DraftKnowledgeRefInput => ({ id: item.id, sourceUrl: item.sourceUrl, score: item.score })),
-            });
-            const contact = await crmReader.findContactByEmail(candidate.sender);
-            await notify({
-                draftId: saved.id,
-                version: saved.version,
-                sender: candidate.sender,
-                subject: draft.subject,
-                body: draft.body,
-                language: draft.replyLanguage,
-                intent: candidate.classification.intent,
-                contactName: contact ? [contact.firstName, contact.lastName].filter(Boolean).join(' ') : null,
-                knowledgeSourceUrls: knowledge.map((item) => item.sourceUrl),
-                needsManualAnswer: draft.needsManualAnswer,
-            });
-            result.processed += 1;
-        } catch (error) {
-            result.failed += 1;
-            if (repository.createFailureVersion && error instanceof DraftProviderError) {
-                const failedDraft = {
-                    replyLanguage: candidate.classification.language,
-                    subject: candidate.subject,
-                    body: '',
-                    confidence: candidate.classification.confidence,
-                    needsManualAnswer: true,
-                    usedKnowledgeIds: [] as string[],
-                };
-                await repository.createFailureVersion({ emailId: candidate.id, draft: failedDraft, knowledge: [], provider: (draftClient as DraftProvider).provider, model: (draftClient as DraftProvider).model, generationErrorCode: error.code, generationErrorMessage: error.message });
-            }
-            logger.error(`[AiEmailDraft] Failed email=${candidate.id}: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        const outcome = await processDraftCandidate(candidate, deps);
+        result[outcome] += 1;
     }
     return result;
 };

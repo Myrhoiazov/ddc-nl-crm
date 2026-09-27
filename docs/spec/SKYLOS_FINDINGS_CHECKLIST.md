@@ -388,6 +388,66 @@ enforcement is enabled" — не входит в `[tool.skylos.gate]` порог
 независимо от воспроизводимости. Не трогалось; кандидат на отдельную волну, если
 станет стабильно воспроизводимым.
 
+## Волна 7 (2026-09-27, та же ветка) — регрессии wave4 + отложенная находка seed-demo.ts
+
+Полный `skylos . -a` (без diff-scope) после волны 6 показал, что часть production
+`SKY-C304`, которую wave4 отчитала закрытой «13 из 13», на самом деле снова
+превышает лимит — код в этих двух файлах менялся уже после wave4 (PR #151 —
+switchable AI draft providers), не подтверждено, что это тот же дефект или новый.
+Плюс закрыта находка, явно оставленная «на потом» в разделе «Итоговые счётчики»
+(`seed-demo.ts`, вне периметра wave1–5).
+
+**Закрыто, поведение не менялось (проверено `test:local-ai` 170/170 — покрывает
+`draft-pipeline.service.test.ts`/`draft.persistence.test.ts` — и `tsc --noEmit`
+server, 0 ошибок):**
+
+- `draft-pipeline.service.ts` (`runDraftPipeline`, регрессия — снова 59 строк) →
+  цикл по кандидатам вынесен в `processDraftCandidate`/`recordDraftFailure`,
+  координатор остался на ~13 строк.
+- `draft.persistence.ts` (фабрика `createPrismaAiEmailDraftRepository`, регрессия —
+  снова 60 строк, тот же паттерн замера длины замыкающей стрелочной функции по
+  вложенным method-литералам, что и `simulation-metrics.repository.ts` в волне 6)
+  → `createNextVersion`/`createFailureVersion` вынесены в top-level
+  `createNextDraftVersion`/`createFailureDraftVersion`.
+- `server/prisma/seed-demo.ts` (`main` сложность 21/189 строк, вложенный
+  transaction-колбэк сложность 20/181 строка — dev-only demo-seed, гейт
+  `MODE=development`, throw в production, без покрытия тестами) → разобран на
+  `createDemoOrganizationAndBrands`/`createDemoBranchesAndHalls`/
+  `createDemoTeachers`/`createDemoStyles`/`createDemoGroups`/`createDemoStudent`/
+  `createDemoInvoiceForStudent`/`createDemoStudentsAndInvoices`/
+  `createDemoExpensesAndTransactions`/`seedDemoData`; `main` — координатор
+  guard-check + `$transaction` вызов, ~8 строк. В отличие от wave4's решения по
+  `test-email-flow.ts` («CLI dev-скрипт, не трогаем») — здесь решено разобрать по
+  существу, тот же принцип, что и для `test-email-flow.ts` в волне 6: dev-only не
+  значит «не должен проходить те же требования качества», если разбиение не роняет
+  читаемость (здесь функция уже была секционирована комментариями/пустыми
+  строками на организацию/branches/teachers/groups/студентов/расходы — разбиение
+  1:1 повторяет уже существующие секции). Ручная smoke-проверка не запускалась
+  (требует поднятой MySQL и `MODE=development`), но каждая функция — механическое
+  извлечение существующего блока без изменения ни одного литерала/условия.
+
+**Проверено и подтверждено как false positive (не трогалось):**
+
+- `client/src/app/providers/ErrorBoundary/ui/ErrorBoundary.tsx:12 SKY-U004`
+  («unused class: ErrorBoundary») — реально используется, импортируется через FSD
+  barrel (`@/app/providers/ErrorBoundary` → `index.ts` → `export { default } from
+  './ui/ErrorBoundary'`) в `client/src/index.tsx` (точка входа приложения). Тот же
+  класс ограничения, что уже задокументирован для `SKY-L012` в `pyproject.toml`:
+  alias/barrel-резолюция вне графа импортов Skylos.
+- `server/src/common/utils/file-upload.ts:6 SKY-U003` («unused variable: isDev») —
+  `isDev` используется на следующей же строке (`const url = isDev ? ... : ...`).
+  Недостоверная находка сканера, тот же класс инструментальной неточности, что уже
+  задокументирован для `embedding.service.ts:100` (`SKY-C303`, см. ниже) и
+  `SKY-D312`'s line-misattribution в волне 1.
+- `server/src/modules/knowledge-ingestion/embedding.service.ts:100 SKY-C303`
+  (повторно проверено) — `chunkKnowledgeDocument` по-прежнему имеет 3 параметра
+  (`document`, `maxCharacters`, `overlapCharacters`), не 8; находка не изменилась
+  со времени волны 1-5.
+
+**Baseline перегенерирован** (`skylos baseline . -a --exclude coverage --exclude
+graphify-out --config-file pyproject.toml`, 2021 находок) тем же способом и с тем
+же известным ограничением по абсолютным путям, что и в волне 6.
+
 ## Постоянно задокументированные false positive классы (без действий)
 
 - **`SKY-E003`** (51, unused file) — `*.stories.tsx` (Storybook, glob-загрузка),
