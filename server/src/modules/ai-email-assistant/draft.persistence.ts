@@ -30,65 +30,69 @@ export interface AiEmailDraftRepository {
     createFailureVersion?(record: DraftRecord): Promise<{ id: number; version: number }>;
 }
 
-export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => ({
-    async createNextVersion(record) {
-        const parsed = emailDraftSchema.parse(record.draft);
-        return prisma.$transaction(async (transaction) => {
-            const latest = await transaction.aiEmailDraft.findFirst({
-                where: { emailId: record.emailId },
-                orderBy: { version: 'desc' },
-                select: { version: true },
-            });
-            const version = (latest?.version ?? 0) + 1;
-            const created = await transaction.aiEmailDraft.create({
-                data: {
-                    emailId: record.emailId,
-                    version,
-                    subject: parsed.subject,
-                    body: parsed.body,
-                    replyLanguage: parsed.replyLanguage,
-                    confidence: parsed.confidence,
-                    needsManualAnswer: parsed.needsManualAnswer,
-                    provider: record.provider ?? DRAFT_PROVIDERS.OLLAMA,
-                    model: record.model ?? aiConfig.ollamaModel,
-                    promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
-                    status: record.status ?? AiEmailDraftStatus.GENERATED,
-                    generationErrorCode: record.generationErrorCode,
-                    generationErrorMessage: record.generationErrorMessage?.slice(0, 500),
-                    knowledgeRefs: {
-                        create: record.knowledge.slice(0, 20).map((ref) => ({
-                            knowledgeId: ref.id,
-                            sourceUrl: ref.sourceUrl,
-                            score: ref.score,
-                        })),
-                    },
-                },
-                select: { id: true, version: true },
-            });
-            return created;
+const createNextDraftVersion: AiEmailDraftRepository['createNextVersion'] = async (record) => {
+    const parsed = emailDraftSchema.parse(record.draft);
+    return prisma.$transaction(async (transaction) => {
+        const latest = await transaction.aiEmailDraft.findFirst({
+            where: { emailId: record.emailId },
+            orderBy: { version: 'desc' },
+            select: { version: true },
         });
-    },
-    async createFailureVersion(record) {
-        const latest = await prisma.aiEmailDraft.findFirst({ where: { emailId: record.emailId }, orderBy: { version: 'desc' }, select: { version: true } });
-        return prisma.aiEmailDraft.create({
+        const version = (latest?.version ?? 0) + 1;
+        const created = await transaction.aiEmailDraft.create({
             data: {
                 emailId: record.emailId,
-                version: (latest?.version ?? 0) + 1,
-                subject: record.draft.subject,
-                body: record.draft.body,
-                replyLanguage: record.draft.replyLanguage,
-                confidence: record.draft.confidence,
-                needsManualAnswer: true,
+                version,
+                subject: parsed.subject,
+                body: parsed.body,
+                replyLanguage: parsed.replyLanguage,
+                confidence: parsed.confidence,
+                needsManualAnswer: parsed.needsManualAnswer,
                 provider: record.provider ?? DRAFT_PROVIDERS.OLLAMA,
                 model: record.model ?? aiConfig.ollamaModel,
                 promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
-                status: AiEmailDraftStatus.FAILED,
+                status: record.status ?? AiEmailDraftStatus.GENERATED,
                 generationErrorCode: record.generationErrorCode,
                 generationErrorMessage: record.generationErrorMessage?.slice(0, 500),
+                knowledgeRefs: {
+                    create: record.knowledge.slice(0, 20).map((ref) => ({
+                        knowledgeId: ref.id,
+                        sourceUrl: ref.sourceUrl,
+                        score: ref.score,
+                    })),
+                },
             },
             select: { id: true, version: true },
         });
-    },
+        return created;
+    });
+};
+
+const createFailureDraftVersion: NonNullable<AiEmailDraftRepository['createFailureVersion']> = async (record) => {
+    const latest = await prisma.aiEmailDraft.findFirst({ where: { emailId: record.emailId }, orderBy: { version: 'desc' }, select: { version: true } });
+    return prisma.aiEmailDraft.create({
+        data: {
+            emailId: record.emailId,
+            version: (latest?.version ?? 0) + 1,
+            subject: record.draft.subject,
+            body: record.draft.body,
+            replyLanguage: record.draft.replyLanguage,
+            confidence: record.draft.confidence,
+            needsManualAnswer: true,
+            provider: record.provider ?? DRAFT_PROVIDERS.OLLAMA,
+            model: record.model ?? aiConfig.ollamaModel,
+            promptVersion: record.promptVersion ?? DRAFT_PROMPT_VERSION,
+            status: AiEmailDraftStatus.FAILED,
+            generationErrorCode: record.generationErrorCode,
+            generationErrorMessage: record.generationErrorMessage?.slice(0, 500),
+        },
+        select: { id: true, version: true },
+    });
+};
+
+export const createPrismaAiEmailDraftRepository = (): AiEmailDraftRepository => ({
+    createNextVersion: createNextDraftVersion,
+    createFailureVersion: createFailureDraftVersion,
 });
 
 export const persistDraft = (

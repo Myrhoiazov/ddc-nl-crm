@@ -112,59 +112,66 @@ const toSummary = (row: {
     })),
 });
 
-export const createPrismaSimulationRunRepository = (): SimulationRunRepository => ({
-    async create(input) {
-        const created = await prisma.$transaction(async (transaction) => {
-            const run = await transaction.aiSimulationRun.create({
-                data: {
-                    fromAddress: input.fromAddress, subject: input.subject, body: input.body, topK: input.topK,
-                    noKnowledge: input.noKnowledge, forceDraft: input.forceDraft,
-                    noQueryExpansion: input.noQueryExpansion, noRerank: input.noRerank,
-                    classificationPromptId: input.classificationPromptId, classificationPromptName: input.classificationPromptName,
-                    draftBodyPromptId: input.draftBodyPromptId, draftBodyPromptName: input.draftBodyPromptName,
-                    draftProvider: input.draftProvider, draftModel: input.draftModel,
-                    classificationSpam: input.classificationSpam, classificationNeedsReply: input.classificationNeedsReply,
-                    classificationConfidence: input.classificationConfidence,
-                    classificationJson: input.classificationJson as Prisma.InputJsonValue | undefined,
-                    knowledgeJson: input.knowledgeJson as Prisma.InputJsonValue | undefined,
-                    draftJson: input.draftJson as Prisma.InputJsonValue | undefined,
-                    deterministicSpamReason: input.deterministicSpamReason, draftSkippedReason: input.draftSkippedReason,
-                    createdById: input.createdById,
-                },
-            });
-            if (input.metrics.length) {
-                await transaction.aiSimulationRunMetric.createMany({
-                    data: input.metrics.map((metric) => ({
-                        runId: run.id, stage: metric.stage, provider: metric.provider, model: metric.model,
-                        callCount: metric.callCount, durationMs: metric.durationMs,
-                        promptTokens: metric.promptTokens, completionTokens: metric.completionTokens, totalTokens: metric.totalTokens,
-                        meta: metric.meta as Prisma.InputJsonValue | undefined,
-                    })),
-                });
-            }
-            return run;
+const createSimulationRun = async (input: SimulationRunInput): Promise<number> => {
+    const created = await prisma.$transaction(async (transaction) => {
+        const run = await transaction.aiSimulationRun.create({
+            data: {
+                fromAddress: input.fromAddress, subject: input.subject, body: input.body, topK: input.topK,
+                noKnowledge: input.noKnowledge, forceDraft: input.forceDraft,
+                noQueryExpansion: input.noQueryExpansion, noRerank: input.noRerank,
+                classificationPromptId: input.classificationPromptId, classificationPromptName: input.classificationPromptName,
+                draftBodyPromptId: input.draftBodyPromptId, draftBodyPromptName: input.draftBodyPromptName,
+                draftProvider: input.draftProvider, draftModel: input.draftModel,
+                classificationSpam: input.classificationSpam, classificationNeedsReply: input.classificationNeedsReply,
+                classificationConfidence: input.classificationConfidence,
+                classificationJson: input.classificationJson as Prisma.InputJsonValue | undefined,
+                knowledgeJson: input.knowledgeJson as Prisma.InputJsonValue | undefined,
+                draftJson: input.draftJson as Prisma.InputJsonValue | undefined,
+                deterministicSpamReason: input.deterministicSpamReason, draftSkippedReason: input.draftSkippedReason,
+                createdById: input.createdById,
+            },
         });
-        return created.id;
-    },
+        if (input.metrics.length) {
+            await transaction.aiSimulationRunMetric.createMany({
+                data: input.metrics.map((metric) => ({
+                    runId: run.id, stage: metric.stage, provider: metric.provider, model: metric.model,
+                    callCount: metric.callCount, durationMs: metric.durationMs,
+                    promptTokens: metric.promptTokens, completionTokens: metric.completionTokens, totalTokens: metric.totalTokens,
+                    meta: metric.meta as Prisma.InputJsonValue | undefined,
+                })),
+            });
+        }
+        return run;
+    });
+    return created.id;
+};
 
-    async list(filter, page) {
-        const where = {
-            ...(filter.provider ? { draftProvider: filter.provider } : {}),
-            ...(filter.promptId ? { OR: [{ classificationPromptId: filter.promptId }, { draftBodyPromptId: filter.promptId }] } : {}),
-        };
-        const [rows, total] = await Promise.all([
-            prisma.aiSimulationRun.findMany({
-                where, orderBy: { createdAt: 'desc' }, skip: (page.page - 1) * page.limit, take: page.limit,
-                include: { metrics: true },
-            }),
-            prisma.aiSimulationRun.count({ where }),
-        ]);
-        return { items: rows.map(toSummary), total };
-    },
+const listSimulationRuns = async (
+    filter: SimulationRunListFilter,
+    page: SimulationRunPage,
+): Promise<{ items: SimulationRunSummary[]; total: number }> => {
+    const where = {
+        ...(filter.provider ? { draftProvider: filter.provider } : {}),
+        ...(filter.promptId ? { OR: [{ classificationPromptId: filter.promptId }, { draftBodyPromptId: filter.promptId }] } : {}),
+    };
+    const [rows, total] = await Promise.all([
+        prisma.aiSimulationRun.findMany({
+            where, orderBy: { createdAt: 'desc' }, skip: (page.page - 1) * page.limit, take: page.limit,
+            include: { metrics: true },
+        }),
+        prisma.aiSimulationRun.count({ where }),
+    ]);
+    return { items: rows.map(toSummary), total };
+};
 
-    async getById(id) {
-        const row = await prisma.aiSimulationRun.findUnique({ where: { id }, include: { metrics: true } });
-        if (!row) return null;
-        return { ...toSummary(row), body: row.body, classification: row.classificationJson, knowledge: row.knowledgeJson ?? [], draft: row.draftJson };
-    },
+const getSimulationRunById = async (id: number): Promise<SimulationRunDetail | null> => {
+    const row = await prisma.aiSimulationRun.findUnique({ where: { id }, include: { metrics: true } });
+    if (!row) return null;
+    return { ...toSummary(row), body: row.body, classification: row.classificationJson, knowledge: row.knowledgeJson ?? [], draft: row.draftJson };
+};
+
+export const createPrismaSimulationRunRepository = (): SimulationRunRepository => ({
+    create: createSimulationRun,
+    list: listSimulationRuns,
+    getById: getSimulationRunById,
 });

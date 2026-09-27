@@ -15,6 +15,22 @@ interface SimulationRunsResponse {
     totalPages: number;
 }
 
+const fetchSimulationRunsPage = async (
+    page: number,
+    limit: number,
+    provider: '' | SimulationProvider,
+): Promise<SimulationRunsResponse> => {
+    const response = await $apiPrivate.get<SimulationRunsResponse>('/ai-email/simulation-runs', {
+        params: { _page: page, _limit: limit, provider: provider || undefined },
+    });
+    return response.data;
+};
+
+const fetchSimulationRunDetail = async (id: number): Promise<SimulationRunDetail> => {
+    const response = await $apiPrivate.get<SimulationRunDetail>(`/ai-email/simulation-runs/${id}`);
+    return response.data;
+};
+
 export const useSimulationHistory = () => {
     const [runs, setRuns] = useState<SimulationRunSummary[]>([]);
     const [loading, setLoading] = useState(false);
@@ -27,12 +43,10 @@ export const useSimulationHistory = () => {
     const load = useCallback(async () => {
         setLoading(true);
         try {
-            const response = await $apiPrivate.get<SimulationRunsResponse>('/ai-email/simulation-runs', {
-                params: { _page: page, _limit: PAGE_SIZE, provider: providerFilter || undefined },
-            });
-            setRuns(response.data.items ?? []);
-            setTotal(response.data.total ?? 0);
-            setTotalPages(response.data.totalPages ?? 1);
+            const data = await fetchSimulationRunsPage(page, PAGE_SIZE, providerFilter);
+            setRuns(data.items ?? []);
+            setTotal(data.total ?? 0);
+            setTotalPages(data.totalPages ?? 1);
         } catch (error) {
             toast.error(extractApiErrorMessage(error, 'Не удалось загрузить историю симуляций'));
         } finally {
@@ -49,8 +63,7 @@ export const useSimulationHistory = () => {
 
     const openRun = async (id: number) => {
         try {
-            const response = await $apiPrivate.get<SimulationRunDetail>(`/ai-email/simulation-runs/${id}`);
-            setSelectedRun(response.data);
+            setSelectedRun(await fetchSimulationRunDetail(id));
         } catch (error) {
             toast.error(extractApiErrorMessage(error, 'Не удалось загрузить запуск симуляции'));
         }
