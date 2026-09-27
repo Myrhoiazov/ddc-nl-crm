@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { SimulationProvider } from '../emailSimulationTypes';
+import { SimulationClassification, SimulationDraft, SimulationKnowledgeChunk, SimulationMetric, SimulationProvider } from '../emailSimulationTypes';
 import { SimulationRunDetail, SimulationRunSummary } from '../simulationHistoryTypes';
 import s from './KnowledgeBasePage.module.scss';
 
@@ -35,6 +35,68 @@ const HistoryPagination = ({ page, totalPages, total, loading, onPageChange }: {
     );
 };
 
+const ClassificationSection = ({ classification }: { classification: SimulationClassification }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.simulationBlock}>
+            <h3>{t('Классификация')}</h3>
+            <div className={s.simulationFields}>
+                <span>{t('spam:')} <strong>{String(classification.spam)}</strong></span>
+                <span>{t('needsReply:')} <strong>{String(classification.needsReply)}</strong></span>
+                <span>{t('intent:')} <strong>{classification.intent}</strong></span>
+                <span>{t('confidence:')} <strong>{classification.confidence.toFixed(2)}</strong></span>
+            </div>
+        </div>
+    );
+};
+
+const KnowledgeSection = ({ knowledge }: { knowledge: SimulationKnowledgeChunk[] }) => {
+    const { t } = useTranslation();
+    if (!knowledge.length) return null;
+    return (
+        <div className={s.simulationBlock}>
+            <h3>{t('Найденные знания')}</h3>
+            {knowledge.map((chunk) => (
+                <div key={chunk.id} className={s.knowledgeChunk}>
+                    <div className={s.knowledgeChunkHeader}>
+                        <span>{t('score=')}{chunk.score.toFixed(3)}</span>
+                        <span>{chunk.sourceUrl}</span>
+                    </div>
+                    <p>{chunk.content.slice(0, 240)}</p>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const DraftSection = ({ draft }: { draft: SimulationDraft }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.simulationBlock}>
+            <h3>{t('Черновик ответа')}</h3>
+            <p className={s.draftSubject}>{draft.subject}</p>
+            <p className={s.draftBody}>{draft.body}</p>
+        </div>
+    );
+};
+
+const MetricsSection = ({ metrics }: { metrics: SimulationMetric[] }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.simulationBlock}>
+            <h3>{t('Метрики')}</h3>
+            {metrics.map((metric) => (
+                <p key={metric.stage} className={s.simulationMetric}>
+                    {t('{{stage}} · {{provider}}/{{model}} · {{durationMs}}мс{{tokens}}', {
+                        stage: metric.stage, provider: metric.provider, model: metric.model, durationMs: metric.durationMs,
+                        tokens: metric.totalTokens !== undefined ? ` · ${metric.promptTokens ?? 0}→${metric.completionTokens ?? 0} токенов` : '',
+                    })}
+                </p>
+            ))}
+        </div>
+    );
+};
+
 const RunDetail = ({ detail, onClose }: { detail: SimulationRunDetail; onClose: () => void }) => {
     const { t } = useTranslation();
     return (
@@ -47,49 +109,67 @@ const RunDetail = ({ detail, onClose }: { detail: SimulationRunDetail; onClose: 
                 <p className={s.simulationReason}>{detail.fromAddress} — {detail.subject}</p>
                 <p className={s.draftBody}>{detail.body}</p>
             </div>
-            {detail.classification && (
-                <div className={s.simulationBlock}>
-                    <h3>{t('Классификация')}</h3>
-                    <div className={s.simulationFields}>
-                        <span>{t('spam:')} <strong>{String(detail.classification.spam)}</strong></span>
-                        <span>{t('needsReply:')} <strong>{String(detail.classification.needsReply)}</strong></span>
-                        <span>{t('intent:')} <strong>{detail.classification.intent}</strong></span>
-                        <span>{t('confidence:')} <strong>{detail.classification.confidence.toFixed(2)}</strong></span>
-                    </div>
-                </div>
-            )}
-            {!!detail.knowledge.length && (
-                <div className={s.simulationBlock}>
-                    <h3>{t('Найденные знания')}</h3>
-                    {detail.knowledge.map((chunk) => (
-                        <div key={chunk.id} className={s.knowledgeChunk}>
-                            <div className={s.knowledgeChunkHeader}>
-                                <span>{t('score=')}{chunk.score.toFixed(3)}</span>
-                                <span>{chunk.sourceUrl}</span>
-                            </div>
-                            <p>{chunk.content.slice(0, 240)}</p>
-                        </div>
-                    ))}
-                </div>
-            )}
-            {detail.draft && (
-                <div className={s.simulationBlock}>
-                    <h3>{t('Черновик ответа')}</h3>
-                    <p className={s.draftSubject}>{detail.draft.subject}</p>
-                    <p className={s.draftBody}>{detail.draft.body}</p>
-                </div>
-            )}
-            <div className={s.simulationBlock}>
-                <h3>{t('Метрики')}</h3>
-                {detail.metrics.map((metric) => (
-                    <p key={metric.stage} className={s.simulationMetric}>
-                        {t('{{stage}} · {{provider}}/{{model}} · {{durationMs}}мс{{tokens}}', {
-                            stage: metric.stage, provider: metric.provider, model: metric.model, durationMs: metric.durationMs,
-                            tokens: metric.totalTokens !== undefined ? ` · ${metric.promptTokens ?? 0}→${metric.completionTokens ?? 0} токенов` : '',
-                        })}
-                    </p>
-                ))}
-            </div>
+            {detail.classification && <ClassificationSection classification={detail.classification} />}
+            <KnowledgeSection knowledge={detail.knowledge} />
+            {detail.draft && <DraftSection draft={detail.draft} />}
+            <MetricsSection metrics={detail.metrics} />
+        </div>
+    );
+};
+
+const ProviderFilterSelect = ({ value, onChange }: {
+    value: '' | SimulationProvider; onChange: (value: '' | SimulationProvider) => void;
+}) => {
+    const { t } = useTranslation();
+    return (
+        <label className={s.historyFilter}>
+            {t('История симуляций — провайдер')}
+            <select className={s.historyFilterSelect} value={value} onChange={(e) => onChange(e.target.value as '' | SimulationProvider)}>
+                <option value="">{t('Все провайдеры')}</option>
+                <option value="OLLAMA">{t('Ollama (локально)')}</option>
+                <option value="OPENAI">{t('OpenAI (облако)')}</option>
+            </select>
+        </label>
+    );
+};
+
+const HistoryTableRow = ({ run, onOpen }: { run: SimulationRunSummary; onOpen: (id: number) => void }) => {
+    const { t } = useTranslation();
+    const { totalDurationMs, totalTokens } = summarizeMetrics(run.metrics);
+    return (
+        <tr onClick={() => onOpen(run.id)} className={s.clickableRow}>
+            <td>{new Date(run.createdAt).toLocaleString()}</td>
+            <td>{run.subject}</td>
+            <td><span>{run.classificationPromptName ?? t('(активный)')}</span> / <span>{run.draftBodyPromptName ?? t('(активный)')}</span></td>
+            <td>{run.draftProvider ? `${run.draftProvider}/${run.draftModel}` : '—'}</td>
+            <td>{totalTokens || '—'}</td>
+            <td>{totalDurationMs}{t('мс')}</td>
+            <td>{outcomeLabel(run, t)}</td>
+        </tr>
+    );
+};
+
+const HistoryTable = ({ runs, onOpen }: { runs: SimulationRunSummary[]; onOpen: (id: number) => void }) => {
+    const { t } = useTranslation();
+    return (
+        <div className={s.tableWrap}>
+            <table className={s.table}>
+                <thead>
+                    <tr>
+                        <th>{t('Дата')}</th>
+                        <th>{t('Тема')}</th>
+                        <th>{t('Промпты')}</th>
+                        <th>{t('Провайдер/модель')}</th>
+                        <th>{t('Токены')}</th>
+                        <th>{t('Время')}</th>
+                        <th>{t('Итог')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {runs.map((run) => <HistoryTableRow key={run.id} run={run} onOpen={onOpen} />)}
+                    {!runs.length && <tr><td colSpan={7} className={s.empty}>{t('Симуляции ещё не запускались')}</td></tr>}
+                </tbody>
+            </table>
         </div>
     );
 };
@@ -114,47 +194,9 @@ export const SimulationHistoryPanel = ({
         <section className={s.card}>
             <div className={s.header}>
                 <h2>{t('История симуляций')}</h2>
-                <label className={s.historyFilter}>
-                    {t('История симуляций — провайдер')}
-                    <select className={s.historyFilterSelect} value={providerFilter} onChange={(e) => setProviderFilter(e.target.value as '' | SimulationProvider)}>
-                        <option value="">{t('Все провайдеры')}</option>
-                        <option value="OLLAMA">{t('Ollama (локально)')}</option>
-                        <option value="OPENAI">{t('OpenAI (облако)')}</option>
-                    </select>
-                </label>
+                <ProviderFilterSelect value={providerFilter} onChange={setProviderFilter} />
             </div>
-            <div className={s.tableWrap}>
-                <table className={s.table}>
-                    <thead>
-                        <tr>
-                            <th>{t('Дата')}</th>
-                            <th>{t('Тема')}</th>
-                            <th>{t('Промпты')}</th>
-                            <th>{t('Провайдер/модель')}</th>
-                            <th>{t('Токены')}</th>
-                            <th>{t('Время')}</th>
-                            <th>{t('Итог')}</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {runs.map((run) => {
-                            const { totalDurationMs, totalTokens } = summarizeMetrics(run.metrics);
-                            return (
-                                <tr key={run.id} onClick={() => openRun(run.id)} className={s.clickableRow}>
-                                    <td>{new Date(run.createdAt).toLocaleString()}</td>
-                                    <td>{run.subject}</td>
-                                    <td><span>{run.classificationPromptName ?? t('(активный)')}</span> / <span>{run.draftBodyPromptName ?? t('(активный)')}</span></td>
-                                    <td>{run.draftProvider ? `${run.draftProvider}/${run.draftModel}` : '—'}</td>
-                                    <td>{totalTokens || '—'}</td>
-                                    <td>{totalDurationMs}{t('мс')}</td>
-                                    <td>{outcomeLabel(run, t)}</td>
-                                </tr>
-                            );
-                        })}
-                        {!runs.length && <tr><td colSpan={7} className={s.empty}>{t('Симуляции ещё не запускались')}</td></tr>}
-                    </tbody>
-                </table>
-            </div>
+            <HistoryTable runs={runs} onOpen={openRun} />
             <HistoryPagination page={page} totalPages={totalPages} total={total} loading={loading} onPageChange={setPage} />
             {selectedRun && <RunDetail detail={selectedRun} onClose={closeRun} />}
         </section>

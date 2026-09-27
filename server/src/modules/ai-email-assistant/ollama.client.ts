@@ -110,6 +110,44 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
         return this.prompts.getActiveContent(slot);
     }
 
+    // No `format: "json"` here (see tasks/plan.md Task 24): it was added to stop qwen3 wrapping
+    // output in markdown, and did for a while, but was later confirmed live to also make
+    // classification — not just drafting — reliably return an empty `{}` for this exact prompt,
+    // independent of prompt length or num_ctx. Plain generation plus schema validation + repair
+    // retry (in classifyEmail) was 100% reliable across repeated live tests and is what drafting
+    // already uses.
+    private async requestClassification(
+        instructions: string,
+        input: NormalizedEmailInput,
+        invalidOutput?: string,
+    ): Promise<{ raw: string; durationMs: number; promptTokens: number; completionTokens: number }> {
+        const start = Date.now();
+        const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                model: this.config.ollamaModel,
+                prompt: buildClassificationPrompt(instructions, input, invalidOutput),
+                stream: false,
+                keep_alive: this.config.keepAlive,
+                options: {
+                    num_ctx: this.config.contextLength,
+                    temperature: this.config.temperature,
+                },
+            }),
+        });
+        const durationMs = Date.now() - start;
+
+        if (!response.ok) {
+            throw new Error(`Ollama classification failed with HTTP ${response.status}`);
+        }
+
+        const parsedBody = await response.json();
+        const raw = ollamaResponseSchema(parsedBody);
+        const usage = extractOllamaTokenUsage(parsedBody);
+        return { raw, durationMs, promptTokens: usage.promptTokens ?? 0, completionTokens: usage.completionTokens ?? 0 };
+    }
+
     public async classifyEmail(input: NormalizedEmailInput): Promise<EmailClassification> {
         let invalidOutput: string | undefined;
         const instructions = await this.resolveInstructions('CLASSIFICATION', this.promptOverrides.classificationPromptId);
@@ -118,38 +156,10 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
         let totalCompletionTokens = 0;
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
-            const start = Date.now();
-            const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    model: this.config.ollamaModel,
-                    prompt: buildClassificationPrompt(instructions, input, invalidOutput),
-                    stream: false,
-                    // No `format: "json"` here (see tasks/plan.md Task 24): it was added to stop
-                    // qwen3 wrapping output in markdown, and did for a while, but was later
-                    // confirmed live to also make classification — not just drafting — reliably
-                    // return an empty `{}` for this exact prompt, independent of prompt length or
-                    // num_ctx. Plain generation plus schema validation + repair retry (below) was
-                    // 100% reliable across repeated live tests and is what drafting already uses.
-                    keep_alive: this.config.keepAlive,
-                    options: {
-                        num_ctx: this.config.contextLength,
-                        temperature: this.config.temperature,
-                    },
-                }),
-            });
-            totalDurationMs += Date.now() - start;
-
-            if (!response.ok) {
-                throw new Error(`Ollama classification failed with HTTP ${response.status}`);
-            }
-
-            const parsedBody = await response.json();
-            const raw = ollamaResponseSchema(parsedBody);
-            const usage = extractOllamaTokenUsage(parsedBody);
-            totalPromptTokens += usage.promptTokens ?? 0;
-            totalCompletionTokens += usage.completionTokens ?? 0;
+            const { raw, durationMs, promptTokens, completionTokens } = await this.requestClassification(instructions, input, invalidOutput);
+            totalDurationMs += durationMs;
+            totalPromptTokens += promptTokens;
+            totalCompletionTokens += completionTokens;
             try {
                 const classification = emailClassificationSchema.parse(JSON.parse(raw));
                 this.onMetric?.({

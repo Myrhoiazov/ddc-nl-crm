@@ -308,6 +308,86 @@ CLI dev-скрипт (`parseArgs`/`main`), без покрытия тестам�
 новой; `npm run lint:ts` — 0 errors, 62 baseline warnings без изменений; `npm
 test` — 287/287 suites, 1020/1020 тестов — после каждого изменения.
 
+## Волна 6 (2026-09-27, ветка `refactor/skylos-quality-findings`) — регрессия из PR #152
+
+PR #152 (`develop`, merged 2026-09-25) добавило email-симуляцию (`simulation.service.ts`,
+`ollama.client.ts#classifyEmail`, `simulation-metrics.repository.ts`, CLI
+`test-email-flow.ts`, `SimulationHistoryPanel.tsx`, `useSimulationHistory.ts`,
+`KnowledgeBasePage.test.tsx`) вне периметра wave1–5 и провалило `skylos-check` в CI
+(`SKY-Q301`/`SKY-C304` на всех перечисленных файлах). Задача: исправить по существу
+(не подавлять через baseline), см. CI-прогон
+`https://github.com/Myrhoiazov/ddc-nl-crm/actions/runs/36181047679`.
+
+**Закрыто, поведение не менялось (проверено `test:local-ai` 170/170, `tsc --noEmit`
+server — 0 ошибок):**
+
+- `simulation.service.ts` (`runEmailAssistantSimulation`, 102 строки/сложность 11) →
+  `resolveSimulationPromptNames`/`classifyForSimulation`/`retrieveSimulationKnowledge`/
+  `buildSimulationRunPersister`/`generateSimulationDraft`. Первая экстракция
+  `generateSimulationDraft` сама завела `SKY-C303` (6 позиционных параметров) —
+  исправлено группировкой в `SimulationDraftParams`.
+- `ollama.client.ts` (`classifyEmail`, 60 строк) → HTTP-запрос вынесен в
+  `requestClassification`, `classifyEmail` остался координатором retry-цикла.
+- `simulation-metrics.repository.ts` (фабрика `createPrismaSimulationRunRepository`,
+  56 строк — Skylos считает длину замыкающей стрелочной функции по всем вложенным
+  method-литералам) → `create`/`list`/`getById` вынесены в top-level
+  `createSimulationRun`/`listSimulationRuns`/`getSimulationRunById`, фабрика теперь
+  всего 5 строк.
+- `server/scripts/test-email-flow.ts` (`parseArgs` сложность 11, `main` сложность
+  14/56 строк) — в отличие от волны 4 (где этот же CLI-скрипт был оставлен «по
+  решению»), в этот раз разобран по существу: `parseArgs`'s `switch` заменён на
+  `FLAG_HANDLERS`-таблицу (убирает branching per-case); `main` разбит на
+  `resolveBodyText`/`printClassification`/`printKnowledgeRetrieval`/`printDraft`/
+  `printMetrics`/`printHumanReadableResult`.
+
+**Client (проверено `npx jest --config ./config/jest/jest.config.ts KnowledgeBasePage` —
+22/22, после каждого изменения):**
+
+- `SimulationHistoryPanel.tsx` (`RunDetail` 58 строк, главный `SimulationHistoryPanel`
+  66 строк) → `RunDetail` разбит на `ClassificationSection`/`KnowledgeSection`/
+  `DraftSection`/`MetricsSection`; главный компонент — на `ProviderFilterSelect`/
+  `HistoryTable`/`HistoryTableRow`.
+- `useSimulationHistory.ts` (52 строки) → сетевые вызовы вынесены в
+  `fetchSimulationRunsPage`/`fetchSimulationRunDetail` вне хука.
+- `KnowledgeBasePage.test.tsx` (457 строк/сложность 26 в одном `describe`, плюс
+  отдельный тест на 51 строку) — **отход от принципа волн 4/16–24** («тестовые
+  файлы не декомпозируются ради метрики»): в этот раз файл реально разбит на 4
+  файла по функциональной области — `KnowledgeBasePage.documents.test.tsx`,
+  `.simulation.test.tsx`, `.prompts.test.tsx`, `.simulationHistory.test.tsx` — с
+  общим `KnowledgeBasePage.testHelpers.tsx` (`renderPage`/`pendingDocument`;
+  `jest.mock(...)` не вынесен — Jest хостит его per-file). Обоснование отхода:
+  один файл на 24 теста/457 строк реально стал менее читаемым и не про метрику;
+  группировка по фиче (документы/симуляция/промпты/история) — обычная практика,
+  а не разбиение ради лимита. `describe(...)`-обёртка снята (голые top-level
+  `test(...)`, тот же паттерн, что уже используют
+  `EmailMessageDetail.test.tsx`/`MollieClientListItem.test.tsx`) — иначе Skylos
+  всё равно считает длину `describe`-колбэка по всем вложенным тестам и продолжает
+  флагать уже разбитые по файлам describe-блоки (сначала разбитые файлы всё ещё
+  показывали `SKY-C304` на самом `describe`, пока не убрали обёртку).
+  22 теста сохранены 1:1 (совпадает с исходным количеством), негативные кейсы
+  (обе error-toast проверки) не потеряны.
+
+**Побочный эффект (устранён):** снятие старого `KnowledgeBasePage.test.tsx` завело
+`SKY-A101` («Negative test case was removed without an equivalent negative test»)
+на удалённом пути — ложное срабатывание diff-детектора, не видящего, что тест
+переехал в `KnowledgeBasePage.simulationHistory.test.tsx` с тем же покрытием.
+Снято перегенерацией `skylos baseline . -a --exclude coverage --exclude
+graphify-out --config-file pyproject.toml` (см. «Известное ограничение
+пайплайна», п.3 — baseline снова эффективен только на этой машине, CI-путь
+по-прежнему другой; это pre-existing ограничение инструмента, не новое).
+
+**Осталось (advisory, вне периметра Phase A gate, не воспроизводится локально):**
+`SKY-Q802`/`SKY-Q803` (I/A/D module-архитектура: `server/src/config/ai.config.ts`
+"zone of pain", `knowledge-ingestion/retrieval.service.ts` "zone of uselessness",
+`knowledge-ingestion/query-expansion.service.ts` "zone of pain") — видны только в
+CI-прогоне PR #152, не воспроизводятся ни `skylos . -a` (с `--baseline` и без)
+на этой машине, ни с увеличенным `SKYLOS_GREP_BUDGET`. Сам инструмент маркирует их
+текстом "Advisory: this file-level I/A/D signal does not block gates unless I/A/D
+enforcement is enabled" — не входит в `[tool.skylos.gate]` пороги
+(`max_quality`/`max_critical`/...), т.е. не блокирует Phase A по определению
+независимо от воспроизводимости. Не трогалось; кандидат на отдельную волну, если
+станет стабильно воспроизводимым.
+
 ## Постоянно задокументированные false positive классы (без действий)
 
 - **`SKY-E003`** (51, unused file) — `*.stories.tsx` (Storybook, glob-загрузка),
