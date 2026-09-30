@@ -56,7 +56,6 @@ export interface GroupStudent {
     lastName?: string | null;
     email?: string | null;
     phoneNumber?: string | null;
-    expiresAt?: string | null;
     isActive: boolean;
 }
 

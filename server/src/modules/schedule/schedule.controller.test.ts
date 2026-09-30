@@ -4,15 +4,17 @@ import { fromPartial } from '@total-typescript/shoehorn';
 import {
     buildBranchStats,
     buildGroupStats,
-    isStudentActive,
+    resolveSubscriptionState,
     studentSummary,
 } from './schedule.controller';
 
 type ManagementBranches = Parameters<typeof buildBranchStats>[0];
 type Student = Parameters<typeof studentSummary>[0];
+type BillingCustomer = Parameters<typeof resolveSubscriptionState>[0][number];
 
-const future = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-const past = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+const activeSubscriptionCustomer: BillingCustomer = { subscriptions: [{ status: 'active' }], mandates: [{ id: 1 }] };
+const stoppedSubscriptionCustomer: BillingCustomer = { subscriptions: [{ status: 'canceled' }], mandates: [{ id: 2 }] };
+const noMollieCustomer: BillingCustomer = { subscriptions: [], mandates: [] };
 
 const activeStudent: Student = {
     id: 1,
@@ -20,7 +22,8 @@ const activeStudent: Student = {
     lastName: 'Lovelace',
     email: 'ada@example.com',
     phoneNumber: null,
-    expiresAt: future,
+    mollieCustomers: [activeSubscriptionCustomer],
+    mollieLinks: [],
 };
 
 const inactiveStudent: Student = {
@@ -29,26 +32,41 @@ const inactiveStudent: Student = {
     lastName: 'Hopper',
     email: 'grace@example.com',
     phoneNumber: null,
-    expiresAt: past,
+    mollieCustomers: [],
+    mollieLinks: [{ customer: stoppedSubscriptionCustomer }],
 };
 
-test('isStudentActive is true when expiresAt is null', () => {
-    assert.equal(isStudentActive(null), true);
+const unbilledStudent: Student = {
+    id: 3,
+    firstName: 'Alan',
+    lastName: 'Turing',
+    email: 'alan@example.com',
+    phoneNumber: null,
+    mollieCustomers: [],
+    mollieLinks: [],
+};
+
+test('resolveSubscriptionState is active when any linked customer has an active subscription', () => {
+    assert.equal(resolveSubscriptionState([stoppedSubscriptionCustomer, activeSubscriptionCustomer]), 'active');
 });
 
-test('isStudentActive is true when expiresAt is in the future', () => {
-    assert.equal(isStudentActive(future), true);
+test('resolveSubscriptionState is inactive when there is a mandate but no active subscription', () => {
+    assert.equal(resolveSubscriptionState([stoppedSubscriptionCustomer]), 'inactive');
+    assert.equal(resolveSubscriptionState([{ subscriptions: [], mandates: [{ id: 3 }] }]), 'inactive');
 });
 
-test('isStudentActive is false when expiresAt is in the past', () => {
-    assert.equal(isStudentActive(past), false);
+test('resolveSubscriptionState is none without mandate and active subscription', () => {
+    assert.equal(resolveSubscriptionState([]), 'none');
+    assert.equal(resolveSubscriptionState([noMollieCustomer]), 'none');
 });
 
-test('studentSummary adds an isActive flag while preserving the student fields', () => {
-    const result = studentSummary(activeStudent);
-    assert.equal(result.isActive, true);
-    assert.equal(result.id, 1);
-    assert.equal(result.firstName, 'Ada');
+test('studentSummary merges direct and linked customers and hides Mollie data', () => {
+    const result = studentSummary(inactiveStudent);
+    assert.equal(result.subscriptionState, 'inactive');
+    assert.equal(result.isActive, false);
+    assert.equal(result.firstName, 'Grace');
+    assert.equal('mollieLinks' in result, false);
+    assert.equal('mollieCustomers' in result, false);
 });
 
 const branches: ManagementBranches = fromPartial([
@@ -58,7 +76,7 @@ const branches: ManagementBranches = fromPartial([
         city: 'Amsterdam',
         address: 'Main St 1',
         isActive: true,
-        clients: [activeStudent, inactiveStudent],
+        clients: [activeStudent, inactiveStudent, unbilledStudent],
         groups: [
             {
                 id: 100,
@@ -80,8 +98,10 @@ test('buildBranchStats counts active/inactive students, capacity, and unassigned
     assert.equal(stats.capacity, 12);
     assert.equal(stats.activeCount, 1);
     assert.equal(stats.inactiveCount, 1);
-    // inactiveStudent (id 2) has no group membership -> unassigned
-    assert.equal(stats.unassignedCount, 1);
+    assert.deepEqual(stats.activeStudents.map((student) => student.id), [1]);
+    assert.deepEqual(stats.inactiveStudents.map((student) => student.id), [2]);
+    // students 2 and 3 have no group membership -> unassigned
+    assert.equal(stats.unassignedCount, 2);
 });
 
 test('buildBranchStats sums capacity across multiple groups and reports zero unassigned when everyone is in a group', () => {
@@ -119,6 +139,7 @@ test('buildGroupStats reports per-group active/inactive/total counts', () => {
                     clientMemberships: [
                         { clientId: 1, client: activeStudent },
                         { clientId: 2, client: inactiveStudent },
+                        { clientId: 3, client: unbilledStudent },
                     ],
                 },
             ],
@@ -132,4 +153,5 @@ test('buildGroupStats reports per-group active/inactive/total counts', () => {
     assert.equal(group.activeCount, 1);
     assert.equal(group.inactiveCount, 1);
     assert.equal(group.totalCount, 2);
+    assert.deepEqual(group.inactiveStudents.map((student) => student.id), [2]);
 });

@@ -155,28 +155,64 @@ const groupListInclude = {
     slots: { orderBy: { dayOfWeek: 'asc' as const } },
 };
 
+// Student activity comes from Mollie billing: active = an active subscription, inactive = a
+// mandate exists but no subscription is active (stopped). Customers are linked to a client both
+// directly (Customer.clientId) and via CustomerClientLink, same as the payments matrix.
+const billingCustomerSelect = {
+    select: {
+        subscriptions: { select: { status: true } },
+        mandates: { select: { id: true } },
+    },
+};
+
 const studentSelect = {
     id: true,
     firstName: true,
     lastName: true,
     email: true,
     phoneNumber: true,
-    expiresAt: true,
+    mollieCustomers: billingCustomerSelect,
+    mollieLinks: { select: { customer: billingCustomerSelect } },
 };
 
-export const isStudentActive = (expiresAt: Date | null) => !expiresAt || expiresAt >= new Date();
+interface BillingCustomer {
+    subscriptions: { status: string }[];
+    mandates: { id: number }[];
+}
 
-export const studentSummary = (student: {
+interface StudentRow {
     id: number;
     firstName: string | null;
     lastName: string | null;
     email: string | null;
     phoneNumber: string | null;
-    expiresAt: Date | null;
-}) => ({
-    ...student,
-    isActive: isStudentActive(student.expiresAt),
-});
+    mollieCustomers: BillingCustomer[];
+    mollieLinks: { customer: BillingCustomer }[];
+}
+
+export type SubscriptionState = 'active' | 'inactive' | 'none';
+
+export const resolveSubscriptionState = (customers: BillingCustomer[]): SubscriptionState => {
+    if (customers.some((customer) => customer.subscriptions.some((sub) => sub.status === 'active'))) return 'active';
+    if (customers.some((customer) => customer.mandates.length > 0)) return 'inactive';
+    return 'none';
+};
+
+export const studentSummary = ({ mollieCustomers, mollieLinks, ...student }: StudentRow) => {
+    const subscriptionState = resolveSubscriptionState([
+        ...mollieCustomers,
+        ...mollieLinks.map((link) => link.customer),
+    ]);
+    return { ...student, subscriptionState, isActive: subscriptionState === 'active' };
+};
+
+const splitStudentsBySubscription = (rows: StudentRow[]) => {
+    const students = rows.map(studentSummary);
+    return {
+        activeStudents: students.filter((student) => student.subscriptionState === 'active'),
+        inactiveStudents: students.filter((student) => student.subscriptionState === 'inactive'),
+    };
+};
 
 const loadManagementBranches = () => prisma.branch.findMany({
     include: {
@@ -198,9 +234,7 @@ const loadManagementBranches = () => prisma.branch.findMany({
 });
 
 export const buildBranchStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.map((branch) => {
-    const students = branch.clients.map(studentSummary);
-    const activeStudents = students.filter((student) => student.isActive);
-    const inactiveStudents = students.filter((student) => !student.isActive);
+    const { activeStudents, inactiveStudents } = splitStudentsBySubscription(branch.clients);
     const assignedStudentIds = new Set(
         branch.groups.flatMap((group) => group.clientMemberships.map((membership) => membership.clientId)),
     );
@@ -215,16 +249,16 @@ export const buildBranchStats = (branches: Awaited<ReturnType<typeof loadManagem
         capacity: branch.groups.reduce((sum, group) => sum + group.maxParticipants, 0),
         activeCount: activeStudents.length,
         inactiveCount: inactiveStudents.length,
-        unassignedCount: students.filter((student) => !assignedStudentIds.has(student.id)).length,
+        unassignedCount: branch.clients.filter((student) => !assignedStudentIds.has(student.id)).length,
         activeStudents,
         inactiveStudents,
     };
 });
 
 export const buildGroupStats = (branches: Awaited<ReturnType<typeof loadManagementBranches>>) => branches.flatMap((branch) => branch.groups.map((group) => {
-    const students = group.clientMemberships.map((membership) => studentSummary(membership.client));
-    const activeStudents = students.filter((student) => student.isActive);
-    const inactiveStudents = students.filter((student) => !student.isActive);
+    const { activeStudents, inactiveStudents } = splitStudentsBySubscription(
+        group.clientMemberships.map((membership) => membership.client),
+    );
 
     return {
         id: group.id,
@@ -232,7 +266,7 @@ export const buildGroupStats = (branches: Awaited<ReturnType<typeof loadManageme
         branchId: branch.id,
         activeCount: activeStudents.length,
         inactiveCount: inactiveStudents.length,
-        totalCount: students.length,
+        totalCount: activeStudents.length + inactiveStudents.length,
         activeStudents,
         inactiveStudents,
     };
@@ -245,17 +279,12 @@ export const getGroupManagementStats = async (_req: Request, res: Response) => {
 
     const groupStats = buildGroupStats(branches);
 
-    const allStudents = branchStats.flatMap((branch) => [
-        ...branch.activeStudents,
-        ...branch.inactiveStudents,
-    ]);
-
     return res.json({
         totals: {
             branchCount: branchStats.length,
             groupCount: groupStats.length,
-            activeCount: allStudents.filter((student) => student.isActive).length,
-            inactiveCount: allStudents.filter((student) => !student.isActive).length,
+            activeCount: branchStats.reduce((sum, branch) => sum + branch.activeCount, 0),
+            inactiveCount: branchStats.reduce((sum, branch) => sum + branch.inactiveCount, 0),
             capacity: branchStats.reduce((sum, branch) => sum + branch.capacity, 0),
         },
         branches: branchStats,
