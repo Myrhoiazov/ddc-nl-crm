@@ -27,4 +27,4 @@ Amsterdam schedule also lists an 18+ Jazz Funk group.
 
 ## Source
 
-https://talentcenterddc.nl/en/styles/jazz-funk-4/
+https://talentcenterddc.nl/en/styles/jazz-funk/

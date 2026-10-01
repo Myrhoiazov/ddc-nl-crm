@@ -35,4 +35,4 @@ several locations.
 
 ## Source
 
-https://talentcenterddc.nl/en/styles/high-heels-4/
+https://talentcenterddc.nl/en/styles/high-heels/

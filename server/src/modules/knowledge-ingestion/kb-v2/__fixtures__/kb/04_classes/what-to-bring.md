@@ -11,4 +11,4 @@ recommended; beginners should prioritize safety and comfort.
 ## Sources
 
 https://talentcenterddc.nl/en/faq/
-https://talentcenterddc.nl/en/styles/high-heels-4/
+https://talentcenterddc.nl/en/styles/high-heels/
