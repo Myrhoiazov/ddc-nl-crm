@@ -105,7 +105,7 @@ const ruleTopicBonus = (topic: string | undefined, topics: string[]): number => 
 };
 
 const selectRules = (chunks: SemanticChunk[], plan: RetrievalPlan): RetrievedChunk[] => takeTop(chunks
-    .filter((chunk) => chunk.metadata.priority === 'rules' && chunk.metadata.category === 'rule' && plan.rules.topics.includes(chunk.metadata.topic ?? 'general'))
+    .filter((chunk) => chunk.metadata.priority === 'rules' && chunk.metadata.category === 'rule' && plan.rules.topics.includes(chunk.metadata.topic ?? 'general') && !plan.rules.excludedSections.includes(chunk.metadata.section))
     .map((chunk) => toRetrieved(chunk, chunk.semanticScore
         + ruleTopicBonus(chunk.metadata.topic, plan.rules.topics)
         + (plan.rules.preferredSections.includes(chunk.metadata.section) ? BONUS.preferredSection : 0))), plan.limits.rules);

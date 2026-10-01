@@ -22,7 +22,7 @@ export interface RetrievalLimits {
 export interface RetrievalPlan {
     // preferredSections: rule sections that must win ties (e.g. "availability" when the customer
     // asks whether a place is free).
-    rules: { topics: string[]; preferredSections: string[] };
+    rules: { topics: string[]; preferredSections: string[]; excludedSections: string[] };
     facts: FactTarget[];
     faq: { topics: string[]; city?: string };
     examples: { topics: string[]; subtopic: string | null; language: RagLanguage };
@@ -99,6 +99,17 @@ const EXAMPLE_TOPICS: Partial<Record<IntentV2, string>> = {
     trial: 'trial', beginner: 'trial', payment: 'payment', complaint: 'complaint',
 };
 
+// schedule-rules.md has one section per "what do we know" situation; only the one matching the
+// extracted entities is relevant ("age known, city unknown → ask the city" would mislead the model
+// when the customer already named Rotterdam).
+const SITUATION_SECTIONS = ['city_age_known', 'city_known_age_unknown', 'age_known_city_unknown'];
+
+const situationSection = (entities: QueryEntities): string | undefined => {
+    if (entities.city && entities.age !== null) return 'city_age_known';
+    if (entities.city) return 'city_known_age_unknown';
+    return entities.age !== null ? 'age_known_city_unknown' : undefined;
+};
+
 const unique = (values: Array<string | undefined>): string[] => Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 
 const collect = <T>(intents: IntentV2[], table: Partial<Record<IntentV2, T[]>>): T[] => intents.flatMap((intent) => table[intent] ?? []);
@@ -120,7 +131,8 @@ export const buildRetrievalPlan = (understanding: QueryUnderstanding, limits: Re
     return {
         rules: {
             topics: unique(['general', ...collect(intents, RULE_TOPICS), understanding.asksAvailability ? 'schedule' : undefined]),
-            preferredSections: unique([understanding.needsCurrentFacts ? 'never_invent' : undefined, understanding.asksAvailability ? 'availability' : undefined]),
+            preferredSections: unique([understanding.needsCurrentFacts ? 'never_invent' : undefined, understanding.asksAvailability ? 'availability' : undefined, situationSection(understanding.entities)]),
+            excludedSections: SITUATION_SECTIONS.filter((section) => section !== situationSection(understanding.entities)),
         },
         facts,
         faq: { topics: unique([...collect(intents, FAQ_TOPICS), AUDIENCE_FAQ[understanding.subintent ?? '']]), ...(understanding.entities.city ? { city: understanding.entities.city } : {}) },

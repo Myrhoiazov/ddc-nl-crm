@@ -79,3 +79,10 @@ test('near-duplicate detection compares fact lines, ignoring the heading line', 
     assert.equal(isNearDuplicate(`Rotterdam — Schedule\nMonday:\n${lines}`, `Current Public Schedule — Rotterdam\nMonday:\n${lines}`), true);
     assert.equal(isNearDuplicate(`A\n${lines}`, 'B\n- 18:00–19:00 — Kids group — 7–11'), false);
 });
+
+test('only the schedule-rule section matching the known entities reaches the context', async () => {
+    const { knowledge } = await retrieve('Мне 13 лет, хочу танцевать в Роттердаме', 'ru', 'registration');
+    const sections = knowledge.rules.map((chunk) => chunk.metadata.section);
+    assert.ok(sections.includes('city_age_known'), sections.join(','));
+    assert.ok(!sections.includes('age_known_city_unknown') && !sections.includes('city_known_age_unknown'));
+});
