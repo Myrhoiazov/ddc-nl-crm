@@ -23,6 +23,7 @@ The server reads these variables from its runtime environment:
 | `OPENAI_BASE_URL` | unset | Optional OpenAI-compatible API base URL |
 | `OPENAI_DEFAULT_MODEL` | `gpt-4o-mini` | Default OpenAI draft model |
 | `OPENAI_ALLOWED_MODELS` | empty | Optional comma-separated allow-list for admin-selected OpenAI models |
+| `OPENAI_CONTEXT_LENGTH` | `16000` | Prompt budget in tokens for RAG v2 drafts written by OpenAI; independent of `LLM_CONTEXT_LENGTH` |
 | `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Local multilingual embedding model |
 | `LLM_CONTEXT_LENGTH` | `2048` | Maximum inference context |
 | `LLM_TEMPERATURE` | `0.2` | Sampling temperature, from 0 to 2 |
