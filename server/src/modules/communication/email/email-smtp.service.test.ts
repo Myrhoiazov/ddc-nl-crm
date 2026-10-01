@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildReplySubject, stripHtmlToText } from './email-smtp.service';
+import { buildReplySubject, resolveReplyRecipient, stripHtmlToText } from './email-smtp.service';
 
 test('buildReplySubject adds a "Re:" prefix when none exists', () => {
     assert.equal(buildReplySubject('Booking question'), 'Re: Booking question');
@@ -36,4 +36,12 @@ test('stripHtmlToText collapses excess blank lines', () => {
         stripHtmlToText('<p>One</p><p></p><p></p><p>Two</p>'),
         'One\n\nTwo',
     );
+});
+
+test('resolveReplyRecipient answers the Reply-To address, not the form sender', () => {
+    assert.equal(resolveReplyRecipient({ fromAddress: 'wordpress@talentcenterddc.nl', replyToAddress: 'parent@example.com' }), 'parent@example.com');
+});
+
+test('resolveReplyRecipient answers From when there is no Reply-To', () => {
+    assert.equal(resolveReplyRecipient({ fromAddress: 'parent@example.com', replyToAddress: null }), 'parent@example.com');
 });

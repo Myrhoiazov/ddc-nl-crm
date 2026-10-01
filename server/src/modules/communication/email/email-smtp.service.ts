@@ -139,6 +139,11 @@ export const buildReplySubject = (originalSubject?: string | null): string => {
     return `Re: ${originalSubject ?? ''}`.trim();
 };
 
+// Standard mail-client behaviour: answer Reply-To when the sender set one, otherwise From.
+export const resolveReplyRecipient = (original: { fromAddress: string; replyToAddress: string | null }): string => (
+    original.replyToAddress ?? original.fromAddress
+);
+
 export const replyToMessage = async (
     originalMessageDbId: number,
     html: string,
@@ -155,7 +160,7 @@ export const replyToMessage = async (
     // A reply always goes out through the same mailbox that received the original
     // message, not an arbitrary one the caller might pick.
     return sendEmail(original.mailboxId, {
-        to: [original.fromAddress],
+        to: [resolveReplyRecipient(original)],
         subject,
         html,
         inReplyToMessageId: original.messageId,

@@ -38,10 +38,14 @@ webhook endpoint and an internal Telegram notification utility.
 - **Purpose**: one email, inbound or outbound.
 - **Identity**: `id`; unique on `(mailboxId, imapUid)`.
 - **Important fields**: `isOutgoing`, `isRead` (outgoing mail is always written as read),
-  `fromAddress`, `clientId` (optional), `messageId`/`inReplyToMessageId` (stored from the IMAP
-  envelope, but not used to group/display threads in the reviewed code).
+  `fromAddress`, `replyToAddress` (the Reply-To header when it differs from From — a website
+  contact form sends as the site and names the visitor there), `clientId` (optional),
+  `messageId`/`inReplyToMessageId` (stored from the IMAP envelope, but not used to group/display
+  threads in the reviewed code).
+- **Contact address**: `replyToAddress ?? fromAddress`. Replies, the CRM client match and the AI
+  assistant's sender all use it.
 - **Relationships**: `EmailAccount` (mailbox), optional `Client` — associated by **exact email
-  address match** only (`Client.email === fromAddress`), nothing fuzzier.
+  address match** only (`Client.email === contact address`), nothing fuzzier.
 - **Invariants**: deletion is a two-step process, not a plain cascade — attachment files are
   removed from disk explicitly before the DB row delete (which then cascades `EmailAttachment`
   rows). Delete/spam actions first attempt to move the message on the IMAP server, unless it's an

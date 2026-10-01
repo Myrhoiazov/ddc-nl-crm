@@ -97,7 +97,7 @@
 
 ### EmailMessage (таблица `email_messages`)
 Сообщение из почтового ящика, опционально привязано к ученику.
-- Поля: id Int @id autoincrement; mailboxId Int; imapUid Int?; messageId String?; inReplyToMessageId String?; isOutgoing Boolean @default(false); fromAddress String; fromName String?; toAddresses Json; ccAddresses Json?; subject String?; bodyText String? @db.Text; bodyHtml String? @db.Text; receivedAt DateTime; isRead Boolean @default(false); clientId Int?; createdAt DateTime @default(now())
+- Поля: id Int @id autoincrement; mailboxId Int; imapUid Int?; messageId String?; inReplyToMessageId String?; isOutgoing Boolean @default(false); fromAddress String; fromName String?; replyToAddress String? (заголовок Reply-To, если он отличается от From); toAddresses Json; ccAddresses Json?; subject String?; bodyText String? @db.Text; bodyHtml String? @db.Text; receivedAt DateTime; isRead Boolean @default(false); clientId Int?; createdAt DateTime @default(now())
 - Связи: mailbox -> EmailAccount (Cascade); client -> Client? (SetNull); attachments EmailAttachment[]
 - Unique: [mailboxId, imapUid]; индексы: clientId, fromAddress
 

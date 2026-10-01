@@ -92,3 +92,13 @@ test('EmailMessageDetail renders attachment links with formatted size', () => {
     expect(screen.getByText('doc.pdf')).toBeInTheDocument();
     expect(screen.getByText('2.0 КБ')).toBeInTheDocument();
 });
+
+test('EmailMessageDetail addresses the reply to the Reply-To of a contact-form email', () => {
+    render(<EmailMessageDetail message={makeMessage({ fromAddress: 'wordpress@site.example', replyToAddress: 'parent@example.com' })} onReply={jest.fn()} onDelete={jest.fn()} onMarkAsSpam={jest.fn()} />);
+    expect(screen.getByText('Кому: parent@example.com')).toBeInTheDocument();
+});
+
+test('EmailMessageDetail addresses the reply to From when there is no Reply-To', () => {
+    render(<EmailMessageDetail message={makeMessage({ replyToAddress: null })} onReply={jest.fn()} onDelete={jest.fn()} onMarkAsSpam={jest.fn()} />);
+    expect(screen.getByText('Кому: from@example.com')).toBeInTheDocument();
+});
