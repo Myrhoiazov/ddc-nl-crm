@@ -75,6 +75,12 @@ services:
       RAG_RERANK_MODEL: ${RAG_RERANK_MODEL:-qwen3-reranker:0.6b}
       RAG_CHUNK_SIZE: ${RAG_CHUNK_SIZE:-700}
       RAG_CHUNK_OVERLAP: ${RAG_CHUNK_OVERLAP:-100}
+      RAG_VERSION: ${RAG_VERSION:-v1}
+      RAG_KNOWLEDGE_PATH: ${RAG_KNOWLEDGE_PATH:-knowledge/ddc-knowledge-v2}
+      RAG_RULE_LIMIT: ${RAG_RULE_LIMIT:-3}
+      RAG_FACT_LIMIT: ${RAG_FACT_LIMIT:-4}
+      RAG_FAQ_LIMIT: ${RAG_FAQ_LIMIT:-2}
+      RAG_EXAMPLE_LIMIT: ${RAG_EXAMPLE_LIMIT:-2}
       KNOWLEDGE_BASE_URL: ${KNOWLEDGE_BASE_URL:-}
       KNOWLEDGE_ALLOWED_DOMAINS: ${KNOWLEDGE_ALLOWED_DOMAINS:-}
       KNOWLEDGE_CANONICAL_LANGUAGE: ${KNOWLEDGE_CANONICAL_LANGUAGE:-nl}
@@ -89,6 +95,9 @@ services:
     volumes:
       - uploads_data:/app/public/upload
       - private_uploads_data:/app/private-uploads
+      # KB v2 sources: rsynced to the host by the deploy script, read by the index CLI
+      # (node build/scripts/knowledge-v2.js). Read-only — the app never writes here.
+      - ./server/knowledge:/app/knowledge:ro
     ports:
       - "${BACKEND_PORT_PROD:?BACKEND_PORT_PROD не задан — см. .env.example}:8080"
     depends_on:

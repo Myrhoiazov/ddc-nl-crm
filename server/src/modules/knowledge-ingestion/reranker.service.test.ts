@@ -17,6 +17,12 @@ const config = {
     ragRerankModel: 'test-reranker',
     ragChunkSize: 700,
     ragChunkOverlap: 100,
+    ragVersion: 'v1' as const,
+    ragKnowledgePath: 'knowledge/ddc-knowledge-v2',
+    ragRuleLimit: 3,
+    ragFactLimit: 4,
+    ragFaqLimit: 2,
+    ragExampleLimit: 2,
 };
 
 const candidates: ScoredKnowledgeChunk[] = [

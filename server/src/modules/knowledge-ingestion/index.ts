@@ -47,3 +47,4 @@ export {
     type QueryExpansionClient,
 } from './query-expansion.service';
 export { OllamaReranker, type KnowledgeReranker } from './reranker.service';
+export * from './kb-v2';

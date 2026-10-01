@@ -12,7 +12,7 @@ import { AiDraftProvider, AiSimulationStage } from '@prisma/client';
 import { deterministicSpamReason, normalizeEmail, type EmailClassification, type NormalizedEmailInput } from './email-assistant.service';
 import { OllamaLlmClient } from './ollama.client';
 import { createPrismaCrmReader } from './crm-context.service';
-import { buildDraftContext, emailDraftSchema, generateEmailDraft, type CrmContactProjection, type DraftKnowledgeContext, type EmailDraft } from './draft.service';
+import { buildDraftContext, emailDraftSchema, generateEmailDraft, type CrmContactProjection, type DraftKnowledgeContext, type DraftLlmClient, type EmailDraft } from './draft.service';
 import {
     KnowledgeRetrievalService, MysqlKnowledgeRepository, OllamaEmbeddingClient,
     OllamaQueryExpansionClient, OllamaReranker, type QueryExpansion,
@@ -21,6 +21,8 @@ import { aiConfig } from '../../config/ai.config';
 import { createDraftProviderFactory } from './draft-provider.factory';
 import type { DraftProviderName } from './draft-provider';
 import { PrismaAiPromptRepository } from './prompt-library.service';
+import { allChunks, generateRagV2Draft, toDraftKnowledge, type RagTrace } from './rag-v2/rag-v2-draft.service';
+import { createRagV2Deps } from './rag-v2/rag-v2.factory';
 import {
     buildSimulationRunMetricRow, createPrismaSimulationRunRepository,
     type SimulationRunInput, type SimulationRunMetricInput, type SimulationRunRepository,
@@ -56,6 +58,8 @@ export interface EmailSimulationResult {
     draftSkippedReason: string | null;
     runId: number | null;
     metrics: SimulationRunMetricInput[];
+    // RAG_VERSION=v2 only: intent/plan/used knowledge/warnings/confidence for the run.
+    ragTrace?: RagTrace;
 }
 
 const DEFAULT_FROM = 'test@example.com';
@@ -105,6 +109,146 @@ export const buildSimulationRunInput = (
     metrics: context.metrics,
 });
 
+// Resolves the human-readable names of any pinned classification/draft prompts, so the persisted
+// run row is self-describing even after the prompt is later renamed or deactivated.
+const resolveSimulationPromptNames = async (input: EmailSimulationInput) => {
+    const promptRepository = new PrismaAiPromptRepository();
+    return {
+        classificationPromptName: input.classificationPromptId ? await promptRepository.getNameById(input.classificationPromptId) : null,
+        draftBodyPromptName: input.draftBodyPromptId ? await promptRepository.getNameById(input.draftBodyPromptId) : null,
+    };
+};
+
+const classifyForSimulation = (
+    normalized: NormalizedEmailInput,
+    spamReason: string | null,
+    input: EmailSimulationInput,
+    metrics: SimulationRunMetricInput[],
+): Promise<EmailClassification | null> => {
+    if (spamReason) return Promise.resolve(null);
+    const classificationModel = aiConfig.ollamaModel;
+    const classificationClient = new OllamaLlmClient({
+        promptOverrides: { classificationPromptId: input.classificationPromptId, draftBodyPromptId: input.draftBodyPromptId },
+        onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.CLASSIFICATION, AiDraftProvider.OLLAMA, classificationModel, metric)),
+    });
+    return classificationClient.classifyEmail(normalized);
+};
+
+interface SimulationKnowledgeResult {
+    knowledge: DraftKnowledgeContext[];
+    queryExpansion: QueryExpansion | null;
+}
+
+const retrieveSimulationKnowledge = async (
+    normalized: NormalizedEmailInput,
+    input: EmailSimulationInput,
+    metrics: SimulationRunMetricInput[],
+): Promise<SimulationKnowledgeResult> => {
+    if (input.noKnowledge) return { knowledge: [], queryExpansion: null };
+    const embeddings = new OllamaEmbeddingClient();
+    const retrieval = new KnowledgeRetrievalService(embeddings, new MysqlKnowledgeRepository(), {
+        queryExpansion: input.noQueryExpansion ? undefined : new OllamaQueryExpansionClient({
+            onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.QUERY_EXPANSION, AiDraftProvider.OLLAMA, aiConfig.ollamaModel, metric)),
+        }),
+        reranker: input.noRerank ? undefined : new OllamaReranker(embeddings, {
+            onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.RERANK, AiDraftProvider.OLLAMA, metric.model, metric)),
+        }),
+        onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.RETRIEVAL_EMBEDDING, AiDraftProvider.OLLAMA, aiConfig.ollamaEmbeddingModel, metric)),
+    });
+    const retrieved = await retrieval.retrieveWithDetails(`${normalized.subject}\n${normalized.normalizedBody}`, { topK: input.topK ?? aiConfig.ragTopK });
+    return { knowledge: retrieved.chunks, queryExpansion: retrieved.queryExpansion };
+};
+
+interface SimulationRunPersisterDeps {
+    runRepository: SimulationRunRepository;
+    input: EmailSimulationInput;
+    spamReason: string | null;
+    classification: EmailClassification | null;
+    classificationPromptName: string | null;
+    draftBodyPromptName: string | null;
+    knowledge: DraftKnowledgeContext[];
+    metrics: SimulationRunMetricInput[];
+    createdById?: number;
+}
+
+// Never throws out of runEmailAssistantSimulation — a DB hiccup must never turn a working
+// simulation preview into a 500 for the admin. Logged, not surfaced.
+const buildSimulationRunPersister = (deps: SimulationRunPersisterDeps) => async (extra: {
+    draftSkippedReason: string | null;
+    draftProvider?: DraftProviderName; draftModel?: string;
+    draftJson?: unknown;
+    knowledge?: DraftKnowledgeContext[];
+}): Promise<number | null> => {
+    try {
+        const record = buildSimulationRunInput(deps.input, {
+            deterministicSpamReason: deps.spamReason,
+            classification: deps.classification,
+            draftSkippedReason: extra.draftSkippedReason,
+            classificationPromptName: deps.classificationPromptName,
+            draftBodyPromptName: deps.draftBodyPromptName,
+            draftProvider: extra.draftProvider ?? null,
+            draftModel: extra.draftModel ?? null,
+            classificationJson: deps.classification,
+            knowledgeJson: extra.knowledge ?? deps.knowledge,
+            draftJson: extra.draftJson,
+            metrics: deps.metrics,
+            createdById: deps.createdById,
+        });
+        return await deps.runRepository.create(record);
+    } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Failed to persist simulation run history', error);
+        return null;
+    }
+};
+
+interface SimulationDraftResult {
+    draft: EmailDraft;
+    provider: DraftProviderName;
+    model: string;
+    crmContact: CrmContactProjection | null;
+    ragV2?: { trace: RagTrace; knowledge: DraftKnowledgeContext[] };
+}
+
+interface SimulationDraftParams {
+    input: EmailSimulationInput;
+    normalized: NormalizedEmailInput;
+    classification: EmailClassification;
+    knowledge: DraftKnowledgeContext[];
+    from: string;
+    metrics: SimulationRunMetricInput[];
+    useRagV2: boolean;
+}
+
+// Same orchestration as the production v2 draft cron (layered retrieval + grounding validation
+// + at most one regeneration), so the panel shows exactly what RAG_VERSION=v2 would send.
+const generateRagV2SimulationDraft = async (params: SimulationDraftParams, draftClient: DraftLlmClient, crmContact: CrmContactProjection | null) => {
+    const result = await generateRagV2Draft(
+        { email: params.normalized, classification: params.classification, contact: crmContact, requestId: `simulation-${Date.now()}` },
+        { ...createRagV2Deps(), draftClient },
+    );
+    return { draft: result.draft, ragV2: { trace: result.trace, knowledge: allChunks(result.knowledge).map(({ chunk }) => toDraftKnowledge(chunk)) } };
+};
+
+const generateSimulationDraft = async (params: SimulationDraftParams): Promise<SimulationDraftResult> => {
+    const { input, normalized, classification, knowledge, from, metrics } = params;
+    const crmReader = createPrismaCrmReader();
+    // Safe despite referencing `draftClient` inside its own construction call: onMetric is only
+    // invoked later, when generateDraft() runs — by then `draftClient` already holds the resolved
+    // provider (same pattern as `const timer = setInterval(() => clearInterval(timer), ms)`).
+    const draftClient = await createDraftProviderFactory().getSelectedProvider((metric) =>
+        metrics.push(buildSimulationRunMetricRow(AiSimulationStage.DRAFT, draftClient.provider as AiDraftProvider, draftClient.model, metric)));
+    const crmContact = await crmReader.findContactByEmail(from);
+    if (params.useRagV2) {
+        const v2 = await generateRagV2SimulationDraft(params, draftClient, crmContact);
+        return { ...v2, provider: draftClient.provider as DraftProviderName, model: draftClient.model, crmContact };
+    }
+    const draft = input.forceDraft && (classification.spam || !classification.needsReply)
+        ? emailDraftSchema.parse(await draftClient.generateDraft(await buildDraftContext(normalized, classification, crmReader, knowledge)))
+        : await generateEmailDraft(normalized, classification, crmReader, draftClient, knowledge);
+    return { draft, provider: draftClient.provider as DraftProviderName, model: draftClient.model, crmContact };
+};
+
 export const runEmailAssistantSimulation = async (
     input: EmailSimulationInput,
     deps: { runRepository?: SimulationRunRepository; createdById?: number } = {},
@@ -117,64 +261,16 @@ export const runEmailAssistantSimulation = async (
     const normalized = normalizeEmail(raw);
     const spamReason = deterministicSpamReason(raw, normalized);
 
-    const promptRepository = new PrismaAiPromptRepository();
-    const classificationPromptName = input.classificationPromptId ? await promptRepository.getNameById(input.classificationPromptId) : null;
-    const draftBodyPromptName = input.draftBodyPromptId ? await promptRepository.getNameById(input.draftBodyPromptId) : null;
+    const { classificationPromptName, draftBodyPromptName } = await resolveSimulationPromptNames(input);
+    const classification = await classifyForSimulation(normalized, spamReason, input, metrics);
+    // RAG v2 retrieves inside its own draft orchestration (layered, metadata-filtered), so the
+    // flat v1 retrieval is skipped; "без знаний" still forces the v1 knowledge-less path.
+    const useRagV2 = aiConfig.ragVersion === 'v2' && !input.noKnowledge;
+    const { knowledge, queryExpansion } = useRagV2 ? { knowledge: [] as DraftKnowledgeContext[], queryExpansion: null } : await retrieveSimulationKnowledge(normalized, input, metrics);
 
-    const classificationModel = aiConfig.ollamaModel;
-    const classificationClient = new OllamaLlmClient({
-        promptOverrides: { classificationPromptId: input.classificationPromptId, draftBodyPromptId: input.draftBodyPromptId },
-        onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.CLASSIFICATION, AiDraftProvider.OLLAMA, classificationModel, metric)),
+    const persistRun = buildSimulationRunPersister({
+        runRepository, input, spamReason, classification, classificationPromptName, draftBodyPromptName, knowledge, metrics, createdById: deps.createdById,
     });
-    const classification = spamReason ? null : await classificationClient.classifyEmail(normalized);
-
-    let knowledge: DraftKnowledgeContext[] = [];
-    let queryExpansion: QueryExpansion | null = null;
-    if (!input.noKnowledge) {
-        const embeddings = new OllamaEmbeddingClient();
-        const retrieval = new KnowledgeRetrievalService(embeddings, new MysqlKnowledgeRepository(), {
-            queryExpansion: input.noQueryExpansion ? undefined : new OllamaQueryExpansionClient({
-                onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.QUERY_EXPANSION, AiDraftProvider.OLLAMA, aiConfig.ollamaModel, metric)),
-            }),
-            reranker: input.noRerank ? undefined : new OllamaReranker(embeddings, {
-                onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.RERANK, AiDraftProvider.OLLAMA, metric.model, metric)),
-            }),
-            onMetric: (metric) => metrics.push(buildSimulationRunMetricRow(AiSimulationStage.RETRIEVAL_EMBEDDING, AiDraftProvider.OLLAMA, aiConfig.ollamaEmbeddingModel, metric)),
-        });
-        const retrieved = await retrieval.retrieveWithDetails(`${normalized.subject}\n${normalized.normalizedBody}`, { topK: input.topK ?? aiConfig.ragTopK });
-        knowledge = retrieved.chunks;
-        queryExpansion = retrieved.queryExpansion;
-    }
-
-    // Never throws out of runEmailAssistantSimulation — a DB hiccup must never turn a working
-    // simulation preview into a 500 for the admin. Logged, not surfaced.
-    const persistRun = async (extra: {
-        draftSkippedReason: string | null;
-        draftProvider?: DraftProviderName; draftModel?: string;
-        draftJson?: unknown;
-    }): Promise<number | null> => {
-        try {
-            const record = buildSimulationRunInput(input, {
-                deterministicSpamReason: spamReason,
-                classification,
-                draftSkippedReason: extra.draftSkippedReason,
-                classificationPromptName,
-                draftBodyPromptName,
-                draftProvider: extra.draftProvider ?? null,
-                draftModel: extra.draftModel ?? null,
-                classificationJson: classification,
-                knowledgeJson: knowledge,
-                draftJson: extra.draftJson,
-                metrics,
-                createdById: deps.createdById,
-            });
-            return await runRepository.create(record);
-        } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('Failed to persist simulation run history', error);
-            return null;
-        }
-    };
 
     if (!classification) {
         const runId = await persistRun({ draftSkippedReason: 'deterministic_spam' });
@@ -188,22 +284,9 @@ export const runEmailAssistantSimulation = async (
         return { normalized, deterministicSpamReason: spamReason, classification, knowledge, queryExpansion, crmContact: null, draft: null, draftSkippedReason: reason, runId, metrics };
     }
 
-    const crmReader = createPrismaCrmReader();
-    // Safe despite referencing `draftClient` inside its own construction call: onMetric is only
-    // invoked later, when generateDraft() runs — by then `draftClient` already holds the resolved
-    // provider (same pattern as `const timer = setInterval(() => clearInterval(timer), ms)`).
-    const draftClient = await createDraftProviderFactory().getSelectedProvider((metric) =>
-        metrics.push(buildSimulationRunMetricRow(AiSimulationStage.DRAFT, draftClient.provider as AiDraftProvider, draftClient.model, metric)));
-    const crmContact = await crmReader.findContactByEmail(from);
-    const draft = input.forceDraft && (classification.spam || !classification.needsReply)
-        ? emailDraftSchema.parse(await draftClient.generateDraft(await buildDraftContext(normalized, classification, crmReader, knowledge)))
-        : await generateEmailDraft(normalized, classification, crmReader, draftClient, knowledge);
+    const { draft, provider, model, crmContact, ragV2 } = await generateSimulationDraft({ input, normalized, classification, knowledge, from, metrics, useRagV2 });
+    const usedKnowledge = ragV2?.knowledge ?? knowledge;
+    const runId = await persistRun({ draftSkippedReason: null, draftProvider: provider, draftModel: model, draftJson: ragV2 ? { ...draft, ragTrace: ragV2.trace } : draft, knowledge: usedKnowledge });
 
-    const runId = await persistRun({
-        draftSkippedReason: null,
-        draftProvider: draftClient.provider as DraftProviderName, draftModel: draftClient.model,
-        draftJson: draft,
-    });
-
-    return { normalized, deterministicSpamReason: spamReason, classification, knowledge, queryExpansion, crmContact, draft, draftSkippedReason: null, runId, metrics };
+    return { normalized, deterministicSpamReason: spamReason, classification, knowledge: usedKnowledge, queryExpansion, crmContact, draft, draftSkippedReason: null, runId, metrics, ...(ragV2 ? { ragTrace: ragV2.trace } : {}) };
 };

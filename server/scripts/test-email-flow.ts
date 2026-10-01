@@ -34,7 +34,7 @@ import prisma from '../prisma/prisma-client';
 // the barrel itself. That cycle resolves fine in the real app's own import order, but a script
 // that imports the barrel first hits it mid-evaluation and gets `undefined` exports. This script
 // doesn't need the SMTP-sending path at all, so it just avoids the barrel entirely.
-import { runEmailAssistantSimulation } from '../src/modules/ai-email-assistant/simulation.service';
+import { runEmailAssistantSimulation, type EmailSimulationResult } from '../src/modules/ai-email-assistant/simulation.service';
 import { aiConfig } from '../src/config/ai.config';
 
 interface CliArgs {
@@ -48,23 +48,29 @@ interface CliArgs {
     json: boolean;
 }
 
+type FlagHandler = (args: CliArgs, next: () => string) => void;
+
+const FLAG_HANDLERS: Record<string, FlagHandler> = {
+    '--from': (args, next) => { args.from = next(); },
+    '--subject': (args, next) => { args.subject = next(); },
+    '--body': (args, next) => { args.body = next(); },
+    '--body-file': (args, next) => { args.bodyFile = next(); },
+    '--top-k': (args, next) => { args.topK = Number(next()); },
+    '--no-knowledge': (args) => { args.noKnowledge = true; },
+    '--force-draft': (args) => { args.forceDraft = true; },
+    '--json': (args) => { args.json = true; },
+};
+
 const parseArgs = (argv: string[]): CliArgs => {
     const args: CliArgs = { from: 'test@example.com', subject: '', noKnowledge: false, forceDraft: false, json: false };
     for (let i = 0; i < argv.length; i += 1) {
         const flag = argv[i];
-        const next = () => argv[++i];
-        switch (flag) {
-            case '--from': args.from = next(); break;
-            case '--subject': args.subject = next(); break;
-            case '--body': args.body = next(); break;
-            case '--body-file': args.bodyFile = next(); break;
-            case '--top-k': args.topK = Number(next()); break;
-            case '--no-knowledge': args.noKnowledge = true; break;
-            case '--force-draft': args.forceDraft = true; break;
-            case '--json': args.json = true; break;
-            default:
-                if (flag.startsWith('--')) throw new Error(`Unknown flag: ${flag}`);
+        const handler = FLAG_HANDLERS[flag];
+        if (!handler) {
+            if (flag.startsWith('--')) throw new Error(`Unknown flag: ${flag}`);
+            continue;
         }
+        handler(args, () => argv[++i]);
     }
     return args;
 };
@@ -79,14 +85,69 @@ const readStdin = (): Promise<string> => new Promise((resolve, reject) => {
 
 const section = (title: string) => console.log(`\n=== ${title} ===`);
 
-const main = async () => {
-    const args = parseArgs(process.argv.slice(2));
-    if (!args.subject) throw new Error('--subject is required');
-
+const resolveBodyText = async (args: CliArgs): Promise<string> => {
     let bodyText = args.body;
     if (!bodyText && args.bodyFile) bodyText = readFileSync(args.bodyFile, 'utf8');
     if (!bodyText && !process.stdin.isTTY) bodyText = await readStdin();
     if (!bodyText?.trim()) throw new Error('Provide the email body via --body, --body-file, or stdin');
+    return bodyText;
+};
+
+const printClassification = (result: EmailSimulationResult) => {
+    if (!result.classification) return;
+    section(`3. CLASSIFY (model: ${aiConfig.ollamaModel})`);
+    console.log(result.classification);
+};
+
+const printKnowledgeRetrieval = (result: EmailSimulationResult, args: CliArgs) => {
+    if (args.noKnowledge) return;
+    section(`4. RAG RETRIEVAL (embedding: ${aiConfig.ollamaEmbeddingModel}, topK: ${args.topK ?? aiConfig.ragTopK})`);
+    if (!result.knowledge.length) console.log('(no relevant knowledge found)');
+    for (const chunk of result.knowledge) console.log(`score=${chunk.score.toFixed(3)}  ${chunk.sourceUrl}\n  ${chunk.content.slice(0, 160).replace(/\n/g, ' ')}`);
+};
+
+const printDraft = (result: EmailSimulationResult) => {
+    section('5. DRAFT');
+    if (!result.classification) {
+        console.log('skipped — message was deterministic spam');
+    } else if (result.draftSkippedReason) {
+        console.log(`skipped — ${result.draftSkippedReason} (use --force-draft to generate anyway)`);
+    } else {
+        console.log(`(model: ${aiConfig.ollamaModel})`);
+        console.log(result.draft);
+    }
+};
+
+const printMetrics = (result: EmailSimulationResult) => {
+    section('6. METRICS');
+    console.log(`runId: ${result.runId ?? '(not saved)'}`);
+    for (const metric of result.metrics) {
+        const tokens = metric.totalTokens !== undefined
+            ? `${metric.promptTokens ?? 0}→${metric.completionTokens ?? 0} tokens`
+            : 'no token data';
+        const calls = metric.callCount > 1 ? ` (${metric.callCount} calls)` : '';
+        console.log(`${metric.stage.padEnd(20)} ${metric.provider}/${metric.model}  ${metric.durationMs}ms  ${tokens}${calls}`);
+    }
+};
+
+const printHumanReadableResult = (result: EmailSimulationResult, args: CliArgs) => {
+    section('1. NORMALIZE');
+    console.log(result.normalized);
+
+    section('2. DETERMINISTIC SPAM CHECK');
+    console.log(result.deterministicSpamReason ? `SPAM (${result.deterministicSpamReason}) — the real pipeline would stop here` : 'not spam');
+
+    printClassification(result);
+    printKnowledgeRetrieval(result, args);
+    printDraft(result);
+    printMetrics(result);
+};
+
+const main = async () => {
+    const args = parseArgs(process.argv.slice(2));
+    if (!args.subject) throw new Error('--subject is required');
+
+    const bodyText = await resolveBodyText(args);
 
     const result = await runEmailAssistantSimulation({
         from: args.from, subject: args.subject, body: bodyText,
@@ -98,42 +159,7 @@ const main = async () => {
         return;
     }
 
-    section('1. NORMALIZE');
-    console.log(result.normalized);
-
-    section('2. DETERMINISTIC SPAM CHECK');
-    console.log(result.deterministicSpamReason ? `SPAM (${result.deterministicSpamReason}) — the real pipeline would stop here` : 'not spam');
-
-    if (result.classification) {
-        section(`3. CLASSIFY (model: ${aiConfig.ollamaModel})`);
-        console.log(result.classification);
-    }
-
-    if (!args.noKnowledge) {
-        section(`4. RAG RETRIEVAL (embedding: ${aiConfig.ollamaEmbeddingModel}, topK: ${args.topK ?? aiConfig.ragTopK})`);
-        if (!result.knowledge.length) console.log('(no relevant knowledge found)');
-        for (const chunk of result.knowledge) console.log(`score=${chunk.score.toFixed(3)}  ${chunk.sourceUrl}\n  ${chunk.content.slice(0, 160).replace(/\n/g, ' ')}`);
-    }
-
-    section('5. DRAFT');
-    if (!result.classification) {
-        console.log('skipped — message was deterministic spam');
-    } else if (result.draftSkippedReason) {
-        console.log(`skipped — ${result.draftSkippedReason} (use --force-draft to generate anyway)`);
-    } else {
-        console.log(`(model: ${aiConfig.ollamaModel})`);
-        console.log(result.draft);
-    }
-
-    section('6. METRICS');
-    console.log(`runId: ${result.runId ?? '(not saved)'}`);
-    for (const metric of result.metrics) {
-        const tokens = metric.totalTokens !== undefined
-            ? `${metric.promptTokens ?? 0}→${metric.completionTokens ?? 0} tokens`
-            : 'no token data';
-        const calls = metric.callCount > 1 ? ` (${metric.callCount} calls)` : '';
-        console.log(`${metric.stage.padEnd(20)} ${metric.provider}/${metric.model}  ${metric.durationMs}ms  ${tokens}${calls}`);
-    }
+    printHumanReadableResult(result, args);
 };
 
 main()

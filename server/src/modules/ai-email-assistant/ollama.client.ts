@@ -9,6 +9,7 @@ import { emailDraftSchema, type DraftContext, type DraftLlmClient, type EmailDra
 import { buildReplySubject } from '../communication/email/email-smtp.service';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
 import { DRAFT_PROVIDERS, type LlmCallMetric } from './draft-provider';
+import { buildRagV2Prompt } from './rag-v2/context-builder';
 
 // Below this retrieval score, knowledge is treated as too weak to answer from confidently — see
 // KnowledgeRetrievalService's own default (0.35) for the floor below which a chunk isn't
@@ -79,8 +80,27 @@ const LANGUAGE_NAMES_RU: Record<EmailClassification['language'], string> = {
 // `instructions` may contain the `{{replyLanguage}}` placeholder (see DEFAULT_PROMPT_CONTENT) —
 // substituted here rather than left to the model, since the target language is a deterministic
 // pipeline decision (the already-run classification), not something free text should guess at.
-export const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => [
-    instructions.split('{{replyLanguage}}').join(LANGUAGE_NAMES_RU[context.classification.language]),
+const buildRagV2DraftPrompt = (persona: string, context: DraftContext, ragV2: NonNullable<DraftContext['ragV2']>): string => {
+    const built = buildRagV2Prompt({
+        persona,
+        understanding: ragV2.understanding,
+        knowledge: ragV2.knowledge,
+        customerMessage: context.email.normalizedBody,
+        crmData: context.contact ? JSON.stringify(context.contact) : undefined,
+        correction: ragV2.correction,
+        characterBudget: ragV2.characterBudget,
+    });
+    ragV2.onPromptBuilt?.(built);
+    return built.prompt;
+};
+
+export const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => {
+    const persona = instructions.split('{{replyLanguage}}').join(LANGUAGE_NAMES_RU[context.classification.language]);
+    return context.ragV2 ? buildRagV2DraftPrompt(persona, context, context.ragV2) : buildFlatDraftBodyPrompt(persona, context);
+};
+
+const buildFlatDraftBodyPrompt = (persona: string, context: DraftContext) => [
+    persona,
     '',
     `ПИСЬМО_КЛИЕНТА: ${context.email.normalizedBody}`,
     context.contact ? `ДАННЫЕ_CRM: ${JSON.stringify(context.contact)}` : '',
@@ -110,6 +130,44 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
         return this.prompts.getActiveContent(slot);
     }
 
+    // No `format: "json"` here (see tasks/plan.md Task 24): it was added to stop qwen3 wrapping
+    // output in markdown, and did for a while, but was later confirmed live to also make
+    // classification — not just drafting — reliably return an empty `{}` for this exact prompt,
+    // independent of prompt length or num_ctx. Plain generation plus schema validation + repair
+    // retry (in classifyEmail) was 100% reliable across repeated live tests and is what drafting
+    // already uses.
+    private async requestClassification(
+        instructions: string,
+        input: NormalizedEmailInput,
+        invalidOutput?: string,
+    ): Promise<{ raw: string; durationMs: number; promptTokens: number; completionTokens: number }> {
+        const start = Date.now();
+        const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+                model: this.config.ollamaModel,
+                prompt: buildClassificationPrompt(instructions, input, invalidOutput),
+                stream: false,
+                keep_alive: this.config.keepAlive,
+                options: {
+                    num_ctx: this.config.contextLength,
+                    temperature: this.config.temperature,
+                },
+            }),
+        });
+        const durationMs = Date.now() - start;
+
+        if (!response.ok) {
+            throw new Error(`Ollama classification failed with HTTP ${response.status}`);
+        }
+
+        const parsedBody = await response.json();
+        const raw = ollamaResponseSchema(parsedBody);
+        const usage = extractOllamaTokenUsage(parsedBody);
+        return { raw, durationMs, promptTokens: usage.promptTokens ?? 0, completionTokens: usage.completionTokens ?? 0 };
+    }
+
     public async classifyEmail(input: NormalizedEmailInput): Promise<EmailClassification> {
         let invalidOutput: string | undefined;
         const instructions = await this.resolveInstructions('CLASSIFICATION', this.promptOverrides.classificationPromptId);
@@ -118,38 +176,10 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
         let totalCompletionTokens = 0;
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
-            const start = Date.now();
-            const response = await this.fetchImpl(`${this.config.ollamaUrl.replace(/\/$/, '')}/api/generate`, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify({
-                    model: this.config.ollamaModel,
-                    prompt: buildClassificationPrompt(instructions, input, invalidOutput),
-                    stream: false,
-                    // No `format: "json"` here (see tasks/plan.md Task 24): it was added to stop
-                    // qwen3 wrapping output in markdown, and did for a while, but was later
-                    // confirmed live to also make classification — not just drafting — reliably
-                    // return an empty `{}` for this exact prompt, independent of prompt length or
-                    // num_ctx. Plain generation plus schema validation + repair retry (below) was
-                    // 100% reliable across repeated live tests and is what drafting already uses.
-                    keep_alive: this.config.keepAlive,
-                    options: {
-                        num_ctx: this.config.contextLength,
-                        temperature: this.config.temperature,
-                    },
-                }),
-            });
-            totalDurationMs += Date.now() - start;
-
-            if (!response.ok) {
-                throw new Error(`Ollama classification failed with HTTP ${response.status}`);
-            }
-
-            const parsedBody = await response.json();
-            const raw = ollamaResponseSchema(parsedBody);
-            const usage = extractOllamaTokenUsage(parsedBody);
-            totalPromptTokens += usage.promptTokens ?? 0;
-            totalCompletionTokens += usage.completionTokens ?? 0;
+            const { raw, durationMs, promptTokens, completionTokens } = await this.requestClassification(instructions, input, invalidOutput);
+            totalDurationMs += durationMs;
+            totalPromptTokens += promptTokens;
+            totalCompletionTokens += completionTokens;
             try {
                 const classification = emailClassificationSchema.parse(JSON.parse(raw));
                 this.onMetric?.({

@@ -91,6 +91,9 @@ model AiEmailDraft {
   sentEmailMessageId Int?              @map("sent_email_message_id")
   sentAt            DateTime?          @map("sent_at")
   sendError         String?            @map("send_error") @db.VarChar(500)
+  // RAG v2 diagnostics (intent/subintent/entities/retrieval plan/used knowledge/validation
+  // warnings/confidence level). NULL for drafts produced by the v1 pipeline.
+  ragTrace          Json?              @map("rag_trace")
   createdAt         DateTime           @default(now()) @map("created_at")
   updatedAt         DateTime           @updatedAt @map("updated_at")
 
