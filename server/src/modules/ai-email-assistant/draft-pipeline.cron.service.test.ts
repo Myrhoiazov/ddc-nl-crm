@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import cron from 'node-cron';
 import * as pipeline from './draft-pipeline.service';
-import { startAiEmailDraftCron } from './draft-pipeline.cron.service';
+import { buildKnowledgeOptions, startAiEmailDraftCron } from './draft-pipeline.cron.service';
 import { MysqlKnowledgeRepository, OllamaEmbeddingClient } from '../knowledge-ingestion';
 
 test('scheduled drafts receive knowledge retrieved from the persistent store', async (t) => {
@@ -29,4 +29,13 @@ test('scheduled drafts receive knowledge retrieved from the persistent store', a
     assert.equal(startAiEmailDraftCron(), true);
     await tick();
     assert.equal(checked, true);
+});
+
+test('RAG_VERSION selects the knowledge path: v1 keeps the flat provider, v2 switches to layered deps', () => {
+    const v1 = buildKnowledgeOptions('v1');
+    assert.ok(v1.knowledgeProvider);
+    assert.equal(v1.ragV2, undefined);
+    const v2 = buildKnowledgeOptions('v2');
+    assert.equal(v2.knowledgeProvider, undefined);
+    assert.deepEqual(v2.ragV2?.limits, { rules: 3, facts: 4, faq: 2, examples: 2 });
 });

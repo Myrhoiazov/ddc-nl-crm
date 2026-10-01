@@ -9,6 +9,7 @@ import { emailDraftSchema, type DraftContext, type DraftLlmClient, type EmailDra
 import { buildReplySubject } from '../communication/email/email-smtp.service';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
 import { DRAFT_PROVIDERS, type LlmCallMetric } from './draft-provider';
+import { buildRagV2Prompt } from './rag-v2/context-builder';
 
 // Below this retrieval score, knowledge is treated as too weak to answer from confidently — see
 // KnowledgeRetrievalService's own default (0.35) for the floor below which a chunk isn't
@@ -79,8 +80,27 @@ const LANGUAGE_NAMES_RU: Record<EmailClassification['language'], string> = {
 // `instructions` may contain the `{{replyLanguage}}` placeholder (see DEFAULT_PROMPT_CONTENT) —
 // substituted here rather than left to the model, since the target language is a deterministic
 // pipeline decision (the already-run classification), not something free text should guess at.
-export const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => [
-    instructions.split('{{replyLanguage}}').join(LANGUAGE_NAMES_RU[context.classification.language]),
+const buildRagV2DraftPrompt = (persona: string, context: DraftContext, ragV2: NonNullable<DraftContext['ragV2']>): string => {
+    const built = buildRagV2Prompt({
+        persona,
+        understanding: ragV2.understanding,
+        knowledge: ragV2.knowledge,
+        customerMessage: context.email.normalizedBody,
+        crmData: context.contact ? JSON.stringify(context.contact) : undefined,
+        correction: ragV2.correction,
+        characterBudget: ragV2.characterBudget,
+    });
+    ragV2.onPromptBuilt?.(built);
+    return built.prompt;
+};
+
+export const buildDraftBodyPrompt = (instructions: string, context: DraftContext) => {
+    const persona = instructions.split('{{replyLanguage}}').join(LANGUAGE_NAMES_RU[context.classification.language]);
+    return context.ragV2 ? buildRagV2DraftPrompt(persona, context, context.ragV2) : buildFlatDraftBodyPrompt(persona, context);
+};
+
+const buildFlatDraftBodyPrompt = (persona: string, context: DraftContext) => [
+    persona,
     '',
     `ПИСЬМО_КЛИЕНТА: ${context.email.normalizedBody}`,
     context.contact ? `ДАННЫЕ_CRM: ${JSON.stringify(context.contact)}` : '',

@@ -130,7 +130,7 @@
 Версионируемый структурированный ответ, ожидающий human-in-the-loop approval; после APPROVED
 проходит через SENDING (атомарный claim по id+version+status для идемпотентной отправки) в
 SENT/FAILED.
-- Поля: id; emailId; version; subject; body; replyLanguage; confidence; needsManualAnswer; model; promptVersion; status; sendIdempotencyKey (unique); sendAttempts; sentEmailMessageId; sentAt; sendError; createdAt; updatedAt
+- Поля: id; emailId; version; subject; body; replyLanguage; confidence; needsManualAnswer; model; promptVersion; status; sendIdempotencyKey (unique); sendAttempts; sentEmailMessageId; sentAt; sendError; ragTrace (Json?, диагностика RAG v2: intent/subintent/entities/retrieval plan/used knowledge/warnings/confidence; NULL для v1); createdAt; updatedAt
 - Связи: email -> AiEmailMessage (Cascade); knowledgeRefs AiEmailKnowledgeRef[]
 - Индексы: unique [emailId, version]; unique [sendIdempotencyKey]; [emailId, status, createdAt]
 
@@ -184,15 +184,17 @@ SENT/FAILED.
 
 ### KnowledgeDocument (таблица `knowledge_documents`)
 Версия нормализованного сайта, файла или вручную добавленного URL с content hash, категорией и
-LLM-метаданными (приоритет + теги), статусом индексации.
-- Поля: id; sourceType; sourceId; sourceUrl; relativePath; folderPath; title; language; contentHash; content; status; category; priority; tags (Json, массив строк); errorMessage; lastSyncedAt; createdAt; updatedAt
+LLM-метаданными (приоритет + теги), статусом индексации. `kbVersion` — namespace ретривала:
+`v1` (плоский корпус: сайт, файлы, ручные URL) или `v2` (`server/knowledge/ddc-knowledge-v2`,
+`sourceType = kb_v2`, индексируется `npm run knowledge:index`); каждая версия RAG ищет только в своём.
+- Поля: id; sourceType; sourceId; sourceUrl; relativePath; folderPath; title; language; contentHash; content; status; category; priority; tags (Json, массив строк); kbVersion (default `v1`); errorMessage; lastSyncedAt; createdAt; updatedAt
 - Связи: chunks KnowledgeChunk[]
-- Индексы: [sourceId, status]; contentHash; category
+- Индексы: [sourceId, status]; contentHash; category; [kbVersion, status]
 
 ### KnowledgeChunk (таблица `knowledge_chunks`)
 Атрибутивный chunk с локальным embedding `bge-m3` в JSON. Размер/перекрытие чанка при генерации —
 `RAG_CHUNK_SIZE`/`RAG_CHUNK_OVERLAP` (`ai.config.ts`, дефолты 700/100 символов).
-- Поля: id; documentId; ordinal; content; embedding; embeddingModel; contentHash; headingPath (Json); createdAt; updatedAt
+- Поля: id; documentId; ordinal; content; embedding; embeddingModel; contentHash; headingPath (Json); metadata (Json?, метаданные chunk'а RAG v2: documentId/chunkId/section/priority/category/topic/subtopic/city/style/ageGroup/language/dynamic/lastVerified/source; NULL для v1); createdAt; updatedAt
 - Связи: document -> KnowledgeDocument (Cascade)
 - Индексы: unique [documentId, ordinal]; contentHash
 

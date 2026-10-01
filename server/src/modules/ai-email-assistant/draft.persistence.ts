@@ -1,4 +1,4 @@
-import { AiEmailDraftStatus } from '@prisma/client';
+import { AiEmailDraftStatus, Prisma } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client';
 import { aiConfig } from '../../config/ai.config';
 import { emailDraftSchema, type EmailDraft } from './draft.service';
@@ -6,6 +6,7 @@ import type { DraftApprovalRepository } from './approval.service';
 import { DRAFT_PROVIDERS, type DraftProviderName } from './draft-provider';
 
 export const DRAFT_PROMPT_VERSION = 'draft-v1';
+export const DRAFT_PROMPT_VERSION_RAG_V2 = 'draft-rag-v2';
 
 export interface DraftKnowledgeRefInput {
     id: string;
@@ -23,6 +24,9 @@ export interface DraftRecord {
     generationErrorCode?: string;
     generationErrorMessage?: string;
     status?: AiEmailDraftStatus;
+    // RAG v2 diagnostics (intent, plan, used knowledge, warnings, confidence level) — no raw
+    // chunk text or customer message is stored here.
+    ragTrace?: Record<string, unknown>;
 }
 
 export interface AiEmailDraftRepository {
@@ -54,6 +58,7 @@ const createNextDraftVersion: AiEmailDraftRepository['createNextVersion'] = asyn
                 status: record.status ?? AiEmailDraftStatus.GENERATED,
                 generationErrorCode: record.generationErrorCode,
                 generationErrorMessage: record.generationErrorMessage?.slice(0, 500),
+                ...(record.ragTrace ? { ragTrace: record.ragTrace as Prisma.InputJsonValue } : {}),
                 knowledgeRefs: {
                     create: record.knowledge.slice(0, 20).map((ref) => ({
                         knowledgeId: ref.id,

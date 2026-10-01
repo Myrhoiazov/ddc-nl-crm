@@ -23,6 +23,12 @@ test('AI config uses the resource-safe local defaults', () => {
         ragRerankModel: 'qwen3-reranker:0.6b',
         ragChunkSize: 700,
         ragChunkOverlap: 100,
+        ragVersion: 'v1',
+        ragKnowledgePath: 'knowledge/ddc-knowledge-v2',
+        ragRuleLimit: 3,
+        ragFactLimit: 4,
+        ragFaqLimit: 2,
+        ragExampleLimit: 2,
     });
 });
 
@@ -41,6 +47,12 @@ test('AI config is fully environment-driven', () => {
         RAG_RERANK_MODEL: 'custom-reranker',
         RAG_CHUNK_SIZE: '900',
         RAG_CHUNK_OVERLAP: '150',
+        RAG_VERSION: 'v2',
+        RAG_KNOWLEDGE_PATH: '/app/knowledge/kb',
+        RAG_RULE_LIMIT: '1',
+        RAG_FACT_LIMIT: '5',
+        RAG_FAQ_LIMIT: '0',
+        RAG_EXAMPLE_LIMIT: '3',
     });
 
     assert.deepEqual(config, {
@@ -61,6 +73,12 @@ test('AI config is fully environment-driven', () => {
         ragRerankModel: 'custom-reranker',
         ragChunkSize: 900,
         ragChunkOverlap: 150,
+        ragVersion: 'v2',
+        ragKnowledgePath: '/app/knowledge/kb',
+        ragRuleLimit: 1,
+        ragFactLimit: 5,
+        ragFaqLimit: 0,
+        ragExampleLimit: 3,
     });
 });
 
@@ -93,4 +111,10 @@ test('invalid or unsafe numeric values fall back to bounded defaults', () => {
     assert.equal(config.temperature, 0.2);
     assert.equal(config.keepAlive, 0);
     assert.equal(config.maxConcurrency, 1);
+});
+
+test('RAG_VERSION falls back to v1 for anything other than v2', () => {
+    assert.equal(readAiConfig({ RAG_VERSION: 'V2' }).ragVersion, 'v2');
+    assert.equal(readAiConfig({ RAG_VERSION: 'v3' }).ragVersion, 'v1');
+    assert.equal(readAiConfig({ RAG_FACT_LIMIT: '-1' }).ragFactLimit, 4);
 });

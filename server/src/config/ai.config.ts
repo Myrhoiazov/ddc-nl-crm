@@ -8,6 +8,9 @@ const DEFAULT_MAX_CONCURRENCY = 1;
 const DEFAULT_RAG_RERANK_MODEL = 'qwen3-reranker:0.6b';
 const DEFAULT_RAG_CHUNK_SIZE = 700;
 const DEFAULT_RAG_CHUNK_OVERLAP = 100;
+const DEFAULT_RAG_KNOWLEDGE_PATH = 'knowledge/ddc-knowledge-v2';
+
+export type RagVersion = 'v1' | 'v2';
 
 export interface AiConfig {
     ollamaUrl: string;
@@ -35,6 +38,15 @@ export interface AiConfig {
     // codebase); ~2-2.5 chars/token for Cyrillic, this deployment's canonical language.
     ragChunkSize: number;
     ragChunkOverlap: number;
+    // RAG v2 (layered rules/facts/FAQ/examples retrieval) — off unless RAG_VERSION=v2, so a
+    // rollback is a single env change. v1 and v2 chunks live side by side in the same tables,
+    // separated by knowledge_documents.kb_version.
+    ragVersion: RagVersion;
+    ragKnowledgePath: string;
+    ragRuleLimit: number;
+    ragFactLimit: number;
+    ragFaqLimit: number;
+    ragExampleLimit: number;
 }
 
 const positiveInteger = (value: string | undefined, fallback: number): number => {
@@ -56,6 +68,8 @@ const keepAliveSeconds = (value: string | undefined, fallback: number): number =
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
 };
+
+const ragVersion = (value: string | undefined): RagVersion => (value?.trim().toLowerCase() === 'v2' ? 'v2' : 'v1');
 
 const booleanFlag = (value: string | undefined, fallback: boolean): boolean => {
     if (value === undefined) return fallback;
@@ -83,6 +97,12 @@ export const readAiConfig = (environment: NodeJS.ProcessEnv = process.env): AiCo
     ragRerankModel: environment.RAG_RERANK_MODEL?.trim() || DEFAULT_RAG_RERANK_MODEL,
     ragChunkSize: positiveInteger(environment.RAG_CHUNK_SIZE, DEFAULT_RAG_CHUNK_SIZE),
     ragChunkOverlap: nonNegativeInteger(environment.RAG_CHUNK_OVERLAP, DEFAULT_RAG_CHUNK_OVERLAP),
+    ragVersion: ragVersion(environment.RAG_VERSION),
+    ragKnowledgePath: environment.RAG_KNOWLEDGE_PATH?.trim() || DEFAULT_RAG_KNOWLEDGE_PATH,
+    ragRuleLimit: nonNegativeInteger(environment.RAG_RULE_LIMIT, 3),
+    ragFactLimit: nonNegativeInteger(environment.RAG_FACT_LIMIT, 4),
+    ragFaqLimit: nonNegativeInteger(environment.RAG_FAQ_LIMIT, 2),
+    ragExampleLimit: nonNegativeInteger(environment.RAG_EXAMPLE_LIMIT, 2),
 });
 
 export const aiConfig = readAiConfig();

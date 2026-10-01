@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import type { EmailClassification, NormalizedEmailInput } from './email-assistant.service';
+import type { RagV2Prompt } from './rag-v2/context-builder';
+import type { LayeredKnowledge } from './rag-v2/layered-retriever';
+import type { QueryUnderstanding } from './rag-v2/rag-v2.types';
 
 export const emailDraftSchema = z.object({
     replyLanguage: z.enum(['nl', 'en', 'ua', 'ru', 'unknown']),
@@ -31,11 +34,24 @@ export interface DraftKnowledgeContext {
     score: number;
 }
 
+// Present only on the RAG v2 path (RAG_VERSION=v2): the draft prompt is then built from these
+// layered sections instead of the flat v1 `knowledge` list (see buildDraftBodyPrompt).
+export interface RagV2DraftContext {
+    understanding: QueryUnderstanding;
+    knowledge: LayeredKnowledge;
+    characterBudget: number;
+    correction?: string;
+    // Reports what survived context-budget trimming, so validation/used-knowledge only ever
+    // refer to chunks the model actually saw.
+    onPromptBuilt?: (prompt: RagV2Prompt) => void;
+}
+
 export interface DraftContext {
     email: NormalizedEmailInput;
     classification: EmailClassification;
     contact: CrmContactProjection | null;
     knowledge: DraftKnowledgeContext[];
+    ragV2?: RagV2DraftContext;
 }
 
 export interface DraftLlmClient {
