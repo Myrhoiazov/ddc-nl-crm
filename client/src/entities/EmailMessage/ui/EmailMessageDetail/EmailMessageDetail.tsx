@@ -83,7 +83,14 @@ const EmailBodyFrame = ({ bodyHtml, bodyText, resetKey }: { bodyHtml: string | n
     );
 };
 
-const ReplyBox = ({ isSendingReply, onReply }: {
+// Mirrors the server (email-smtp.service.ts resolveReplyRecipient): a reply goes to Reply-To when
+// the sender set one — e.g. the visitor behind a website contact form — otherwise to From.
+const getReplyRecipient = (message: Pick<EmailMessage, 'fromAddress' | 'replyToAddress'>): string => (
+    message.replyToAddress || message.fromAddress
+);
+
+const ReplyBox = ({ recipient, isSendingReply, onReply }: {
+    recipient: string;
     isSendingReply?: boolean;
     onReply: (html: string, files?: File[]) => Promise<boolean>;
 }) => {
@@ -92,6 +99,7 @@ const ReplyBox = ({ isSendingReply, onReply }: {
     return (
         <VStack gap="8" max className={cls.replyBox}>
             <Text title="Ответить" size="s" bold />
+            <Text text={`Кому: ${recipient}`} size="s" variant="accent" />
             <EmailComposer
                 onSend={onComposerReply}
                 isSending={isSendingReply}
@@ -140,7 +148,7 @@ export const EmailMessageDetail = memo((props: EmailMessageDetailProps) => {
 
                 <EmailMessageAttachments attachments={message.attachments} />
 
-                <ReplyBox isSendingReply={isSendingReply} onReply={onReply} />
+                <ReplyBox recipient={getReplyRecipient(message)} isSendingReply={isSendingReply} onReply={onReply} />
             </VStack>
         </Card>
     );

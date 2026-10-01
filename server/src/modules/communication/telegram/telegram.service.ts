@@ -246,19 +246,22 @@ const isEmailNotifyConfigured = () => Boolean(
 const buildNewEmailNotification = (params: {
     fromAddress: string;
     fromName?: string | null;
+    replyToAddress?: string | null;
     subject?: string | null;
     accountLabel: string;
 }) => [
     '<b>Новое письмо</b>',
     '',
     `<b>От:</b> ${escapeHtml(params.fromName ? `${params.fromName} <${params.fromAddress}>` : params.fromAddress)}`,
+    params.replyToAddress ? `<b>Ответ на:</b> ${escapeHtml(params.replyToAddress)}` : null,
     `<b>Тема:</b> ${escapeHtml(params.subject || '(без темы)')}`,
     `<b>Ящик:</b> ${escapeHtml(params.accountLabel)}`,
-].join('\n');
+].filter((row): row is string => row !== null).join('\n');
 
 export const notifyNewEmail = async (params: {
     fromAddress: string;
     fromName?: string | null;
+    replyToAddress?: string | null;
     subject?: string | null;
     accountLabel: string;
 }) => {

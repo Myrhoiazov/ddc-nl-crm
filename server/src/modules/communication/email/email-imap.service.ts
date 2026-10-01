@@ -168,10 +168,32 @@ const resolveFromAddress = (message: FetchMessageObject, parsed: ParsedEmail): s
     message.envelope?.from?.[0]?.address ?? parsed?.from?.value?.[0]?.address ?? ''
 );
 
+const normalizeAddress = (address?: string | null): string => (address ?? '').trim().toLowerCase();
+
+// The Reply-To header, only when it names someone other than From. A website contact form is
+// sent by the site itself (From: wordpress@…) with the visitor in Reply-To; ordinary mail has no
+// Reply-To or repeats From.
+export const resolveReplyToAddress = (
+    fromAddress: string,
+    replyTo?: { address?: string; name?: string }[] | null,
+): string | null => {
+    const candidate = (replyTo ?? []).map((entry) => normalizeAddress(entry.address)).find((address) => address.includes('@'));
+    return candidate && candidate !== normalizeAddress(fromAddress) ? candidate : null;
+};
+
+// Who the message is really from, for CRM matching, the AI assistant and replies.
+export const resolveContactAddress = (email: { fromAddress: string; replyToAddress: string | null }): string => (
+    email.replyToAddress ?? email.fromAddress
+);
+
+const readReplyToAddress = (message: FetchMessageObject, parsed: ParsedEmail, fromAddress: string): string | null => (
+    resolveReplyToAddress(fromAddress, message.envelope?.replyTo ?? parsed?.replyTo?.value)
+);
+
 const upsertEmailMessage = (
     accountId: number,
     message: FetchMessageObject,
-    email: { normalized: NormalizedEmail; fromAddress: string; parsed: ParsedEmail },
+    email: { normalized: NormalizedEmail; fromAddress: string; replyToAddress: string | null; parsed: ParsedEmail },
     clientId: number | null,
 ) => prisma.emailMessage.upsert({
     where: {
@@ -187,6 +209,7 @@ const upsertEmailMessage = (
         inReplyToMessageId: message.envelope?.inReplyTo ?? undefined,
         fromAddress: email.fromAddress,
         fromName: message.envelope?.from?.[0]?.name ?? undefined,
+        replyToAddress: email.replyToAddress ?? undefined,
         toAddresses: addressesToJson(message.envelope?.to),
         ccAddresses: addressesToJson(message.envelope?.cc),
         subject: email.normalized.subject || undefined,
@@ -231,7 +254,7 @@ const classifyAndPersistSpamIfDetected = async (
 // Fire-and-forget — a Telegram outage must never fail the sync itself.
 const notifyIfNotSpam = (
     message: FetchMessageObject,
-    email: { fromAddress: string; subject: string },
+    email: { fromAddress: string; replyToAddress: string | null; subject: string },
     accountLabel: string,
     outcome: { spamReason: string | null; savedMessageId: number },
 ): void => {
@@ -239,6 +262,7 @@ const notifyIfNotSpam = (
     void notifyNewEmail({
         fromAddress: email.fromAddress,
         fromName: message.envelope?.from?.[0]?.name,
+        replyToAddress: email.replyToAddress,
         subject: email.subject,
         accountLabel,
     }).catch((error) => logger.error(`Failed to send new-email Telegram notification for message=${outcome.savedMessageId}: ${error}`));
@@ -265,14 +289,16 @@ const processMessage = async (
         headers: parsed?.headers,
     });
 
-    const clientId = await findClientIdByAddress(fromAddress, clientIdCache);
-    const savedMessage = await upsertEmailMessage(accountId, message, { normalized, fromAddress, parsed }, clientId);
+    const replyToAddress = readReplyToAddress(message, parsed, fromAddress);
+    const contactAddress = resolveContactAddress({ fromAddress: normalized.fromAddress, replyToAddress });
+    const clientId = await findClientIdByAddress(contactAddress, clientIdCache);
+    const savedMessage = await upsertEmailMessage(accountId, message, { normalized, fromAddress, replyToAddress, parsed }, clientId);
 
     const aiMessage = await persistNormalizedEmail(aiEmailRepository, {
         sourceEmailMessageId: savedMessage.id,
         messageId: message.envelope?.messageId,
         threadKey: message.envelope?.inReplyTo ?? message.envelope?.messageId,
-        sender: normalized.fromAddress,
+        sender: contactAddress,
         recipients: addressesToJson(message.envelope?.to),
         subject: normalized.subject || null,
         normalizedBody: normalized.normalizedBody,
@@ -285,7 +311,7 @@ const processMessage = async (
         await saveAttachments(savedMessage.id, parsed.attachments);
     }
 
-    notifyIfNotSpam(message, { fromAddress, subject: normalized.subject }, accountLabel, { spamReason, savedMessageId: savedMessage.id });
+    notifyIfNotSpam(message, { fromAddress, replyToAddress, subject: normalized.subject }, accountLabel, { spamReason, savedMessageId: savedMessage.id });
 
     return { created: true, uid: message.uid };
 };

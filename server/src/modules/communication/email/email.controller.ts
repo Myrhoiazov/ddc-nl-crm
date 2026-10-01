@@ -48,6 +48,7 @@ const messageListSelect = {
     isOutgoing: true,
     fromAddress: true,
     fromName: true,
+    replyToAddress: true,
     toAddresses: true,
     ccAddresses: true,
     subject: true,
