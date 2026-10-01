@@ -26,6 +26,9 @@ export interface EmailMessage {
     isOutgoing: boolean;
     fromAddress: string;
     fromName: string | null;
+    // Reply-To when it differs from From (e.g. the visitor behind a website contact form);
+    // replies go here when it is set.
+    replyToAddress?: string | null;
     toAddresses: EmailAddress[];
     ccAddresses: EmailAddress[] | null;
     subject: string | null;

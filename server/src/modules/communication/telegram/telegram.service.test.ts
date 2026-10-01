@@ -254,6 +254,19 @@ test('notifyNewEmail sends to TELEGRAM_EMAIL_NOTIFY_CHAT_ID, not the group chat'
     assert.match(sentBody.text, /ddc nl/);
 });
 
+test('notifyNewEmail shows the Reply-To address of a contact-form email, and no empty row without one', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: 'token', TELEGRAM_EMAIL_NOTIFY_CHAT_ID: 'personal-chat-id' }, async () => {
+        await notifyNewEmail({ fromAddress: 'wordpress@talentcenterddc.nl', fromName: 'Talent Center DDC', replyToAddress: 'parent@example.com', accountLabel: 'ddc nl' });
+        await notifyNewEmail({ fromAddress: 'parent@example.com', replyToAddress: null, accountLabel: 'ddc nl' });
+    });
+
+    const [withReplyTo, withoutReplyTo] = postMock.mock.calls.map((call) => (call.arguments[1] as { text: string }).text);
+    assert.match(withReplyTo, /Ответ на:<\/b> parent@example\.com/);
+    assert.doesNotMatch(withoutReplyTo, /Ответ на|null/);
+});
+
 test('notifyNewEmail falls back to "(без темы)" when subject is missing', async (t) => {
     const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
 

@@ -32,6 +32,9 @@ model EmailMessage {
   isOutgoing         Boolean  @default(false) @map("is_outgoing")
   fromAddress        String   @map("from_address")
   fromName           String?  @map("from_name")
+  // Reply-To header when it differs from From. A website contact form sends as the site
+  // (wordpress@…) and puts the visitor here; replies and CRM matching use it when present.
+  replyToAddress     String?  @map("reply_to_address")
   toAddresses        Json     @map("to_addresses")
   ccAddresses        Json?    @map("cc_addresses")
   subject            String?
