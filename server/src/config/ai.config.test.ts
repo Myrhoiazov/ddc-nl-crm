@@ -11,6 +11,7 @@ test('AI config uses the resource-safe local defaults', () => {
         openAiBaseUrl: undefined,
         openAiDefaultModel: 'gpt-4o-mini',
         openAiAllowedModels: [],
+        openAiContextLength: 16000,
         ollamaModel: 'qwen3:0.6b',
         contextLength: 2048,
         temperature: 0.2,
@@ -61,6 +62,7 @@ test('AI config is fully environment-driven', () => {
         openAiBaseUrl: undefined,
         openAiDefaultModel: 'gpt-4o-mini',
         openAiAllowedModels: [],
+        openAiContextLength: 16000,
         ollamaModel: 'custom-model',
         contextLength: 1024,
         temperature: 0.7,
@@ -117,4 +119,10 @@ test('RAG_VERSION falls back to v1 for anything other than v2', () => {
     assert.equal(readAiConfig({ RAG_VERSION: 'V2' }).ragVersion, 'v2');
     assert.equal(readAiConfig({ RAG_VERSION: 'v3' }).ragVersion, 'v1');
     assert.equal(readAiConfig({ RAG_FACT_LIMIT: '-1' }).ragFactLimit, 4);
+});
+
+test('OPENAI_CONTEXT_LENGTH is independent of the local LLM_CONTEXT_LENGTH', () => {
+    const config = readAiConfig({ LLM_CONTEXT_LENGTH: '2048', OPENAI_CONTEXT_LENGTH: '32000' });
+    assert.deepEqual([config.contextLength, config.openAiContextLength], [2048, 32000]);
+    assert.equal(readAiConfig({ OPENAI_CONTEXT_LENGTH: '0' }).openAiContextLength, 16000);
 });

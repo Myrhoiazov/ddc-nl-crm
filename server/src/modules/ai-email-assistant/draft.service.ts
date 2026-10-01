@@ -55,6 +55,9 @@ export interface DraftContext {
 }
 
 export interface DraftLlmClient {
+    // Prompt window of this client in tokens. RAG v2 sizes its context budget from it, so a
+    // hosted model is not trimmed to the local model's num_ctx.
+    readonly contextLength?: number;
     generateDraft(context: DraftContext): Promise<EmailDraft>;
 }
 

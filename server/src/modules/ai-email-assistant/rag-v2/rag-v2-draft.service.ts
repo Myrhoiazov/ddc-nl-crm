@@ -3,7 +3,7 @@ import { logger } from '../../../common/logger';
 import type { CrmContactProjection, DraftKnowledgeContext, DraftLlmClient, EmailDraft } from '../draft.service';
 import type { DraftKnowledgeRefInput } from '../draft.persistence';
 import type { EmailClassification, NormalizedEmailInput } from '../email-assistant.service';
-import type { RagV2Prompt } from './context-builder';
+import { promptCharacterBudget, type RagV2Prompt } from './context-builder';
 import { describeWarnings, validateGrounding, type GroundingResult } from './grounding-validator';
 import { matchFactTarget, type LayeredKnowledge, type RetrievedChunk } from './layered-retriever';
 import { understandQuery } from './query-understanding';
@@ -18,6 +18,7 @@ export interface RagV2DraftDeps {
     draftClient: DraftLlmClient;
     retrieve: (query: string, plan: RetrievalPlan) => Promise<LayeredKnowledge>;
     limits: RetrievalLimits;
+    // Fallback budget, used only when the draft client does not report a context length.
     characterBudget: number;
     log?: (event: Record<string, unknown>) => void;
 }
@@ -104,15 +105,21 @@ const assessDraft = (state: { understanding: QueryUnderstanding; plan: Retrieval
 
 interface GenerationOutcome { draft: EmailDraft; validation: GroundingResult; included: LayeredKnowledge; trimmed: string[]; attempts: number; durationMs: number }
 
+// The draft client is picked at runtime (admin setting), so the budget is resolved per draft.
+const resolveCharacterBudget = (deps: RagV2DraftDeps): number => (
+    deps.draftClient.contextLength ? promptCharacterBudget(deps.draftClient.contextLength) : deps.characterBudget
+);
+
 const generateValidatedDraft = async (input: RagV2DraftInput, understanding: QueryUnderstanding, knowledge: LayeredKnowledge, deps: RagV2DraftDeps): Promise<GenerationOutcome> => {
     const start = Date.now();
+    const characterBudget = resolveCharacterBudget(deps);
     let correction: string | undefined;
     let outcome: Omit<GenerationOutcome, 'durationMs'> | null = null;
     for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS && !(outcome?.validation.ok); attempt += 1) {
         const captured: { prompt?: RagV2Prompt } = {};
         const draft = await deps.draftClient.generateDraft({
             email: input.email, classification: input.classification, contact: input.contact, knowledge: knowledge.facts.map(toDraftKnowledge),
-            ragV2: { understanding, knowledge, characterBudget: deps.characterBudget, correction, onPromptBuilt: (prompt) => { captured.prompt = prompt; } },
+            ragV2: { understanding, knowledge, characterBudget, correction, onPromptBuilt: (prompt) => { captured.prompt = prompt; } },
         });
         const included = captured.prompt?.included ?? knowledge;
         const validation = validateGrounding({ draft: draft.body, factsText: included.facts.map((chunk) => chunk.content).join('\n'), language: understanding.language });
