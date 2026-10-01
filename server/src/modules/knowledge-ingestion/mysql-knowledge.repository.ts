@@ -69,7 +69,9 @@ export class MysqlKnowledgeRepository implements KnowledgeRepository {
     }
 
     public async search(query: number[], topK: number): Promise<ScoredKnowledgeChunk[]> {
-        const chunks = await prisma.knowledgeChunk.findMany({ where: { document: { status: 'ACTIVE' } }, select: { id: true, documentId: true, ordinal: true, content: true, contentHash: true, embedding: true, document: { select: { sourceUrl: true } } } });
+        // v1 only ever searches its own namespace — ddc-knowledge-v2 chunks (kbVersion 'v2') are
+        // served by LayeredKnowledgeRetriever and must never leak into the flat v1 corpus.
+        const chunks = await prisma.knowledgeChunk.findMany({ where: { document: { status: 'ACTIVE', kbVersion: 'v1' } }, select: { id: true, documentId: true, ordinal: true, content: true, contentHash: true, embedding: true, document: { select: { sourceUrl: true } } } });
         return chunks.map((chunk) => ({ id: chunk.id, documentId: chunk.documentId, sourceUrl: chunk.document.sourceUrl, contentHash: chunk.contentHash, ordinal: chunk.ordinal, content: chunk.content, score: cosineSimilarity(query, Array.isArray(chunk.embedding) ? chunk.embedding.filter((value): value is number => typeof value === 'number') : []) })).sort((a, b) => b.score - a.score).slice(0, Math.max(0, topK));
     }
 
