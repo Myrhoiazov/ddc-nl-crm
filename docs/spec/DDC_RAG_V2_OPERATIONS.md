@@ -46,8 +46,9 @@ v1 делает один семантический поиск по всей б�
 
 ## 3. Как добавить или изменить знание
 
-База знаний лежит в `server/knowledge/ddc-knowledge-v2/` (gitignored, на сервер доставляется
-отдельно, как и v1).
+База знаний лежит в `server/knowledge/ddc-knowledge-v2/`. Папка gitignored, но на сервер попадает
+при `npm run deploy`: deploy-скрипт делает `rsync` рабочей папки, а не git-дерева. В backend-контейнер
+она смонтирована только на чтение как `/app/knowledge` (см. §6).
 
 1. Положите `.md` в папку нужного слоя. Папка задаёт метаданные по умолчанию:
 
@@ -100,8 +101,19 @@ v1 делает один семантический поиск по всей б�
 | `npm run knowledge:reindex [-- <path>]` | Полная переиндексация namespace v2. Индекс не пустеет: старые строки заменяются по одной. |
 | `npm run knowledge:eval [-- <id-substring>]` | Живой прогон regression-кейсов через Ollama и индекс v2: ретривал + `mustContain`/`mustNotContain` по реальному черновику. `EVAL_VERBOSE=true` печатает черновики. В CI не входит. |
 
-Путь по умолчанию — `RAG_KNOWLEDGE_PATH` (`knowledge/ddc-knowledge-v2`). В контейнере:
-`docker exec <backend> npm run knowledge:index`.
+Путь по умолчанию — `RAG_KNOWLEDGE_PATH` (`knowledge/ddc-knowledge-v2`).
+
+`npm run knowledge:*` запускаются через `ts-node` и работают локально и в dev-контейнере. В
+production-образе `ts-node` нет (`npm ci --omit=dev`), там используется скомпилированный CLI с теми
+же командами:
+
+```bash
+docker exec <backend> node build/scripts/knowledge-v2.js validate
+docker exec <backend> node build/scripts/knowledge-v2.js index
+docker exec <backend> node build/scripts/knowledge-v2.js reindex
+```
+
+`knowledge:eval` в production-образ не входит: это локальная проверка качества.
 
 ## 5. Конфигурация
 
@@ -122,15 +134,21 @@ v1 делает один семантический поиск по всей б�
 
 1. Задеплоить код. Миграция `20261001120000_add_rag_v2_metadata` аддитивная (две nullable
    колонки и `kb_version DEFAULT 'v1'`), v1 продолжает работать без изменений.
-2. Доставить `ddc-knowledge-v2/` на сервер, выполнить `npm run knowledge:validate` и
-   `npm run knowledge:index`.
-3. Проверить: `npm run knowledge:eval` и несколько реальных писем в «Симуляции письма» с
-   `RAG_VERSION=v2` в env backend'а.
+2. База знаний приезжает тем же деплоем: `rsync` кладёт `server/knowledge/` на хост, а
+   `docker-compose.prod.yml` монтирует её в backend как `/app/knowledge` (read-only). На сервере
+   выполнить `docker exec <backend> node build/scripts/knowledge-v2.js index` (перед индексацией
+   команда сама запускает validate).
+3. Проверить: локально `npm run knowledge:eval`, на сервере несколько реальных писем в «Симуляции
+   письма» с `RAG_VERSION=v2` в env backend'а.
 4. Выставить `RAG_VERSION=v2` в `.env` и перезапустить backend.
 5. Наблюдать за строками `[RagV2]` в `logs/combined.log` (request_id, intent, план,
    использованные chunk id, scores, warnings, needs_staff_review, длительности; без текста
    письма и адресов). В Telegram у v2-черновиков есть блоки `Sources` и `Warnings`.
-6. Удалять v1 (`kb_version='v1'`, ветку `knowledgeProvider`) можно только после стабильной
+6. Обновление знаний после включения: поправить `.md` локально, `npm run deploy`, затем снова
+   `node build/scripts/knowledge-v2.js index` в контейнере. Переэмбеддятся только изменённые файлы,
+   удалённые из папки документы уйдут из индекса. Загрузка файлов через UI базы знаний пишет в
+   корпус v1 и в v2 не попадает.
+7. Удалять v1 (`kb_version='v1'`, ветку `knowledgeProvider`) можно только после стабильной
    работы v2.
 
 ## 7. Откат

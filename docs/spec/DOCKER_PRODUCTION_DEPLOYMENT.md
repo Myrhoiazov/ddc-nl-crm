@@ -74,6 +74,11 @@ below → `docker compose up --build -d` → polls `GET /api/v1/health` on the b
 (up to 90s) → checks frontend root responds → dumps logs and fails loudly if health
 never turns `"status":"ok"`.
 
+The rsync source is the working directory, not the git tree, so the gitignored
+`server/knowledge/` folder is delivered too. `docker-compose.prod.yml` mounts it read-only
+into the backend at `/app/knowledge`; re-indexing after a deploy is a manual step, see
+`docs/spec/DDC_RAG_V2_OPERATIONS.md` §6.
+
 Deploy stays manual by design — see
 `docs/adr/0002-manual-production-deploy-retire-github-actions-deploy.md`
 (gitignored, local only) for the rationale.
