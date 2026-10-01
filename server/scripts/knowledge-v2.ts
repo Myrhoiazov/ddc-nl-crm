@@ -23,7 +23,7 @@ const COMMANDS: readonly Command[] = ['validate', 'index', 'reindex'];
 
 const parseArguments = (argv: string[]): { command: Command; root: string } => {
     const [command, root] = argv;
-    if (!COMMANDS.includes(command as Command)) throw new Error(`Usage: ts-node scripts/knowledge-v2.ts <${COMMANDS.join('|')}> [knowledge-path]`);
+    if (!COMMANDS.includes(command as Command)) throw new Error(`Usage: knowledge-v2 <${COMMANDS.join('|')}> [knowledge-path]`);
     return { command: command as Command, root: path.resolve(root || aiConfig.ragKnowledgePath) };
 };
 
