@@ -37,3 +37,8 @@ test('OpenAI adapter reports token usage and duration via onMetric', async () =>
   assert.equal(metrics[0].totalTokens, 392);
   assert.ok(metrics[0].durationMs >= 0);
 });
+
+test('OpenAI adapter exposes its own context length, not the local model one', () => {
+  assert.equal(new OpenAiDraftClient({ config: { ...config, openAiContextLength: 32000 } }).contextLength, 32000);
+  assert.equal(new OpenAiDraftClient({ config }).contextLength, 16000);
+});

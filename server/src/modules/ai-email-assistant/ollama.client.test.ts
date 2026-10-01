@@ -294,3 +294,7 @@ test('generateDraft reports token usage via onMetric', async () => {
     assert.equal(metrics[0].callCount, 1);
     assert.equal(metrics[0].totalTokens, 240);
 });
+
+test('Ollama client exposes the configured num_ctx as its context length', () => {
+    assert.equal(new OllamaLlmClient({ config }).contextLength, 1024);
+});

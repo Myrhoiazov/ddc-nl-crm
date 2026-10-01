@@ -2,6 +2,9 @@ const DEFAULT_OLLAMA_URL = 'http://127.0.0.1:11434';
 const DEFAULT_OLLAMA_MODEL = 'qwen3:0.6b';
 const DEFAULT_OLLAMA_EMBEDDING_MODEL = 'bge-m3';
 const DEFAULT_CONTEXT_LENGTH = 2048;
+// Prompt budget for hosted OpenAI drafting, in tokens. Far below any current model's window on
+// purpose: it only has to fit the layered RAG v2 context untrimmed, not invite a huge prompt.
+export const DEFAULT_OPENAI_CONTEXT_LENGTH = 16_000;
 const DEFAULT_TEMPERATURE = 0.2;
 const DEFAULT_KEEP_ALIVE = 0;
 const DEFAULT_MAX_CONCURRENCY = 1;
@@ -18,6 +21,9 @@ export interface AiConfig {
     openAiBaseUrl?: string;
     openAiDefaultModel?: string;
     openAiAllowedModels?: string[];
+    // Separate from contextLength (the local Ollama num_ctx): the RAG v2 prompt budget follows
+    // whichever draft client is selected at runtime.
+    openAiContextLength?: number;
     ollamaModel: string;
     contextLength: number;
     temperature: number;
@@ -85,6 +91,7 @@ export const readAiConfig = (environment: NodeJS.ProcessEnv = process.env): AiCo
     openAiBaseUrl: environment.OPENAI_BASE_URL?.trim() || undefined,
     openAiDefaultModel: environment.OPENAI_DEFAULT_MODEL?.trim() || "gpt-4o-mini",
     openAiAllowedModels: (environment.OPENAI_ALLOWED_MODELS || "").split(",").map((v) => v.trim()).filter(Boolean),
+    openAiContextLength: positiveInteger(environment.OPENAI_CONTEXT_LENGTH, DEFAULT_OPENAI_CONTEXT_LENGTH),
     ollamaModel: environment.OLLAMA_MODEL?.trim() || DEFAULT_OLLAMA_MODEL,
     contextLength: positiveInteger(environment.LLM_CONTEXT_LENGTH, DEFAULT_CONTEXT_LENGTH),
     temperature: boundedTemperature(environment.LLM_TEMPERATURE, DEFAULT_TEMPERATURE),

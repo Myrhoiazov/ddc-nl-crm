@@ -1,4 +1,4 @@
-import { aiConfig, type AiConfig } from '../../config/ai.config';
+import { aiConfig, DEFAULT_OPENAI_CONTEXT_LENGTH, type AiConfig } from '../../config/ai.config';
 import { DEFAULT_PROMPT_CONTENT, PrismaAiPromptRepository, type AiPromptRepository } from './prompt-library.service';
 import { buildDeterministicDraft, buildDraftBodyPrompt } from './ollama.client';
 import { emailDraftSchema, type DraftContext, type EmailDraft } from './draft.service';
@@ -13,6 +13,7 @@ export interface OpenAiClientOptions { config?: AiConfig; fetchImpl?: typeof fet
 export class OpenAiDraftClient implements DraftProvider {
   public readonly provider = DRAFT_PROVIDERS.OPENAI;
   public readonly model: string;
+  public readonly contextLength: number;
   private readonly config: AiConfig;
   private readonly fetchImpl: typeof fetch;
   private readonly prompts: AiPromptRepository;
@@ -20,6 +21,7 @@ export class OpenAiDraftClient implements DraftProvider {
   public constructor(options: OpenAiClientOptions = {}) {
     this.config = options.config ?? aiConfig;
     this.model = options.model ?? this.config.openAiDefaultModel ?? this.config.ollamaModel;
+    this.contextLength = this.config.openAiContextLength ?? DEFAULT_OPENAI_CONTEXT_LENGTH;
     this.fetchImpl = options.fetchImpl ?? fetch;
     this.prompts = options.promptRepository ?? new PrismaAiPromptRepository();
     this.onMetric = options.onMetric;

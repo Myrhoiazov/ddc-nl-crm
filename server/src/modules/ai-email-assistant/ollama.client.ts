@@ -110,6 +110,7 @@ const buildFlatDraftBodyPrompt = (persona: string, context: DraftContext) => [
 export class OllamaLlmClient implements LlmClient, DraftLlmClient {
     public readonly provider = DRAFT_PROVIDERS.OLLAMA;
     public readonly model: string;
+    public readonly contextLength: number;
     private readonly config: AiConfig;
     private readonly fetchImpl: typeof fetch;
     private readonly prompts: AiPromptRepository;
@@ -119,6 +120,7 @@ export class OllamaLlmClient implements LlmClient, DraftLlmClient {
     public constructor(options: OllamaLlmClientOptions = {}) {
         this.config = options.config ?? aiConfig;
         this.model = this.config.ollamaModel;
+        this.contextLength = this.config.contextLength;
         this.fetchImpl = options.fetchImpl ?? fetch;
         this.prompts = options.promptRepository ?? new PrismaAiPromptRepository();
         this.promptOverrides = options.promptOverrides ?? {};

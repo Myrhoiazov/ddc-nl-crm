@@ -4,6 +4,7 @@ import { buildKnowledgeDocumentV2, chunkKnowledgeDocumentV2, type StoredChunkV2 
 import type { DraftContext, DraftLlmClient } from '../draft.service';
 import type { EmailClassification } from '../email-assistant.service';
 import { buildDeterministicDraft, buildDraftBodyPrompt } from '../ollama.client';
+import { promptCharacterBudget } from './context-builder';
 import { retrieveLayeredKnowledge } from './layered-retriever';
 import { generateRagV2Draft, type RagV2DraftDeps } from './rag-v2-draft.service';
 import { createFixtureStore, DEFAULT_TEST_LIMITS, fakeEmbeddings, FIXED_NOW } from './rag-v2.testHelpers';
@@ -114,4 +115,36 @@ test('retrieval failures propagate instead of drafting blind', async () => {
     const failing = { listActiveChunks: async (): Promise<StoredChunkV2[]> => { throw new Error('db down'); } };
     await assert.rejects(run('Где вы находитесь в Роттердаме?', 'location', scripted.client, failing), /db down/);
     assert.equal(scripted.prompts.length, 0);
+});
+
+const createBudgetProbe = (contextLength?: number) => {
+    const budgets: number[] = [];
+    const client: DraftLlmClient = {
+        contextLength,
+        generateDraft: async (context: DraftContext) => {
+            budgets.push(context.ragV2?.characterBudget ?? -1);
+            buildDraftBodyPrompt(PERSONA, context);
+            return buildDeterministicDraft(context, 'Добрый день! Адрес: Van Alkemadehof 51, 3031 PB.');
+        },
+    };
+    return { client, budgets };
+};
+
+test('the prompt budget follows the context length of the selected draft client', async () => {
+    const probe = createBudgetProbe(16_000);
+    await run('Где вы находитесь в Роттердаме?', 'location', probe.client);
+    assert.deepEqual(probe.budgets, [promptCharacterBudget(16_000)]);
+});
+
+test('a draft client without a context length falls back to the configured budget', async () => {
+    const probe = createBudgetProbe();
+    await run('Где вы находитесь в Роттердаме?', 'location', probe.client);
+    assert.deepEqual(probe.budgets, [8_000]);
+});
+
+test('a large-context client keeps knowledge that the local budget would trim', async () => {
+    const local = await run('Где вы находитесь в Роттердаме?', 'location', createBudgetProbe(700).client);
+    const large = await run('Где вы находитесь в Роттердаме?', 'location', createBudgetProbe(16_000).client);
+    assert.ok(local.trace.trimmedChunkIds.length > 0);
+    assert.deepEqual(large.trace.trimmedChunkIds, []);
 });
