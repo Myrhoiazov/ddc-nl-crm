@@ -12,7 +12,7 @@ import { AiDraftProvider, AiSimulationStage } from '@prisma/client';
 import { deterministicSpamReason, normalizeEmail, type EmailClassification, type NormalizedEmailInput } from './email-assistant.service';
 import { OllamaLlmClient } from './ollama.client';
 import { createPrismaCrmReader } from './crm-context.service';
-import { buildDraftContext, emailDraftSchema, generateEmailDraft, type CrmContactProjection, type DraftKnowledgeContext, type EmailDraft } from './draft.service';
+import { buildDraftContext, emailDraftSchema, generateEmailDraft, type CrmContactProjection, type DraftKnowledgeContext, type DraftLlmClient, type EmailDraft } from './draft.service';
 import {
     KnowledgeRetrievalService, MysqlKnowledgeRepository, OllamaEmbeddingClient,
     OllamaQueryExpansionClient, OllamaReranker, type QueryExpansion,
@@ -21,6 +21,8 @@ import { aiConfig } from '../../config/ai.config';
 import { createDraftProviderFactory } from './draft-provider.factory';
 import type { DraftProviderName } from './draft-provider';
 import { PrismaAiPromptRepository } from './prompt-library.service';
+import { allChunks, generateRagV2Draft, toDraftKnowledge, type RagTrace } from './rag-v2/rag-v2-draft.service';
+import { createRagV2Deps } from './rag-v2/rag-v2.factory';
 import {
     buildSimulationRunMetricRow, createPrismaSimulationRunRepository,
     type SimulationRunInput, type SimulationRunMetricInput, type SimulationRunRepository,
@@ -56,6 +58,8 @@ export interface EmailSimulationResult {
     draftSkippedReason: string | null;
     runId: number | null;
     metrics: SimulationRunMetricInput[];
+    // RAG_VERSION=v2 only: intent/plan/used knowledge/warnings/confidence for the run.
+    ragTrace?: RagTrace;
 }
 
 const DEFAULT_FROM = 'test@example.com';
@@ -173,6 +177,7 @@ const buildSimulationRunPersister = (deps: SimulationRunPersisterDeps) => async 
     draftSkippedReason: string | null;
     draftProvider?: DraftProviderName; draftModel?: string;
     draftJson?: unknown;
+    knowledge?: DraftKnowledgeContext[];
 }): Promise<number | null> => {
     try {
         const record = buildSimulationRunInput(deps.input, {
@@ -184,7 +189,7 @@ const buildSimulationRunPersister = (deps: SimulationRunPersisterDeps) => async 
             draftProvider: extra.draftProvider ?? null,
             draftModel: extra.draftModel ?? null,
             classificationJson: deps.classification,
-            knowledgeJson: deps.knowledge,
+            knowledgeJson: extra.knowledge ?? deps.knowledge,
             draftJson: extra.draftJson,
             metrics: deps.metrics,
             createdById: deps.createdById,
@@ -202,6 +207,7 @@ interface SimulationDraftResult {
     provider: DraftProviderName;
     model: string;
     crmContact: CrmContactProjection | null;
+    ragV2?: { trace: RagTrace; knowledge: DraftKnowledgeContext[] };
 }
 
 interface SimulationDraftParams {
@@ -211,7 +217,18 @@ interface SimulationDraftParams {
     knowledge: DraftKnowledgeContext[];
     from: string;
     metrics: SimulationRunMetricInput[];
+    useRagV2: boolean;
 }
+
+// Same orchestration as the production v2 draft cron (layered retrieval + grounding validation
+// + at most one regeneration), so the panel shows exactly what RAG_VERSION=v2 would send.
+const generateRagV2SimulationDraft = async (params: SimulationDraftParams, draftClient: DraftLlmClient, crmContact: CrmContactProjection | null) => {
+    const result = await generateRagV2Draft(
+        { email: params.normalized, classification: params.classification, contact: crmContact, requestId: `simulation-${Date.now()}` },
+        { ...createRagV2Deps(), draftClient },
+    );
+    return { draft: result.draft, ragV2: { trace: result.trace, knowledge: allChunks(result.knowledge).map(({ chunk }) => toDraftKnowledge(chunk)) } };
+};
 
 const generateSimulationDraft = async (params: SimulationDraftParams): Promise<SimulationDraftResult> => {
     const { input, normalized, classification, knowledge, from, metrics } = params;
@@ -222,6 +239,10 @@ const generateSimulationDraft = async (params: SimulationDraftParams): Promise<S
     const draftClient = await createDraftProviderFactory().getSelectedProvider((metric) =>
         metrics.push(buildSimulationRunMetricRow(AiSimulationStage.DRAFT, draftClient.provider as AiDraftProvider, draftClient.model, metric)));
     const crmContact = await crmReader.findContactByEmail(from);
+    if (params.useRagV2) {
+        const v2 = await generateRagV2SimulationDraft(params, draftClient, crmContact);
+        return { ...v2, provider: draftClient.provider as DraftProviderName, model: draftClient.model, crmContact };
+    }
     const draft = input.forceDraft && (classification.spam || !classification.needsReply)
         ? emailDraftSchema.parse(await draftClient.generateDraft(await buildDraftContext(normalized, classification, crmReader, knowledge)))
         : await generateEmailDraft(normalized, classification, crmReader, draftClient, knowledge);
@@ -242,7 +263,10 @@ export const runEmailAssistantSimulation = async (
 
     const { classificationPromptName, draftBodyPromptName } = await resolveSimulationPromptNames(input);
     const classification = await classifyForSimulation(normalized, spamReason, input, metrics);
-    const { knowledge, queryExpansion } = await retrieveSimulationKnowledge(normalized, input, metrics);
+    // RAG v2 retrieves inside its own draft orchestration (layered, metadata-filtered), so the
+    // flat v1 retrieval is skipped; "без знаний" still forces the v1 knowledge-less path.
+    const useRagV2 = aiConfig.ragVersion === 'v2' && !input.noKnowledge;
+    const { knowledge, queryExpansion } = useRagV2 ? { knowledge: [] as DraftKnowledgeContext[], queryExpansion: null } : await retrieveSimulationKnowledge(normalized, input, metrics);
 
     const persistRun = buildSimulationRunPersister({
         runRepository, input, spamReason, classification, classificationPromptName, draftBodyPromptName, knowledge, metrics, createdById: deps.createdById,
@@ -260,8 +284,9 @@ export const runEmailAssistantSimulation = async (
         return { normalized, deterministicSpamReason: spamReason, classification, knowledge, queryExpansion, crmContact: null, draft: null, draftSkippedReason: reason, runId, metrics };
     }
 
-    const { draft, provider, model, crmContact } = await generateSimulationDraft({ input, normalized, classification, knowledge, from, metrics });
-    const runId = await persistRun({ draftSkippedReason: null, draftProvider: provider, draftModel: model, draftJson: draft });
+    const { draft, provider, model, crmContact, ragV2 } = await generateSimulationDraft({ input, normalized, classification, knowledge, from, metrics, useRagV2 });
+    const usedKnowledge = ragV2?.knowledge ?? knowledge;
+    const runId = await persistRun({ draftSkippedReason: null, draftProvider: provider, draftModel: model, draftJson: ragV2 ? { ...draft, ragTrace: ragV2.trace } : draft, knowledge: usedKnowledge });
 
-    return { normalized, deterministicSpamReason: spamReason, classification, knowledge, queryExpansion, crmContact, draft, draftSkippedReason: null, runId, metrics };
+    return { normalized, deterministicSpamReason: spamReason, classification, knowledge: usedKnowledge, queryExpansion, crmContact, draft, draftSkippedReason: null, runId, metrics, ...(ragV2 ? { ragTrace: ragV2.trace } : {}) };
 };

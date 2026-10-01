@@ -72,7 +72,9 @@ const uniqueSlug = (slug: string, used: Map<string, number>): string => {
 
 const selectSections = (document: KnowledgeDocumentV2): MarkdownSection[] => {
     const sections = splitMarkdownSections(document.content);
-    if (document.metadata.priority === 'example' || sections.length <= 1) {
+    // Collapse only examples and heading-less documents: a lone "## Rotterdam" section must keep
+    // its heading, or the chunk loses the city it inherits from it.
+    if (document.metadata.priority === 'example' || sections.every((section) => !section.heading)) {
         const text = sections.map((section) => (section.heading ? `${section.heading}:\n${section.text}` : section.text)).join('\n\n');
         return text ? [{ heading: null, text }] : [];
     }

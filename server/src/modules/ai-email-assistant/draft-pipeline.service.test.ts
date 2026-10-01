@@ -57,3 +57,28 @@ test('findDraftCandidates skips an older no-reply-needed email instead of starvi
     const { take } = calls[0] as { take: number };
     assert.ok(take > 1, `expected take to look past limit=1, got ${take}`);
 });
+
+test('RAG v2 path persists the rag trace and notifies with document sources and warnings', async () => {
+    const persisted: Array<Record<string, unknown>> = [];
+    const notified: Array<Record<string, unknown>> = [];
+    const repository: DraftPipelineRepository = {
+        async findDraftCandidates() { return [{ id: 11, sender: 'p@example.com', subject: 'Вопрос', normalizedBody: 'Где вы находитесь в Роттердаме?', classification: { spam: false, needsReply: true, language: 'ru', intent: 'location', confidence: 0.9, reason: '' } }]; },
+        async createNextVersion(record) { persisted.push(record as unknown as Record<string, unknown>); return { id: 5, version: 1 }; },
+    };
+    const fact = { id: 'kb_v2:location_rotterdam#address', chunkId: 'location_rotterdam#address', documentId: 'location_rotterdam', content: 'Rotterdam — Address\nVan Alkemadehof 51, 3031 PB', score: 2, semanticScore: 0.6, metadata: { id: 'location_rotterdam', documentId: 'location_rotterdam', chunkId: 'location_rotterdam#address', section: 'address', sourcePath: '02_locations/rotterdam.md', category: 'location', priority: 'factual', language: 'canonical', dynamic: true, city: 'rotterdam', lastVerified: '2026-09-20' } } as const;
+    const result = await runDraftPipeline(repository, { async findContactByEmail() { return null; } }, {
+        async generateDraft(context) { assert.ok(context.ragV2, 'v2 context expected'); return { replyLanguage: 'ru', subject: 'Re: Вопрос', body: 'Добрый день! Адрес: Van Alkemadehof 51, 3031 PB.', confidence: 0.5, needsManualAnswer: true, usedKnowledgeIds: [] }; },
+    }, {
+        ragV2: { retrieve: async () => ({ rules: [], facts: [fact], faq: [], examples: [] }), limits: { rules: 3, facts: 4, faq: 2, examples: 2 }, characterBudget: 8000, log: () => undefined },
+        limit: 1,
+        notify: async (input) => { notified.push(input as unknown as Record<string, unknown>); return true; },
+    });
+    assert.deepEqual(result, { processed: 1, skipped: 0, failed: 0 });
+    assert.equal(persisted[0].promptVersion, 'draft-rag-v2');
+    assert.equal((persisted[0].ragTrace as { intent: string }).intent, 'location');
+    assert.deepEqual(persisted[0].knowledge, [{ id: 'kb_v2:location_rotterdam#address', sourceUrl: 'kb-v2://02_locations/rotterdam.md', score: 2 }]);
+    assert.deepEqual(notified[0].sources, ['location_rotterdam']);
+    assert.deepEqual(notified[0].warnings, []);
+    assert.equal(notified[0].intent, 'location / location_question');
+    assert.equal(notified[0].needsManualAnswer, false);
+});

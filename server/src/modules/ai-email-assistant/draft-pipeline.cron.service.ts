@@ -4,7 +4,8 @@ import { aiConfig } from '../../config/ai.config';
 import { createDraftProviderFactory } from './draft-provider.factory';
 import { OllamaLlmClient } from './ollama.client';
 import { createPrismaCrmReader } from './crm-context.service';
-import { createPrismaDraftPipelineRepository, runDraftPipeline } from './draft-pipeline.service';
+import { createPrismaDraftPipelineRepository, runDraftPipeline, type RunDraftPipelineOptions } from './draft-pipeline.service';
+import { createRagV2Deps } from './rag-v2/rag-v2.factory';
 import {
     KnowledgeRetrievalService, MysqlKnowledgeRepository, OllamaEmbeddingClient,
     OllamaQueryExpansionClient, OllamaReranker,
@@ -22,6 +23,13 @@ const buildRetrievalService = (): KnowledgeRetrievalService => {
     });
 };
 
+// RAG_VERSION picks the knowledge path per run: v2 = layered rules/facts/FAQ/examples over the
+// kb_version='v2' namespace; anything else = the original flat v1 retrieval. Switching back is
+// a pure env change — both namespaces stay indexed.
+export const buildKnowledgeOptions = (ragVersion = aiConfig.ragVersion): Pick<RunDraftPipelineOptions, 'knowledgeProvider' | 'ragV2'> => (
+    ragVersion === 'v2' ? { ragV2: createRagV2Deps() } : { knowledgeProvider: buildRetrievalService() }
+);
+
 export const startAiEmailDraftCron = (): boolean => {
     if (process.env.AI_EMAIL_DRAFT_ENABLED !== 'true') return false;
     cron.schedule('*/5 * * * *', async () => {
@@ -30,7 +38,7 @@ export const startAiEmailDraftCron = (): boolean => {
                 createPrismaDraftPipelineRepository(),
                 createPrismaCrmReader(),
                 await createDraftProviderFactory().getSelectedProvider().catch(() => new OllamaLlmClient()),
-                { knowledgeProvider: buildRetrievalService() },
+                buildKnowledgeOptions(),
             );
             logger.info(`[AiEmailDraft] processed=${result.processed}, skipped=${result.skipped}, failed=${result.failed}`);
         } catch (error) {

@@ -32,6 +32,7 @@ const NON_WORD_CHARACTERS = new RegExp("[^\\p{L}\\p{N}' ]+", 'gu');
 export const normalizeAliasText = (value: string): string => value
     .toLowerCase()
     .replace(/ё/g, 'е')
+    .replace(/[’ʼ`]/g, "'")
     .replace(/[-_/]+/g, ' ')
     .replace(NON_WORD_CHARACTERS, ' ')
     .replace(/\s+/g, ' ')

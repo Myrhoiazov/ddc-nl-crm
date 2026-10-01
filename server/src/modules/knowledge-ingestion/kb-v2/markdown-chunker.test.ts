@@ -59,3 +59,8 @@ test('cleanMarkdownText restores pandoc dashes, escaped brackets and inline list
     assert.equal(cleanMarkdownText('### Monday\n\n-   16:00--17:00'), 'Monday:\n- 16:00–17:00');
     assert.equal(cleanMarkdownText('Comfortable clothes, indoor\nsneakers and water.\n\nNext paragraph'), 'Comfortable clothes, indoor sneakers and water.\n\nNext paragraph');
 });
+
+test('a document with a single H2 section keeps the heading and the entity it implies', () => {
+    const chunks = chunkKnowledgeDocumentV2(buildKnowledgeDocumentV2('05_schedule/current-schedule.md', '# Schedule\n\n## Rotterdam\n\nWednesday: - 18:00--19:00 --- Hip-Hop --- 12+\n'));
+    assert.deepEqual(chunks.map((chunk) => [chunk.chunkId, chunk.metadata.city]), [['schedule_current_schedule#rotterdam', 'rotterdam']]);
+});

@@ -15,7 +15,20 @@ export interface DraftApprovalNotificationInput {
     contactName?: string | null;
     knowledgeSourceUrls: string[];
     needsManualAnswer: boolean;
+    // RAG v2 only: knowledge document ids actually used, and validation/escalation warnings.
+    // Absent for v1 drafts, which keep the original message layout.
+    sources?: string[];
+    warnings?: string[];
 }
+
+const MAX_LISTED_SOURCES = 6;
+
+const formatRagV2Details = (input: DraftApprovalNotificationInput): string => {
+    if (!input.sources) return '';
+    const sources = input.sources.slice(0, MAX_LISTED_SOURCES).map((source) => `• ${escapeHtml(source)}`).join('\n') || '—';
+    const warnings = input.warnings?.length ? input.warnings.map((warning) => `• ${escapeHtml(warning)}`).join('\n') : 'none';
+    return `\n<b>Sources:</b>\n${sources}\n<b>Warnings:</b>\n${warnings}`;
+};
 
 export const buildDraftApprovalNotification = (input: DraftApprovalNotificationInput) => {
     const sources = input.knowledgeSourceUrls.slice(0, 4).map((url) => `• ${escapeHtml(url)}`).join('\n');
@@ -31,6 +44,7 @@ export const buildDraftApprovalNotification = (input: DraftApprovalNotificationI
         '<b>Сообщение:</b>',
         escapeHtml(input.body.slice(0, 2_000)),
         sources ? `\n<b>Источники:</b>\n${sources}` : '',
+        ...(input.sources ? [formatRagV2Details(input)] : []),
     ].join('\n');
     return {
         text: text.slice(0, 4_000),
