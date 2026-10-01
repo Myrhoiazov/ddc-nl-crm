@@ -23,6 +23,7 @@ CRM / admin platform for dance school "DDC" (Talent Center): client/student reco
 | Invoice audit log | Per-invoice change history (`InvoiceAuditLog`: action + before/after value snapshot). Distinct from the security audit event log. |
 | Local AI email assistant | Private, on-prem (Ollama) pipeline: reads inbound email, classifies it, drafts replies with RAG knowledge, and sends only after human approval via Telegram. No cloud LLM API. |
 | Knowledge base (RAG) | Local indexed copy of the DDC website (sitemap/WordPress discovery), manually crawled URLs, and imported files (PDF/DOCX/TXT/MD/HTML), chunked and embedded locally (`bge-m3`), stored in MySQL, retrieved via hybrid cosine+BM25+RRF search as attributable draft context. |
+| RAG v2 (layered) | Opt-in (`RAG_VERSION=v2`) retrieval over the curated `server/knowledge/ddc-knowledge-v2` KB, namespaced `kb_version='v2'` in the same tables: business rules → current facts → FAQ → style examples, metadata-filtered before semantic ranking, with a deterministic grounding validator on the draft. Examples are never a factual source. See `docs/spec/DDC_RAG_V2_OPERATIONS.md`. |
 | Embedding | Local vector representation of a knowledge chunk; retrieval ranks chunks by cosine similarity with configurable top-K. |
 | Draft approval | Human-in-the-loop Telegram flow over a generated draft: approve / edit / reject / mark spam; SMTP sending happens only after explicit approval. |
 
@@ -110,6 +111,12 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   plain cosine similarity, never a BM25/RRF/rerank score, because `ollama.client.ts`'s
   `CONFIDENT_KNOWLEDGE_SCORE` threshold depends on it. All ingestion/classification/draft workers
   are opt-in cron jobs behind `AI_EMAIL_*_ENABLED` / `KNOWLEDGE_SYNC_ENABLED` and default off.
+- RAG v2 (`RAG_VERSION=v2`, default `v1`): `knowledge-ingestion/kb-v2/` parses front matter /
+  path metadata, chunks by H2 and indexes via `npm run knowledge:validate|index|reindex`;
+  `ai-email-assistant/rag-v2/` refines the unchanged LLM classification deterministically
+  (intent v2, subintent, entities), plans and runs layered retrieval, builds a sectioned prompt,
+  validates grounding (one regeneration max, then needs staff review) and stores `rag_trace` on
+  the draft. Live evaluation: `npm run knowledge:eval`. Details: `docs/spec/DDC_RAG_V2_OPERATIONS.md`.
 - Knowledge Base admin page (`client/src/pages/KnowledgeBasePage/`, sidebar-linked) covers file
   upload, URL crawling, category/metadata assignment, manual embedding trigger, paginated document
   list (20/page), the prompt library editor, and an email-simulation panel that runs the real

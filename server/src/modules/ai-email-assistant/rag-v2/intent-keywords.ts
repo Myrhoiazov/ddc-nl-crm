@@ -16,7 +16,7 @@ export const INTENT_KEYWORDS: AliasTable = {
     location: ['где вы наход', 'где находит', 'где наход', 'адрес', 'где проход', 'как добраться', 'де ви знаход', 'де знаход', 'де прохо', 'waar zit', 'waar is', 'waar zijn', 'waar vind', 'adres', 'locatie', 'where are you', 'where is', 'address', 'location', 'located'],
     schedule: ['расписан', 'во сколько', 'когда занятия', 'в какие дни', 'какие дни', 'розклад', 'коли заняття', 'о котрій', 'lesrooster', 'rooster', 'hoe laat', 'welke dagen', 'schedule', 'timetable', 'what time', 'which days'],
     beginner: ['новичок', 'новичк', 'без опыта', 'с нуля', 'никогда не танцевал', 'никогда не занимал', 'новачок', 'без досвіду', 'з нуля', 'ніколи не танцювал', 'beginner', 'beginnend', 'geen ervaring', 'nooit gedanst', 'no experience', 'never danced', 'from scratch'],
-    clothing: ['одежд', 'в чем приходить', 'что взять', 'что надеть', 'обувь', 'кроссовк', 'одяг', 'що взяти', 'взутт', 'кросівк', 'kleding', 'meenemen', 'schoenen', 'sportkleding', 'clothes', 'clothing', 'wear', 'bring', 'shoes', 'sneakers'],
+    clothing: ['одежд', 'в чем приходить', 'что взять', 'что надеть', 'обув', 'кроссовк', 'одяг', 'що взяти', 'взутт', 'кросівк', 'kleding', 'meenemen', 'schoenen', 'sportkleding', 'clothes', 'clothing', 'wear', 'bring', 'shoes', 'sneakers'],
     parent_question: ['родител', 'можно присутств', 'можно посмотреть', 'батьк', 'ouders', 'parents', 'parent', 'watch the class'],
     age_group: ['возраст', 'вік', 'віку', 'leeftijd', 'age group', 'how old', 'what age'],
     dance_style: ['стиль', 'направлени', 'какой танец', 'який танець', 'напрям', 'dansstijl', 'stijl', 'dance style', 'style'],

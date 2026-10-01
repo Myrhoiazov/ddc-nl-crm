@@ -10,7 +10,8 @@ import type { RagLanguage } from './rag-v2.types';
 
 export type GroundingWarningCode =
     | 'unsupported_availability' | 'ungrounded_price' | 'ungrounded_time' | 'ungrounded_weekday'
-    | 'ungrounded_date' | 'ungrounded_address' | 'language_mismatch' | 'unresolved_placeholder';
+    | 'ungrounded_date' | 'ungrounded_address' | 'language_mismatch' | 'unresolved_placeholder'
+    | 'degenerate_repetition';
 
 export interface GroundingWarning {
     code: GroundingWarningCode;
@@ -107,12 +108,29 @@ const checkLanguage = (draft: string, language: RagLanguage): GroundingWarning[]
     return detected === language || detected === 'unknown' ? [] : [{ code: 'language_mismatch', value: detected }];
 };
 
+// A small model occasionally loops ("Відповідь: <same line>" ×4); any non-trivial line repeated
+// three or more times marks the draft as degenerate.
+const MIN_REPEATED_LINE_CHARS = 12;
+const MAX_LINE_REPETITIONS = 2;
+
+export const findRepeatedLine = (draft: string): string | null => {
+    const counts = new Map<string, number>();
+    for (const line of draft.split('\n').map((value) => value.trim()).filter((value) => value.length >= MIN_REPEATED_LINE_CHARS)) {
+        const count = (counts.get(line) ?? 0) + 1;
+        if (count > MAX_LINE_REPETITIONS) return line.slice(0, 60);
+        counts.set(line, count);
+    }
+    return null;
+};
+
 export const validateGrounding = (input: GroundingInput): GroundingResult => {
+    const repeated = findRepeatedLine(input.draft);
     const warnings: GroundingWarning[] = [
         ...(input.availabilityConfirmed ? [] : findAvailabilityClaims(input.draft).map((value) => ({ code: 'unsupported_availability' as const, value }))),
         ...checkDynamicValues(input.draft, input.factsText),
         ...checkLanguage(input.draft, input.language),
         ...Array.from(new Set(input.draft.match(PLACEHOLDER_PATTERN) ?? [])).map((value) => ({ code: 'unresolved_placeholder' as const, value })),
+        ...(repeated ? [{ code: 'degenerate_repetition' as const, value: repeated }] : []),
     ];
     return { ok: warnings.length === 0, warnings };
 };
@@ -126,6 +144,7 @@ const WARNING_EXPLANATIONS: Record<GroundingWarningCode, string> = {
     ungrounded_address: 'it stated an address that is not in CURRENT FACTS',
     language_mismatch: 'it was not written in the required language',
     unresolved_placeholder: 'it contains a template placeholder in square brackets',
+    degenerate_repetition: 'it repeats the same line over and over instead of answering',
 };
 
 // One-line correction for the single regeneration attempt.

@@ -7,6 +7,10 @@ AI assistant. Classification, spam checks, CRM lookup, embeddings, query expansi
 remain local. Only final reply-body generation can use the provider selected in the admin Knowledge
 Base page.
 
+Knowledge retrieval runs in one of two modes, chosen by `RAG_VERSION` (default `v1`). `v2` is the
+layered rules/facts/FAQ/examples pipeline with grounding validation; its indexing, rollout and
+rollback live in [DDC_RAG_V2_OPERATIONS.md](DDC_RAG_V2_OPERATIONS.md).
+
 ## Configuration
 
 The server reads these variables from its runtime environment:

@@ -76,6 +76,7 @@ Validate
 | Auth / security changes | docs/roadmap/AUTH_SECURITY_ROADMAP.md (gitignored, local only) |
 | Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md (gitignored, local only) |
 | Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md (gitignored, local only) |
+| AI email assistant RAG v2 (knowledge base, retrieval, grounding) | docs/spec/DDC_RAG_V2_OPERATIONS.md |
 | Payment reminders | relevant roadmap in docs/roadmap/ (gitignored, local only) |
 | Large / risky task | .agents/skills/planning-and-task-breakdown/ |
 | Test-first implementation | .agents/skills/tdd/ |

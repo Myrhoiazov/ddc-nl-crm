@@ -31,7 +31,7 @@ export interface LayeredRetrieverDeps {
 
 interface SemanticChunk extends StoredChunkV2 { semanticScore: number }
 
-const BONUS = { category: 0.3, city: 1.0, style: 0.6, document: 0.5, topic: 0.3, preferredSection: 0.5, subtopic: 1.0, primaryTopic: 0.3, targetOrder: 0.15, freshness: 0.05 };
+const BONUS = { category: 0.3, city: 1.0, style: 0.6, document: 0.5, topic: 0.3, topicOrder: 0.05, preferredSection: 0.5, subtopic: 1.0, primaryTopic: 0.3, targetOrder: 0.15, freshness: 0.05 };
 const NEAR_DUPLICATE_JACCARD = 0.8;
 const EXCLUDED_FACT_CATEGORIES = ['source', 'meta', 'response_style'];
 // For these categories a known city is mandatory: the all-cities overview is noise next to the
@@ -97,10 +97,17 @@ const takeTop = (candidates: RetrievedChunk[], limit: number): RetrievedChunk[] 
     return selected;
 };
 
+// Plan topics are ordered primary intent first, so earlier topics get a slightly larger bonus
+// (a payment question prefers the payment rule over the generic escalation list).
+const ruleTopicBonus = (topic: string | undefined, topics: string[]): number => {
+    if (!topic || topic === 'general') return 0;
+    return BONUS.topic + BONUS.topicOrder * (topics.length - topics.indexOf(topic));
+};
+
 const selectRules = (chunks: SemanticChunk[], plan: RetrievalPlan): RetrievedChunk[] => takeTop(chunks
     .filter((chunk) => chunk.metadata.priority === 'rules' && chunk.metadata.category === 'rule' && plan.rules.topics.includes(chunk.metadata.topic ?? 'general'))
     .map((chunk) => toRetrieved(chunk, chunk.semanticScore
-        + (chunk.metadata.topic && chunk.metadata.topic !== 'general' ? BONUS.topic : 0)
+        + ruleTopicBonus(chunk.metadata.topic, plan.rules.topics)
         + (plan.rules.preferredSections.includes(chunk.metadata.section) ? BONUS.preferredSection : 0))), plan.limits.rules);
 
 interface FactCandidate { chunk: RetrievedChunk; targetIndexes: number[] }
@@ -121,11 +128,15 @@ const selectFacts = (chunks: SemanticChunk[], plan: RetrievalPlan, now: Date): R
         .filter((candidate): candidate is FactCandidate => candidate !== null)
         .sort((a, b) => b.chunk.score - a.chunk.score);
     const selected: RetrievedChunk[] = [];
+    // Documents the plan names explicitly (e.g. camp_pricing) may fill every slot — the per-document
+    // cap only exists to keep one loosely matching document from crowding out the others.
+    const explicit = new Set(plan.facts.flatMap((target) => target.documentIds ?? []));
+    const add = (chunk: RetrievedChunk) => { if (selected.length < plan.limits.facts) pushUnique(selected, chunk, explicit.has(chunk.documentId) ? Infinity : MAX_FACT_CHUNKS_PER_DOCUMENT); };
     plan.facts.forEach((_target, index) => {
         const best = candidates.find((candidate) => candidate.targetIndexes.includes(index) && !selected.some((chunk) => chunk.id === candidate.chunk.id));
-        if (best && selected.length < plan.limits.facts) pushUnique(selected, best.chunk, MAX_FACT_CHUNKS_PER_DOCUMENT);
+        if (best) add(best.chunk);
     });
-    candidates.forEach((candidate) => { if (selected.length < plan.limits.facts) pushUnique(selected, candidate.chunk, MAX_FACT_CHUNKS_PER_DOCUMENT); });
+    candidates.forEach((candidate) => add(candidate.chunk));
     return selected.sort((a, b) => b.score - a.score);
 };
 

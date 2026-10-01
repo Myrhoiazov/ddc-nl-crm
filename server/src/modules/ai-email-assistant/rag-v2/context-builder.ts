@@ -1,3 +1,4 @@
+import { focusKnowledgeOnAge } from './age-focus';
 import type { LayeredKnowledge, RetrievedChunk } from './layered-retriever';
 import type { QueryUnderstanding, RagLanguage } from './rag-v2.types';
 
@@ -26,11 +27,12 @@ export interface RagV2Prompt {
 
 const LANGUAGE_NAMES: Record<RagLanguage, string> = { ru: 'Russian', uk: 'Ukrainian', nl: 'Dutch', en: 'English', unknown: 'the same language as the customer message' };
 const MAX_CUSTOMER_MESSAGE_CHARS = 1_500;
-// No tokenizer is wired up in this codebase (see embedding.service.ts); ~2.8 characters/token is
-// a conservative average for this mixed Cyrillic-persona / English-knowledge prompt, and
-// generation needs headroom on top of the prompt itself.
-const CHARS_PER_TOKEN = 2.8;
-const GENERATION_RESERVE_TOKENS = 400;
+// No tokenizer is wired up in this codebase (see embedding.service.ts). Measured against
+// qwen3 via Ollama's prompt_eval_count on real v2 prompts (Russian persona + English knowledge):
+// ~3.47 characters/token; 3.3 keeps a margin. Generation needs headroom on top of the prompt —
+// an ordinary reply is ~150–250 tokens.
+const CHARS_PER_TOKEN = 3.3;
+const GENERATION_RESERVE_TOKENS = 350;
 
 export const promptCharacterBudget = (contextLength: number): number => Math.max(2_000, Math.floor((contextLength - GENERATION_RESERVE_TOKENS) * CHARS_PER_TOKEN));
 
@@ -70,10 +72,12 @@ const assemblePrompt = (input: RagV2PromptInput, knowledge: LayeredKnowledge): s
 
 type Layer = keyof LayeredKnowledge;
 
-// Least authoritative first: examples, then FAQ, then extra rules, then extra facts. The first
-// rule and the first fact are never trimmed.
+// Trimmed first: FAQ (in this KB mostly meta-guidance that repeats the rules), then all but one
+// style example, then extra rules, then extra facts. Measured live: with qwen3:1.7b, dropping the
+// example before the FAQ lost the "answer the location first" structure. The first example, rule
+// and fact go last of their layer; facts are never trimmed below one.
 const TRIM_ORDER: Array<{ layer: Layer; keep: number }> = [
-    { layer: 'examples', keep: 0 }, { layer: 'faq', keep: 0 }, { layer: 'rules', keep: 1 }, { layer: 'facts', keep: 1 },
+    { layer: 'faq', keep: 0 }, { layer: 'examples', keep: 1 }, { layer: 'rules', keep: 1 }, { layer: 'examples', keep: 0 }, { layer: 'facts', keep: 1 },
 ];
 
 const trimOnce = (knowledge: LayeredKnowledge): { knowledge: LayeredKnowledge; removed?: RetrievedChunk } => {
@@ -84,7 +88,7 @@ const trimOnce = (knowledge: LayeredKnowledge): { knowledge: LayeredKnowledge; r
 };
 
 export const buildRagV2Prompt = (input: RagV2PromptInput): RagV2Prompt => {
-    let knowledge = input.knowledge;
+    let knowledge = focusKnowledgeOnAge(input.knowledge, input.understanding.entities.age);
     const trimmedChunkIds: string[] = [];
     let prompt = assemblePrompt(input, knowledge);
     while (prompt.length > input.characterBudget) {

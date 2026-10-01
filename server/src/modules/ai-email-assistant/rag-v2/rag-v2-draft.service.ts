@@ -56,6 +56,8 @@ export interface RagV2DraftResult {
     knowledgeRefs: DraftKnowledgeRefInput[];
     // Exactly what the model saw (after budget trimming), for the simulation panel.
     knowledge: LayeredKnowledge;
+    // Everything the retriever selected before trimming (evaluation/diagnostics).
+    retrieved: LayeredKnowledge;
 }
 
 const MAX_GENERATION_ATTEMPTS = 2;
@@ -157,5 +159,6 @@ export const generateRagV2Draft = async (input: RagV2DraftInput, deps: RagV2Draf
         trace,
         knowledgeRefs: used.map((chunk) => ({ id: chunk.id, sourceUrl: `kb-v2://${chunk.metadata.sourcePath}`, score: chunk.score })),
         knowledge: outcome.included,
+        retrieved: knowledge,
     };
 };
