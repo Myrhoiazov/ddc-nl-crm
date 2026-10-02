@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { classNames } from '@/shared/lib/classNames/classNames';
 import { HStack } from '@/shared/ui/Stack';
+import { LangSwitcher } from '@/shared/ui/LangSwitcher';
 import { Button, ButtonTheme } from '@/shared/ui/Button';
 import { Icon } from '@/shared/ui/Icon/Icon';
 import { ThemeSwitcher } from '@/shared/ui/ThemeSwitcher';
@@ -17,11 +17,7 @@ interface NavbarActionsProps {
 }
 
 export const NavbarActions = memo(({ isAdmin, unreadEmailCount, onOpenAddClientModal }: NavbarActionsProps) => {
-    const { i18n, t } = useTranslation();
-
-    const onLanguageChange = (lang: string) => () => {
-        i18n.changeLanguage(lang);
-    };
+    const { t } = useTranslation();
 
     return (
         <HStack className={cls.actions} justify="end" gap="8">
@@ -34,18 +30,7 @@ export const NavbarActions = memo(({ isAdmin, unreadEmailCount, onOpenAddClientM
                 <Icon Svg={AddClientIcon} width={20} color="fill" />
             </Button>
             <GlobalSearch />
-            <div className={cls.langGroup} aria-label="Выбор языка">
-                {['ua', 'en', 'ru'].map((lang) => (
-                    <button
-                        key={lang}
-                        type="button"
-                        className={classNames(cls.langButton, { [cls.activeLang]: i18n.language === lang }, [])}
-                        onClick={onLanguageChange(lang)}
-                    >
-                        {lang.toUpperCase()}
-                    </button>
-                ))}
-            </div>
+            <LangSwitcher className={cls.langSwitcher} />
             {isAdmin && (
                 <button className={cls.notification} type="button" aria-label="Непрочитанные письма">
                     <span className={cls.bell}>{t('⌾')}</span>

@@ -79,6 +79,10 @@
     }
 }
 
+.footer {
+    display: none;
+}
+
 .collapsed {
     width: var(--sidebar-width-collapsed);
     padding-left: 10px;
@@ -109,8 +113,13 @@
         top: 0;
         left: 0;
         z-index: 201;
+        display: flex;
+        flex-direction: column;
         width: 280px !important;
         height: 100vh;
+
+        // dvh keeps the footer above the mobile browser's collapsible URL bar
+        height: 100dvh;
         transition: transform 0.3s ease;
         border-top-right-radius: 0;
         overflow-y: auto;
@@ -124,5 +133,12 @@
 
     .items {
         align-items: stretch;
+    }
+
+    .footer {
+        display: flex;
+        justify-content: center;
+        margin-top: auto;
+        padding-top: 16px;
     }
 }

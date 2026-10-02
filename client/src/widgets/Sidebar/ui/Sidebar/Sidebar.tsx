@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import { Button, ButtonSize, ButtonTheme } from '@/shared/ui/Button';
+import { LangSwitcher } from '@/shared/ui/LangSwitcher';
 import { SidebarItem } from '../SidebarItem/SidebarItem';
 import { SidebarItemGroup } from '../SidebarItemGroup/SidebarItemGroup';
 import cls from './Sidebar.module.scss';
@@ -77,6 +78,11 @@ export const Sidebar = memo(({ className, mobileOpen, onMobileClose }: SidebarPr
                         title={t('CRM разделы')} items={crmItems} collapsed={collapsed}
                         openGroup={openGroup} onGroupToggle={onGroupToggle}
                     />
+                </div>
+
+                {/* Mobile-only footer: the navbar hides its language switcher at this width */}
+                <div className={cls.footer} data-testid="sidebar-footer">
+                    <LangSwitcher />
                 </div>
             </div>
         </>

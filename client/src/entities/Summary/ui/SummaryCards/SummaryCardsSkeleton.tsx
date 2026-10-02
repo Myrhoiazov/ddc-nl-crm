@@ -6,10 +6,10 @@ import { Skeleton } from '@/shared/ui/Skeleton/Skeleton';
 
 export const SummaryCardsSkeleton = memo(({ className }: { className?: string }) => (
     <div className={classNames(cls.Summary, {}, [className])}>
-        <HStack justify="between" align="center" gap="16" max>
-            <Skeleton width={600} height={120} border="12px" />
-            <Skeleton width={600} height={120} border="12px" />
-            <Skeleton width={600} height={120} border="12px" />
+        <HStack className={cls.cards} justify="between" align="center" gap="16" max>
+            <Skeleton width="100%" height={120} border="12px" />
+            <Skeleton width="100%" height={120} border="12px" />
+            <Skeleton width="100%" height={120} border="12px" />
         </HStack>
     </div>
 ));
