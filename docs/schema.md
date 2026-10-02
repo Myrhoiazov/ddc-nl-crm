@@ -20,6 +20,7 @@
 | `mollie.prisma`          | Mollie: аккаунты, клиенты, платежи, подписки     |
 | `payment-reminder.prisma` | Напоминания об оплате                           |
 | `schedule.prisma`        | Расписание, группы, хореографы, залы             |
+| `telegram-notification.prisma` | Включатели Telegram-уведомлений            |
 | `user.prisma`            | Пользователи, сессии, безопасность, 2FA          |
 
 ---
@@ -430,3 +431,11 @@ providerUserId — стабильный OIDC subject от провайдера, 
 `AiEmailDraft` дополнительно хранит `provider`, `generationErrorCode` и ограниченное
 `generationErrorMessage`. Ошибка выбранного провайдера создаёт версию со статусом `FAILED` и
 `needsManualAnswer=true`; автоматического fallback нет.
+
+### TelegramNotificationSetting (таблица `telegram_notification_settings`)
+Включатель одного типа Telegram-уведомления. Список типов и значения по умолчанию живут в коде
+(`modules/communication/telegram/notification-settings.service.ts`); строка появляется только
+после того, как администратор изменил настройку. Отсутствующая строка и ошибка чтения означают
+значение по умолчанию.
+- Поля: key String @id (ключ типа, например `MOLLIE_PAYMENT`); enabled Boolean; updatedById Int?; createdAt; updatedAt
+- Связи: updatedBy -> User? (SetNull)

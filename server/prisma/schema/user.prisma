@@ -95,6 +95,7 @@ model User {
   paymentReminderDeliveriesTriggered PaymentReminderDelivery[]  @relation("PaymentReminderTriggeredBy")
   paymentReminderTemplateUpdates     PaymentReminderTemplate[]  @relation("PaymentReminderTemplateUpdatedBy")
   aiRuntimeSettingsUpdates           AiRuntimeSettings[]        @relation("AiRuntimeSettingsUpdatedBy")
+  telegramNotificationSettingUpdates TelegramNotificationSetting[] @relation("TelegramNotificationSettingUpdatedBy")
   aiSimulationRuns                   AiSimulationRun[]          @relation("AiSimulationRunCreatedBy")
 
   @@map("users")
