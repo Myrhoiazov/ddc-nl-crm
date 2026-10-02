@@ -32,7 +32,13 @@ export const SidebarItem = memo(({ item, collapsed, nested }: SidebarItemProps) 
             to={item.path}
             className={classNames(cls.item, { [cls.collapsed]: collapsed, [cls.active]: isActive, [cls.nested]: nested })}
         >
-            <Icon Svg={item.Icon} width={20} height={20} className={cls.icon} color={item.iconColor ?? 'fill'} />
+            <Icon
+                Svg={item.Icon}
+                width={20}
+                height={20}
+                className={classNames(cls.icon, {}, [item.iconColor === 'stroke' ? cls.iconStroke : cls.iconFill])}
+                color={item.iconColor ?? 'fill'}
+            />
             <span className={cls.link}>{t(item.text)}</span>
             {!collapsed && <span className={cls.chevron}>›</span>}
         </AppLink>

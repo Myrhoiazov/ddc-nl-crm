@@ -70,4 +70,19 @@ describe('SidebarItemGroup', () => {
         renderGroup({}, '/mollie/customers/5');
         expect(screen.getByText('Mollie').closest('button')).toHaveClass('active');
     });
+
+    test('colours the expanded trigger icon through its own modifier class', () => {
+        renderGroup();
+        expect(screen.getAllByTestId('icon')[0]).toHaveClass('icon', 'iconFill');
+    });
+
+    test('colours a stroke trigger icon through its own modifier class', () => {
+        renderGroup({ item: { ...item, iconColor: 'stroke' } });
+        expect(screen.getAllByTestId('icon')[0]).toHaveClass('icon', 'iconStroke');
+    });
+
+    test('colours the collapsed trigger icon through its own modifier class', () => {
+        renderGroup({ collapsed: true });
+        expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconFill');
+    });
 });

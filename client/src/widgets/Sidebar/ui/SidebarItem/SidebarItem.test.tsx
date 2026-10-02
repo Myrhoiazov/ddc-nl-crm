@@ -71,4 +71,18 @@ describe('SidebarItem', () => {
         renderItem({}, { route: '/transactions' });
         expect(screen.getByText('Clients').closest('a')).not.toHaveClass('active');
     });
+
+    // The icon colour must come from the sidebar's own classes: the shared Icon's class names
+    // are hashed in the production build, so they cannot be targeted from here.
+    test('colours a fill icon through its own modifier class', () => {
+        renderItem();
+        expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconFill');
+        expect(screen.getByTestId('icon')).not.toHaveClass('iconStroke');
+    });
+
+    test('colours a stroke icon through its own modifier class', () => {
+        renderItem({ iconColor: 'stroke' });
+        expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconStroke');
+        expect(screen.getByTestId('icon')).not.toHaveClass('iconFill');
+    });
 });
