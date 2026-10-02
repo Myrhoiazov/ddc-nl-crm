@@ -34,6 +34,11 @@ test('switches the language when a language button is clicked', () => {
     expect(mockChangeLanguage).toHaveBeenCalledWith('ru');
 });
 
+test('does not switch the language until a button is clicked', () => {
+    render(<LangSwitcher />);
+    expect(mockChangeLanguage).not.toHaveBeenCalled();
+});
+
 test('applies the className passed by the parent to the group', () => {
     render(<LangSwitcher className="extra" />);
     expect(screen.getByRole('group', { name: 'Выбор языка' })).toHaveClass('extra');
