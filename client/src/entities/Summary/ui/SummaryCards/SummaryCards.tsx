@@ -34,7 +34,7 @@ export const SummaryCards = memo((props: SummaryCardsProps) => {
 
     return (
         <div className={classNames(cls.Summary, {}, [className])}>
-            <HStack justify="between" align="center" gap="16">
+            <HStack className={cls.cards} justify="between" align="center" gap="16">
                 <SummaryStatCard title="Приход" value={formatMoney(summary.income)} cardClassName={cls.incomeCard} />
                 <SummaryStatCard title="Расход" value={formatMoney(summary.expense)} cardClassName={cls.expenseCard} />
                 <SummaryStatCard title="Баланс" value={formatMoney(summary.balance)} cardClassName={cls.balanceCard} />

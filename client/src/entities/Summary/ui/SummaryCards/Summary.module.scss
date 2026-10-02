@@ -27,4 +27,13 @@
     .balanceCard {
         border-left-color: var(--primary-redesigned);
     }
+
+    // Three cards side by side do not fit a phone: stack them full-width.
+    @media (width <= 768px) {
+        .cards {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+        }
+    }
 }
