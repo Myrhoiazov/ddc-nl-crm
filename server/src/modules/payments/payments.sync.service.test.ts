@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import axios from 'axios';
+import prisma from '../../../prisma/prisma-client';
+import * as mollieService from './payments.mollie.service';
+import { telegramNotificationSettingsRepository } from '../communication/telegram/notification-settings.service';
+import type { StoredTelegramNotificationSetting } from '../communication/telegram/notification-settings.types';
 import {
+    syncMollieCustomer,
+    syncMollieCustomers,
     resolveSyncStatus,
     buildMandateUpsertArgs,
     buildSubscriptionUpsertArgs,
@@ -85,4 +92,88 @@ test('buildSubscriptionUpsertArgs falls back to null/undefined mandateId when un
 
     assert.equal(args.create.mandateId, null);
     assert.equal(args.update.mandateId, undefined);
+});
+
+// Prisma delegates are proxies, so t.mock.method cannot wrap them; swap the method instead
+// (same helper as clients.controller.test.ts).
+function stub(t: test.TestContext, delegate: object, method: string, impl: (...args: any[]) => unknown) {
+    const target = delegate as Record<string, unknown>;
+    const original = target[method];
+    target[method] = impl;
+    t.after(() => { target[method] = original; });
+}
+
+type MollieCustomerStub = { id: string; name: string; email: string };
+
+// The new-customer Telegram notification is switched on. Every Mollie customer is new to the
+// CRM unless `existingCustomer` is given, in which case the sync finds and updates that row.
+const stubCustomerSync = (t: test.TestContext, mollieCustomers: MollieCustomerStub[], existingCustomer: object | null = null) => {
+    const previousEnv = { token: process.env.TELEGRAM_TOKEN, chat: process.env.TELEGRAM_CHAT_ID };
+    process.env.TELEGRAM_TOKEN = 'token';
+    process.env.TELEGRAM_CHAT_ID = 'chat-id';
+    t.after(() => {
+        process.env.TELEGRAM_TOKEN = previousEnv.token;
+        process.env.TELEGRAM_CHAT_ID = previousEnv.chat;
+        if (previousEnv.token === undefined) delete process.env.TELEGRAM_TOKEN;
+        if (previousEnv.chat === undefined) delete process.env.TELEGRAM_CHAT_ID;
+    });
+    let nextId = 1;
+    t.mock.method(mollieService, 'getAllCustomers', async () => mollieCustomers as never);
+    stub(t, prisma.client, 'findFirst', async () => null);
+    stub(t, prisma.customer, 'findFirst', async () => existingCustomer);
+    stub(t, prisma.customer, 'update', async () => existingCustomer);
+    stub(t, prisma.customer, 'create', async () => ({ id: nextId++ }));
+    t.mock.method(telegramNotificationSettingsRepository, 'findByKey', async (key: string): Promise<StoredTelegramNotificationSetting> => (
+        { key, enabled: true, updatedAt: new Date(), updatedBy: null }
+    ));
+    return t.mock.method(axios, 'post', async () => ({ data: {} }));
+};
+
+const mollieCustomer = (index: number) => ({ id: `cst_${index}`, name: `Payer ${index}`, email: `payer${index}@example.test` });
+const flushNotifications = () => new Promise((resolve) => setImmediate(resolve));
+const sentText = (postMock: { mock: { calls: Array<{ arguments: unknown[] }> } }, index: number) => (
+    (postMock.mock.calls[index].arguments[1] as { text: string }).text
+);
+
+test('syncMollieCustomers announces each new customer when a run creates up to three', async (t) => {
+    const postMock = stubCustomerSync(t, [mollieCustomer(1), mollieCustomer(2)]);
+
+    const result = await syncMollieCustomers();
+    await flushNotifications();
+
+    assert.equal(result.created, 2);
+    assert.equal(postMock.mock.callCount(), 2);
+    assert.match(sentText(postMock, 0), /Payer 1/);
+    assert.match(sentText(postMock, 0), /синхронизация с Mollie/);
+});
+
+test('syncMollieCustomers sends one summary when a run creates more than three customers', async (t) => {
+    const postMock = stubCustomerSync(t, [1, 2, 3, 4, 5].map(mollieCustomer));
+
+    const result = await syncMollieCustomers();
+    await flushNotifications();
+
+    assert.equal(result.created, 5);
+    assert.equal(postMock.mock.callCount(), 1);
+    assert.match(sentText(postMock, 0), /5/);
+});
+
+test('syncMollieCustomers announces nothing when the run only updates existing customers', async (t) => {
+    const postMock = stubCustomerSync(t, [mollieCustomer(1)], { id: 9, payerRelation: 'unknown', linkSource: 'unlinked' });
+
+    const result = await syncMollieCustomers();
+    await flushNotifications();
+
+    assert.equal(result.updated, 1);
+    assert.equal(postMock.mock.callCount(), 0);
+});
+
+test('syncMollieCustomer announces a single customer created outside a full run', async (t) => {
+    const postMock = stubCustomerSync(t, []);
+
+    assert.equal(await syncMollieCustomer(mollieCustomer(7) as never), 'created');
+    await flushNotifications();
+
+    assert.equal(postMock.mock.callCount(), 1);
+    assert.match(sentText(postMock, 0), /Payer 7/);
 });

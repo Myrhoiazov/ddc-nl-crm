@@ -69,3 +69,34 @@ test('does not trust a raw Telegram header as an audit marker', async (t) => {
     assert.equal(res.statusCode, 200);
     assert.equal(events.length, 0);
 });
+
+test('passes the creator and the CRM source to createClient for the new-student notification', async (t) => {
+    const createMock = t.mock.method(clientsService, 'createClient', async () => ({ id: 101, firstName: 'Mila' } as never));
+    const { res } = response();
+    const req: Request = fromPartial({
+        body: { firstName: 'Mila', groupIds: [] },
+        user: { id: 7, email: 'manager@example.test' },
+    });
+
+    await createClientsController(req, res);
+
+    const [, options] = createMock.mock.calls[0].arguments;
+    assert.equal(options?.createdByEmail, 'manager@example.test');
+    assert.equal(options?.source, 'CRM');
+});
+
+test('marks a student created through the Mini App with the Telegram source', async (t) => {
+    const createMock = t.mock.method(clientsService, 'createClient', async () => ({ id: 102, firstName: 'Noor' } as never));
+    t.mock.method(auditService, 'recordAuthSecurityEvent', async () => {});
+    const { res } = response();
+    const req: Request = fromPartial({
+        body: { firstName: 'Noor', groupIds: [] },
+        user: { id: 7, email: 'admin@example.test' },
+        authMethod: 'telegram-miniapp',
+    });
+
+    await createClientsController(req, res);
+
+    const [, options] = createMock.mock.calls[0].arguments;
+    assert.equal(options?.source, 'TELEGRAM_MINIAPP');
+});

@@ -3,6 +3,7 @@ import prisma from '../../../prisma/prisma-client';
 import * as mollieService from './payments.mollie.service';
 import { normalizePaymentStatus } from './payments.utils.service';
 import { reconcileInvoiceMolliePayments } from '../invoices/invoices.mollie.service';
+import { notifyNewMollieCustomers, type NewMollieCustomerNotification } from '../communication';
 
 export interface SyncResult {
     created: number;
@@ -153,9 +154,15 @@ const updateCustomerData = (existing: { id: number; email: string | null; givenN
     };
 };
 
-export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'created' | 'updated' | 'skipped'> => {
+type CustomerSyncOutcome = {
+    status: 'created' | 'updated' | 'skipped';
+    // Set only for a customer this sync has just created; feeds the Telegram notification.
+    createdCustomer?: NewMollieCustomerNotification;
+};
+
+const syncMollieCustomerRecord = async (mollieCustomer: Customer): Promise<CustomerSyncOutcome> => {
     if (!mollieCustomer.id) {
-        return 'skipped';
+        return { status: 'skipped' };
     }
 
     const matchedClientId = await findClientIdByEmail(mollieCustomer.email);
@@ -175,7 +182,7 @@ export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'cre
         });
         await upsertCustomerClientLink(existing.id, matchedClientId, 'email_match');
 
-        return 'updated';
+        return { status: 'updated' };
     }
 
     const customer = await prisma.customer.create({
@@ -192,22 +199,47 @@ export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'cre
     });
     await upsertCustomerClientLink(customer.id, matchedClientId, 'email_match');
 
-    return 'created';
+    return {
+        status: 'created',
+        createdCustomer: {
+            id: customer.id,
+            name: mollieCustomer.name,
+            source: 'MOLLIE_SYNC',
+            linkedToStudent: Boolean(matchedClientId),
+        },
+    };
+};
+
+// Fire-and-forget: the customers are already saved, a Telegram failure must not fail the sync.
+const announceNewMollieCustomers = (customers: NewMollieCustomerNotification[]) => {
+    void notifyNewMollieCustomers(customers)
+        .catch((error) => console.error('Failed to send new-Mollie-customer Telegram notification:', error));
+};
+
+export const syncMollieCustomer = async (mollieCustomer: Customer): Promise<'created' | 'updated' | 'skipped'> => {
+    const { status, createdCustomer } = await syncMollieCustomerRecord(mollieCustomer);
+    if (createdCustomer) announceNewMollieCustomers([createdCustomer]);
+
+    return status;
 };
 
 export const syncMollieCustomers = async (): Promise<SyncResult> => {
     const result = createEmptySyncResult();
+    const createdCustomers: NewMollieCustomerNotification[] = [];
     const mollieCustomers = await mollieService.getAllCustomers();
 
     for (const mollieCustomer of mollieCustomers) {
         try {
-            const status = await syncMollieCustomer(mollieCustomer);
+            const { status, createdCustomer } = await syncMollieCustomerRecord(mollieCustomer);
             result[status] += 1;
+            if (createdCustomer) createdCustomers.push(createdCustomer);
         } catch (error) {
             result.errors += 1;
             console.error('Mollie customer sync failed:', mollieCustomer.id, error);
         }
     }
+    // One announcement for the whole run, so a large import becomes a single summary message.
+    announceNewMollieCustomers(createdCustomers);
 
     return result;
 };

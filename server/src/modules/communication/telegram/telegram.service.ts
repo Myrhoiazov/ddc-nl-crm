@@ -43,7 +43,7 @@ interface MolliePaymentNotification {
     } | null;
 }
 
-const escapeHtml = (value: unknown) => String(value ?? '')
+export const escapeHtml = (value: unknown) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -107,7 +107,7 @@ export const isTelegramConfigured = () => isTelegramRecipientConfigured('GROUP_C
 
 // A notification goes out only when its recipient chat is configured and an admin has not
 // switched it off (see notification-settings.service.ts for defaults).
-const canSendNotification = async (key: TelegramNotificationKey) => (
+export const canSendNotification = async (key: TelegramNotificationKey) => (
     isTelegramRecipientConfigured(getTelegramNotificationDefinition(key).recipient)
     && await isTelegramNotificationEnabled(key)
 );
