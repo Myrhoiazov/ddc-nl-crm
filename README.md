@@ -53,6 +53,9 @@ The root package only orchestrates project-level commands. Install dependencies 
   query expansion + reranker) as attributable context for AI drafts. Managed from an in-app
   Knowledge Base admin page — upload, crawl, categorize/tag, re-embed, plus a prompt-library editor
   and an email-simulation panel to preview model output without sending anything.
+- **Telegram notifications** — service messages to the staff group about payments, security
+  events, new students and new Mollie customers; an admin switches each type on or off on the
+  "Уведомления" page, and every switch change is announced to the group
 - **Users, Roles, Settings** — organization, brands, company pages, content hub
 - **Security** — Argon2id password hashing, cookie sessions with CSRF, 2FA email flow, Telegram OIDC
   login as an additional ADMIN-only provider, rate limiting (Redis-based with in-memory fallback),
@@ -162,7 +165,7 @@ Server tests use the Node built-in test runner and are organised per domain — 
 server-wide command:
 
 ```bash
-npm run test:auth
+npm run test:auth        # also covers Telegram notifications and their switches
 npm run test:mollie
 npm run test:search
 npm run test:email
@@ -232,8 +235,8 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - Business modules live under `server/src/modules/`: `auth` (incl. `auth/telegram/` — Telegram
   OIDC login), `users`, `clients`, `company`, `schedule`, `comments`, `search`, `transactions`,
   `invoices`, `payments` (Mollie), `payment-reminders`, `communication`
-  (`email`/`instagram`/`telegram` — this `telegram` is the outbound notification bot, a separate
-  integration from `auth/telegram/`), `health`, `ai-email-assistant`, `knowledge-ingestion`
+  (`email`/`instagram`/`telegram` — this `telegram` is the outbound notification bot with
+  admin-controlled per-type switches, a separate integration from `auth/telegram/`), `health`, `ai-email-assistant`, `knowledge-ingestion`
 - The local AI email assistant stays in its own module boundary: classify → draft (RAG context) →
   Telegram approval → approved-only SMTP send. Knowledge ingestion (website sitemap/WordPress
   discovery, file import, embeddings, MySQL retrieval) lives in `knowledge-ingestion`. Both are
@@ -285,6 +288,7 @@ Run `npm run ci` before pushing — it mirrors what CI checks.
 
 ## Documentation
 
+- [Telegram notifications — module contract](docs/spec/DDC_CRM_TELEGRAM_NOTIFICATIONS_SPEC.md)
 - [Local AI Email Assistant — Technical Specification](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_SPEC.md)
 - [Local AI Email Assistant Operations](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md)
 - [Project dependency tree](docs/spec/PROJECT_TREE.html) (Graphify)

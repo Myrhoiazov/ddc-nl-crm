@@ -39,6 +39,11 @@ cash-flow ledger.
   currently primary, kept in sync automatically when the primary link changes. It is not the
   source of truth.
 - **Relationships**: `CustomerClientLink[]`, `Mandate[]`, `Subscription[]`, `Payment[]`.
+- **Side effect on creation**: a newly created `Customer` is announced to the staff Telegram
+  group (the "new Mollie customer" notification, off by default — see
+  [communication.md](communication.md)), both when staff create it in the CRM and when a Mollie
+  sync creates it. One sync run announces its new customers together: up to three get a message
+  each, more than three become a single summary. Updating an existing customer announces nothing.
 
 ### CustomerClientLink
 

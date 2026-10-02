@@ -2,14 +2,17 @@
 
 ## Purpose
 
-Staff email mailbox integration (IMAP sync + SMTP send) linked to clients, plus an Instagram
-webhook endpoint and an internal Telegram notification utility.
+Staff email mailbox integration (IMAP sync + SMTP send) linked to clients, an Instagram webhook
+endpoint, and outbound Telegram notifications for staff with admin-controlled on/off switches.
 
 ## Scope
 
 - `EmailAccount`, `EmailMessage`, `EmailAttachment`.
 - Instagram webhook handling (`modules/communication/instagram/instagram.controller.ts`).
-- Telegram notification sending (`modules/communication/telegram/telegram.service.ts`).
+- Telegram staff notifications (`modules/communication/telegram/`): sending
+  (`telegram.service.ts`, `new-record-notifications.service.ts`) and the per-type switches
+  (`TelegramNotificationSetting`, `notification-settings.*`). Full contract:
+  [DDC_CRM_TELEGRAM_NOTIFICATIONS_SPEC.md](../spec/DDC_CRM_TELEGRAM_NOTIFICATIONS_SPEC.md).
 
 ## Out of Scope
 
@@ -59,6 +62,18 @@ webhook endpoint and an internal Telegram notification utility.
   decoupled from the original filename to avoid path traversal (same pattern used for client image
   uploads in the CRM domain).
 
+### TelegramNotificationSetting
+
+- **Purpose**: the on/off state of one Telegram notification type.
+- **Identity**: `key` — the notification type's code key (e.g. `MOLLIE_PAYMENT`, `NEW_STUDENT`),
+  not a generated id.
+- **Important fields**: `enabled`, `updatedById` (the admin who last changed it).
+- **Relationships**: optional `User` (`updatedBy`, set null if the user is deleted).
+- **Invariants**: a row exists **only after an admin has changed a switch** — the set of types
+  and each type's default live in code (`TELEGRAM_NOTIFICATION_DEFINITIONS`), so adding a type
+  needs no data migration. A missing row and a failed read both resolve to the type's default.
+  Reading and writing are `ADMIN`-only.
+
 ## Domain Concepts
 
 - **IMAP sync**: runs on a 5-minute cron plus a manual per-account trigger; both funnel through the
@@ -75,35 +90,34 @@ webhook endpoint and an internal Telegram notification utility.
   functional, but the message-receiving handler only logs incoming events — it does not persist
   anything or associate with a `Client`. Document as scaffolding, not active client communication.
   It's also the only fully unauthenticated, CSRF-exempt API surface besides `/health`.
-- **Telegram — internal ops notification, not a customer channel**:
-  `modules/communication/telegram/telegram.service.ts` exposes several `notify*()` functions
-  (`notifyMolliePayment`, `notifyLoginBlocked`, `notifyNewDeviceAfterFailures`,
-  `notifyRoleChanged`, `notifyNewEmail`), each gated on Telegram being configured and each
-  fire-and-forget (a Telegram send failure never affects the triggering action's own response).
-  Callers span three other domains: Payments (Mollie webhook: paid/failed/canceled/expired/
-  chargeback/refund), Identity (login-blocked, new-device-after-failures, role-changed), and this
-  module's own IMAP sync (new non-spam email). Two distinct recipients, not one: `TELEGRAM_CHAT_ID`
-  (the shared admin group — every notifier above except `notifyNewEmail`) vs.
+- **Telegram — internal ops notification, not a customer channel**: seven notification types,
+  each a `notify*()` function that is fire-and-forget (a Telegram send failure never affects the
+  triggering action's own response). Callers span four domains: Payments (Mollie webhook:
+  paid/failed/canceled/expired/chargeback/refund; a new Mollie customer created in the CRM or by
+  a sync), Identity (login-blocked, new-device-after-failures, role-changed), CRM (a new student)
+  and this module's own IMAP sync (new non-spam email). Two distinct recipients, not one:
+  `TELEGRAM_CHAT_ID` (the shared admin group — every type except new email) vs.
   `TELEGRAM_EMAIL_NOTIFY_CHAT_ID` (one admin's own private chat with the bot —
   `sendTelegramMessage`'s `chatId` option overrides the group default). This is a separate
   integration from the Telegram Mini App admin tool (`auth/telegram-miniapp/` +
   `telegram-admin-bot/`, documented in [identity.md](identity.md) — Mini App auth is genuinely
   Identity's concern) and from Telegram OIDC login (also identity.md).
-- **Telegram notifications have per-type on/off switches**: every `notify*()` above also checks
-  `isTelegramNotificationEnabled(key)` (`telegram/notification-settings.service.ts`). The list of
-  types and their defaults is code; `TelegramNotificationSetting` holds a row only after an admin
-  changed a switch, and a missing row or a failed database read both mean "use the default", so a
-  notification check never breaks the triggering request. Switches are ADMIN-only
-  (`GET /telegram-notifications`, `PUT /telegram-notifications/:key`). Every actual change is
-  announced to the `TELEGRAM_CHAT_ID` group by `notifyNotificationSettingChanged`, which is
-  deliberately not behind a switch — notifications cannot be silenced without the group seeing it.
-- **New-record notifications** (`telegram/new-record-notifications.service.ts`): `notifyNewStudent`
-  and `notifyNewMollieCustomers`, both off by default. A new student is announced from
-  `clients.service.createClient` after its transaction commits, so every creation path (CRM form,
-  Telegram Mini App) is covered. A new Mollie customer is announced from the CRM create path and
-  from `payments.sync.service`; a sync run that creates more than three customers sends one
-  summary instead of one message each. Messages go to a group chat, so they carry the name and a
-  CRM link but no contact or bank details.
+- **A notification is sent only when two things hold**: the recipient chat for its type is
+  configured in the environment, and its switch is on (`canSendNotification(key)` in
+  `telegram.service.ts`). The five older types default to on; the two new-record types default
+  to off, so a release never changes what the group receives until an admin opts in.
+- **Switch changes are themselves announced**: every actual change is posted to the
+  `TELEGRAM_CHAT_ID` group by `notifyNotificationSettingChanged`, which deliberately has no
+  switch of its own — notifications, security ones included, cannot be silenced without the
+  group seeing it. There is no separate change log in the CRM; the group chat is the history.
+- **New-record notifications** (`telegram/new-record-notifications.service.ts`): a new student is
+  announced from `clients.service.createClient` after its transaction commits, so every creation
+  path (CRM form, Telegram Mini App) is covered. A new Mollie customer is announced from the CRM
+  create path and from `payments.sync.service`; a sync run that creates more than three customers
+  sends one summary instead of one message each. Messages go to a group chat, so they carry the
+  name and a CRM link but no contact or bank details.
+- **Admin page**: the switches are managed on the `/notifications` page (sidebar → Компания →
+  Уведомления), visible to `ADMIN` only; a click saves immediately.
 
 ## Relationships
 
@@ -112,4 +126,5 @@ graph TD
     EmailAccount --> EmailMessage
     EmailMessage --> EmailAttachment
     EmailMessage -.exact email match.-> Client
+    User -.updatedBy.-> TelegramNotificationSetting
 ```
