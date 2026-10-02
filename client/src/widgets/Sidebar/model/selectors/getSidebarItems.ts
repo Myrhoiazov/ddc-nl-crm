@@ -13,6 +13,7 @@ import CrmSettings from '@/shared/assets/icons/crm-settings.svg';
 import Mail from '@/shared/assets/icons/mail-20-20.svg';
 import Bell from '@/shared/assets/icons/bell.svg';
 import Wallet from '@/shared/assets/icons/wallet.svg';
+import Euro from '@/shared/assets/icons/euro.svg';
 import { SidebarItemType } from "../types/sidebar";
 import { RoleKey } from "@/entities/Role";
 
@@ -26,7 +27,7 @@ export const getSidebarItems = createSelector(
 
         if (isAdmin) {
             sidebarItemsList.push(
-                { path: RoutePath.transactions, Icon: Transactions, text: 'Транзакции' },
+                { path: RoutePath.transactions, Icon: Euro, text: 'Транзакции', iconColor: 'stroke' },
                 { path: RoutePath.email, Icon: Mail, text: 'Почта' },
                 { path: RoutePath.knowledge_base, Icon: ContentHub, text: 'База знаний', iconColor: 'stroke' },
             );
