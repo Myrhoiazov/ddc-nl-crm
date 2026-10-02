@@ -135,6 +135,11 @@ logging.
 
 ## Domain Concepts
 
+- **Security events also reach the staff Telegram group**: a blocked login, a login from a new
+  device after failures, and a role change each trigger a Telegram notification owned by the
+  Communication domain. Each has an `ADMIN`-controlled switch, on by default; switching one off
+  is itself announced to the group, so it cannot be silenced unnoticed — see
+  [communication.md](communication.md).
 - **Login → 2FA → Session flow**: password check (with a constant-time dummy-hash comparison even
   when the user doesn't exist, to avoid a login-oracle timing leak) → if a valid `TrustedDevice`
   cookie exists (or `MODE=development`), skip straight to session issuance; otherwise create a

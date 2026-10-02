@@ -47,6 +47,12 @@ notes, and cross-domain search.
     rules for dependent rows.
   - An optional `mollieCustomerId` on create links the new client to an existing Mollie `Customer`
     in the same transaction; an unknown id is rejected with 404.
+  - Creating a client announces it to the staff Telegram group once the transaction has committed
+    (the "new student" notification, off by default — see [communication.md](communication.md)).
+    The call sits in `clients.service.createClient`, so the CRM form and the Telegram Mini App
+    are both covered. It is fire-and-forget: a Telegram failure never fails or rolls back the
+    creation. The creator's email and the source (`CRM` / `TELEGRAM_MINIAPP`) are passed in only
+    for the message — neither is stored on `Client`.
 
 ### ClientStatus
 
