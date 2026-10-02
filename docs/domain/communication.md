@@ -89,6 +89,14 @@ webhook endpoint and an internal Telegram notification utility.
   integration from the Telegram Mini App admin tool (`auth/telegram-miniapp/` +
   `telegram-admin-bot/`, documented in [identity.md](identity.md) — Mini App auth is genuinely
   Identity's concern) and from Telegram OIDC login (also identity.md).
+- **Telegram notifications have per-type on/off switches**: every `notify*()` above also checks
+  `isTelegramNotificationEnabled(key)` (`telegram/notification-settings.service.ts`). The list of
+  types and their defaults is code; `TelegramNotificationSetting` holds a row only after an admin
+  changed a switch, and a missing row or a failed database read both mean "use the default", so a
+  notification check never breaks the triggering request. Switches are ADMIN-only
+  (`GET /telegram-notifications`, `PUT /telegram-notifications/:key`). Every actual change is
+  announced to the `TELEGRAM_CHAT_ID` group by `notifyNotificationSettingChanged`, which is
+  deliberately not behind a switch — notifications cannot be silenced without the group seeing it.
 
 ## Relationships
 

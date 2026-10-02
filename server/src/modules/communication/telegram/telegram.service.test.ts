@@ -1,16 +1,36 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { afterEach, beforeEach, mock } from 'node:test';
 import axios from 'axios';
 import {
     buildLoginBlockedNotification,
     buildMolliePaymentNotification,
     buildNewDeviceAfterFailuresNotification,
+    buildNotificationSettingChangedNotification,
     buildRoleChangedNotification,
     notifyLoginBlocked,
+    notifyMolliePayment,
     notifyNewDeviceAfterFailures,
     notifyNewEmail,
+    notifyNotificationSettingChanged,
     notifyRoleChanged,
 } from './telegram.service';
+import { telegramNotificationSettingsRepository } from './notification-settings.service';
+import type { StoredTelegramNotificationSetting } from './notification-settings.types';
+
+// null = no stored row, so every notification uses its default (enabled). Tests that need a
+// switched-off notification set this to false.
+let storedEnabled: boolean | null = null;
+
+beforeEach(() => {
+    storedEnabled = null;
+    mock.method(telegramNotificationSettingsRepository, 'findByKey', async (key: string): Promise<StoredTelegramNotificationSetting | null> => (
+        storedEnabled === null ? null : { key, enabled: storedEnabled, updatedAt: new Date(), updatedBy: null }
+    ));
+});
+
+afterEach(() => {
+    mock.restoreAll();
+});
 
 const payment = {
     mollieId: 'tr_test',
@@ -276,4 +296,75 @@ test('notifyNewEmail falls back to "(без темы)" when subject is missing',
 
     const [, body] = postMock.mock.calls[0].arguments;
     assert.match((body as { text: string }).text, /без темы/);
+});
+
+const configuredEnv = { TELEGRAM_TOKEN: 'token', TELEGRAM_CHAT_ID: 'chat-id', TELEGRAM_EMAIL_NOTIFY_CHAT_ID: 'private-chat' };
+
+test('notifyMolliePayment sends when the notification is enabled', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv(configuredEnv, async () => {
+        assert.equal(await notifyMolliePayment(payment), true);
+    });
+
+    assert.equal(postMock.mock.callCount(), 1);
+});
+
+const switchedOffCases: Array<[string, () => Promise<boolean>]> = [
+    ['notifyMolliePayment', () => notifyMolliePayment(payment)],
+    ['notifyLoginBlocked', () => notifyLoginBlocked({ email: 'a@b.com', retryAfterSeconds: 60 })],
+    ['notifyNewDeviceAfterFailures', () => notifyNewDeviceAfterFailures({ email: 'a@b.com', recentFailures: 3 })],
+    ['notifyRoleChanged', () => notifyRoleChanged({ targetEmail: 'a@b.com', fromRole: 'MANAGER', toRole: 'ADMIN' })],
+    ['notifyNewEmail', () => notifyNewEmail({ fromAddress: 'a@b.com', accountLabel: 'Info' })],
+];
+
+for (const [name, notify] of switchedOffCases) {
+    test(`${name} does not call axios when the notification is switched off`, async (t) => {
+        const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+        storedEnabled = false;
+
+        await withTelegramEnv(configuredEnv, async () => {
+            assert.equal(await notify(), false);
+        });
+
+        assert.equal(postMock.mock.callCount(), 0);
+    });
+}
+
+test('buildNotificationSettingChangedNotification names the notification, the new state and the actor', () => {
+    const message = buildNotificationSettingChangedNotification({
+        title: 'Платежи <Mollie>',
+        enabled: false,
+        actorEmail: 'admin@example.test',
+    });
+
+    assert.match(message, /Изменены настройки уведомлений/);
+    assert.match(message, /Платежи &lt;Mollie&gt;/);
+    assert.match(message, /выключено/);
+    assert.match(message, /admin@example\.test/);
+});
+
+test('notifyNotificationSettingChanged is sent even when every notification is switched off', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+    storedEnabled = false;
+
+    await withTelegramEnv(configuredEnv, async () => {
+        const sent = await notifyNotificationSettingChanged({ title: 'Новое письмо', enabled: true });
+        assert.equal(sent, true);
+    });
+
+    assert.equal(postMock.mock.callCount(), 1);
+    const [, body] = postMock.mock.calls[0].arguments;
+    assert.equal((body as { chat_id: string }).chat_id, 'chat-id');
+    assert.match((body as { text: string }).text, /включено/);
+});
+
+test('notifyNotificationSettingChanged does not call axios when the group chat is not configured', async (t) => {
+    const postMock = t.mock.method(axios, 'post', async () => ({ data: {} }));
+
+    await withTelegramEnv({ TELEGRAM_TOKEN: undefined, TELEGRAM_CHAT_ID: undefined }, async () => {
+        assert.equal(await notifyNotificationSettingChanged({ title: 'Новое письмо', enabled: true }), false);
+    });
+
+    assert.equal(postMock.mock.callCount(), 0);
 });
