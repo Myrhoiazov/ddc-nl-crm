@@ -1,21 +1,24 @@
 .icon {
     color: currentcolor;
     flex-shrink: 0;
+}
 
-    // The shared Icon component hard-codes fill/stroke via its "fill"/"stroke"
-    // modifier class, tuned for icons on the old dark sidebar (near-white fill,
-    // dark-gray stroke) — invisible or wrong-toned on the new light sidebar.
-    // Re-point each to the item's own currentColor so icons always match their
-    // label text (muted / hover / active). !important is needed since these
-    // modifier classes live in a different CSS module with no reliable load
-    // order relative to this one.
-    &:global(.src-shared-ui-Icon-Icon-module__fill) {
-        fill: currentcolor !important;
-    }
+// The shared Icon component hard-codes fill/stroke via its "fill"/"stroke"
+// modifier class, tuned for icons on the old dark sidebar (near-white fill,
+// dark-gray stroke) — invisible or wrong-toned on the new light sidebar.
+// Re-point each to the item's own currentColor so icons always match their
+// label text (muted / hover / active).
 
-    &:global(.src-shared-ui-Icon-Icon-module__stroke) {
-        stroke: currentcolor !important;
-    }
+// These are the sidebar's own classes on purpose: Icon's class names are
+// hashed in the production build, so a selector naming them matches nothing
+// there. !important is needed since Icon's rule lives in a different CSS
+// module with no reliable load order relative to this one.
+.iconFill {
+    fill: currentcolor !important;
+}
+
+.iconStroke {
+    stroke: currentcolor !important;
 }
 
 .link {

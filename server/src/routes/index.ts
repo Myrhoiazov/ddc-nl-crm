@@ -19,6 +19,7 @@ import telegramApprovalRouter from '../modules/ai-email-assistant/telegram-appro
 import aiEmailSimulationRouter from '../modules/ai-email-assistant/simulation.routes'
 import aiPromptRouter from '../modules/ai-email-assistant/prompt.routes'
 import aiRuntimeSettingsRouter from '../modules/ai-email-assistant/runtime-settings.routes'
+import telegramNotificationSettingsRouter from '../modules/communication/telegram/notification-settings.routes'
 import knowledgeRouter from '../modules/knowledge-ingestion/knowledge-ingestion.routes'
 
 const router = express.Router();
@@ -43,6 +44,7 @@ export default (): express.Router => {
     router.use('/ai-email', aiEmailSimulationRouter)
     router.use('/ai-email/prompts', aiPromptRouter)
     router.use('/ai-email/settings', aiRuntimeSettingsRouter)
+    router.use('/telegram-notifications', telegramNotificationSettingsRouter)
     router.use('/knowledge', knowledgeRouter)
 
     router.use('/instagram', instagramRouter)

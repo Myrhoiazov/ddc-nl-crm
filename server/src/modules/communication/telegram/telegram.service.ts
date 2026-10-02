@@ -1,4 +1,10 @@
 import axios from 'axios';
+import {
+    getTelegramNotificationDefinition,
+    isTelegramNotificationEnabled,
+    isTelegramRecipientConfigured,
+} from './notification-settings.service';
+import { TELEGRAM_NOTIFICATION_KEYS, type TelegramNotificationKey } from './notification-settings.types';
 
 type MoneyValue = string | number | { toString(): string };
 
@@ -37,7 +43,7 @@ interface MolliePaymentNotification {
     } | null;
 }
 
-const escapeHtml = (value: unknown) => String(value ?? '')
+export const escapeHtml = (value: unknown) => String(value ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
@@ -97,8 +103,13 @@ const notificationTitle = (payment: MolliePaymentNotification) => {
     return null;
 };
 
-export const isTelegramConfigured = () => Boolean(
-    process.env.TELEGRAM_TOKEN && process.env.TELEGRAM_CHAT_ID,
+export const isTelegramConfigured = () => isTelegramRecipientConfigured('GROUP_CHAT');
+
+// A notification goes out only when its recipient chat is configured and an admin has not
+// switched it off (see notification-settings.service.ts for defaults).
+export const canSendNotification = async (key: TelegramNotificationKey) => (
+    isTelegramRecipientConfigured(getTelegramNotificationDefinition(key).recipient)
+    && await isTelegramNotificationEnabled(key)
 );
 
 export const buildMolliePaymentNotification = (payment: MolliePaymentNotification) => {
@@ -160,7 +171,7 @@ export const sendTelegramMessage = async (text: string, options: TelegramMessage
 
 export const notifyMolliePayment = async (payment: MolliePaymentNotification) => {
     const message = buildMolliePaymentNotification(payment);
-    if (!message || !isTelegramConfigured()) return false;
+    if (!message || !(await canSendNotification(TELEGRAM_NOTIFICATION_KEYS.MOLLIE_PAYMENT))) return false;
     await sendTelegramMessage(message);
     return true;
 };
@@ -197,7 +208,7 @@ export const notifyLoginBlocked = async (params: {
     ip?: string | null;
     retryAfterSeconds: number;
 }) => {
-    if (!isTelegramConfigured()) return false;
+    if (!(await canSendNotification(TELEGRAM_NOTIFICATION_KEYS.LOGIN_BLOCKED))) return false;
     await sendTelegramMessage(buildLoginBlockedNotification(params));
     return true;
 };
@@ -207,7 +218,7 @@ export const notifyNewDeviceAfterFailures = async (params: {
     ip?: string | null;
     recentFailures: number;
 }) => {
-    if (!isTelegramConfigured()) return false;
+    if (!(await canSendNotification(TELEGRAM_NOTIFICATION_KEYS.NEW_DEVICE_AFTER_FAILURES))) return false;
     await sendTelegramMessage(buildNewDeviceAfterFailuresNotification(params));
     return true;
 };
@@ -231,7 +242,7 @@ export const notifyRoleChanged = async (params: {
     fromRole: string;
     toRole: string;
 }) => {
-    if (!isTelegramConfigured()) return false;
+    if (!(await canSendNotification(TELEGRAM_NOTIFICATION_KEYS.ROLE_CHANGED))) return false;
     await sendTelegramMessage(buildRoleChangedNotification(params));
     return true;
 };
@@ -239,10 +250,6 @@ export const notifyRoleChanged = async (params: {
 // Personal, not the shared group — a specific admin's own private chat with the bot
 // (TELEGRAM_EMAIL_NOTIFY_CHAT_ID), separate from TELEGRAM_CHAT_ID used by every other
 // notify*() in this file.
-const isEmailNotifyConfigured = () => Boolean(
-    process.env.TELEGRAM_TOKEN && process.env.TELEGRAM_EMAIL_NOTIFY_CHAT_ID,
-);
-
 const buildNewEmailNotification = (params: {
     fromAddress: string;
     fromName?: string | null;
@@ -265,7 +272,31 @@ export const notifyNewEmail = async (params: {
     subject?: string | null;
     accountLabel: string;
 }) => {
-    if (!isEmailNotifyConfigured()) return false;
+    if (!(await canSendNotification(TELEGRAM_NOTIFICATION_KEYS.NEW_EMAIL))) return false;
     await sendTelegramMessage(buildNewEmailNotification(params), { chatId: process.env.TELEGRAM_EMAIL_NOTIFY_CHAT_ID });
+    return true;
+};
+
+export const buildNotificationSettingChangedNotification = (params: {
+    title: string;
+    enabled: boolean;
+    actorEmail?: string | null;
+}) => [
+    '<b>Изменены настройки уведомлений</b>',
+    '',
+    `<b>Уведомление:</b> ${escapeHtml(params.title)}`,
+    `<b>Состояние:</b> ${params.enabled ? 'включено' : 'выключено'}`,
+    params.actorEmail ? `<b>Изменил:</b> ${escapeHtml(params.actorEmail)}` : null,
+].filter((row): row is string => row !== null).join('\n');
+
+// Deliberately not behind a switch: an admin (or a compromised admin account) must not be able
+// to silence notifications without the group seeing it.
+export const notifyNotificationSettingChanged = async (params: {
+    title: string;
+    enabled: boolean;
+    actorEmail?: string | null;
+}) => {
+    if (!isTelegramConfigured()) return false;
+    await sendTelegramMessage(buildNotificationSettingChangedNotification(params));
     return true;
 };
