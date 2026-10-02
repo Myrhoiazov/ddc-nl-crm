@@ -17,11 +17,12 @@ import { RoleKey } from "@/entities/Role";
 export const getSidebarItems = createSelector(
     getUserAuthData,
     (userData) => {
+        const isAdmin = userData?.role === RoleKey.ADMIN;
         const sidebarItemsList: SidebarItemType[] = [
             { path: RoutePath.main, Icon: Main, text: 'Главная' },
         ];
 
-        if (userData?.role === RoleKey.ADMIN) {
+        if (isAdmin) {
             sidebarItemsList.push(
                 { path: RoutePath.transactions, Icon: Transactions, text: 'Транзакции' },
                 { path: RoutePath.email, Icon: Mail, text: 'Почта' },
@@ -54,6 +55,8 @@ export const getSidebarItems = createSelector(
                     { path: RoutePath.branches, Icon: Company, text: 'Филиалы', iconColor: 'stroke' },
                     { path: RoutePath.invoices, Icon: Transactions, text: 'Инвойсы' },
                     { path: RoutePath.payment_reminders, Icon: Mail, text: 'Напоминания об оплате' },
+                    // Admin-only: the API behind this page rejects every other role.
+                    ...(isAdmin ? [{ path: RoutePath.notifications, Icon: Mail, text: 'Уведомления' }] : []),
                 ],
             },
             { path: RoutePath.content_hub, Icon: ContentHub, text: 'Контент-хаб', iconColor: 'stroke' },
