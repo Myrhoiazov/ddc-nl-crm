@@ -13,7 +13,7 @@ interface SummaryStatCardProps {
 
 export const SummaryStatCard = memo(({ title, value, cardClassName }: SummaryStatCardProps) => (
     <Card className={classNames(cls.card, {}, [cardClassName])} padding="16">
-        <HStack justify="between">
+        <HStack justify="between" gap="16">
             <Text className={cls.title} title={title} />
             <Text className={cls.title} title={value} />
         </HStack>
