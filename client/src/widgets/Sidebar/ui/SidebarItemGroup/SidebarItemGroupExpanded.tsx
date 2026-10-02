@@ -26,7 +26,7 @@ export const SidebarItemGroupExpanded = memo((props: SidebarItemGroupExpandedPro
                     Svg={item.Icon}
                     width={20}
                     height={20}
-                    className={cls.icon}
+                    className={classNames(cls.icon, {}, [item.iconColor === 'stroke' ? cls.iconStroke : cls.iconFill])}
                     color={item.iconColor ?? 'fill'}
                 />
                 <span className={cls.label}>{item.text}</span>
