@@ -74,8 +74,11 @@ test('list returns every notification with its default state', async () => {
     await listTelegramNotificationSettingsController({} as Request, res);
 
     const { items } = state.body as { items: Array<{ key: string; enabled: boolean }> };
-    assert.equal(items.length, 5);
-    assert.equal(items.every((item) => item.enabled), true);
+    assert.equal(items.length, 7);
+    assert.deepEqual(
+        items.filter((item) => !item.enabled).map((item) => item.key).sort(),
+        [TELEGRAM_NOTIFICATION_KEYS.NEW_MOLLIE_CUSTOMER, TELEGRAM_NOTIFICATION_KEYS.NEW_STUDENT],
+    );
 });
 
 test('update stores the new state and announces the change to the group', async (t) => {

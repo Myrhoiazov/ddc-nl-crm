@@ -1,5 +1,6 @@
 import { Client as TClient, Prisma } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client'
+import { notifyNewStudent, type NewStudentSource } from '../communication';
 
 const Client = prisma.client
 const paymentIssueStatuses = ['failed', 'canceled', 'charged_back', 'chargeback'];
@@ -82,6 +83,9 @@ export interface CreateClientOptions {
     mollieCustomerId?: number | null;
     payerRelation?: string;
     groupIds?: number[];
+    // Who created the student and from where — only used for the Telegram notification.
+    createdByEmail?: string | null;
+    source?: NewStudentSource;
 }
 
 export const normalizeClientData = (data: Partial<TClient> & { status?: unknown }) => {
@@ -193,10 +197,26 @@ const linkMollieCustomer = async (
     await upsertCustomerClientLink(transaction, customer, clientId, relation);
 };
 
+// Fire-and-forget, after the transaction has committed: a Telegram failure must not fail or
+// roll back the creation. Lives here (not in a controller) so no creation path can skip it.
+const announceNewStudent = (
+    client: { id: number; firstName?: string | null; lastName?: string | null; branch?: { name: string } | null },
+    options: CreateClientOptions,
+) => {
+    void notifyNewStudent({
+        id: client.id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        branchName: client.branch?.name,
+        createdByEmail: options.createdByEmail,
+        source: options.source ?? 'CRM',
+    }).catch((error) => console.error('Failed to send new-student Telegram notification:', error));
+};
+
 export const createClient = async (data: TClient, options: CreateClientOptions = {}) => {
     const clientData = normalizeClientData(data as Partial<TClient> & { status?: unknown });
 
-    return prisma.$transaction(async (transaction) => {
+    const createdClient = await prisma.$transaction(async (transaction) => {
         const newClient = await transaction.client.create({
             data: {
                 ...clientData,
@@ -213,6 +233,9 @@ export const createClient = async (data: TClient, options: CreateClientOptions =
 
         return newClient;
     });
+    announceNewStudent(createdClient, options);
+
+    return createdClient;
 };
 
 // List view of clients (getAllClients) — narrower than the include shared by

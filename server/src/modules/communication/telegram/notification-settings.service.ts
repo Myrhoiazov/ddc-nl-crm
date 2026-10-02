@@ -14,6 +14,20 @@ import {
 // once an admin has changed a setting, so a missing row and a failed read behave the same.
 export const TELEGRAM_NOTIFICATION_DEFINITIONS: readonly TelegramNotificationDefinition[] = [
     {
+        key: TELEGRAM_NOTIFICATION_KEYS.NEW_STUDENT,
+        title: 'Новый ученик',
+        group: 'STUDENTS_AND_MOLLIE',
+        recipient: 'GROUP_CHAT',
+        defaultEnabled: false,
+    },
+    {
+        key: TELEGRAM_NOTIFICATION_KEYS.NEW_MOLLIE_CUSTOMER,
+        title: 'Новый клиент Mollie',
+        group: 'STUDENTS_AND_MOLLIE',
+        recipient: 'GROUP_CHAT',
+        defaultEnabled: false,
+    },
+    {
         key: TELEGRAM_NOTIFICATION_KEYS.MOLLIE_PAYMENT,
         title: 'Платежи Mollie',
         group: 'STUDENTS_AND_MOLLIE',

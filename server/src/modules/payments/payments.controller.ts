@@ -15,7 +15,7 @@ import { getMollieTokenExpiresAt, saveMollieAccount } from "./payments.auth.serv
 import { buildMollieWebhookDedupeKey, createCsv, getWebhookAttentionLevel, mapClientLanguageToMollieLocale, parseIncidentKey, paymentIssueStatuses as molliePaymentIssueStatuses } from "./payments.utils.service";
 import { z } from "zod";
 import { createMolliePaymentInvoicePdf } from "./payments.invoice-pdf.service";
-import { isTelegramConfigured, notifyMolliePayment, sendTelegramMessage } from "../communication";
+import { isTelegramConfigured, notifyMolliePayment, notifyNewMollieCustomers, sendTelegramMessage } from "../communication";
 
 dotenv.config();
 
@@ -750,6 +750,19 @@ const upsertMollieCustomer = (input: CustomerUpsertInput) => prisma.customer.ups
     },
 });
 
+// Fire-and-forget: the customer is already saved, a Telegram failure must not fail the request.
+const announceNewMollieCustomer = (
+    customer: { id: number; payerName?: string | null; givenName?: string | null; familyName?: string | null },
+    linkedToStudent: boolean,
+) => {
+    void notifyNewMollieCustomers([{
+        id: customer.id,
+        name: customer.payerName || [customer.givenName, customer.familyName].filter(Boolean).join(' '),
+        source: 'CRM',
+        linkedToStudent,
+    }]).catch((error) => console.error('Failed to send new-Mollie-customer Telegram notification:', error));
+};
+
 const createCustomerRecord = async (input: {
     email: string;
     givenName: string;
@@ -795,6 +808,7 @@ const createCustomerRecord = async (input: {
         seedPreferredLanguage: matchedClient?.preferredLanguage,
     });
     await upsertCustomerClientLink(prismaCustomer.id, matchedClientId, linkSource, payerRelation);
+    if (!existing) announceNewMollieCustomer(prismaCustomer, Boolean(matchedClientId));
 
     return prismaCustomer;
 };

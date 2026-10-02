@@ -281,6 +281,8 @@ export const createClientsController = async (req: Request, res: Response) => {
             mollieCustomerId,
             payerRelation,
             groupIds: selectedGroupIds,
+            createdByEmail: req.user?.email,
+            source: req.authMethod === 'telegram-miniapp' ? 'TELEGRAM_MINIAPP' : 'CRM',
         });
 
         if (req.authMethod === 'telegram-miniapp') {

@@ -54,9 +54,19 @@ const withEnv = async (vars: Record<string, string | undefined>, fn: () => Promi
     try { await fn(); } finally { apply(previous); }
 };
 
-test('every existing notification is enabled by default', () => {
-    assert.equal(TELEGRAM_NOTIFICATION_DEFINITIONS.length, 5);
-    assert.equal(TELEGRAM_NOTIFICATION_DEFINITIONS.every((definition) => definition.defaultEnabled), true);
+test('only the new-student and new-Mollie-customer notifications are off by default', () => {
+    const offByDefault = TELEGRAM_NOTIFICATION_DEFINITIONS.filter((definition) => !definition.defaultEnabled);
+
+    assert.equal(TELEGRAM_NOTIFICATION_DEFINITIONS.length, 7);
+    assert.deepEqual(
+        offByDefault.map((definition) => definition.key).sort(),
+        [TELEGRAM_NOTIFICATION_KEYS.NEW_MOLLIE_CUSTOMER, TELEGRAM_NOTIFICATION_KEYS.NEW_STUDENT],
+    );
+});
+
+test('isTelegramNotificationEnabled keeps a new notification off when the database fails', async (t) => {
+    t.mock.method(console, 'error', () => {});
+    assert.equal(await isTelegramNotificationEnabled(TELEGRAM_NOTIFICATION_KEYS.NEW_STUDENT, failingRepository), false);
 });
 
 test('isTelegramNotificationKey rejects unknown keys', () => {

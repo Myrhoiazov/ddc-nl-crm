@@ -97,6 +97,13 @@ webhook endpoint and an internal Telegram notification utility.
   (`GET /telegram-notifications`, `PUT /telegram-notifications/:key`). Every actual change is
   announced to the `TELEGRAM_CHAT_ID` group by `notifyNotificationSettingChanged`, which is
   deliberately not behind a switch — notifications cannot be silenced without the group seeing it.
+- **New-record notifications** (`telegram/new-record-notifications.service.ts`): `notifyNewStudent`
+  and `notifyNewMollieCustomers`, both off by default. A new student is announced from
+  `clients.service.createClient` after its transaction commits, so every creation path (CRM form,
+  Telegram Mini App) is covered. A new Mollie customer is announced from the CRM create path and
+  from `payments.sync.service`; a sync run that creates more than three customers sends one
+  summary instead of one message each. Messages go to a group chat, so they carry the name and a
+  CRM link but no contact or bank details.
 
 ## Relationships
 
