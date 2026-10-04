@@ -19,6 +19,8 @@ import { MollieClientFormModal, mollieClientReducer } from '@/features/editMolli
 import { useMollieCustomerDetails } from './useMollieCustomerDetails';
 import { MollieStudentLinksManager } from './MollieStudentLinksManager';
 import { MolliePaymentHistory } from './MolliePaymentHistory';
+import { useCustomerDelete } from './useCustomerDelete';
+import { DeleteCustomerModal } from './DeleteCustomerModal';
 
 interface MollieCustomerDetailsProps {
     className?: string;
@@ -29,18 +31,40 @@ const reducers: ReducersList = {
     mollieClientForm: mollieClientReducer,
 };
 
-const CustomerHeader = ({ onOpenEditModal }: { onOpenEditModal: () => void }) => {
+interface CustomerHeaderProps {
+    canDelete: boolean;
+    isLoading: boolean;
+    onOpenEditModal: () => void;
+    onOpenDeleteModal: () => void;
+}
+
+const CustomerHeader = ({ canDelete, isLoading, onOpenEditModal, onOpenDeleteModal }: CustomerHeaderProps) => {
     const { t } = useTranslation();
     return (
         <div className={s.header}>
             <Text title={t('Mollie Details Customer')} size="m" bold />
-            <Button
-                className={s.editButton}
-                theme={ButtonTheme.BACKGROUND_INVERTED}
-                onClick={onOpenEditModal}
-            >
-                {t('Редактировать')}
-            </Button>
+            <div className={s.headerActions}>
+                {!canDelete && !isLoading && (
+                    <span className={s.deleteHint}>
+                        {t('Удаление недоступно: у клиента есть действующие мандаты или подписки.')}
+                    </span>
+                )}
+                <Button
+                    className={s.editButton}
+                    theme={ButtonTheme.OUTLINE_RED}
+                    onClick={onOpenDeleteModal}
+                    disabled={!canDelete}
+                >
+                    {t('Удалить')}
+                </Button>
+                <Button
+                    className={s.editButton}
+                    theme={ButtonTheme.BACKGROUND_INVERTED}
+                    onClick={onOpenEditModal}
+                >
+                    {t('Редактировать')}
+                </Button>
+            </div>
         </div>
     );
 };
@@ -49,9 +73,12 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
     const { t } = useTranslation();
     const { id: customerId } = useParams();
     const {
-        mandates, subscriptions, isLoading, isEditModalOpen, detailsVersion,
+        mandates, subscriptions, isLoading, isEditModalOpen, canDelete, detailsVersion,
         onOpenEditModal, onCloseEditModal, onReloadCustomerDetails, onRevokeMandate,
     } = useMollieCustomerDetails(customerId);
+    const {
+        isDeleteModalOpen, isDeleting, onOpenDeleteModal, onCloseDeleteModal, onConfirmDelete,
+    } = useCustomerDelete(customerId);
 
     if (!customerId) {
         return null;
@@ -60,7 +87,10 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
     return (
         <DynamicModuleLoader reducers={reducers}>
             <VStack max gap="24" className={classNames(s.MollieCustomerDetails, {}, [className])}>
-                <CustomerHeader onOpenEditModal={onOpenEditModal} />
+                <CustomerHeader
+                    canDelete={canDelete} isLoading={isLoading}
+                    onOpenEditModal={onOpenEditModal} onOpenDeleteModal={onOpenDeleteModal}
+                />
                 <MollieClientDetails id={customerId} key={`${customerId}-${detailsVersion}`} />
                 <MollieStudentLinksManager customerId={customerId} version={detailsVersion} onChanged={onReloadCustomerDetails} />
                 <MandateList
@@ -85,6 +115,11 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
                     clientId={customerId} isOpen={isEditModalOpen} onClose={onCloseEditModal}
                     reloadPage={onReloadCustomerDetails}
                 />
+                {isDeleteModalOpen && (
+                    <DeleteCustomerModal
+                        isOpen isDeleting={isDeleting} onClose={onCloseDeleteModal} onConfirm={onConfirmDelete}
+                    />
+                )}
             </VStack>
         </DynamicModuleLoader>
     );

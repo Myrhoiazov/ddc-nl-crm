@@ -3,6 +3,7 @@ import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch
 import { fetchMollieClientData } from '@/features/editMollieClientDropdown';
 import { useCustomerDataRefresh } from './useCustomerDataRefresh';
 import { useMandateRevoke } from './useMandateRevoke';
+import { hasDeleteBlockingDependencies } from './customerDeleteGuard';
 
 export const useMollieCustomerDetails = (customerId: string | undefined) => {
     const dispatch = useAppDispatch();
@@ -24,11 +25,14 @@ export const useMollieCustomerDetails = (customerId: string | undefined) => {
         setIsEditModalOpen(false);
     };
 
+    const canDelete = !isLoading && !hasDeleteBlockingDependencies(mandates, subscriptions);
+
     return {
         mandates,
         subscriptions,
         isLoading,
         isEditModalOpen,
+        canDelete,
         detailsVersion,
         onOpenEditModal,
         onCloseEditModal,
