@@ -104,8 +104,9 @@ endpoint, and outbound Telegram notifications for staff with admin-controlled on
   Identity's concern) and from Telegram OIDC login (also identity.md).
 - **A notification is sent only when two things hold**: the recipient chat for its type is
   configured in the environment, and its switch is on (`canSendNotification(key)` in
-  `telegram.service.ts`). The five older types default to on; the two new-record types default
-  to off, so a release never changes what the group receives until an admin opts in.
+  `telegram.service.ts`). The five older types default to on; the six student and Mollie record
+  types (new and deleted student, new and deleted Mollie customer, mandates, subscriptions)
+  default to off, so a release never changes what the group receives until an admin opts in.
 - **Switch changes are themselves announced**: every actual change is posted to the
   `TELEGRAM_CHAT_ID` group by `notifyNotificationSettingChanged`, which deliberately has no
   switch of its own — notifications, security ones included, cannot be silenced without the
@@ -116,6 +117,14 @@ endpoint, and outbound Telegram notifications for staff with admin-controlled on
   create path and from `payments.sync.service`; a sync run that creates more than three customers
   sends one summary instead of one message each. Messages go to a group chat, so they carry the
   name and a CRM link but no contact or bank details.
+- **Record lifecycle notifications** (`telegram/record-lifecycle-notifications.service.ts`): a
+  deleted student is announced from `clients.service.deleteClient`; a deleted Mollie customer, a
+  created or revoked mandate, and a created, cancelled or restarted subscription are announced
+  from `payments.controller` once Mollie and the database have accepted the change. Mandates and
+  subscriptions that first reach the CRM through `payments.sync.service` are announced with the
+  same more-than-three-becomes-a-summary rule. Editing a subscription, which may replace it on
+  Mollie, is not announced. Deletion messages carry no link — the card no longer exists — and no
+  message carries an IBAN.
 - **Admin page**: the switches are managed on the `/notifications` page (sidebar → Компания →
   Уведомления), visible to `ADMIN` only; a click saves immediately.
 

@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeClientData } from './clients.service';
+import axios from 'axios';
+import prisma from '../../../prisma/prisma-client';
+import { deleteClient, normalizeClientData } from './clients.service';
+import { telegramNotificationSettingsRepository } from '../communication/telegram/notification-settings.service';
+import type { StoredTelegramNotificationSetting } from '../communication/telegram/notification-settings.types';
 
 test('strips protected/computed fields to prevent mass-assignment', () => {
     const result = normalizeClientData({
@@ -62,4 +66,52 @@ test('normalizes an empty or whitespace-only string field to null', () => {
 test('leaves a string field untouched when not present in the payload', () => {
     const result = normalizeClientData({ firstName: 'Ada' } as never);
     assert.equal('lastName' in result, false);
+});
+
+// Telegram is configured and the student-deleted notification is switched on.
+const mockTelegram = (t: test.TestContext) => {
+    const previousEnv = { token: process.env.TELEGRAM_TOKEN, chat: process.env.TELEGRAM_CHAT_ID };
+    process.env.TELEGRAM_TOKEN = 'token';
+    process.env.TELEGRAM_CHAT_ID = 'chat-id';
+    t.after(() => {
+        process.env.TELEGRAM_TOKEN = previousEnv.token;
+        process.env.TELEGRAM_CHAT_ID = previousEnv.chat;
+        if (previousEnv.token === undefined) delete process.env.TELEGRAM_TOKEN;
+        if (previousEnv.chat === undefined) delete process.env.TELEGRAM_CHAT_ID;
+    });
+    t.mock.method(telegramNotificationSettingsRepository, 'findByKey', async (key: string): Promise<StoredTelegramNotificationSetting> => (
+        { key, enabled: true, updatedAt: new Date(), updatedBy: null }
+    ));
+    return t.mock.method(axios, 'post', async () => ({ data: {} }));
+};
+
+const stubClientDelete = (t: test.TestContext, impl: () => Promise<unknown>) => {
+    const delegate = prisma.client as unknown as Record<string, unknown>;
+    const original = delegate.delete;
+    delegate.delete = impl;
+    t.after(() => { delegate.delete = original; });
+};
+
+const flushNotifications = () => new Promise((resolve) => setImmediate(resolve));
+
+test('deleteClient announces the deleted student with the branch and the employee', async (t) => {
+    const postMock = mockTelegram(t);
+    stubClientDelete(t, async () => ({ id: 55, firstName: 'Anna', lastName: 'Jansen', branch: { name: 'Arnhem' } }));
+
+    const deleted = await deleteClient(55, { deletedByEmail: 'manager@example.test' });
+    await flushNotifications();
+
+    assert.equal(deleted.id, 55);
+    const { text } = postMock.mock.calls[0].arguments[1] as { text: string };
+    assert.match(text, /Ученик удалён[\s\S]*Anna Jansen[\s\S]*Arnhem[\s\S]*manager@example\.test/);
+});
+
+test('deleteClient announces nothing when the deletion fails', async (t) => {
+    const postMock = mockTelegram(t);
+    stubClientDelete(t, async () => { throw new Error('Record to delete does not exist'); });
+
+    await assert.rejects(deleteClient(55));
+    await flushNotifications();
+
+    assert.equal(postMock.mock.callCount(), 0);
 });
