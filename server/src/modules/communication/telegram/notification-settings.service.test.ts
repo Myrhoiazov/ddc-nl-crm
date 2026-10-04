@@ -54,13 +54,20 @@ const withEnv = async (vars: Record<string, string | undefined>, fn: () => Promi
     try { await fn(); } finally { apply(previous); }
 };
 
-test('only the new-student and new-Mollie-customer notifications are off by default', () => {
+test('only the student and Mollie record notifications are off by default', () => {
     const offByDefault = TELEGRAM_NOTIFICATION_DEFINITIONS.filter((definition) => !definition.defaultEnabled);
 
-    assert.equal(TELEGRAM_NOTIFICATION_DEFINITIONS.length, 7);
+    assert.equal(TELEGRAM_NOTIFICATION_DEFINITIONS.length, 11);
     assert.deepEqual(
         offByDefault.map((definition) => definition.key).sort(),
-        [TELEGRAM_NOTIFICATION_KEYS.NEW_MOLLIE_CUSTOMER, TELEGRAM_NOTIFICATION_KEYS.NEW_STUDENT],
+        [
+            TELEGRAM_NOTIFICATION_KEYS.MOLLIE_CUSTOMER_DELETED,
+            TELEGRAM_NOTIFICATION_KEYS.MOLLIE_MANDATE,
+            TELEGRAM_NOTIFICATION_KEYS.MOLLIE_SUBSCRIPTION,
+            TELEGRAM_NOTIFICATION_KEYS.NEW_MOLLIE_CUSTOMER,
+            TELEGRAM_NOTIFICATION_KEYS.NEW_STUDENT,
+            TELEGRAM_NOTIFICATION_KEYS.STUDENT_DELETED,
+        ],
     );
 });
 

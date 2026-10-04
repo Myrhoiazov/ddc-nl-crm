@@ -431,7 +431,7 @@ export const deleteClientByIdController = async (req: Request, res: Response) =>
     }
 
     try {
-        const deletedClient = await deleteClient(clientId);
+        const deletedClient = await deleteClient(clientId, { deletedByEmail: req.user?.email });
 
         if (!deletedClient) {
             return res.status(404).json({ message: 'Client not found or already deleted' });

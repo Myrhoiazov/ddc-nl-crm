@@ -1,6 +1,6 @@
 import { Client as TClient, Prisma } from '@prisma/client';
 import prisma from '../../../prisma/prisma-client'
-import { notifyNewStudent, type NewStudentSource } from '../communication';
+import { notifyNewStudent, notifyStudentDeleted, type NewStudentSource } from '../communication';
 
 const Client = prisma.client
 const paymentIssueStatuses = ['failed', 'canceled', 'charged_back', 'chargeback'];
@@ -330,12 +330,31 @@ export const updateClient = async (id: number, data: Partial<TClient>, groupIds?
     });
 };
 
-export const deleteClient = async (id: number) => {
-    return Client.delete({
-        where: { id },
-        // Response body is trimmed to a message by the controller; only the id
-        // is needed here for the null-check / minimal echo.
-        select: { id: true },
-    });
+export interface DeleteClientOptions {
+    deletedByEmail?: string;
+}
+
+// Fire-and-forget, after the row is gone: a Telegram failure must not fail the deletion.
+const announceStudentDeleted = (
+    client: { firstName?: string | null; lastName?: string | null; branch?: { name: string } | null },
+    options: DeleteClientOptions,
+) => {
+    void notifyStudentDeleted({
+        firstName: client.firstName,
+        lastName: client.lastName,
+        branchName: client.branch?.name,
+        deletedByEmail: options.deletedByEmail,
+    }).catch((error) => console.error('Failed to send student-deleted Telegram notification:', error));
 };
 
+export const deleteClient = async (id: number, options: DeleteClientOptions = {}) => {
+    const deletedClient = await Client.delete({
+        where: { id },
+        // Response body is trimmed to a message by the controller; the name and branch only
+        // feed the Telegram notification.
+        select: { id: true, firstName: true, lastName: true, branch: { select: { name: true } } },
+    });
+    announceStudentDeleted(deletedClient, options);
+
+    return deletedClient;
+};
