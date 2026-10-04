@@ -131,6 +131,11 @@ export const createCustomer = async ({
     return mollie.customers.create({ name, email, ...(locale ? { locale } : {}) });
 };
 
+export const updateCustomerById = async (id: string, data: { name: string; email?: string }): Promise<Customer> => {
+    const mollie = await getMollieClient();
+    return mollie.customers.update(id, data);
+};
+
 export const deleteCustomerById = async (id: string) => {
     const mollie = await getMollieClient();
     return mollie.customers.delete(id);
