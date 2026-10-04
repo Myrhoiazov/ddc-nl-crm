@@ -28,4 +28,13 @@ describe('deleteMollieClientById', () => {
         expect(result.meta.requestStatus).toBe('rejected');
         expect(result.payload).toBe('delete');
     });
+
+    test('rejects with a dedicated reason when the server refuses because of active dependencies', async () => {
+        extra.apiPrivate.delete.mockRejectedValue({ isAxiosError: true, response: { status: 409 } });
+
+        const result = await deleteMollieClientById('1')(dispatch, () => ({}) as never, extra as never);
+
+        expect(result.meta.requestStatus).toBe('rejected');
+        expect(result.payload).toBe('has-dependencies');
+    });
 });
