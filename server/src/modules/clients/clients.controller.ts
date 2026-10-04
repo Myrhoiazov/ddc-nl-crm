@@ -343,7 +343,8 @@ export const updateClientByIdController = async (req: Request<{ id: string }, {}
 
     const { groupIds: rawGroupIds, ...parsedClientData } = parsedBody.data;
     const selectedGroupIds = rawGroupIds ? Array.from(new Set(rawGroupIds)) : undefined;
-    if (selectedGroupIds && !await validateGroupSelection(parsedClientData.branchId, selectedGroupIds)) {
+    // Not a secret: Skylos reads the long identifiers on this line as a high-entropy value.
+    if (selectedGroupIds && !await validateGroupSelection(parsedClientData.branchId, selectedGroupIds)) { // skylos: ignore[SKY-S101]
         return res.status(400).json({ message: 'Выбранные группы должны принадлежать филиалу ученика' });
     }
     const clientData = { ...parsedClientData } as Partial<Client>;
