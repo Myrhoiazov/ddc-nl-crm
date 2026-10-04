@@ -39,6 +39,17 @@ cash-flow ledger.
   currently primary, kept in sync automatically when the primary link changes. It is not the
   source of truth.
 - **Relationships**: `CustomerClientLink[]`, `Mandate[]`, `Subscription[]`, `Payment[]`.
+- **Side effect on creation**: a newly created `Customer` is announced to the staff Telegram
+  group (the "new Mollie customer" notification, off by default — see
+  [communication.md](communication.md)), both when staff create it in the CRM and when a Mollie
+  sync creates it. One sync run announces its new customers together: up to three get a message
+  each, more than three become a single summary. Updating an existing customer announces nothing.
+- **Editing in the CRM also edits Mollie**: the name and email live in the Mollie account too,
+  and a Mollie sync copies them back into the CRM. `updateCustomerInCrmAndMollie`
+  (`payments.customer-update.service.ts`) therefore sends a changed name or email to Mollie
+  first and saves locally only when Mollie accepts it (otherwise `502`, nothing saved).
+  `payerName` — the name shown on the customer card and the name Mollie holds — follows the
+  given and family name unless a request changes it explicitly.
 
 ### CustomerClientLink
 

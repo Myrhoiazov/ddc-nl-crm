@@ -77,6 +77,7 @@ Validate
 | Invoice changes | docs/roadmap/INVOICES_MODULE_ROADMAP.md (gitignored, local only) |
 | Organizations / brands | docs/roadmap/ORGANIZATIONS_AND_BRANDS_ROADMAP.md (gitignored, local only) |
 | AI email assistant RAG v2 (knowledge base, retrieval, grounding) | docs/spec/DDC_RAG_V2_OPERATIONS.md |
+| Telegram staff notifications (types, switches, the Уведомления page, adding a type) | docs/spec/DDC_CRM_TELEGRAM_NOTIFICATIONS_SPEC.md |
 | Payment reminders | relevant roadmap in docs/roadmap/ (gitignored, local only) |
 | Large / risky task | .agents/skills/planning-and-task-breakdown/ |
 | Test-first implementation | .agents/skills/tdd/ |
@@ -129,8 +130,8 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 
   | Script | Covers |
   |---|---|
-  | `npm run test:auth` | Password/Token/Csrf/AuthSecurityAudit/RateLimit/TwoFactorAuth services + Auth controller |
-  | `npm run test:mollie` | Mollie payment utils |
+  | `npm run test:auth` | Password/Token/Csrf/AuthSecurityAudit/RateLimit/TwoFactorAuth services + Auth controller; Telegram notifications (message builders, per-type switches service + controller, new-student / new-Mollie-customer notifications, student / Mollie record lifecycle notifications) |
+  | `npm run test:mollie` | Mollie payment utils, Mollie sync (incl. new-customer Telegram notifications), Telegram notifications for Mollie customer deletion, mandates and subscriptions, Mollie customer edit (CRM + Mollie update) |
   | `npm run test:search` | Search service |
   | `npm run test:email` | Email crypto/imap/smtp services |
   | `npm run test:payment-reminders` | Payment reminders service |

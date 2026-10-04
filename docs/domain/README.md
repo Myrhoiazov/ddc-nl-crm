@@ -24,7 +24,7 @@ DDC CRM
 ├── Scheduling        — dance groups, choreographers, halls, schedule slots
 ├── Billing           — invoices, payments recorded against them, delivery, reminders
 ├── Payments          — Mollie integration, internal cash ledger, subscription reminders
-└── Communication      — staff email mailboxes, Instagram webhook (stub), Telegram ops notifications
+└── Communication      — staff email mailboxes, Instagram webhook (stub), Telegram staff notifications + switches
 ```
 
 These seven contexts are the ones confirmed by dedicated controllers/routers and cohesive Prisma
@@ -97,16 +97,19 @@ Folding it into any of those would misrepresent the dependency direction — see
 - **Interacts with**: CRM (`Customer.clientId` / `CustomerClientLink.clientId`), Billing (as
   above), Identity (`MollieAccount.userId` — see note in [payments.md](payments.md) about the
   connection being operationally shared, not truly per-user), Communication (Telegram
-  notifications for payment webhook events).
+  notifications for payment webhook events and for newly created Mollie customers).
 
 ### Communication
 - **Responsible for**: staff email mailboxes (`EmailAccount`/`EmailMessage`/`EmailAttachment`,
-  IMAP sync + SMTP send), the Instagram webhook endpoint, and an internal Telegram notification
-  utility.
+  IMAP sync + SMTP send), the Instagram webhook endpoint, and outbound Telegram notifications
+  for staff, including the admin-controlled per-type switches (`TelegramNotificationSetting`).
 - **Not responsible for**: invoice delivery email (Billing has its own independent SMTP path —
   see [billing.md](billing.md)) or 2FA email (Identity bypasses this module entirely).
-- **Interacts with**: CRM (`EmailMessage.clientId`, matched by exact email address), Payments
-  (Telegram notifications are triggered exclusively from Mollie webhook events today).
+- **Interacts with**: CRM (`EmailMessage.clientId`, matched by exact email address). Its Telegram
+  notifications are triggered by other domains: Payments (Mollie webhook events, new Mollie
+  customers), CRM (new students), Identity (login blocked, new device, role changed) — and by its
+  own IMAP sync (new email). Identity also attributes switch changes
+  (`TelegramNotificationSetting.updatedById`).
 
 ## Domain Dependencies
 
@@ -132,7 +135,13 @@ Billing (Invoice) ◀──────────────┐
   └──▶ Payments (InvoiceMolliePaymentLink, Payment.invoiceId; reconciliation reads
         Payments tables from Billing's own service)
 
-Payments (Mollie webhook events)
+Payments (Mollie webhook events, new Mollie customers)
+  └──▶ Communication (Telegram staff notification)
+
+CRM (new student)
+  └──▶ Communication (Telegram staff notification)
+
+Identity (login blocked, new device, role changed)
   └──▶ Communication (Telegram staff notification)
 
 Identity (User)
@@ -150,7 +159,7 @@ Identity (User)
 | Scheduling | [scheduling.md](scheduling.md) | `modules/schedule/schedule.controller.ts`, `schedule.prisma` |
 | Billing | [billing.md](billing.md) | `modules/invoices/invoices.controller.ts`, `invoices.*.service.ts`, `invoice.prisma` |
 | Payments | [payments.md](payments.md) | `modules/payments/payments.controller.ts`, `payments.*.service.ts`, `modules/transactions/transactions.controller.ts`, `modules/payment-reminders/payment-reminders.controller.ts`, `mollie.prisma`, `payment-reminder.prisma`, `Transaction` model in `schema.prisma` |
-| Communication | [communication.md](communication.md) | `modules/communication/email/email.controller.ts`, `instagram/instagram.controller.ts`, `email/email-*.service.ts`, `telegram/telegram.service.ts`, `email.prisma` |
+| Communication | [communication.md](communication.md) | `modules/communication/email/email.controller.ts`, `instagram/instagram.controller.ts`, `email/email-*.service.ts`, `telegram/telegram.service.ts`, `telegram/notification-settings.*`, `telegram/new-record-notifications.service.ts`, `email.prisma`, `telegram-notification.prisma` |
 
 Technical implementation detail (exact function signatures, validation schemas, migration
 history) stays in the code and in `docs/spec/*` — these documents describe *what exists and why

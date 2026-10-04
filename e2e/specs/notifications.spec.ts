@@ -6,7 +6,7 @@ test('admin switches a Telegram notification on and it stays on after reload', a
     await page.getByRole('link', { name: 'Уведомления' }).click();
 
     await expect(page).toHaveURL('/notifications');
-    await expect(page.getByRole('switch')).toHaveCount(7);
+    await expect(page.getByRole('switch')).toHaveCount(11);
     // Existing notifications stay on by default; the two new ones start switched off.
     await expect(page.getByRole('switch', { name: 'Платежи Mollie' })).toBeChecked();
     await expect(page.getByRole('switch', { name: 'Новый клиент Mollie' })).not.toBeChecked();
@@ -26,7 +26,7 @@ test.describe('mobile viewport', () => {
 
     test('the notifications page fits a phone screen', async ({ page }) => {
         await page.goto('/notifications');
-        await expect(page.getByRole('switch')).toHaveCount(7);
+        await expect(page.getByRole('switch')).toHaveCount(11);
 
         // Switches sit at the right edge of each row: none may be pushed past the screen.
         for (const toggle of await page.getByRole('switch').all()) {

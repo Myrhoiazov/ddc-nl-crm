@@ -72,6 +72,27 @@ test('shows the notifications grouped by purpose with their current state', asyn
     expect(getMock).toHaveBeenCalledWith('/telegram-notifications');
 });
 
+test('describes the student and Mollie record notifications', async () => {
+    getMock.mockResolvedValue({
+        data: {
+            items: [
+                setting({ key: 'STUDENT_DELETED', title: 'Удаление ученика', enabled: false }),
+                setting({ key: 'MOLLIE_CUSTOMER_DELETED', title: 'Удаление клиента Mollie', enabled: false }),
+                setting({ key: 'MOLLIE_MANDATE', title: 'Мандаты Mollie', enabled: false }),
+                setting({ key: 'MOLLIE_SUBSCRIPTION', title: 'Подписки Mollie', enabled: false }),
+            ],
+        },
+    });
+    renderPage();
+
+    const studentsGroup = await screen.findByRole('region', { name: 'Ученики и Mollie' });
+    expect(within(studentsGroup).getAllByRole('switch')).toHaveLength(4);
+    expect(within(studentsGroup).getByText(/ученика удалили из CRM/)).toBeInTheDocument();
+    expect(within(studentsGroup).getByText(/клиента Mollie удалили из CRM/)).toBeInTheDocument();
+    expect(within(studentsGroup).getByText(/Создание и отзыв мандатов Mollie/)).toBeInTheDocument();
+    expect(within(studentsGroup).getByText(/перезапуск подписок Mollie/)).toBeInTheDocument();
+});
+
 test('shows who changed a setting last', async () => {
     renderPage();
 

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { Request, Response } from 'express';
 import { fromPartial } from '@total-typescript/shoehorn';
-import { createClientsController, getClientCountController } from './clients.controller';
+import { createClientsController, deleteClientByIdController, getClientCountController } from './clients.controller';
 import prisma from '../../../prisma/prisma-client';
 import * as clientsService from './clients.service';
 import * as auditService from '../auth/auth.security-audit.service';
@@ -99,4 +99,15 @@ test('marks a student created through the Mini App with the Telegram source', as
 
     const [, options] = createMock.mock.calls[0].arguments;
     assert.equal(options?.source, 'TELEGRAM_MINIAPP');
+});
+
+test('passes the employee who deletes a student to deleteClient for the student-deleted notification', async (t) => {
+    const deleteMock = t.mock.method(clientsService, 'deleteClient', async () => ({ id: 55 } as never));
+    const { res } = response();
+    const req: Request = fromPartial({ params: { id: '55' }, user: { id: 7, email: 'manager@example.test' } });
+
+    await deleteClientByIdController(req, res);
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(deleteMock.mock.calls[0].arguments, [55, { deletedByEmail: 'manager@example.test' }]);
 });
