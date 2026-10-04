@@ -131,7 +131,7 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
   | Script | Covers |
   |---|---|
   | `npm run test:auth` | Password/Token/Csrf/AuthSecurityAudit/RateLimit/TwoFactorAuth services + Auth controller; Telegram notifications (message builders, per-type switches service + controller, new-student / new-Mollie-customer notifications, student / Mollie record lifecycle notifications) |
-  | `npm run test:mollie` | Mollie payment utils, Mollie sync (incl. new-customer Telegram notifications), Telegram notifications for Mollie customer deletion, mandates and subscriptions |
+  | `npm run test:mollie` | Mollie payment utils, Mollie sync (incl. new-customer Telegram notifications), Telegram notifications for Mollie customer deletion, mandates and subscriptions, Mollie customer edit (CRM + Mollie update) |
   | `npm run test:search` | Search service |
   | `npm run test:email` | Email crypto/imap/smtp services |
   | `npm run test:payment-reminders` | Payment reminders service |

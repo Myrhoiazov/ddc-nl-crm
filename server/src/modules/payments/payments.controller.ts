@@ -15,6 +15,7 @@ import { getMollieTokenExpiresAt, saveMollieAccount } from "./payments.auth.serv
 import { buildMollieWebhookDedupeKey, createCsv, getWebhookAttentionLevel, mapClientLanguageToMollieLocale, parseIncidentKey, paymentIssueStatuses as molliePaymentIssueStatuses } from "./payments.utils.service";
 import { z } from "zod";
 import { createMolliePaymentInvoicePdf } from "./payments.invoice-pdf.service";
+import { updateCustomerInCrmAndMollie } from "./payments.customer-update.service";
 import { isTelegramConfigured, notifyMolliePayment, notifyNewMollieCustomers, sendTelegramMessage } from "../communication";
 import {
     announceCrmSubscription,
@@ -847,6 +848,12 @@ export const createCustomerController = async (req: Request<{}, {}, TCustomer>, 
 
 }
 
+const customerUpdateFailureStatus = { NOT_FOUND: 404, MOLLIE_REJECTED: 502 } as const;
+const customerUpdateFailureMessage = {
+    NOT_FOUND: 'Mollie customer not found',
+    MOLLIE_REJECTED: 'Unable to update customer in Mollie',
+} as const;
+
 export const updateCustomerController = async (req: Request, res: Response) => {
     const customerId = Number(req.params.customerId);
     const parsedBody = updateCustomerSchema.safeParse(req.body);
@@ -859,12 +866,15 @@ export const updateCustomerController = async (req: Request, res: Response) => {
             });
         }
 
-        const customer = await prisma.customer.update({
-            where: { id: customerId },
-            data: parsedBody.data,
-        })
+        const result = await updateCustomerInCrmAndMollie(customerId, parsedBody.data);
 
-        return res.status(200).json(customer);
+        if ('failure' in result) {
+            return res.status(customerUpdateFailureStatus[result.failure]).json({
+                error: customerUpdateFailureMessage[result.failure],
+            });
+        }
+
+        return res.status(200).json(result.customer);
 
     } catch (error) {
         console.error('Error updating Mollie customer:', error.message);
