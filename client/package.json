@@ -52,7 +52,7 @@
         "@types/webpack-dev-server": "^4.7.2",
         "babel-loader": "^10.0.0",
         "babel-plugin-i18next-extract": "^1.0.0",
-        "copy-webpack-plugin": "^13.0.1",
+        "copy-webpack-plugin": "^14.0.0",
         "css-loader": "^6.6.0",
         "eslint": "^9.24.0",
         "eslint-config-prettier": "^10.1.2",
@@ -92,11 +92,11 @@
         "@headlessui/react": "^2.2.4",
         "@react-spring/web": "^10.0.3",
         "@reduxjs/toolkit": "^2.7.0",
-        "@tiptap/extension-link": "^3.27.3",
-        "@tiptap/extension-placeholder": "^3.27.3",
-        "@tiptap/pm": "^3.27.3",
-        "@tiptap/react": "^3.27.3",
-        "@tiptap/starter-kit": "^3.27.3",
+        "@tiptap/extension-link": "^3.31.4",
+        "@tiptap/extension-placeholder": "^3.31.4",
+        "@tiptap/pm": "^3.31.4",
+        "@tiptap/react": "^3.31.4",
+        "@tiptap/starter-kit": "^3.31.4",
         "@use-gesture/react": "^10.3.1",
         "axios": "^1.20.0",
         "entities": "^2.2.0",
@@ -115,5 +115,16 @@
         "extends": [
             "plugin:storybook/recommended"
         ]
+    },
+    "overrides": {
+        "sockjs": {
+            "uuid": "^11.1.1"
+        },
+        "@storybook/addon-actions": {
+            "uuid": "^11.1.1"
+        },
+        "@storybook/builder-webpack5": {
+            "webpack-dev-middleware": "^7.4.6"
+        }
     }
 }

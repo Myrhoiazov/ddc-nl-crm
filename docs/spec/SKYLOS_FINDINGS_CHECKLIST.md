@@ -494,6 +494,21 @@ exit 2, только когда включён `--sca` (входит в `-a`): �
 **Осталось (advisory, без действий):** `SKY-Q802` × 327, `SKY-Q803` × 210,
 `SKY-Q804` × 21 — I/A/D-метрики модулей, не входят в `[tool.skylos.gate]`.
 
+## Волна 9 (2026-10-04, ветка `chore/skylos-pipeline-green`) — красный `skylos-check`
+
+Разбор и правки — в отдельном чек-листе [SKYLOS_SCA_CHECKLIST.md](SKYLOS_SCA_CHECKLIST.md).
+Коротко:
+
+- Объяснение из волны 8 («Почему `skylos-check` красный на каждом PR») неверно. Exit 2
+  давал не `SKY-SCA`, а статус скана `incomplete`: две записи в
+  `client/package-lock.json` с `engines` массивом.
+- «Baseline не перегенерирован» из волны 8 — следствие того же `incomplete`; после
+  правки lock-файла `skylos baseline . --sca` сохраняет файл.
+- `SKY-SCA`: 131 → 1 (`braces@3.0.3`, исправленной версии нет, принято в
+  `dependency_baseline`).
+- `SKY-C304` × 1 (виден только на Skylos 4.44) — `CreateGroupModalFields.tsx`, закрыт
+  декомпозицией.
+
 ## Постоянно задокументированные false positive классы (без действий)
 
 - **`SKY-E003`** (51, unused file) — `*.stories.tsx` (Storybook, glob-загрузка),
