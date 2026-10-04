@@ -17,6 +17,13 @@ import { z } from "zod";
 import { createMolliePaymentInvoicePdf } from "./payments.invoice-pdf.service";
 import { updateCustomerInCrmAndMollie } from "./payments.customer-update.service";
 import { isTelegramConfigured, notifyMolliePayment, notifyNewMollieCustomers, sendTelegramMessage } from "../communication";
+import {
+    announceCrmSubscription,
+    announceMollieCustomerDeleted,
+    announceMollieMandates,
+    flattenMollieSubscription,
+    toMandateNotification,
+} from "./payments.notifications.service";
 
 dotenv.config();
 
@@ -929,6 +936,9 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             select: {
                 id: true,
                 mollieId: true,
+                payerName: true,
+                givenName: true,
+                familyName: true,
             },
         });
 
@@ -953,6 +963,7 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
         }
 
         const [, , , , , deletedCustomer] = await prisma.$transaction(buildCustomerDeleteTransaction(customerId));
+        announceMollieCustomerDeleted(customer, req.user?.email);
 
         return res.status(200).json(deletedCustomer);
     } catch (error) {
@@ -2685,6 +2696,12 @@ export const mollieCreateMandateController = async (req: Request<{}, {}, Mandate
             return res.status(500).json({ error: 'Internal server error' });
         }
 
+        announceMollieMandates([toMandateNotification(client, savedMandate, {
+            action: 'CREATED',
+            source: 'CRM',
+            actorEmail: req.user?.email,
+        })]);
+
         return res.status(201).json(toMandateResponse(savedMandate, customerId));
 
     } catch (error) {
@@ -2785,6 +2802,7 @@ export const mollieCreateMandateSubscriptionController = async (req: Request, re
         });
 
         await mollieSyncService.syncMollieSubscription(customer.id, subscription);
+        announceCrmSubscription(customer, flattenMollieSubscription(subscription), 'CREATED', req.user?.email);
         return res.status(201).json(subscription);
     } catch (error) {
         console.error('Error creating Mollie mandate subscription:', error.message);
@@ -2870,6 +2888,7 @@ export const mollieDeleteSubscriptionByIdController = async (req: Request, res: 
                 status: deletedSubscription?.status ?? 'canceled',
             },
         });
+        announceCrmSubscription(subscriptionToCancel.customer, subscriptionToCancel, 'CANCELED', req.user?.email);
 
         // Client deleteSubscriptionById thunk is not wired to any reducer and nothing
         // reads the deleted Mollie payload or the updated row — a status message suffices.
@@ -3087,6 +3106,7 @@ export const mollieRestartSubscriptionController = async (req: Request, res: Res
         }
 
         const restarted = await restartSubscriptionOnMollie(previous, parsedBody.data);
+        announceCrmSubscription(previous.customer, flattenMollieSubscription(restarted), 'RESTARTED', req.user?.email);
 
         return res.status(201).json(restarted);
     } catch (error) {
@@ -3142,9 +3162,29 @@ const findLocalMandate = async (customerId: number, mandateId: string) => prisma
     include: { customer: true },
 });
 
+type LocalMandate = NonNullable<Awaited<ReturnType<typeof findLocalMandate>>>;
+
+const revokeMandateLocallyAndAnnounce = async (mandate: LocalMandate, actorEmail?: string) => {
+    const canceledSubscriptions = await revokeMandateLocally(mandate);
+    announceMollieMandates([toMandateNotification(mandate.customer, mandate, {
+        action: 'REVOKED',
+        source: 'CRM',
+        actorEmail,
+        canceledSubscriptions,
+    })]);
+
+    return {
+        mandateId: mandate.mollieId,
+        status: 'revoked',
+        canceledSubscriptions,
+        reconciled: true,
+    };
+};
+
 const reconcileNonValidMandate = async (
-    mandate: NonNullable<Awaited<ReturnType<typeof findLocalMandate>>>,
+    mandate: LocalMandate,
     mollieMandateStatus: string,
+    actorEmail?: string,
 ) => {
     if (mollieMandateStatus !== 'valid') {
         await prisma.mandate.update({
@@ -3161,12 +3201,7 @@ const reconcileNonValidMandate = async (
     }
 
     await mollieService.revokeMandateById(mandate.customer.mollieId, mandate.mollieId);
-    return {
-        mandateId: mandate.mollieId,
-        status: 'revoked',
-        canceledSubscriptions: await revokeMandateLocally(mandate),
-        reconciled: true,
-    };
+    return revokeMandateLocallyAndAnnounce(mandate, actorEmail);
 };
 
 export const mollieRevokeMandateController = async (req: Request, res: Response) => {
@@ -3189,19 +3224,14 @@ export const mollieRevokeMandateController = async (req: Request, res: Response)
             mandate.customer.mollieId,
         );
 
-        return res.status(200).json(await reconcileNonValidMandate(mandate, mollieMandate.status));
+        return res.status(200).json(await reconcileNonValidMandate(mandate, mollieMandate.status, req.user?.email));
     } catch (error) {
         const statusCode = error && typeof error === 'object' && 'statusCode' in error
             ? Number(error.statusCode)
             : undefined;
 
         if (statusCode === 410) {
-            return res.status(200).json({
-                mandateId,
-                status: 'revoked',
-                canceledSubscriptions: await revokeMandateLocally(mandate),
-                reconciled: true,
-            });
+            return res.status(200).json(await revokeMandateLocallyAndAnnounce(mandate, req.user?.email));
         }
 
         console.error('Error revoking Mollie mandate:', error);

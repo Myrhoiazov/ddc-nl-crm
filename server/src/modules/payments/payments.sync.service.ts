@@ -3,7 +3,19 @@ import prisma from '../../../prisma/prisma-client';
 import * as mollieService from './payments.mollie.service';
 import { normalizePaymentStatus } from './payments.utils.service';
 import { reconcileInvoiceMolliePayments } from '../invoices/invoices.mollie.service';
-import { notifyNewMollieCustomers, type NewMollieCustomerNotification } from '../communication';
+import {
+    notifyNewMollieCustomers,
+    type MollieMandateNotification,
+    type MollieSubscriptionNotification,
+    type NewMollieCustomerNotification,
+} from '../communication';
+import {
+    announceMollieMandates,
+    announceMollieSubscriptions,
+    flattenMollieSubscription,
+    toMandateNotification,
+    toSubscriptionNotification,
+} from './payments.notifications.service';
 
 export interface SyncResult {
     created: number;
@@ -403,8 +415,49 @@ export const syncMollieMandate = async (
     return existing ? 'updated' : 'created';
 };
 
+type SyncedCustomer = {
+    id: number;
+    mollieId: string | null;
+    payerName?: string | null;
+    givenName?: string | null;
+    familyName?: string | null;
+};
+
+// Collects what one sync run adds to the CRM; announced once the run is over, so a large
+// import becomes a single summary instead of a message per record.
+type SyncRun<T> = { result: SyncResult; created: T[] };
+
+const syncMollieMandatesForCustomer = async (
+    customer: SyncedCustomer,
+    run: SyncRun<MollieMandateNotification>,
+): Promise<void> => {
+    const mandates = await mollieService.getMandateByCustomerId(customer.mollieId);
+    const mollieIds = mandates
+        .map((mandate) => mandate.id)
+        .filter((id): id is string => Boolean(id));
+    const existingMandates = mollieIds.length
+        ? await prisma.mandate.findMany({
+            where: { mollieId: { in: mollieIds } },
+            select: { mollieId: true },
+        })
+        : [];
+    const existingMollieIds = new Set(
+        existingMandates.map((mandate) => mandate.mollieId).filter((id): id is string => Boolean(id)),
+    );
+
+    for (const mandate of mandates) {
+        const status = resolveSyncStatus(mandate.id, existingMollieIds);
+        run.result[status] += 1;
+        if (status === 'skipped') continue;
+        await prisma.mandate.upsert(buildMandateUpsertArgs(customer.id, mandate));
+        if (status === 'created') {
+            run.created.push(toMandateNotification(customer, mandate, { action: 'CREATED', source: 'MOLLIE_SYNC' }));
+        }
+    }
+};
+
 export const syncMollieMandates = async (): Promise<SyncResult> => {
-    const result = createEmptySyncResult();
+    const run: SyncRun<MollieMandateNotification> = { result: createEmptySyncResult(), created: [] };
     const customers = await prisma.customer.findMany({
         where: {
             mollieId: {
@@ -415,33 +468,15 @@ export const syncMollieMandates = async (): Promise<SyncResult> => {
 
     for (const customer of customers) {
         try {
-            const mandates = await mollieService.getMandateByCustomerId(customer.mollieId);
-            const mollieIds = mandates
-                .map((mandate) => mandate.id)
-                .filter((id): id is string => Boolean(id));
-            const existingMandates = mollieIds.length
-                ? await prisma.mandate.findMany({
-                    where: { mollieId: { in: mollieIds } },
-                    select: { mollieId: true },
-                })
-                : [];
-            const existingMollieIds = new Set(
-                existingMandates.map((mandate) => mandate.mollieId).filter((id): id is string => Boolean(id)),
-            );
-
-            for (const mandate of mandates) {
-                const status = resolveSyncStatus(mandate.id, existingMollieIds);
-                result[status] += 1;
-                if (status === 'skipped') continue;
-                await prisma.mandate.upsert(buildMandateUpsertArgs(customer.id, mandate));
-            }
+            await syncMollieMandatesForCustomer(customer, run);
         } catch (error) {
-            result.errors += 1;
+            run.result.errors += 1;
             console.error('Mollie mandates sync failed:', customer.mollieId, error);
         }
     }
+    announceMollieMandates(run.created);
 
-    return result;
+    return run.result;
 };
 
 export const buildSubscriptionUpsertArgs = (
@@ -497,11 +532,9 @@ export const syncMollieSubscription = async (
     return existing ? 'updated' : 'created';
 };
 
-const syncMollieSubscriptionsForCustomer = async (
-    customer: { id: number; mollieId: string | null },
-    result: SyncResult,
-): Promise<void> => {
-    const subscriptions = await mollieService.getSubscriptionsByCustomerId(customer.mollieId);
+// What the CRM already knows about a customer's Mollie subscriptions: which of them are stored
+// and the local ids of the mandates they refer to.
+const loadSubscriptionSyncLookups = async (subscriptions: Subscription[]) => {
     const mollieIds = subscriptions
         .map((subscription) => subscription.id)
         .filter((id): id is string => Boolean(id));
@@ -533,9 +566,19 @@ const syncMollieSubscriptionsForCustomer = async (
             .map((mandate) => [mandate.mollieId, mandate.id]),
     );
 
+    return { existingMollieIds, mandateIdByMollieId };
+};
+
+const syncMollieSubscriptionsForCustomer = async (
+    customer: SyncedCustomer,
+    run: SyncRun<MollieSubscriptionNotification>,
+): Promise<void> => {
+    const subscriptions = await mollieService.getSubscriptionsByCustomerId(customer.mollieId);
+    const { existingMollieIds, mandateIdByMollieId } = await loadSubscriptionSyncLookups(subscriptions);
+
     for (const subscription of subscriptions) {
         const status = resolveSyncStatus(subscription.id, existingMollieIds);
-        result[status] += 1;
+        run.result[status] += 1;
         if (status === 'skipped') continue;
         const localMandateId = subscription.mandateId
             ? mandateIdByMollieId.get(subscription.mandateId) ?? null
@@ -543,11 +586,18 @@ const syncMollieSubscriptionsForCustomer = async (
         await prisma.subscription.upsert(
             buildSubscriptionUpsertArgs(customer.id, subscription, localMandateId),
         );
+        if (status === 'created') {
+            run.created.push(toSubscriptionNotification(
+                customer,
+                flattenMollieSubscription(subscription),
+                { action: 'CREATED', source: 'MOLLIE_SYNC' },
+            ));
+        }
     }
 };
 
 export const syncMollieSubscriptions = async (): Promise<SyncResult> => {
-    const result = createEmptySyncResult();
+    const run: SyncRun<MollieSubscriptionNotification> = { result: createEmptySyncResult(), created: [] };
     const customers = await prisma.customer.findMany({
         where: {
             mollieId: {
@@ -558,14 +608,15 @@ export const syncMollieSubscriptions = async (): Promise<SyncResult> => {
 
     for (const customer of customers) {
         try {
-            await syncMollieSubscriptionsForCustomer(customer, result);
+            await syncMollieSubscriptionsForCustomer(customer, run);
         } catch (error) {
-            result.errors += 1;
+            run.result.errors += 1;
             console.error('Mollie subscriptions sync failed:', customer.mollieId, error);
         }
     }
+    announceMollieSubscriptions(run.created);
 
-    return result;
+    return run.result;
 };
 
 export const syncAllMollieData = async (): Promise<FullSyncResult> => {
