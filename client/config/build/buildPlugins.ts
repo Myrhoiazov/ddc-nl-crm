@@ -10,7 +10,7 @@ export function buildPlugins({ paths, isDev, apiUrl, project }: IBuildOptions): 
 
     const isProd = !isDev;
 
-    const plugins = [
+    const plugins: webpack.WebpackPluginInstance[] = [
         new HTMLWebpackPlugin({
             template: paths.html,
         }),

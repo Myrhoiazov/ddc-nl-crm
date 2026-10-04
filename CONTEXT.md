@@ -190,6 +190,11 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - GitHub Actions: CI only (`ci.yml`: `client-checks`/`server-checks`/`docs-links`/`skylos-check`; and
   `e2e.yml`: isolated Playwright Chromium suite). Neither workflow deploys production.
 - `skylos-check` is informational (Phase A), not a required status check.
+  It runs `scripts/check-skylos.sh`: a diff-scan against the target branch. Exit 2 with empty
+  output means the dependency scan was `incomplete` (a lockfile entry Skylos cannot parse),
+  not that findings exist. Accepted dependency vulnerabilities without an upstream fix live in
+  `dependency_baseline` inside `.skylos/baseline.json`, read from the target branch via
+  `--baseline-ref`.
 
 ## Important Existing Decisions
 
@@ -218,3 +223,6 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 - [Schema docs](docs/schema.md)
 - [Local AI Email Assistant — Technical Specification](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_SPEC.md)
 - [Local AI Email Assistant Operations](docs/spec/DDC_LOCAL_AI_EMAIL_ASSISTANT_OPERATIONS.md)
+- [Skylos CI spec](docs/spec/DDC_CRM_SKYLOS_CI_SPEC.md)
+- [Skylos findings checklist](docs/spec/SKYLOS_FINDINGS_CHECKLIST.md) — code findings by wave
+- [Skylos SCA checklist](docs/spec/SKYLOS_SCA_CHECKLIST.md) — why `skylos-check` was red, dependency fixes, baseline

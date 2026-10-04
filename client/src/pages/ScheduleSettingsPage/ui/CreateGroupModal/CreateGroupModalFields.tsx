@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Choreographer, GroupLevel, Branch } from '@/entities/DanceGroup';
 import { SelectField, NumberField, LevelButtons } from './FormField';
@@ -30,25 +30,42 @@ interface CreateGroupModalFieldsProps {
     setLessonPrice: (value: string) => void;
 }
 
-export const CreateGroupModalFields = memo(function CreateGroupModalFields(
-    props: CreateGroupModalFieldsProps,
-) {
+type NameFieldProps = Pick<CreateGroupModalFieldsProps, 'name' | 'setName'>;
+
+const NameField = memo(function NameField({ name, setName }: NameFieldProps) {
     const { t } = useTranslation();
 
     return (
-        <>
-            <div className={s.field}>
-                <label className={s.label}>
-                    {t('Название группы')} <span className={s.req}>*</span>
-                </label>
-                <input
-                    className={s.input}
-                    placeholder="Break dance 6-10 років"
-                    value={props.name}
-                    onChange={(e) => props.setName(e.target.value)}
-                />
-            </div>
+        <div className={s.field}>
+            <label className={s.label}>
+                {t('Название группы')} <span className={s.req}>*</span>
+            </label>
+            <input
+                className={s.input}
+                placeholder="Break dance 6-10 років"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+            />
+        </div>
+    );
+});
 
+type ReferenceSelectsProps = Pick<
+    CreateGroupModalFieldsProps,
+    | 'choreographerId'
+    | 'setChoreographerId'
+    | 'choreographers'
+    | 'style'
+    | 'setStyle'
+    | 'styles'
+    | 'branchId'
+    | 'setBranchId'
+    | 'branches'
+>;
+
+const ReferenceSelects = memo(function ReferenceSelects(props: ReferenceSelectsProps) {
+    return (
+        <>
             <SelectField
                 label="Хореограф"
                 required
@@ -91,28 +108,73 @@ export const CreateGroupModalFields = memo(function CreateGroupModalFields(
                     </option>
                 ))}
             </SelectField>
+        </>
+    );
+});
 
-            <div className={s.row}>
-                <div className={s.field}>
-                    <label className={s.label}>
-                        {t('Уровень группы')} <span className={s.req}>*</span>
-                    </label>
-                    <LevelButtons levels={LEVELS} level={props.level} setLevel={props.setLevel} />
-                </div>
-                <NumberField
-                    label="Макс. участников"
-                    value={props.maxParticipants}
-                    min={1}
-                    onChange={(value) => props.setMaxParticipants(Number(value))}
-                />
-                <NumberField
-                    label="Стоимость занятия, EUR"
-                    value={props.lessonPrice}
-                    min={0}
-                    step="0.01"
-                    onChange={props.setLessonPrice}
-                />
+type LevelAndPricingRowProps = Pick<
+    CreateGroupModalFieldsProps,
+    'level' | 'setLevel' | 'maxParticipants' | 'setMaxParticipants' | 'lessonPrice' | 'setLessonPrice'
+>;
+
+const LevelAndPricingRow = memo(function LevelAndPricingRow(props: LevelAndPricingRowProps) {
+    const { t } = useTranslation();
+    const { setMaxParticipants } = props;
+    const handleMaxParticipantsChange = useCallback(
+        (value: string) => setMaxParticipants(Number(value)),
+        [setMaxParticipants],
+    );
+
+    return (
+        <div className={s.row}>
+            <div className={s.field}>
+                <label className={s.label}>
+                    {t('Уровень группы')} <span className={s.req}>*</span>
+                </label>
+                <LevelButtons levels={LEVELS} level={props.level} setLevel={props.setLevel} />
             </div>
+            <NumberField
+                label="Макс. участников"
+                value={props.maxParticipants}
+                min={1}
+                onChange={handleMaxParticipantsChange}
+            />
+            <NumberField
+                label="Стоимость занятия, EUR"
+                value={props.lessonPrice}
+                min={0}
+                step="0.01"
+                onChange={props.setLessonPrice}
+            />
+        </div>
+    );
+});
+
+export const CreateGroupModalFields = memo(function CreateGroupModalFields(
+    props: CreateGroupModalFieldsProps,
+) {
+    return (
+        <>
+            <NameField name={props.name} setName={props.setName} />
+            <ReferenceSelects
+                choreographerId={props.choreographerId}
+                setChoreographerId={props.setChoreographerId}
+                choreographers={props.choreographers}
+                style={props.style}
+                setStyle={props.setStyle}
+                styles={props.styles}
+                branchId={props.branchId}
+                setBranchId={props.setBranchId}
+                branches={props.branches}
+            />
+            <LevelAndPricingRow
+                level={props.level}
+                setLevel={props.setLevel}
+                maxParticipants={props.maxParticipants}
+                setMaxParticipants={props.setMaxParticipants}
+                lessonPrice={props.lessonPrice}
+                setLessonPrice={props.setLessonPrice}
+            />
         </>
     );
 });

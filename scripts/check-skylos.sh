@@ -25,17 +25,36 @@ else
     echo "WARN: Skylos diff base '$DIFF_BASE_REF' not found; falling back to full repository scan."
 fi
 
+# Dependency baseline (`dependency_baseline` в .skylos/baseline.json) — принятые уязвимости
+# без исправленной версии. В CI Skylos применяет его только через --baseline-ref с
+# доверенной ревизии; обычный --baseline там фильтрует лишь находки в коде. Доверенная
+# ревизия — целевая ветка; HEAD используется, только пока в целевой ветке baseline ещё нет.
+BASELINE_ARGS=(--baseline)
+for ref in "$DIFF_BASE_REF" HEAD; do
+    if git grep -q '"dependency_baseline"' "$ref" -- .skylos/baseline.json 2>/dev/null; then
+        BASELINE_ARGS=(--baseline-ref "$ref")
+        break
+    fi
+done
+
+# Skylos принимает в lock-файле `engines` только объектом. Legacy-массив (так его публикуют
+# ansi-html и ansi-html-community) делает SCA-скан «incomplete»: exit 2 при пустом выводе.
+if git grep -n '"engines": \[' -- '*package-lock.json' >&2; then
+    echo "WARN: в lock-файле есть \`engines\` массивом — Skylos вернёт exit 2 без находок." >&2
+    echo "      Замени на объект, см. docs/spec/SKYLOS_SCA_CHECKLIST.md." >&2
+fi
+
 # --format и --github взаимоисключающие флаги Skylos (нельзя запросить и читаемый лог,
 # и GitHub PR-аннотации одной командой) — гоняем анализ дважды: один раз для читаемого
 # лога (нужен для сравнения находок между прогонами в baseline-периоде), второй раз для
 # inline-аннотаций прямо на diff в PR.
 echo "==> Skylos audit (readable log)"
 concise_status=0
-skylos . -a --format concise --baseline "${DIFF_ARGS[@]}" "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
+skylos . -a --format concise "${BASELINE_ARGS[@]}" "${DIFF_ARGS[@]}" "${EXCLUDES[@]}" "${CONFIG[@]}" || concise_status=$?
 
 echo
 echo "==> Skylos audit (GitHub PR annotations)"
 github_status=0
-skylos . -a --github --baseline "${DIFF_ARGS[@]}" "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
+skylos . -a --github "${BASELINE_ARGS[@]}" "${DIFF_ARGS[@]}" "${EXCLUDES[@]}" "${CONFIG[@]}" || github_status=$?
 
 exit "$concise_status"
