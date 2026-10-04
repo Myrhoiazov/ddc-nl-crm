@@ -63,6 +63,17 @@ const toDocumentRow = (document: KnowledgeDocumentV2): Prisma.KnowledgeDocumentU
     lastSyncedAt: new Date(),
 });
 
+// Plain-data round trip: yields the JSON value Prisma stores, without undefined fields.
+const toInputJson = (metadata: KnowledgeChunkMetadataV2): Prisma.InputJsonValue => JSON.parse(JSON.stringify(metadata));
+
+// The metadata column is free-form JSON. A row whose metadata is not a chunk-metadata object
+// (written by hand or by another version) is skipped instead of being trusted blindly.
+const isChunkMetadata = (value: unknown): value is KnowledgeChunkMetadataV2 => (
+    typeof value === 'object' && value !== null && !Array.isArray(value)
+    && typeof (value as Record<string, unknown>).chunkId === 'string'
+    && typeof (value as Record<string, unknown>).documentId === 'string'
+);
+
 const toChunkRows = (documentId: string, chunks: EmbeddedChunkV2[], embeddingModel: string): Prisma.KnowledgeChunkCreateManyInput[] => chunks.map((chunk) => ({
     id: toStoredChunkId(chunk.chunkId),
     documentId,
@@ -72,7 +83,7 @@ const toChunkRows = (documentId: string, chunks: EmbeddedChunkV2[], embeddingMod
     embedding: chunk.embedding,
     embeddingModel,
     contentHash: createHash('sha256').update(chunk.content).digest('hex'),
-    metadata: chunk.metadata as unknown as Prisma.InputJsonValue,
+    metadata: toInputJson(chunk.metadata),
 }));
 
 const listIndexedDocuments = async (): Promise<IndexedDocumentV2[]> => {
@@ -107,7 +118,11 @@ const listActiveChunks = async (): Promise<StoredChunkV2[]> => {
         where: { document: { kbVersion: KB_V2_VERSION, status: 'ACTIVE' }, metadata: { not: Prisma.DbNull } },
         select: { id: true, content: true, embedding: true, metadata: true },
     });
-    return rows.map((row) => ({ id: row.id, content: row.content, embedding: toNumberArray(row.embedding), metadata: row.metadata as unknown as KnowledgeChunkMetadataV2 }));
+    return rows.flatMap((row) => (
+        isChunkMetadata(row.metadata)
+            ? [{ id: row.id, content: row.content, embedding: toNumberArray(row.embedding), metadata: row.metadata }]
+            : []
+    ));
 };
 
 export const createPrismaKbV2Store = (): KbV2Store => ({ listIndexedDocuments, replaceDocument, removeDocuments, listActiveChunks });

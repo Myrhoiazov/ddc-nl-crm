@@ -448,6 +448,52 @@ server, 0 ошибок):**
 graphify-out --config-file pyproject.toml`, 2021 находок) тем же способом и с тем
 же известным ограничением по абсолютным путям, что и в волне 6.
 
+## Волна 8 (2026-10-04, ветка `chore/skylos-findings-wave8`) — полный прогон на `develop`
+
+Полный прогон `skylos . -a --baseline --exclude coverage --exclude graphify-out
+--config-file pyproject.toml` (Skylos 4.39.2) на `develop` после PR #172/#173.
+
+**Закрыто — 5/5 находок в коде:**
+
+- `SKY-C304` × 2 — `client/src/widgets/Sidebar/ui/SidebarItem/SidebarItem.test.tsx` и
+  `SidebarItemGroup/SidebarItemGroup.test.tsx`: снята обёртка `describe`, тесты стали
+  top-level (тот же приём, что в волне 6). Тесты сохранены 1:1 — 9 и 9.
+- `SKY-T103` × 2 — `server/src/modules/knowledge-ingestion/kb-v2/kb-v2.repository.ts`:
+  `as unknown as Prisma.InputJsonValue` заменён на `toInputJson` (JSON round trip),
+  `as unknown as KnowledgeChunkMetadataV2` — на type guard `isChunkMetadata`. Побочное
+  изменение поведения: строка, у которой `metadata` не похожа на метаданные чанка,
+  теперь пропускается в `listActiveChunks`, а не попадает в retrieval как есть.
+- `SKY-S101` × 1 — `server/src/modules/clients/clients.controller.ts`, строка с
+  `validateGroupSelection(parsedClientData.branchId, selectedGroupIds)`: false positive
+  (длинные идентификаторы, секрета нет). Была в baseline на строке 344 и «всплыла»
+  после сдвига строк. Снята построчным `// skylos: ignore[SKY-S101]` — в 4.39.2 он
+  работает для `SKY-S101` и, в отличие от baseline, не ломается при сдвиге строк.
+
+**Зависимости (`SKY-SCA`, 150 → 131):**
+
+- `server/package-lock.json`: `npm audit fix` без `--force` — 27 → 8 находок
+  (`npm audit`: 16 → 7). `npm run ci` зелёный.
+- `client/package-lock.json`: `npm audit fix` без `--force` ломает production-сборку
+  (`config/build/buildPlugins.ts`: несовместимые типы webpack-плагинов) — изменение
+  откачено, 118 находок остаются. Нужна отдельная задача на обновление webpack-стека.
+- Остаток на сервере требует breaking-обновлений (`prisma`, `nodemon`).
+- `plugins/eslint-plugin-fix-path-plugin/package-lock.json` — 5, не трогалось.
+
+**Почему `skylos-check` красный на каждом PR.** Diff-scan без находок завершается с
+exit 2, только когда включён `--sca` (входит в `-a`): с `--danger --secrets --quality
+--ai-defects` тот же прогон даёт exit 0. То есть job красный из-за уязвимостей в
+зависимостях, а не из-за кода PR, и находки при этом не печатаются — они не в диффе.
+П.1 раздела «Известное ограничение пайплайна» (пустой вывод = exit 0) для 4.39.2
+больше не верен.
+
+**Baseline не перегенерирован.** В 4.39.2 `skylos baseline` принимает только `[path]`
+и `--sca` (флаги `-a`/`--exclude`/`--config-file` из волн 6–7 отклоняются), а
+`skylos baseline .` завершается «Baseline not saved: the scan was incomplete» и
+оставляет файл без изменений.
+
+**Осталось (advisory, без действий):** `SKY-Q802` × 327, `SKY-Q803` × 210,
+`SKY-Q804` × 21 — I/A/D-метрики модулей, не входят в `[tool.skylos.gate]`.
+
 ## Постоянно задокументированные false positive классы (без действий)
 
 - **`SKY-E003`** (51, unused file) — `*.stories.tsx` (Storybook, glob-загрузка),

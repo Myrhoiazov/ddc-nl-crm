@@ -35,54 +35,52 @@ function renderItem(itemOverrides: Partial<SidebarItemType> = {}, options: { aut
     );
 }
 
-describe('SidebarItem', () => {
-    test('renders the link text and icon', () => {
-        renderItem();
-        expect(screen.getByText('Clients')).toBeInTheDocument();
-        expect(screen.getByTestId('icon')).toBeInTheDocument();
-    });
+test('renders the link text and icon', () => {
+    renderItem();
+    expect(screen.getByText('Clients')).toBeInTheDocument();
+    expect(screen.getByTestId('icon')).toBeInTheDocument();
+});
 
-    test('links to the item path', () => {
-        renderItem();
-        expect(screen.getByText('Clients').closest('a')).toHaveAttribute('href', '/clients');
-    });
+test('links to the item path', () => {
+    renderItem();
+    expect(screen.getByText('Clients').closest('a')).toHaveAttribute('href', '/clients');
+});
 
-    test('renders nothing when authOnly and there is no authenticated user', () => {
-        const { container } = renderItem({ authOnly: true }, { authed: false });
-        expect(container).toBeEmptyDOMElement();
-    });
+test('renders nothing when authOnly and there is no authenticated user', () => {
+    const { container } = renderItem({ authOnly: true }, { authed: false });
+    expect(container).toBeEmptyDOMElement();
+});
 
-    test('renders when authOnly and the user is authenticated', () => {
-        renderItem({ authOnly: true }, { authed: true });
-        expect(screen.getByText('Clients')).toBeInTheDocument();
-    });
+test('renders when authOnly and the user is authenticated', () => {
+    renderItem({ authOnly: true }, { authed: true });
+    expect(screen.getByText('Clients')).toBeInTheDocument();
+});
 
-    test('marks itself active when the current path matches', () => {
-        renderItem({}, { route: '/clients' });
-        expect(screen.getByText('Clients').closest('a')).toHaveClass('active');
-    });
+test('marks itself active when the current path matches', () => {
+    renderItem({}, { route: '/clients' });
+    expect(screen.getByText('Clients').closest('a')).toHaveClass('active');
+});
 
-    test('marks itself active for a nested path', () => {
-        renderItem({}, { route: '/clients/5' });
-        expect(screen.getByText('Clients').closest('a')).toHaveClass('active');
-    });
+test('marks itself active for a nested path', () => {
+    renderItem({}, { route: '/clients/5' });
+    expect(screen.getByText('Clients').closest('a')).toHaveClass('active');
+});
 
-    test('does not mark itself active for an unrelated path', () => {
-        renderItem({}, { route: '/transactions' });
-        expect(screen.getByText('Clients').closest('a')).not.toHaveClass('active');
-    });
+test('does not mark itself active for an unrelated path', () => {
+    renderItem({}, { route: '/transactions' });
+    expect(screen.getByText('Clients').closest('a')).not.toHaveClass('active');
+});
 
-    // The icon colour must come from the sidebar's own classes: the shared Icon's class names
-    // are hashed in the production build, so they cannot be targeted from here.
-    test('colours a fill icon through its own modifier class', () => {
-        renderItem();
-        expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconFill');
-        expect(screen.getByTestId('icon')).not.toHaveClass('iconStroke');
-    });
+// The icon colour must come from the sidebar's own classes: the shared Icon's class names
+// are hashed in the production build, so they cannot be targeted from here.
+test('colours a fill icon through its own modifier class', () => {
+    renderItem();
+    expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconFill');
+    expect(screen.getByTestId('icon')).not.toHaveClass('iconStroke');
+});
 
-    test('colours a stroke icon through its own modifier class', () => {
-        renderItem({ iconColor: 'stroke' });
-        expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconStroke');
-        expect(screen.getByTestId('icon')).not.toHaveClass('iconFill');
-    });
+test('colours a stroke icon through its own modifier class', () => {
+    renderItem({ iconColor: 'stroke' });
+    expect(screen.getByTestId('icon')).toHaveClass('icon', 'iconStroke');
+    expect(screen.getByTestId('icon')).not.toHaveClass('iconFill');
 });
