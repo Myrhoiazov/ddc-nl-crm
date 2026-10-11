@@ -9,7 +9,8 @@ services:
         CLIENT_API_URL: ${CLIENT_API_URL_PROD:?CLIENT_API_URL_PROD не задан — см. .env.example}
     restart: unless-stopped
     ports:
-      - "${FRONTEND_PORT_PROD:?FRONTEND_PORT_PROD не задан — см. .env.example}:80"
+      # Только loopback: наружу стек отдаёт nginx на хосте (TLS), а Docker публикует порты в обход ufw.
+      - "127.0.0.1:${FRONTEND_PORT_PROD:?FRONTEND_PORT_PROD не задан — см. .env.example}:80"
     depends_on:
       - backend
     networks:
@@ -100,7 +101,8 @@ services:
       # (node build/scripts/knowledge-v2.js). Read-only — the app never writes here.
       - ./server/knowledge:/app/knowledge:ro
     ports:
-      - "${BACKEND_PORT_PROD:?BACKEND_PORT_PROD не задан — см. .env.example}:8080"
+      # Только loopback: наружу стек отдаёт nginx на хосте (TLS), а Docker публикует порты в обход ufw.
+      - "127.0.0.1:${BACKEND_PORT_PROD:?BACKEND_PORT_PROD не задан — см. .env.example}:8080"
     depends_on:
       db:
         condition: service_healthy
