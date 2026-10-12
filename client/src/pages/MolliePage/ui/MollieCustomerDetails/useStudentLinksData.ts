@@ -4,7 +4,13 @@ import { MollieClientStudentLink } from '@/entities/MollieClient';
 import { Client } from '@/entities/Client';
 import { getStudentName } from './studentLinksHelpers';
 
-export const useStudentLinksData = (customerId: string, version: number) => {
+// Only students without any payment account can be offered for linking — one that
+// already has a payer must not show up in another payer's dropdown.
+const fetchUnlinkedStudents = () => $apiPrivate.get<Client[]>('/clients', {
+    params: { _paymentStatus: 'unlinked' },
+});
+
+export const useStudentLinksData =(customerId: string, version: number) => {
     const [clientLinks, setClientLinks] = useState<MollieClientStudentLink[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +22,7 @@ export const useStudentLinksData = (customerId: string, version: number) => {
 
         Promise.all([
             $apiPrivate.get<MollieClientStudentLink[]>(`/mollie/customers/${customerId}/student-links`),
-            $apiPrivate.get<Client[]>('/clients'),
+            fetchUnlinkedStudents(),
         ])
             .then(([linksResponse, clientsResponse]) => {
                 setClientLinks(linksResponse.data ?? []);
