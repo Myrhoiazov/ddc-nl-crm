@@ -106,6 +106,15 @@ describe('MollieCustomerDetails', () => {
         expect($apiPrivate.get).toHaveBeenCalledWith('/mollie/customers/cst_1/student-links');
     });
 
+    test('offers only students without a payment account for linking', async () => {
+        renderPage();
+
+        await screen.findByText('Пока нет связанных учеников.');
+        expect($apiPrivate.get).toHaveBeenCalledWith('/clients', {
+            params: { _paymentStatus: 'unlinked' },
+        });
+    });
+
     test('loads the heavy customer endpoint only once per page view', async () => {
         renderPage();
 

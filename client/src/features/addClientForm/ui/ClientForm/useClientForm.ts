@@ -4,10 +4,9 @@ import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 import { $apiPrivate } from '@/shared/api/api';
 import { useAppDispatch } from '@/shared/lib/hooks/useAppDispatch/useAppDispatch';
-import { MollieClient } from '@/entities/MollieClient';
 import { getAddClientForm } from '../../model/selectors/getAddClientForm/getAddClientForm';
 import { addClientData } from '../../model/services/addClientData/addClientData';
-import { Branch, buildBranchOptions, buildMollieCustomerOptions, DanceGroup, MollieCustomersResponse } from './clientFormOptions';
+import { Branch, buildBranchOptions, DanceGroup } from './clientFormOptions';
 import { useClientFormMisc } from './useClientFormMisc';
 import { useClientFormReset } from './useClientFormReset';
 import { useClientProfileFields } from './useClientProfileFields';
@@ -26,7 +25,6 @@ const useClientFormState = () => {
 const useClientFormData = () => {
     const [branches, setBranches] = useState<Branch[]>([]);
     const [groups, setGroups] = useState<DanceGroup[]>([]);
-    const [mollieCustomers, setMollieCustomers] = useState<MollieClient[]>([]);
     const { t } = useTranslation();
     const formData = useSelector(getAddClientForm);
 
@@ -34,28 +32,24 @@ const useClientFormData = () => {
         Promise.all([
             $apiPrivate.get<Branch[]>('/company/branches'),
             $apiPrivate.get<{ data: DanceGroup[] }>('/schedule/groups', { params: { limit: 1000 } }),
-            $apiPrivate.get<MollieCustomersResponse>('/mollie/customers', { params: { _page: 1, _limit: 100 } }),
         ])
-            .then(([branchesResponse, groupsResponse, customersResponse]) => {
+            .then(([branchesResponse, groupsResponse]) => {
                 setBranches(branchesResponse.data.filter((branch) => branch.isActive !== false));
                 setGroups(groupsResponse.data.data);
-                setMollieCustomers(customersResponse.data.items);
             })
             .catch(() => {
                 setBranches([]);
                 setGroups([]);
-                setMollieCustomers([]);
             });
     }, []);
 
     const branchOptions = useMemo(() => buildBranchOptions(branches, t), [branches, t]);
-    const mollieCustomerOptions = useMemo(() => buildMollieCustomerOptions(mollieCustomers, t), [mollieCustomers, t]);
     const availableGroups = useMemo(
         () => groups.filter((group) => group.branchId === Number(formData?.branchId)),
         [formData?.branchId, groups],
     );
 
-    return { formData, branchOptions, mollieCustomerOptions, availableGroups };
+    return { formData, branchOptions, availableGroups };
 };
 
 const useClientFormSubmit = (onSuccess: () => void, reloadPage: (() => void) | undefined, state: ReturnType<typeof useClientFormState>) => {
@@ -101,13 +95,12 @@ const useClientFormSubmit = (onSuccess: () => void, reloadPage: (() => void) | u
 
 export const useClientForm = (onSuccess: () => void, reloadPage?: () => void) => {
     const state = useClientFormState();
-    const { formData, branchOptions, mollieCustomerOptions, availableGroups } = useClientFormData();
+    const { formData, branchOptions, availableGroups } = useClientFormData();
     const { onSave } = useClientFormSubmit(onSuccess, reloadPage, state);
 
     return {
         formData,
         branchOptions,
-        mollieCustomerOptions,
         availableGroups,
         selectedGroupIds: state.selectedGroupIds,
         toggleGroup: state.toggleGroup,

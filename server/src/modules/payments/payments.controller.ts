@@ -1177,21 +1177,27 @@ const paymentDateRangeWhere = (dateFrom?: string, dateTo?: string) => {
     };
 };
 
-const customerSearchWhere = (search?: string): Prisma.CustomerWhereInput['OR'] => {
-    if (!search) return undefined;
-    return [
-        { mollieId: { contains: search } },
-        { email: { contains: search } },
-        { givenName: { contains: search } },
-        { familyName: { contains: search } },
-        { payerName: { contains: search } },
-        { client: { firstName: { contains: search } } },
-        { client: { lastName: { contains: search } } },
-        { client: { email: { contains: search } } },
-        { clientLinks: { some: { client: { firstName: { contains: search } } } } },
-        { clientLinks: { some: { client: { lastName: { contains: search } } } } },
-        { clientLinks: { some: { client: { email: { contains: search } } } } },
-    ];
+const customerSearchTermWhere = (term: string): Prisma.CustomerWhereInput => ({
+    OR: [
+        { mollieId: { contains: term } },
+        { email: { contains: term } },
+        { givenName: { contains: term } },
+        { familyName: { contains: term } },
+        { payerName: { contains: term } },
+        { client: { firstName: { contains: term } } },
+        { client: { lastName: { contains: term } } },
+        { client: { email: { contains: term } } },
+        { clientLinks: { some: { client: { firstName: { contains: term } } } } },
+        { clientLinks: { some: { client: { lastName: { contains: term } } } } },
+        { clientLinks: { some: { client: { email: { contains: term } } } } },
+    ],
+});
+
+// Every word has to match some field, so "Имя Фамилия" finds a payer whose
+// given and family names live in separate columns.
+const customerSearchWhere = (search?: string): Prisma.CustomerWhereInput[] | undefined => {
+    const terms = (search ?? '').split(/\s+/).filter(Boolean);
+    return terms.length ? terms.map(customerSearchTermWhere) : undefined;
 };
 
 const paymentSearchWhere = (search?: string): Prisma.PaymentWhereInput['OR'] => {
@@ -1492,8 +1498,8 @@ type CustomerListFilters = {
 const buildCustomerListWhere = (filters: CustomerListFilters): Prisma.CustomerWhereInput => {
     const where: Prisma.CustomerWhereInput = {};
 
-    const or = customerSearchWhere(filters.search);
-    if (or) where.OR = or;
+    const searchTerms = customerSearchWhere(filters.search);
+    if (searchTerms) where.AND = searchTerms;
 
     const subscriptionsFilter = resolveSubscriptionsFilter(filters.subscriptionStatus, filters.hasSubscriptions);
     if (subscriptionsFilter) where.subscriptions = subscriptionsFilter;

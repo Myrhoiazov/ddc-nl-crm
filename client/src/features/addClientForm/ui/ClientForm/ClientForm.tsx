@@ -66,7 +66,7 @@ const SubmitButton = ({ isSubmitting, onClick }: { isSubmitting: boolean; onClic
 const AddClientForm = memo((props: AddClientFormProps) => {
     const { className, onSuccess, reloadPage } = props;
     const {
-        formData, branchOptions, mollieCustomerOptions, availableGroups, selectedGroupIds, toggleGroup,
+        formData, branchOptions, availableGroups, selectedGroupIds, toggleGroup,
         mollieCustomerId, setMollieCustomerId, payerRelation, setPayerRelation,
         validationErrors, isSubmitting,
         onChangeFirstName, onChangeLastName, onChangeBirthday, onChangePhoneNumber, onChangeEmail,
@@ -92,9 +92,8 @@ const AddClientForm = memo((props: AddClientFormProps) => {
                         />
                     )}
                     <ClientFormPaymentSection
-                        mollieCustomerOptions={mollieCustomerOptions} mollieCustomerId={mollieCustomerId}
-                        setMollieCustomerId={setMollieCustomerId} payerRelation={payerRelation}
-                        setPayerRelation={setPayerRelation}
+                        mollieCustomerId={mollieCustomerId} setMollieCustomerId={setMollieCustomerId}
+                        payerRelation={payerRelation} setPayerRelation={setPayerRelation}
                     />
                     <ValidationErrors errors={validationErrors} />
                     <SubmitButton isSubmitting={isSubmitting} onClick={onSave} />
