@@ -106,4 +106,31 @@ describe('AddClientForm', () => {
 
         expect(await screen.findByText('Group A')).toBeInTheDocument();
     });
+
+    test('searches payment accounts on the server by the typed name or email', async () => {
+        renderForm();
+
+        fireEvent.change(screen.getByPlaceholderText('Имя, фамилия или email'), { target: { value: 'Marta Khayetska' } });
+
+        await waitFor(() => expect($apiPrivate.get).toHaveBeenCalledWith('/mollie/customers', {
+            params: { _page: 1, _limit: 100, _q: 'Marta Khayetska' },
+        }));
+    });
+
+    test('keeps the selected payment account when a later search no longer returns it', async () => {
+        const marta = { id: 7, givenName: 'Marta', familyName: 'Khayetska', email: 'marta@example.com' };
+        ($apiPrivate.get as jest.Mock).mockImplementation((url: string, config?: { params?: { _q?: string } }) => {
+            if (url === '/mollie/customers') return Promise.resolve({ data: { items: config?.params?._q ? [] : [marta] } });
+            if (url === '/schedule/groups') return Promise.resolve({ data: { data: [] } });
+            return Promise.resolve({ data: [] });
+        });
+        renderForm();
+
+        const option = await screen.findByRole('option', { name: 'Marta Khayetska · marta@example.com' });
+        fireEvent.change(option.closest('select')!, { target: { value: '7' } });
+        fireEvent.change(screen.getByPlaceholderText('Имя, фамилия или email'), { target: { value: 'nobody' } });
+
+        expect(await screen.findByText('Платёжные аккаунты не найдены.')).toBeInTheDocument();
+        expect(screen.getByRole('option', { name: 'Marta Khayetska · marta@example.com' })).toBeInTheDocument();
+    });
 });
