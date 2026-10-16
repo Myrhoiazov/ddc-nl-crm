@@ -16,6 +16,7 @@ import { buildMollieWebhookDedupeKey, createCsv, getWebhookAttentionLevel, mapCl
 import { z } from "zod";
 import { createMolliePaymentInvoicePdf } from "./payments.invoice-pdf.service";
 import { updateCustomerInCrmAndMollie } from "./payments.customer-update.service";
+import { listCustomerMandateDocumentPaths, removeMandateDocumentFiles } from "./payments.mandate-documents.service";
 import { isTelegramConfigured, notifyMolliePayment, notifyNewMollieCustomers, sendTelegramMessage } from "../communication";
 import {
     announceCrmSubscription,
@@ -962,7 +963,9 @@ export const deleteCustomerController = async (req: Request, res: Response) => {
             await mollieService.deleteCustomerById(customer.mollieId);
         }
 
+        const mandateDocumentPaths = await listCustomerMandateDocumentPaths(customerId);
         const [, , , , , deletedCustomer] = await prisma.$transaction(buildCustomerDeleteTransaction(customerId));
+        await removeMandateDocumentFiles(mandateDocumentPaths);
         announceMollieCustomerDeleted(customer, req.user?.email);
 
         return res.status(200).json(deletedCustomer);

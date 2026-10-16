@@ -1,6 +1,7 @@
 import express from "express";
 import { asyncHandler, isAuthenticated } from "../auth/auth.middleware";
 import * as mollieController from "./payments.controller";
+import * as mandateDocumentsController from "./payments.mandate-documents.controller";
 
 const router = express.Router();
 
@@ -43,6 +44,10 @@ router.get('/customers/:customerId/payments', asyncHandler(isAuthenticated), asy
 router.get('/customers/:customerId/mandates', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieGetMandatesController));
 router.get('/customers/:customerId/mandates/:mandateId', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieGetMandateByIdController));
 router.delete('/customers/:customerId/mandates/:mandateId', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieRevokeMandateController));
+router.get('/customers/:customerId/mandate-documents', asyncHandler(isAuthenticated), asyncHandler(mandateDocumentsController.mollieGetCustomerMandateDocumentsController));
+router.post('/customers/:customerId/mandates/:mandateId/documents', asyncHandler(isAuthenticated), mandateDocumentsController.uploadMandateDocumentFile, asyncHandler(mandateDocumentsController.mollieUploadMandateDocumentController));
+router.get('/mandate-documents/:documentId/download', asyncHandler(isAuthenticated), asyncHandler(mandateDocumentsController.mollieDownloadMandateDocumentController));
+router.delete('/mandate-documents/:documentId', asyncHandler(isAuthenticated), asyncHandler(mandateDocumentsController.mollieDeleteMandateDocumentController));
 router.post('/mandates', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieCreateMandateController));
 router.post('/mandates/:customerId/subscriptions', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieCreateMandateSubscriptionController));
 router.get('/customers/:customerId/subscriptions', asyncHandler(isAuthenticated), asyncHandler(mollieController.mollieGetAllSubscriptionByCustomerIdController));

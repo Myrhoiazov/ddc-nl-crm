@@ -68,6 +68,15 @@ cash-flow ledger.
 - **Identity**: `id`; `mollieId` unique (`mdt_...`).
 - **Relationships**: has many `Subscription`. No code found restricting a mandate to a single
   subscription — reuse across subscriptions is schema-permitted and not guarded against.
+  Has many `MandateDocument` — uploaded scans of the signed mandate.
+
+### MandateDocument
+
+- **Purpose**: a scan/PDF of a signed mandate, with an optional free-text caption.
+- **Invariants**: belongs to exactly one `Mandate` of the customer it was uploaded for; the stored
+  type comes from the file signature (PDF/JPEG/PNG/WebP), never the browser's MIME type; files
+  live in `private-uploads/` and are reachable only through the authenticated download route.
+  Rows cascade with their mandate; deleting a Mollie customer also removes the files from disk.
 
 ### Subscription
 

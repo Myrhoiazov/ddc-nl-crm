@@ -38,3 +38,10 @@ test('Mollie router exposes GET /customers/:customerId/payments', () => {
 test('Mollie router exposes GET /customers/:customerId/student-links', () => {
     assert.equal(hasRoute('get', '/customers/:customerId/student-links'), true);
 });
+
+test('Mollie router exposes the signed mandate document routes', () => {
+    assert.equal(hasRoute('get', '/customers/:customerId/mandate-documents'), true);
+    assert.equal(hasRoute('post', '/customers/:customerId/mandates/:mandateId/documents'), true);
+    assert.equal(hasRoute('get', '/mandate-documents/:documentId/download'), true);
+    assert.equal(hasRoute('delete', '/mandate-documents/:documentId'), true);
+});

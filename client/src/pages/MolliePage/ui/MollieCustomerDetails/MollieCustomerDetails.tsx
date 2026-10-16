@@ -5,7 +5,6 @@ import { useParams } from 'react-router-dom';
 import { MollieClientDetails } from '@/entities/MollieClient';
 import { Text } from '@/shared/ui/Text/Text';
 import { VStack } from '@/shared/ui/Stack';
-import { MandateList } from '@/entities/Mandate';
 import {
     DynamicModuleLoader,
     ReducersList,
@@ -21,6 +20,7 @@ import { MollieStudentLinksManager } from './MollieStudentLinksManager';
 import { MolliePaymentHistory } from './MolliePaymentHistory';
 import { useCustomerDelete } from './useCustomerDelete';
 import { DeleteCustomerModal } from './DeleteCustomerModal';
+import { CustomerMandatesSection } from './CustomerMandatesSection';
 
 interface MollieCustomerDetailsProps {
     className?: string;
@@ -70,7 +70,6 @@ const CustomerHeader = ({ canDelete, isLoading, onOpenEditModal, onOpenDeleteMod
 };
 
 export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsProps) => {
-    const { t } = useTranslation();
     const { id: customerId } = useParams();
     const {
         mandates, subscriptions, isLoading, isEditModalOpen, canDelete, detailsVersion,
@@ -93,13 +92,9 @@ export const MollieCustomerDetails = memo(({ className }: MollieCustomerDetailsP
                 />
                 <MollieClientDetails id={customerId} key={`${customerId}-${detailsVersion}`} />
                 <MollieStudentLinksManager customerId={customerId} version={detailsVersion} onChanged={onReloadCustomerDetails} />
-                <MandateList
-                    mandates={mandates} isLoading={isLoading}
-                    renderAction={(mandate) => mandate.status === 'valid' ? (
-                        <Button theme={ButtonTheme.OUTLINE_RED} onClick={() => onRevokeMandate(mandate)}>
-                            {t('Отозвать')}
-                        </Button>
-                    ) : null}
+                <CustomerMandatesSection
+                    customerId={customerId} version={detailsVersion}
+                    mandates={mandates} isLoading={isLoading} onRevokeMandate={onRevokeMandate}
                 />
                 <MollieSubscriptionList
                     subscriptions={subscriptions} isLoading={isLoading}
