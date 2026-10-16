@@ -109,6 +109,25 @@ model Mandate {
   updatedAt        DateTime  @updatedAt
 
   subscriptions Subscription[]
+  documents     MandateDocument[]
+}
+
+// Scan/PDF of a signed (usually paper) mandate. Files live in private-uploads/ and are only
+// served through the authenticated download route — never via the public /upload mount.
+model MandateDocument {
+  id           Int      @id @default(autoincrement())
+  mandateId    Int      @map("mandate_Id")
+  originalName String
+  mimeType     String
+  sizeBytes    Int
+  storagePath  String   @unique @db.VarChar(191)
+  caption      String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  mandate Mandate @relation(fields: [mandateId], references: [id], onDelete: Cascade)
+
+  @@index([mandateId])
+  @@map("mandate_documents")
 }
 
 model Subscription {

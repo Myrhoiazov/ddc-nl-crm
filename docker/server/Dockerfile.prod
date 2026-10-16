@@ -40,7 +40,8 @@ RUN mkdir -p \
     public/upload/brands \
     public/upload/choreographers \
     public/upload/styles \
-    private-uploads/email-attachments
+    private-uploads/email-attachments \
+    private-uploads/mandate-documents
 
 EXPOSE 8080
 

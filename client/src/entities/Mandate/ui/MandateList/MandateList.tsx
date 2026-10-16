@@ -13,10 +13,11 @@ interface MandateListProps {
     mandates: Mandate[];
     isLoading?: boolean;
     renderAction?: (mandate: Mandate) => ReactNode;
+    renderDetails?: (mandate: Mandate) => ReactNode;
 }
 
 export const MandateList = memo((props: MandateListProps) => {
-    const { className, mandates, isLoading, renderAction } = props;
+    const { className, mandates, isLoading, renderAction, renderDetails } = props;
 
     if (!isLoading && !mandates.length) {
         return (
@@ -29,7 +30,10 @@ export const MandateList = memo((props: MandateListProps) => {
     }
 
     const renderMandates = (mandate: Mandate) => (
-        <MandateItem className={s.card} item={mandate} key={mandate.id} renderAction={renderAction} />
+        <MandateItem
+            className={s.card} item={mandate} key={mandate.id}
+            renderAction={renderAction} renderDetails={renderDetails}
+        />
     );
 
     return (

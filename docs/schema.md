@@ -274,7 +274,12 @@ OAuth-аккаунт Mollie пользователя (шифрованные acc
 ### Mandate (таблица `Mandate`)
 Мандат прямого дебетования (`mdt_...`).
 - Поля: id Int @id autoincrement; mollieId String? @unique; status String; method String; signatureDate DateTime?; customerId Int; mandateReference String?
-- Связи: customer -> Customer; subscriptions Subscription[]
+- Связи: customer -> Customer; subscriptions Subscription[]; documents MandateDocument[]
+
+### MandateDocument (таблица `mandate_documents`)
+Загруженный скан/PDF подписанного (обычно бумажного) мандата. У мандата может быть несколько файлов. Файл лежит в `private-uploads/mandate-documents/` и отдаётся только через авторизованный роут скачивания.
+- Поля: id Int @id autoincrement; mandateId Int (`mandate_Id`); originalName String; mimeType String (определяется по сигнатуре файла: PDF/JPEG/PNG/WebP); sizeBytes Int; storagePath String @unique (только имя файла); caption String? @db.Text (необязательная подпись, до 500 символов); createdAt
+- Связи: mandate -> Mandate (Cascade)
 
 ### Subscription (таблица `Subscription`)
 Подписка Mollie (`sub_...`) на мандате клиента.
