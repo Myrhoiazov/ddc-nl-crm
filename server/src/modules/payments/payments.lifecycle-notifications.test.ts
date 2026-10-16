@@ -93,6 +93,7 @@ test('deleting a Mollie customer announces the payer and the employee', async (t
     stub(t, prisma.customer, 'findUnique', async () => localCustomer);
     stub(t, prisma.mandate, 'count', async () => 0);
     stub(t, prisma.subscription, 'count', async () => 0);
+    stub(t, prisma.mandateDocument, 'findMany', async () => []);
     stub(t, prisma, '$transaction', async () => [0, 0, 0, 0, 0, { id: 1 }]);
     t.mock.method(mollieService, 'deleteCustomerById', async () => true as never);
     const res = response();

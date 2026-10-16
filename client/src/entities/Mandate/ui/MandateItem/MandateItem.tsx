@@ -9,9 +9,10 @@ interface MandateItemProps {
     className?: string;
     item: Mandate;
     renderAction?: (mandate: Mandate) => ReactNode;
+    renderDetails?: (mandate: Mandate) => ReactNode;
 }
 
-const MandateItem = ({ className, item, renderAction }: MandateItemProps) => {
+const MandateItem = ({ className, item, renderAction, renderDetails }: MandateItemProps) => {
     const { t } = useTranslation();
     const signatureDate = item.signatureDate
         ? new Date(item.signatureDate).toLocaleDateString('nl-NL')
@@ -35,6 +36,7 @@ const MandateItem = ({ className, item, renderAction }: MandateItemProps) => {
                 </span>
                 {renderAction?.(item)}
             </div>
+            {renderDetails?.(item)}
         </Card>
     );
 };

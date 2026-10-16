@@ -1,0 +1,83 @@
+.MandateDocumentsPanel {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--card-border-redesigned);
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+}
+
+.title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--sidebar-group-label-redesigned);
+    text-transform: uppercase;
+}
+
+.documentList {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    gap: 8px;
+    list-style: none;
+}
+
+.documentRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--sidebar-hover-bg-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    gap: 12px;
+}
+
+.documentInfo {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+}
+
+.documentName {
+    font-weight: 600;
+    color: var(--sidebar-text-hover-redesigned);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.caption {
+    color: var(--sidebar-text-hover-redesigned);
+    overflow-wrap: anywhere;
+}
+
+.meta {
+    font-size: 13px;
+    color: var(--sidebar-text-redesigned);
+}
+
+.documentActions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+}
+
+.uploadForm {
+    display: grid;
+    align-items: center;
+    gap: 12px;
+    grid-template-columns: minmax(200px, auto) minmax(200px, 1fr) auto;
+}
+
+@media (width <= 768px) {
+    .documentRow {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .uploadForm {
+        grid-template-columns: 1fr;
+    }
+}
