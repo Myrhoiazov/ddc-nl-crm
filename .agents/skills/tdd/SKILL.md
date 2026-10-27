@@ -51,7 +51,7 @@ For planned work, record seams in `tasks/plan.md`. For tiny work, choose the nar
 
 Client: run a single file with `npx jest path/to/File.test.tsx`, or `npm test` for the full suite, from `client/`.
 
-Server: there is no single server-wide test command. Run the domain script that matches the changed area from `server/`:
+Server: there is no single server-wide test command. Run the domain script that matches the changed area from `server/` (what each one covers: the "When Server Changes" table in `AGENTS.md`):
 
 ```bash
 npm run test:auth
@@ -59,6 +59,10 @@ npm run test:mollie
 npm run test:search
 npm run test:email
 npm run test:payment-reminders
+npm run test:invoice-delivery
+npm run test:transactions
+npm run test:local-ai
+npm run test:telegram-admin-bot
 ```
 
 Or invoke one file directly:
