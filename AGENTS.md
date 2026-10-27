@@ -165,7 +165,10 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 
 ## Agents and Skills
 
-The Dev Loop (`.agents/agents/dev-loop.md`) is the end-to-end delivery profile. Skills are loaded on demand per task routing above. Available skills:
+The Dev Loop (`.agents/agents/dev-loop.md`) is the end-to-end delivery profile. Claude Code sees project
+agents and skills through the `.claude/agents → .agents/agents` and `.claude/skills → .agents/skills`
+symlinks — add new project agents under `.agents/agents/` with Claude Code frontmatter (`name`,
+`description`, `tools`, `model`). Skills are loaded on demand per task routing above. Available skills:
 
 - `.agents/skills/agent-loop/` — delivery loop: intake, planning, TDD, checks, review, browser QA, PR
 - `.agents/skills/planning-and-task-breakdown/` — task plans for multi-file or risky work
