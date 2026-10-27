@@ -8,7 +8,7 @@ import * as mollieService from './payments.mollie.service';
 import { getCostomerByMollieId, TCustomer } from "./payments.customer.service";
 import { MandateFormData } from "./payments.types";
 import prisma from "../../../prisma/prisma-client";
-import { MandateMethod, Locale } from "@mollie/api-client";
+import { MandateMethod, Locale, MollieApiError } from "@mollie/api-client";
 import * as mollieSyncService from "./payments.sync.service";
 import * as mollieDashboardService from "./payments.dashboard.service";
 import { getMollieTokenExpiresAt, saveMollieAccount } from "./payments.auth.service";
@@ -640,6 +640,11 @@ const completeMollieWebhookEvent = async (
     return effectiveStatus;
 };
 
+// Mollie recommends answering 200 for ids it does not know, so the endpoint leaks nothing and a
+// stale or foreign id is not retried for 26 hours.
+const isUnknownMolliePayment = (err: unknown) =>
+    err instanceof MollieApiError && err.statusCode === 404;
+
 export const webhookMollieController = async (req: Request, res: Response) => {
     const paymentId = req.body.id;
 
@@ -661,6 +666,10 @@ export const webhookMollieController = async (req: Request, res: Response) => {
     } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
             return res.status(200).send('Already processed');
+        }
+        if (isUnknownMolliePayment(err)) {
+            console.warn(`Webhook for unknown Mollie payment ${paymentId} ignored`);
+            return res.status(200).send('OK');
         }
         console.error('Error handling webhook:', err);
         await markMollieEventFailed(eventId, err);
