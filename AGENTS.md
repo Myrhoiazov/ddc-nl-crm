@@ -83,6 +83,7 @@ Validate
 | Test-first implementation | .agents/skills/tdd/ |
 | Finished implementation review | .agents/skills/code-review/ |
 | UI / browser changes | .agents/skills/e2e-test/ or .agents/skills/manual-automation/ |
+| Visual design / theme tokens / new UI components | DESIGN.md, .claude/rules/code-style.md |
 | E2E infrastructure or Playwright business-flow tests | docs/E2E_TESTING.md, `playwright.config.ts`, `e2e/`, `docker-compose.e2e.yml` |
 | Bug investigation | .agents/skills/qa/ |
 | PR publishing | .agents/skills/pull-request/ |
@@ -114,7 +115,8 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 
 ### When Client Changes
 - Run `npm run lint:ts` and `npm test` from `client/`.
-- Check `.claude/rules/code-style.md` for UI conventions.
+- Check `.claude/rules/code-style.md` for UI conventions and `DESIGN.md` for the design tokens,
+  typography, spacing, and component patterns.
 - Use SCSS Modules (`*.module.scss`). Use theme tokens, not raw colors. Check dark theme.
 
 ### When E2E Changes
