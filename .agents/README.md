@@ -34,19 +34,19 @@
 ## Карта взаимодействия
 
 ```mermaid
-graph LR
+graph TD
     User["Запрос пользователя"] --> DevLoop["dev-loop<br/>(агент-координатор)"]
-    DevLoop --> AgentLoop["agent-loop"]
-    AgentLoop --> Planning["planning-and-task-breakdown"]
-    AgentLoop --> TDD["tdd"]
-    AgentLoop --> Review["code-review"]
-    AgentLoop --> E2E["e2e-test"]
-    AgentLoop --> PR["pull-request"]
-    E2E -. "альтернатива" .-> Manual["manual-automation"]
-    Review -- "Blocking findings" --> TDD
     User -- "сообщает о багах" --> QA["qa"]
     QA --> Issues["GitHub issues"]
     Issues -. "берутся в работу" .-> DevLoop
+    DevLoop --> AgentLoop["agent-loop"]
+    AgentLoop --> Planning["planning-and-task-breakdown"]
+    Planning --> TDD["tdd"]
+    TDD --> Review["code-review"]
+    Review -- "Blocking findings" --> TDD
+    Review -- "Чисто" --> E2E["e2e-test"]
+    E2E -. "альтернатива" .-> Manual["manual-automation"]
+    E2E --> PR["pull-request"]
     PR --> Develop["PR → develop"]
 ```
 
