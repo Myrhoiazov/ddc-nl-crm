@@ -177,6 +177,12 @@ symlinks — add new project agents under `.agents/agents/` with Claude Code fro
 - `.agents/skills/pull-request/` — branch, commit, push, PR into `develop`
 - `.agents/skills/qa/` — interactive bug triage and issue filing
 
+Catalog and skill interaction map: `.agents/README.md`. Every skill folder pairs `SKILL.md` (the
+agent contract) with a human-facing `README.md` (overview, when to use, mermaid workflow graph,
+linked skills); the agent profile folder has the same in `.agents/agents/README.md`. When a
+`SKILL.md` flow changes, update its `README.md` graph in the same commit. A new skill gets both
+files and a row in `.agents/README.md`.
+
 ## Definition of Done
 
 - Right instruction + Right context + Right skill + Right time

@@ -56,6 +56,15 @@ Use browser automation (see the `browser-automation` skill for a headless run) o
 
 Prefer DOM/state assertions for exact checks and screenshots for layout evidence.
 
+## Automated Playwright Suite
+
+The repo also has a Playwright business-flow suite (`e2e/`, `playwright.config.ts`,
+`docker-compose.e2e.yml`). It is separate from this exploratory QA. When the change touches a flow
+covered there, or E2E setup itself, read `docs/E2E_TESTING.md` first, run the narrowest affected
+spec, then `npm run e2e` from the root before publishing. The suite runs only against the isolated
+`ddc-e2e` compose project and its own MySQL database — never point it at development or production.
+Its setup resets that database, so get the user's consent for the run in the current task first.
+
 ## Form Safety
 
 Do not submit real private customer data during QA. Use test data and stop before any live submission unless the task specifically requires it and the user approved it.

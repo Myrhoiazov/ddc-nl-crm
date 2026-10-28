@@ -112,7 +112,7 @@ Server, from `server/`:
 
 - `npm run build` (runs `prisma:generate` then `tsc`)
 - `npm run prisma:generate` when any Prisma schema file changed
-- The matching domain test: `test:auth`, `test:mollie`, `test:search`, `test:email`, `test:payment-reminders`, or a direct `node --test -r ts-node/register src/...test.ts`
+- The matching domain test: `test:auth`, `test:mollie`, `test:search`, `test:email`, `test:payment-reminders`, `test:invoice-delivery`, `test:transactions`, `test:local-ai`, `test:telegram-admin-bot` (coverage per script: the "When Server Changes" table in `AGENTS.md`), or a direct `node --test -r ts-node/register src/...test.ts`
 
 From the root, before considering the loop green: `npm run ci` (mirrors GitHub Actions).
 
