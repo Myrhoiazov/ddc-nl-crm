@@ -22,12 +22,13 @@
 | Скилл / агент | Назначение | README |
 |---|---|---|
 | `dev-loop` (агент) | Координатор: ведёт задачу от запроса до PR через скиллы ниже | [agents/README.md](agents/README.md) |
+| `prisma-migration-guard`, `mollie-payments-specialist`, `ui-theme-qa`, `ddc-reviewer` (агенты) | Специалисты, которых вызывает `dev-loop` или главный диалог: схема Prisma, Mollie, UI/тема QA, ревью-шлюз | [agents/README.md](agents/README.md) |
 | `agent-loop` | Сквозной цикл: intake → план → TDD → проверки → ревью → QA → PR | [skills/agent-loop/README.md](skills/agent-loop/README.md) |
 | `planning-and-task-breakdown` | Разбивка работы на вертикальные проверяемые задачи (`tasks/plan.md`, `tasks/todo.md`) | [README](skills/planning-and-task-breakdown/README.md) |
 | `tdd` | Цикл red → green через публичные seams (Jest / Node test runner) | [README](skills/tdd/README.md) |
 | `code-review` | Ревью диффа по двум осям: Standards и Spec | [README](skills/code-review/README.md) |
 | `e2e-test` | Браузерная QA изменённых пользовательских сценариев SPA | [README](skills/e2e-test/README.md) |
-| `manual-automation` | Ручная проверка живого UI, воспроизведение визуальных багов | [README](skills/manual-automation/README.md) |
+| `manual-automation` | Ручная проверка живого UI под тестовой учёткой, воспроизведение визуальных багов | [README](skills/manual-automation/README.md) |
 | `qa` | Интерактивная QA-сессия: баги от пользователя → GitHub issues | [README](skills/qa/README.md) |
 | `pull-request` | Ветка, Conventional Commit, push, PR в `develop` | [README](skills/pull-request/README.md) |
 
