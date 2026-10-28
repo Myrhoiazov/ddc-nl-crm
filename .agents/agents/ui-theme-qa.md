@@ -1,8 +1,10 @@
 ---
 name: ui-theme-qa
 description: Use after client/ UI or SCSS changes in ddc-nl, before PR. Read-only QA that statically checks the diff against the Sero design-system rules (redesigned tokens, no raw colors, modal backgrounds, pill style, i18n, FSD) and then verifies the affected pages in Chrome in light and dark theme and at mobile width, reporting console errors and visual defects with evidence. Never edits files or submits forms.
-tools: Read, Grep, Glob, Bash, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__find, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__javascript_tool, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__read_network_requests, mcp__claude-in-chrome__resize_window
+tools: Read, Grep, Glob, Bash, mcp__claude-in-chrome__tabs_context_mcp, mcp__claude-in-chrome__tabs_create_mcp, mcp__claude-in-chrome__tabs_close_mcp, mcp__claude-in-chrome__navigate, mcp__claude-in-chrome__computer, mcp__claude-in-chrome__read_page, mcp__claude-in-chrome__find, mcp__claude-in-chrome__get_page_text, mcp__claude-in-chrome__javascript_tool, mcp__claude-in-chrome__read_console_messages, mcp__claude-in-chrome__read_network_requests, mcp__claude-in-chrome__resize_window, mcp__chrome-devtools__*
 disallowedTools: Edit, Write, NotebookEdit
+skills:
+  - manual-automation
 model: sonnet
 ---
 
@@ -25,10 +27,21 @@ model: sonnet
 
 ## 2. Проверка в браузере
 
-- Базовый URL — dev-приложение на `http://localhost:3000` (Docker dev-стек). Не перезапускай
-  сервисы и не меняй `.env`/БД. Недоступно или требует логина, которого нет в сессии браузера —
-  зафиксируй блокер и верни статический отчёт; учётные данные не вводи.
-- Начни с `tabs_context_mcp`, открой новую вкладку (`tabs_create_mcp`), чужие вкладки не трогай.
+Скилл `manual-automation` предзагружен: порты, запуск, обработку ошибок, критерии и справочник
+инструментов бери из него. Правила этого файла строже скилла и имеют приоритет: ты не запускаешь
+приложение, не вводишь учётные данные из головы и ничего не отправляешь.
+
+- Базовый URL — dev-приложение на `http://localhost:3000` (Docker dev-стек). Найди его по шагу 2
+  скилла. Не запускай и не перезапускай сервисы, не меняй `.env`/БД. Приложение недоступно —
+  BLOCKED со статическим отчётом.
+- Выбор браузера:
+  1. **Claude in Chrome** — по умолчанию: в реальном Chrome пользователя уже есть сессия CRM.
+     Начни с `tabs_context_mcp`, открой свою вкладку (`tabs_create_mcp`), чужие не трогай, свою
+     закрой в конце (`tabs_close_mcp`).
+  2. **Chrome DevTools MCP** (`mcp__chrome-devtools__*`, изолированный профиль без сессии) — если
+     Claude in Chrome недоступен **и** тестовая учётка передана в промпте (или страница не
+     требует входа). Вход — по шагу 5 скилла; 2FA или капча — BLOCKED, код не ищи.
+  3. Ни то, ни другое — BLOCKED со статическим отчётом.
 - Для каждой затронутой страницы/модалки:
   1. светлая тема, ширина ~1440px — рендер, `read_console_messages` (ошибки), упавшие запросы
      `read_network_requests`;
@@ -36,9 +49,11 @@ model: sonnet
      подстановкой класса `app_dark_theme` через JS — проверить нужно реальный переключатель;
   3. тёмная тема — нет «залипших светлых» поверхностей (модалки, дропдауны, карточки), текст
      читается, рамки и пилюли видны;
-  4. ширина ~390px — нет горизонтального скролла и обрезанных элементов.
-- Используй скриншоты (`computer`) как доказательство и DOM/`getComputedStyle` через
-  `javascript_tool` для точных утверждений (например, фактический `background-color` модалки).
+  4. ширина ~900px, если затронут сайдбар или сетка, — сайдбар сворачивается сам (769–1024px);
+  5. ширина ~390px — нет горизонтального скролла и обрезанных элементов.
+- Используй скриншоты (`computer` / `take_screenshot`) как доказательство и
+  DOM/`getComputedStyle` (`javascript_tool` / `evaluate_script` или `get_css_styles`) для точных
+  утверждений (например, фактический `background-color` модалки).
 - Формы: открывать и валидировать можно, **отправлять нельзя**. Не нажимай действия, которые
   меняют данные или дергают Mollie/email/Telegram, и кнопки, вызывающие `alert`/`confirm`.
 

@@ -167,7 +167,38 @@ The agent must minimize unnecessary LLM context (full contract: docs/spec/DDC_CR
 The Dev Loop (`.agents/agents/dev-loop.md`) is the end-to-end delivery profile. Claude Code sees project
 agents and skills through the `.claude/agents → .agents/agents` and `.claude/skills → .agents/skills`
 symlinks — add new project agents under `.agents/agents/` with Claude Code frontmatter (`name`,
-`description`, `tools`, `model`). Skills are loaded on demand per task routing above. Available skills:
+`description`, `tools`, `model`; `skills` preloads full skill content, `mcpServers` scopes MCP).
+Skills are loaded on demand per task routing above.
+
+### What to Run When
+
+The main conversation picks between a skill (run here, when the user must answer, approve, or
+supply credentials) and a subagent (autonomous work). Subagents cannot ask the user; they return
+questions instead.
+
+| Situation | Run | Where |
+|---|---|---|
+| New feature/fix request, scope or plan not yet approved | `agent-loop` → `planning-and-task-breakdown` | Skill, main conversation (approval gate) |
+| Approved plan or tiny unambiguous task to deliver to a PR | `dev-loop` | Subagent (preloads `agent-loop`, `pull-request`; reads `tdd`/`code-review` by path; delegates to the specialists below) |
+| `server/prisma/schema/*.prisma` change or a migration | `prisma-migration-guard` | Subagent (from the main conversation or `dev-loop`) |
+| Mollie webhooks, customers, mandates, subscriptions, invoice payment links, `MolliePage` data | `mollie-payments-specialist` | Subagent (reads the project `tdd` skill by path) |
+| `client/` UI or SCSS changed, before PR | `ui-theme-qa` | Subagent, read-only (preloads `manual-automation`; Claude in Chrome session first, Chrome DevTools MCP second) |
+| Pre-PR review gate / "review this branch" | `ddc-reviewer` | Subagent, read-only (SHIP / SHIP WITH FIXES / DO NOT SHIP) |
+| User reports bugs to file as issues | `qa` | Skill, main conversation |
+| Hands-on browser check that needs the user's login, 2FA code, or decisions | `manual-automation` | Skill, main conversation (Chrome DevTools MCP `chrome-devtools` from `.mcp.json`) |
+| Playwright business-flow specs or E2E setup | `e2e-test` | Skill; `npm run e2e` only with the user's consent for this task |
+| Publish finished local work | `pull-request` | Skill |
+
+Never delegate deploys, merges, releases, live Mollie/email/Telegram actions, or dev-DB migrations
+without explicit user approval in the current task.
+
+Name collision: the project skills `tdd` and `code-review` share names with personal skills in
+`~/.claude/skills/`, and personal skills take precedence. Read `.agents/skills/tdd/SKILL.md` and
+`.agents/skills/code-review/SKILL.md` by path instead of invoking them through the Skill tool or
+preloading them with `skills:`. The full routing for `dev-loop` lives in
+`.agents/agents/dev-loop.md`; the map is in `.agents/agents/README.md`.
+
+Available skills:
 
 - `.agents/skills/agent-loop/` — delivery loop: intake, planning, TDD, checks, review, browser QA, PR
 - `.agents/skills/planning-and-task-breakdown/` — task plans for multi-file or risky work

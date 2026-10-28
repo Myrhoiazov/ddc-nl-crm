@@ -55,6 +55,9 @@ model: inherit
 
 ## Реализация и проверка
 
+- Работай test-first по проектному скиллу: прочитай `.agents/skills/tdd/SKILL.md` по пути (не
+  через Skill — личный `tdd` пользователя перекрывает проектный). Seam — функция сервиса,
+  Mollie-клиент мокается так же, как в соседних `*.test.ts`.
 - Соблюдай `.claude/rules/architecture-quality-gate.md`: `payments.controller.ts` уже большой —
   новую логику выноси в именованные функции сервисов, а не наращивай контроллер.
 - Server-тсконфиг без `strictNullChecks`: Result-союзы сужай через `'reason' in result`.
