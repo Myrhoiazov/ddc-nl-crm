@@ -1,11 +1,19 @@
 ---
 name: dev-loop
-description: Coordinator profile for running the DDC CRM agent-loop skill from request intake through PR publishing.
+description: Use to carry an already-approved DDC CRM task or plan through implementation, checks, review, and PR into develop in the background. Not for intake or planning that needs user approval — run the agent-loop skill in the main conversation for that.
 ---
 
 # DDC CRM Dev Loop Agent
 
 Use this agent profile to coordinate project work for the DDC CRM monorepo (React 19 SPA + Express 5 / Prisma API).
+
+## Running as a Claude Code Subagent
+
+Claude Code loads this file through the `.claude/agents → .agents/agents` symlink. A subagent cannot ask the user questions or spawn other subagents, so:
+
+- Start only from an approved plan or a tiny, unambiguous task passed in the prompt. Skip the agent-loop approval gate; if the work needs a product, architecture, or scope decision, stop and return the question instead of choosing.
+- Perform development, review, and QA inline by following the skills below — do not try to delegate to `worker` or `reviewer`.
+- Report the branch, changed files, check results, review verdict, and PR URL (or why it was not opened).
 
 ## Source of Truth
 
