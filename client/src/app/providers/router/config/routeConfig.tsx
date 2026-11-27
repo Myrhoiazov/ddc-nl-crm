@@ -26,6 +26,7 @@ import { EmailPage } from '@/pages/EmailPage';
 import { PaymentRemindersPage } from '@/pages/PaymentRemindersPage';
 import { NotificationsPage } from '@/pages/NotificationsPage';
 import { KnowledgeBasePage } from '@/pages/KnowledgeBasePage';
+import { TicketingVenuesPage } from '@/pages/TicketingVenuesPage';
 import { AppRoutes, AppRoutesProps, RoutePath } from '@/shared/config/routeConfig/routeConfig';
 
 export const routeConfig: Record<AppRoutes, AppRoutesProps> = {
@@ -182,6 +183,11 @@ export const routeConfig: Record<AppRoutes, AppRoutesProps> = {
     [AppRoutes.NOTIFICATIONS]: {
         path: RoutePath.notifications,
         element: <NotificationsPage />,
+        authOnly: true,
+    },
+    [AppRoutes.TICKETING_VENUES]: {
+        path: RoutePath.ticketing_venues,
+        element: <TicketingVenuesPage />,
         authOnly: true,
     },
     [AppRoutes.NOT_FOUND]: {

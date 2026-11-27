@@ -62,6 +62,14 @@ export const getSidebarItems = createSelector(
                     ...(isAdmin ? [{ path: RoutePath.notifications, Icon: Bell, text: 'Уведомления', iconColor: 'stroke' as const }] : []),
                 ],
             },
+            {
+                path: RoutePath.ticketing_venues,
+                Icon: Transactions,
+                text: 'Билеты',
+                children: [
+                    { path: RoutePath.ticketing_venues, Icon: Company, text: 'Залы', iconColor: 'stroke' },
+                ],
+            },
             { path: RoutePath.content_hub, Icon: ContentHub, text: 'Контент-хаб', iconColor: 'stroke' },
             { path: RoutePath.crm_settings, Icon: CrmSettings, text: 'Настройки CRM', iconColor: 'stroke' },
         );

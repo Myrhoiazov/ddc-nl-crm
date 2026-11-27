@@ -69,6 +69,17 @@ planned and not implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` 
   map, priced by category. Seats marked blocked on the map start as `BLOCKED`. Running it again
   changes nothing.
 
+- **Row generator**: a seat map is created from blocks — category name, number of rows, seats
+  per row. Rows are numbered continuously across blocks, shorter rows are centred, and each block
+  becomes a category with its own palette slot (`seat-map.generator.ts`).
+
+## API
+
+Staff-only, under `/api/v1/ticketing/admin`, session + CSRF, roles `ADMIN` and `MANAGER`
+(`ticketing.routes.ts`): list and create venues, create a seat map for a venue, read a seat map,
+publish a draft. Publishing is a conditional `DRAFT → PUBLISHED` transition, so a repeated call
+changes nothing. There is no public (buyer) API yet. CRM page: `client/src/pages/TicketingVenuesPage/`.
+
 ## Relationships
 
 ```mermaid

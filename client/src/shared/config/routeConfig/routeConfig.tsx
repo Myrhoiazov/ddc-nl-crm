@@ -35,6 +35,7 @@ export enum AppRoutes {
     PAYMENT_REMINDERS = 'payment_reminders',
     KNOWLEDGE_BASE = 'knowledge_base',
     NOTIFICATIONS = 'notifications',
+    TICKETING_VENUES = 'ticketing_venues',
     // last
     NOT_FOUND = 'not_found',
 }
@@ -68,5 +69,6 @@ export const RoutePath: Record<AppRoutes, string> = {
     [AppRoutes.PAYMENT_REMINDERS]: '/payment-reminders',
     [AppRoutes.KNOWLEDGE_BASE]: '/knowledge-base',
     [AppRoutes.NOTIFICATIONS]: '/notifications',
+    [AppRoutes.TICKETING_VENUES]: '/ticketing/venues',
     [AppRoutes.NOT_FOUND]: '*',
 };

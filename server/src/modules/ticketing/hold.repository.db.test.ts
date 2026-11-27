@@ -80,6 +80,13 @@ const heldSeatIdsOf = (results: CreateHoldResult[]) => results.flatMap((result) 
     result.kind === 'held' ? result.seatIds : []
 ));
 
+const drainExpiredHolds = async (sweepDeps: HoldServiceDeps) => {
+    for (let pass = 0; pass < 50; pass += 1) {
+        const sweep = await expireDueHolds(sweepDeps);
+        if (sweep.expired + sweep.skipped === 0) return;
+    }
+};
+
 test.after(async () => { await prisma.$disconnect(); });
 
 test('500 concurrent overlapping holds never double-allocate or partially hold', { skip }, async () => {
@@ -129,8 +136,11 @@ test('release and expiry return seats to sale exactly once', { skip }, async () 
     assert.deepEqual(released.sort(), [false, true]);
 
     const later = { ...deps, now: () => new Date(Date.now() + 5000) };
-    const sweeps = await Promise.all([expireDueHolds(later), expireDueHolds(later)]);
-    assert.equal(sweeps[0].expired + sweeps[1].expired >= 1, true);
+    // База общая для прогонов: в ней копятся истёкшие hold прошлых запусков, а один проход
+    // обрабатывает ограниченную пачку. Два параллельных прохода проверяют идемпотентность,
+    // затем очередь добирается до конца.
+    await Promise.all([expireDueHolds(later), expireDueHolds(later)]);
+    await drainExpiredHolds(later);
     assert.deepEqual(await countByStatus(sessionId), { AVAILABLE: SEAT_COUNT });
 });
 

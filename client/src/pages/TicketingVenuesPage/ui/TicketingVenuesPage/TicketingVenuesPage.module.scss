@@ -1,0 +1,194 @@
+.page {
+    width: 100%;
+    max-width: 1100px;
+}
+
+.subtitle {
+    color: var(--sidebar-text-redesigned);
+    margin-top: 4px;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 24px;
+    color: var(--sidebar-text-hover-redesigned);
+    background: var(--sidebar-bg-redesigned);
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-lg-redesigned);
+    gap: 16px;
+
+    @media (width <= 768px) {
+        padding: 16px;
+    }
+}
+
+.cardTitle {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--sidebar-text-hover-redesigned);
+}
+
+.muted {
+    font-size: 13px;
+    color: var(--sidebar-text-redesigned);
+}
+
+.error {
+    font-size: 14px;
+    color: var(--danger-text-redesigned);
+}
+
+.formRow {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+
+    @media (width <= 768px) {
+        grid-template-columns: 1fr;
+    }
+}
+
+.seatMapForm {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--card-border-redesigned);
+    gap: 12px;
+    padding-top: 16px;
+}
+
+.blockRow {
+    display: grid;
+    align-items: end;
+    gap: 12px;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+
+    @media (width <= 768px) {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.formActions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.previewHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.seatMapList {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    gap: 8px;
+    list-style: none;
+}
+
+.seatMapRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    gap: 12px;
+}
+
+.seatMapRowActive {
+    background: var(--primary-soft-bg-redesigned);
+    border-color: var(--primary-redesigned);
+}
+
+.seatMapLink {
+    padding: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--sidebar-text-hover-redesigned);
+    text-align: left;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    flex: 1;
+
+    &:hover {
+        color: var(--primary-redesigned);
+    }
+}
+
+.status {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--style-4-text-redesigned);
+    background: var(--style-4-bg-redesigned);
+    border: 1px solid var(--style-4-text-redesigned);
+    border-radius: var(--radius-pill-redesigned);
+    white-space: nowrap;
+}
+
+.statusPublished {
+    color: var(--success-text-redesigned);
+    background: var(--success-bg-redesigned);
+    border-color: var(--success-text-redesigned);
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    gap: 8px;
+    list-style: none;
+}
+
+.legendItem {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+    border-radius: var(--radius-pill-redesigned);
+}
+
+.canvasScroll {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.stage {
+    width: 60%;
+    padding: 6px 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sidebar-group-label-redesigned);
+    text-align: center;
+    text-transform: uppercase;
+    background: var(--sidebar-hover-bg-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    letter-spacing: 1.4px;
+}
+
+.canvas {
+    max-width: none;
+    flex-shrink: 0;
+}
+
+.seat {
+    stroke-width: 1.5;
+}
