@@ -6,6 +6,7 @@ import { startEmailSyncCron } from './modules/communication/email/email-sync-cro
 import { startPaymentReminderCron } from './modules/payment-reminders/payment-reminders.cron.service';
 import { startAuthSecurityCleanupCron } from './modules/auth/auth.security-cleanup.service';
 import { startAiEmailClassificationCron, startAiEmailDraftCron, startAiEmailSendCron, startTelegramApprovalPolling } from './modules/ai-email-assistant';
+import { startTicketingCron } from './modules/ticketing/ticketing.cron.service';
 
 const start = async () => {
     try {
@@ -23,6 +24,7 @@ const start = async () => {
             startAiEmailDraftCron();
             startAiEmailSendCron();
             startTelegramApprovalPolling();
+            startTicketingCron();
         });
     } catch (e) {
         console.error('error message:', e instanceof Error ? e.message : e);

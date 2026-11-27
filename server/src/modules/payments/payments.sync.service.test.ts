@@ -6,12 +6,20 @@ import * as mollieService from './payments.mollie.service';
 import { telegramNotificationSettingsRepository } from '../communication/telegram/notification-settings.service';
 import type { StoredTelegramNotificationSetting } from '../communication/telegram/notification-settings.types';
 import {
+    syncMolliePayment,
     syncMollieCustomer,
     syncMollieCustomers,
     resolveSyncStatus,
     buildMandateUpsertArgs,
     buildSubscriptionUpsertArgs,
 } from './payments.sync.service';
+
+test('CRM sync skips ticketing payments before attempting a payment upsert', async () => {
+    for (const metadata of [{ source: 'ticketing' }, '{"source":"ticketing","orderId":1}']) {
+        const payment = { id: 'tr_ticketing', metadata } as Parameters<typeof syncMolliePayment>[0];
+        assert.equal(await syncMolliePayment(payment), 'skipped');
+    }
+});
 
 test('resolveSyncStatus is skipped when the Mollie record has no id', () => {
     assert.equal(resolveSyncStatus(null, new Set()), 'skipped');

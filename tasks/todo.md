@@ -140,3 +140,16 @@ Students/Verification sections ticked; Mollie sections deliberately left for Pha
 - [ ] Phase 4 (Mollie Customer / mandate status / Subscription / Payment Link) — not started, see
   `tasks/plan.md` "Deliberately deferred" note
 - [ ] Ready for PR (checkpoint reached deliberately before financial-write operations)
+
+## Ticketing — срез D
+
+- [x] D1 — транзакционное истечение и обработка позднего платежа.
+- [x] D2 — закрытие заказов и фоновая сверка Mollie.
+- [x] D3 — cron, конфигурация, проверка и ревью.
+- [x] Checks passed (server build, `test:ticketing` 55/55, `test:ticketing:db` 36/36 на выделенной
+  MySQL, `test:mollie` 86/86, root `npm run ci`, оба Compose-файла валидны). Skylos: новые блокирующие
+  находки устранены; `check:skylos` остаётся красным только из-за advisory I/A/D по всему diff
+  `feat/ticketing` (Phase A, informational).
+- [x] Code review passed (1 blocking finding fixed: `MOLLIE_API_KEY_LIVE` не пробрасывался в контейнеры).
+- [x] Browser QA не требуется — в срезе D нет изменений клиента.
+- [ ] Ready for PR (pending publishing).

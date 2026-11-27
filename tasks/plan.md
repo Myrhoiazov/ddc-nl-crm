@@ -1299,3 +1299,12 @@ by revoking and reissuing the bot token via @BotFather** — the new token has h
 still out there somewhere unaccounted for (an old forgotten script/server is the leading
 suspicion) — worth a wider search (other VPS instances, teammates' machines, old cron jobs) before
 assuming it's something in this codebase.
+
+## Ticketing — срез D
+
+Продолжение спецификации фазы 3 из [плана Ticketing](../docs/ticketing/IMPLEMENTATION_PLAN.md).
+Задачи выполняются в существующей ветке `feat/ticketing` поверх среза C.
+
+1. **D1 · Переходы заказа и места.** Под блокировкой заказа истечение освобождает только его удержанные места. Поздний платёж для `EXPIRED` возвращает все исходные места или переводит заказ в `NEEDS_REVIEW` без частичной продажи. Оплата отменённого заказа требует ручного разбора. Файлы `payment.repository.ts`, `payment.policy.ts` и DB-тесты.
+2. **D2 · Закрытие и сверка.** После дедлайна запросить Mollie и попытаться отменить доступный к отмене платёж. Терминальный неуспех освобождает места. После жёсткого лимита в 60 минут освобождаются зависшие удержания, а незавершённые платежи продолжают сверяться. Повтор создания использует сохранённый ключ в исходном окне оплаты. Файлы `payment-jobs.*`, `payment.service.ts`, адаптер и типы шлюза.
+3. **D3 · Запуск и проверка.** Три независимых флага выключены по умолчанию. Cron запускает очистку hold и закрытие раз в минуту, сверку раз в пять минут. Проверить серверную сборку, `test:ticketing`, `test:ticketing:db` на выделенной MySQL, `test:mollie`, Skylos и корневой `ci`. Браузерная проверка этого среза не требуется, пользовательского интерфейса в диффе D нет. Файлы `ticketing.cron.service.ts`, точка запуска API, env и Compose.

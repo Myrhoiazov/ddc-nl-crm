@@ -14,7 +14,7 @@ import type {
     HoldServiceDeps,
 } from './ticketing.types';
 
-const currentTime = (deps: HoldServiceDeps) => (deps.now ? deps.now() : new Date());
+const currentTime = (deps: Pick<HoldServiceDeps, 'now'>) => (deps.now ? deps.now() : new Date());
 
 // Повтор с тем же requestKey возвращает живой hold только для того же набора мест. Завершённый
 // hold или другой набор — отказ: ключ не может «оживить» освобождённые места и не раскрывает
@@ -87,7 +87,10 @@ export interface ExpireHoldsResult {
 
 // Фоновая задача: каждый hold истекает собственной транзакцией с условным переходом,
 // поэтому повторный или параллельный запуск ничего не ломает.
-export const expireDueHolds = async (deps: HoldServiceDeps, limit = 200): Promise<ExpireHoldsResult> => {
+export const expireDueHolds = async (
+    deps: Pick<HoldServiceDeps, 'repository' | 'now' | 'sleep'>,
+    limit = 200,
+): Promise<ExpireHoldsResult> => {
     const now = currentTime(deps);
     const holdIds = await deps.repository.findExpiredHoldIds(now, limit);
     const result: ExpireHoldsResult = { expired: 0, skipped: 0 };

@@ -65,8 +65,14 @@ export const buildPublicSession = (source: PublicSessionSource, now: Date) => ({
     seats: buildSeats(source),
 });
 
+// Ссылку на оплату нельзя показывать после окна оплаты: Mollie не пустит
+// покупателя по просроченной ссылке.
+const visibleCheckoutUrl = (order: OrderSummary, now: Date): string | null => (
+    order.status === 'PENDING_PAYMENT' && order.paymentDeadlineAt > now ? order.payment?.checkoutUrl ?? null : null
+);
+
 // Наружу не уходят внутренний id заказа и ключ идемпотентности платежа.
-export const toPublicOrder = (order: OrderSummary) => ({
+export const toPublicOrder = (order: OrderSummary, now: Date = new Date()) => ({
     number: order.number,
     status: order.status,
     subtotalCents: order.subtotalCents,
@@ -74,7 +80,7 @@ export const toPublicOrder = (order: OrderSummary) => ({
     totalCents: order.totalCents,
     currency: order.currency,
     paymentDeadlineAt: order.paymentDeadlineAt,
-    checkoutUrl: order.payment?.checkoutUrl ?? null,
+    checkoutUrl: visibleCheckoutUrl(order, now),
     items: order.items,
 });
 

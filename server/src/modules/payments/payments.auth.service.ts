@@ -120,7 +120,7 @@ const refreshMollieAccount = async (account: {
     });
 };
 
-export const getMollieClient = async (): Promise<MollieClient> => {
+export const getMollieClientContext = async (mode?: 'TEST' | 'LIVE') => {
     let account = await prisma.mollieAccount.findFirst({
         where: { isActive: true },
         orderBy: { updatedAt: 'desc' },
@@ -140,16 +140,20 @@ export const getMollieClient = async (): Promise<MollieClient> => {
     }
 
     if (account) {
-        return createMollieClient({
-            accessToken: decryptMollieToken(account.accessTokenEncrypted),
-        });
+        const client = createMollieClient({ accessToken: decryptMollieToken(account.accessTokenEncrypted) });
+        return { client, usesOAuth: true };
     }
 
-    const apiKey = process.env.MOLLIE_API_KEY ?? process.env.MOLLIE_API_KEY_LIVE;
+    const configuredKeys = [process.env.MOLLIE_API_KEY, process.env.MOLLIE_API_KEY_LIVE];
+    const apiKey = mode
+        ? configuredKeys.find((key) => key?.startsWith(mode === 'TEST' ? 'test_' : 'live_'))
+        : configuredKeys[0] ?? configuredKeys[1];
 
     if (!apiKey) {
         throw new Error('No active Mollie OAuth account or MOLLIE_API_KEY configured');
     }
 
-    return createMollieClient({ apiKey });
+    return { client: createMollieClient({ apiKey }), usesOAuth: false };
 };
+
+export const getMollieClient = async (): Promise<MollieClient> => (await getMollieClientContext()).client;

@@ -3,9 +3,9 @@
 ## Purpose
 
 Sell concert tickets with assigned seats: venues and versioned seat maps, events and sessions,
-per-session seat inventory, temporary seat holds, and orders awaiting payment. Taking the payment,
-tickets and check-in are planned and not implemented yet — see
-`docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
+per-session seat inventory, temporary seat holds, orders awaiting payment, and Mollie checkout with
+background expiry and reconciliation. Ticket issuance, delivery and check-in are planned and not
+implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
 
 ## Scope
 
@@ -15,8 +15,8 @@ tickets and check-in are planned and not implemented yet — see
 - `TicketSessionSeat` — the inventory: one row per seat per session.
 - `TicketHold` — a buyer's temporary claim on a set of seats.
 - `TicketOrder`, `TicketOrderItem` — a buyer's order and its seats.
-- `TicketPayment`, `TicketPaymentEvent` — the Mollie payment of an order and the log of signals
-  about it (tables exist; nothing talks to Mollie yet).
+- `TicketPayment`, `TicketPaymentEvent` — the Mollie payment of an order and the log of webhook,
+  return and reconciliation signals about it.
 
 ## Out of Scope
 
@@ -65,8 +65,9 @@ tickets and check-in are planned and not implemented yet — see
 - **Identity**: `id`; `number` (random, `T-XXXXXXXX`, so it reveals nothing about sales volume);
   `accessTokenHash` — only the SHA-256 of the buyer's access token is stored. The token is derived
   from the hold token, so the order number alone opens nothing.
-- **States**: `PENDING_PAYMENT` → `PAID` / `EXPIRED` / `CANCELLED`; later `REFUNDED`,
-  `PARTIALLY_REFUNDED`, `NEEDS_REVIEW`. Only `PENDING_PAYMENT` is reachable today.
+- **States**: `PENDING_PAYMENT` → `PAID` / `EXPIRED` / `CANCELLED`; `EXPIRED` → `PAID` (late
+  payment reclaimed every seat) or `NEEDS_REVIEW` (any seat already taken); `CANCELLED` → `NEEDS_REVIEW`
+  on a late payment. `REFUNDED` / `PARTIALLY_REFUNDED` are planned.
 - **Invariants**:
   - One order per hold (`holdId` unique). Checkout is the conditional transition
     `ACTIVE → CONVERTED` of the hold, so a repeated or parallel checkout returns the same order,
@@ -78,6 +79,12 @@ tickets and check-in are planned and not implemented yet — see
   - The event, venue and seat labels are snapshotted into the order, so later edits do not change
     what was bought.
   - The buyer is stored on the order and never written to `Client` or `Customer`.
+  - A payment confirms the order only when the Mollie object matches our `metadata.orderId`, saved
+    amount, currency and environment mode; any mismatch or chargeback sends the order to
+    `NEEDS_REVIEW` without selling seats (`payment.policy.ts` → `findPaymentMismatch`).
+  - Expiry and payment signals serialize on a `FOR UPDATE` row lock on the order. A due order is
+    released only after a terminal provider failure or the 60-minute hard limit; before that its
+    seats stay `HELD` (`payment.repository.ts` → `expirePendingOrder`).
 
 ## Domain Concepts
 
@@ -125,7 +132,15 @@ order status (`GET /orders/current` with the `X-Ticketing-Order-Token` header).
   `TICKETING_TOKEN_SECRET` of at least 32 characters are set (`ticketing.config.ts`).
 - It is same-origin only: no extra CORS origins are opened, the storefront is expected to be
   served from the CRM front-end host.
-- Checkout does not take a payment yet: the order is created `PENDING_PAYMENT` with no checkout URL.
+- Checkout creates the Mollie payment with a saved idempotency key and returns the checkout URL;
+  a repeated checkout returns the same order, payment and URL. The URL is hidden again after the
+  payment deadline (`public.policy.ts` → `toPublicOrder`).
+- Mollie posts to the separate `POST /api/v1/ticketing/webhooks/mollie` route. The webhook is
+  CSRF-exempt, re-reads the payment from Mollie and returns `200` only after the order transaction
+  is committed. The CRM webhook and sync skip payments marked `metadata.source='ticketing'`.
+- Three opt-in cron jobs (all off by default, independent of the sales flag): hold expiry every
+  minute, order closure every minute, payment reconciliation every five minutes
+  (`ticketing.cron.service.ts`).
 
 ## Relationships
 

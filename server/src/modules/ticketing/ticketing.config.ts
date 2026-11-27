@@ -1,3 +1,4 @@
+import type { PaymentConfig } from './payment.types';
 import type { OrderSettings } from './order.types';
 
 // Настройки публичной продажи из окружения. Продажа выключена, пока явно не задан флаг и
@@ -29,6 +30,24 @@ const readOrderSettings = (env: Env): Partial<OrderSettings> => {
     if (feeCents !== undefined) settings.feeCents = feeCents;
     if (env.TICKETING_TERMS_VERSION?.trim()) settings.termsVersion = env.TICKETING_TERMS_VERSION.trim();
     return settings;
+};
+
+const readHttpsUrl = (value: string | undefined): string | null => {
+    if (!value) return null;
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && !url.username && !url.password ? url.toString() : null;
+    } catch {
+        return null;
+    }
+};
+
+export const readPaymentConfig = (env: Env = process.env): PaymentConfig | null => {
+    const mode = env.TICKETING_PAYMENT_MODE ?? 'TEST';
+    const returnUrl = readHttpsUrl(env.TICKETING_PAYMENT_RETURN_URL);
+    const webhookUrl = readHttpsUrl(env.TICKETING_PAYMENT_WEBHOOK_URL);
+    if (!returnUrl || !webhookUrl || (mode !== 'TEST' && mode !== 'LIVE')) return null;
+    return { mode, returnUrl, webhookUrl };
 };
 
 export const readTicketingConfig = (env: Env = process.env): TicketingConfig => ({

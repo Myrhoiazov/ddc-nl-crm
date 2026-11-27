@@ -21,6 +21,7 @@ const csrfExempt = (req: Request) => {
     return (
         (req.method === 'POST' && authPostExempt.has(path))
         || path === '/mollie/webhook'
+        || (req.method === 'POST' && path === '/ticketing/webhooks/mollie')
         || path === '/instagram/webhook'
         // Telegram calls this server-to-server with no Origin header and no session/CSRF
         // cookies, exactly like the two webhooks above — its own secret-header check

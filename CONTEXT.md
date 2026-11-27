@@ -81,8 +81,8 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   different Telegram integration from either `auth/telegram/` or `auth/telegram-miniapp/`), `telegram-admin-bot` (the Mini App's root-menu
   `/start` handler — routes admins into the Mini App via `web_app`/`url` deep links depending on
   chat type, see Integrations below), `health`, `ai-email-assistant`, `knowledge-ingestion`, `ticketing` (concert tickets with
-  assigned seats — so far the seat inventory and hold core plus the staff API and CRM page for
-  venues and seat maps; no buyer-facing API yet; see
+  assigned seats: seat inventory, holds, a public buyer API with Mollie checkout and its own webhook,
+  plus opt-in expiry/reconciliation jobs; ticket issuance and check-in are still planned; see
   [Ticketing domain](docs/domain/ticketing.md)).
 - `ai-email-assistant` keeps the whole AI workflow in one module boundary: normalize/bounded
   persistence → deterministic spam checks → LLM classification (`classifyEmail`, strict runtime

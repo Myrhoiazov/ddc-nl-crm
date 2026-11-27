@@ -1,6 +1,7 @@
 import { Customer, Mandate, Payment, Subscription } from '@mollie/api-client';
 import prisma from '../../../prisma/prisma-client';
 import * as mollieService from './payments.mollie.service';
+import { isTicketingPayment } from '../ticketing/payment.policy';
 import { normalizePaymentStatus } from './payments.utils.service';
 import { reconcileInvoiceMolliePayments } from '../invoices/invoices.mollie.service';
 import {
@@ -326,7 +327,7 @@ export const syncMolliePayment = async (
     payment: Payment,
     invoiceIdHint?: number | null,
 ): Promise<'created' | 'updated' | 'skipped'> => {
-    if (!payment.id) {
+    if (!payment.id || isTicketingPayment(payment.metadata)) {
         return 'skipped';
     }
 

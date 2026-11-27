@@ -38,9 +38,18 @@
 - [x] Миграция `20261128090000_add_ticketing_orders`: заказы, позиции, платежи, журнал сигналов о платеже; внешний ключ места на позицию заказа.
 - [x] Ядро checkout: hold → заказ `PENDING_PAYMENT` одной транзакцией, идемпотентный повтор, случайный номер заказа, токен доступа покупателя, снимок события.
 - [x] Публичный API `/api/v1/ticketing/public` (карта сеанса, hold, отказ, checkout, статус заказа): CSRF-exempt, лимиты по IP, Turnstile на checkout, флаг `TICKETING_SALES_ENABLED` + `TICKETING_TOKEN_SECRET`. CORS для чужих доменов не открыт — витрина рассчитана на раздачу с хоста CRM (iframe на WordPress).
-- [ ] Платёж Mollie с idempotency, собственный webhook, проверки суммы / валюты / режима, подтверждение заказа.
-- [ ] Фоновые задачи: истечение hold, закрытие заказов, сверка платежей; поздняя оплата и `NEEDS_REVIEW`.
-- [ ] Пропуск платежей `source='ticketing'` в существующем sync Mollie.
+- [x] Срез C. Checkout создаёт платёж Mollie с сохранённым ключом идемпотентности. Отдельный `POST /api/v1/ticketing/webhooks/mollie` перечитывает известный платёж, проверяет metadata, сумму, валюту и режим, подтверждает заказ и продаёт его места одной транзакцией. Webhook работает при выключенной продаже.
+- Настройка среза C. Задать HTTPS-адреса `TICKETING_PAYMENT_RETURN_URL` и `TICKETING_PAYMENT_WEBHOOK_URL`, режим `TICKETING_PAYMENT_MODE` (`TEST` по умолчанию) и `TICKETING_MOLLIE_PROFILE_ID` при OAuth. Checkout добавляет к адресу возврата номер заказа. Для API-ключа используется ключ CRM, соответствующий выбранному режиму.
+- [x] Срез D. Фоновые задачи под независимыми флагами: `TICKETING_HOLD_EXPIRY_ENABLED` (1 мин),
+  `TICKETING_ORDER_EXPIRY_ENABLED` (1 мин) и `TICKETING_PAYMENT_RECONCILIATION_ENABLED` (5 мин).
+  Закрытие заказа перечитывает Mollie, отменяет доступный платёж, освобождает места после
+  терминального неуспеха или жёсткого предела в 60 минут; поздняя оплата `EXPIRED` возвращает только
+  все исходные места, иначе уходит в `NEEDS_REVIEW`. Оплата `CANCELLED` — только ручной разбор.
+- Настройка среза D. При API-ключе (без OAuth) `MOLLIE_API_KEY` должен быть `test_…` для
+  `TICKETING_PAYMENT_MODE=TEST`, а для `LIVE` передаётся `MOLLIE_API_KEY_LIVE` с `live_…`. При OAuth
+  достаточно `TICKETING_MOLLIE_PROFILE_ID`. Флаги джобов выключены по умолчанию и не зависят от
+  `TICKETING_SALES_ENABLED`.
+- [x] Пропуск платежей `source='ticketing'` в существующем sync Mollie.
 
 ## 1. Вердикт: CONDITIONAL GO
 

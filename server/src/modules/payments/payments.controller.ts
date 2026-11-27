@@ -1,3 +1,4 @@
+import { isTicketingPayment } from '../ticketing/payment.policy';
 import { ClientLanguage, Prisma, User } from "@prisma/client";
 import { generateSalt } from "../../common/utils/crypto";
 import { oauthClient } from "../../config/oauthClient";
@@ -599,18 +600,14 @@ const markMollieEventFailed = async (eventId: number | null, err: unknown) => {
     });
 };
 
-const createMollieWebhookEvent = async (paymentId: string, payload: Prisma.InputJsonValue) => {
-    const payment = await mollieService.getPaymentById(paymentId);
+const createMollieWebhookEvent = async (
+    payment: Awaited<ReturnType<typeof mollieService.getPaymentById>>,
+    payload: Prisma.InputJsonValue,
+) => {
     const dedupeKey = buildMollieWebhookDedupeKey(payment);
-    const event = await prisma.mollieEvent.create({
-        data: {
-            molliePaymentId: paymentId,
-            payload,
-            dedupeKey,
-        },
+    return prisma.mollieEvent.create({
+        data: { molliePaymentId: payment.id, payload, dedupeKey },
     });
-
-    return { payment, event };
 };
 
 const completeMollieWebhookEvent = async (
@@ -650,8 +647,11 @@ export const webhookMollieController = async (req: Request, res: Response) => {
     let eventId: number | null = null;
 
     try {
+        const payment = await mollieService.getPaymentById(paymentId);
+        if (isTicketingPayment(payment.metadata)) return res.status(200).send('OK');
+
         const invoicePaymentLink = await findInvoicePaymentLinkByToken(req);
-        const { payment, event } = await createMollieWebhookEvent(paymentId, req.body);
+        const event = await createMollieWebhookEvent(payment, req.body);
         eventId = event.id;
 
         console.log(`💡 Webhook received for payment ${payment.id} — status: ${payment.status}`);

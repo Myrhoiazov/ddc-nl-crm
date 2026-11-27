@@ -6,6 +6,8 @@ import { createHold, releaseHold } from './hold.service';
 import { checkoutSchema, type CheckoutInput } from './order.schema';
 import { createOrder, getOrderByAccessToken } from './order.service';
 import type { OrderServiceDeps } from './order.types';
+import { getTicketPaymentGateway } from './payment.mollie-gateway';
+import { startPayment } from './payment.service';
 import { HOLD_REJECTION_STATUS, ORDER_REJECTION_STATUS, toPublicOrder } from './public.policy';
 import {
     captchaTokenSchema,
@@ -15,7 +17,7 @@ import {
     type ReleaseHoldBody,
 } from './public.schema';
 import { getPublicSession } from './public.service';
-import { readTicketingConfig } from './ticketing.config';
+import { readPaymentConfig, readTicketingConfig } from './ticketing.config';
 import type { HoldServiceDeps } from './ticketing.types';
 import { parsePositiveId } from './venue.schema';
 
@@ -80,13 +82,19 @@ export const checkoutController = async (req: Request, res: Response) => {
     if (!parsed.success) return invalidBody(res, parsed.error.flatten());
     if (!(await passesCaptcha(req, captchaToken))) return res.status(403).json({ message: 'Captcha check failed' });
 
+    const config = readPaymentConfig();
+    if (!config) return res.status(503).json({ message: 'Ticket payments are not available' });
+
     const { holdToken, buyer } = parsed.data as CheckoutInput;
-    const result = await createOrder(orderDeps(), { holdToken, buyer });
+    const deps = orderDeps();
+    const settings = { ...deps.settings, paymentMode: config.mode };
+    const result = await createOrder({ ...deps, settings }, { holdToken, buyer });
     if (result.kind === 'rejected') {
         return res.status(ORDER_REJECTION_STATUS[result.reason]).json({ message: 'Checkout rejected', reason: result.reason });
     }
     const status = result.kind === 'created' ? 201 : 200;
-    return res.status(status).json({ order: toPublicOrder(result.order), orderToken: result.accessToken });
+    const checkoutUrl = await startPayment({ prisma, gateway: getTicketPaymentGateway(), config }, result.order.id);
+    return res.status(status).json({ order: { ...toPublicOrder(result.order), checkoutUrl }, orderToken: result.accessToken });
 };
 
 export const getOrderController = async (req: Request, res: Response) => {

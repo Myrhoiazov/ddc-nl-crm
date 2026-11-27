@@ -8,6 +8,7 @@ import {
     toPublicOrder,
     type PublicSessionSource,
 } from './public.policy';
+import type { OrderSummary } from './order.types';
 import { createHoldSchema } from './public.schema';
 import { isPublicSalesReady, readTicketingConfig } from './ticketing.config';
 
@@ -59,8 +60,9 @@ test('draft and cancelled sessions are not public', () => {
     );
 });
 
-test('toPublicOrder drops the internal id and the payment idempotency key', () => {
-    const view = toPublicOrder({
+test('the public order hides its checkout URL at the payment deadline', () => {
+    const checkoutUrl = 'https://checkout.example.com/payment';
+    const order: OrderSummary = {
         id: 99,
         number: 'T-ABCDEFGH',
         status: 'PENDING_PAYMENT',
@@ -70,12 +72,14 @@ test('toPublicOrder drops the internal id and the payment idempotency key', () =
         currency: 'EUR',
         paymentDeadlineAt: NOW,
         items: [],
-        payment: { id: 5, idempotencyKey: 'secret-key', status: 'CREATED', checkoutUrl: null },
-    });
+        payment: { id: 5, idempotencyKey: 'secret-key', status: 'open', checkoutUrl },
+    };
+    const view = toPublicOrder(order, new Date(NOW.getTime() - 1));
+    assert.equal(view.checkoutUrl, checkoutUrl);
+    assert.equal(toPublicOrder(order, NOW).checkoutUrl, null);
 
     assert.equal(JSON.stringify(view).includes('secret-key'), false);
     assert.equal('id' in view, false);
-    assert.equal(view.checkoutUrl, null);
 });
 
 test('rejections map to client errors, never to 5xx', () => {
