@@ -62,7 +62,9 @@ planned and not implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` 
   sorted first so overlapping requests lock rows in the same order.
 - **Idempotent retry**: when the client sends a `requestKey`, the hold token is derived from it
   with a server secret, so a repeated request returns the same hold instead of a seat conflict.
-  A key whose hold is no longer live is refused.
+  Knowing the key is equivalent to knowing the token, so it must be a random string of at least
+  128 bits (a UUID qualifies); shorter keys are rejected. A key whose hold is no longer live, or
+  that arrives with a different set of seats, is refused.
 - **Inventory generation**: publishing a session creates one inventory row per seat of its seat
   map, priced by category. Seats marked blocked on the map start as `BLOCKED`. Running it again
   changes nothing.

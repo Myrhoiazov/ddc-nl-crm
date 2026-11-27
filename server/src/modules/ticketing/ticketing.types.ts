@@ -48,6 +48,8 @@ export interface CreateHoldInput {
     sessionId: number;
     seatIds: number[];
     // Клиентский ключ запроса: повтор с тем же ключом возвращает тот же hold и тот же токен.
+    // Знание ключа равносильно знанию токена, поэтому он обязан быть случайным ≥ 128 бит
+    // (UUID или base64url от 22 символов) и никогда не должен покидать браузер покупателя.
     requestKey?: string;
     clientIp?: string;
 }
@@ -57,6 +59,7 @@ export type HoldRejectionReason =
     | 'SALES_CLOSED'
     | 'INVALID_SEATS'
     | 'TOO_MANY_SEATS'
+    | 'INVALID_REQUEST_KEY'
     | 'REQUEST_KEY_REUSED';
 
 export type CreateHoldResult =

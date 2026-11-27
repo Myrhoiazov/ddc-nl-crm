@@ -46,7 +46,7 @@ test('createHold rejects a selection above the per-order limit', async () => {
 test('createHold with the same requestKey returns the same hold instead of a seat conflict', async () => {
     const store = createFakeHoldStore([1, 2]);
     const deps = createTestDeps(store, NOW);
-    const input = { sessionId: 1, seatIds: [1, 2], requestKey: 'client-request-key-0001' };
+    const input = { sessionId: 1, seatIds: [1, 2], requestKey: '4f1c2d3e-5a6b-4c7d-8e9f-0a1b2c3d4e5f' };
 
     const first = await createHold(deps, input);
     const retry = await createHold(deps, input);
@@ -60,7 +60,7 @@ test('createHold with the same requestKey returns the same hold instead of a sea
 test('createHold refuses a requestKey whose hold was already released', async () => {
     const store = createFakeHoldStore([1]);
     const deps = createTestDeps(store, NOW);
-    const input = { sessionId: 1, seatIds: [1], requestKey: 'client-request-key-0002' };
+    const input = { sessionId: 1, seatIds: [1], requestKey: '9a8b7c6d-5e4f-4a3b-2c1d-0e9f8a7b6c5d' };
 
     const first = await createHold(deps, input);
     assert.equal(first.kind, 'held');
@@ -110,4 +110,25 @@ test('expireDueHolds frees only holds whose TTL has passed', async () => {
 
     assert.deepEqual(result, { expired: 1, skipped: 0 });
     assert.deepEqual(Array.from(store.availableSeatIds), [1]);
+});
+
+test('createHold rejects a short or guessable requestKey before touching inventory', async () => {
+    const store = createFakeHoldStore([1]);
+    const result = await createHold(createTestDeps(store, NOW), { sessionId: 1, seatIds: [1], requestKey: 'retry-1' });
+
+    assert.deepEqual(result, { kind: 'rejected', reason: 'INVALID_REQUEST_KEY' });
+    assert.equal(store.holdSeatsCalls, 0);
+});
+
+test('createHold does not replay a hold to a request for different seats', async () => {
+    const store = createFakeHoldStore([1, 2, 3]);
+    const deps = createTestDeps(store, NOW);
+    const requestKey = '1b2c3d4e-5f6a-4b7c-8d9e-0f1a2b3c4d5e';
+
+    const first = await createHold(deps, { sessionId: 1, seatIds: [1, 2], requestKey });
+    const other = await createHold(deps, { sessionId: 1, seatIds: [3], requestKey });
+
+    assert.equal(first.kind, 'held');
+    assert.deepEqual(other, { kind: 'rejected', reason: 'REQUEST_KEY_REUSED' });
+    assert.deepEqual(Array.from(store.availableSeatIds), [3]);
 });

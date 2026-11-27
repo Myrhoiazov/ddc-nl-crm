@@ -42,3 +42,13 @@ export const checkSeatSelection = (
 
     return { kind: 'ok', seatIds };
 };
+
+// requestKey выводит токен hold, то есть работает как секрет: короткий или угадываемый ключ
+// отдал бы чужое удержание. Принимается только случайная строка не слабее 128 бит.
+const REQUEST_KEY_PATTERN = /^[A-Za-z0-9_-]{22,128}$/;
+
+export const isValidRequestKey = (requestKey: string): boolean => REQUEST_KEY_PATTERN.test(requestKey);
+
+export const isSameSeatSelection = (left: number[], right: number[]): boolean => (
+    left.length === right.length && left.every((seatId, index) => seatId === right[index])
+);
