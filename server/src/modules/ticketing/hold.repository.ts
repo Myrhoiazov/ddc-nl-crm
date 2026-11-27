@@ -9,7 +9,7 @@ import type {
 
 // READ COMMITTED: условные UPDATE по первичному ключу не нуждаются в gap-блокировках
 // REPEATABLE READ, а именно они — основной источник deadlock.
-const INVENTORY_TX_OPTIONS = {
+export const INVENTORY_TX_OPTIONS = {
     isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
     maxWait: 3000,
     timeout: 5000,

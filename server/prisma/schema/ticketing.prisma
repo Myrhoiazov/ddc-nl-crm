@@ -6,6 +6,9 @@
 //   status = 'HELD'                  => hold_id IS NOT NULL AND order_item_id IS NULL
 //   status = 'SOLD'                  => order_item_id IS NOT NULL
 //   status IN ('AVAILABLE','BLOCKED') => hold_id IS NULL AND order_item_id IS NULL
+// И на суммы (миграция add_ticketing_orders):
+//   ticket_orders:   total_cents = subtotal_cents + fee_cents, 0 <= refunded_cents <= total_cents
+//   ticket_payments, ticket_order_items: суммы неотрицательны
 
 enum TicketSeatMapStatus {
   DRAFT
@@ -39,6 +42,33 @@ enum TicketHoldStatus {
   CONVERTED
   RELEASED
   EXPIRED
+}
+
+enum TicketOrderStatus {
+  PENDING_PAYMENT
+  PAID
+  CANCELLED
+  EXPIRED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  NEEDS_REVIEW
+}
+
+enum TicketOrderItemStatus {
+  ACTIVE
+  CANCELLED
+  REFUNDED
+}
+
+enum TicketPaymentMode {
+  TEST
+  LIVE
+}
+
+enum TicketPaymentEventSource {
+  WEBHOOK
+  RECONCILE
+  RETURN
 }
 
 model TicketVenue {
@@ -112,6 +142,7 @@ model TicketSeat {
   seatMap      TicketSeatMap       @relation(fields: [seatMapId], references: [id], onDelete: Cascade)
   category     TicketSeatCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   sessionSeats TicketSessionSeat[]
+  orderItems   TicketOrderItem[]
 
   @@unique([seatMapId, sectionLabel, rowLabel, seatLabel])
   @@index([categoryId])
@@ -160,6 +191,7 @@ model TicketSession {
   prices  TicketSessionPrice[]
   seats   TicketSessionSeat[]
   holds   TicketHold[]
+  orders  TicketOrder[]
 
   @@index([eventId, startsAt])
   @@index([seatMapId])
@@ -188,16 +220,17 @@ model TicketSessionSeat {
   holdId      Int?             @map("hold_id")
   // onUpdate: Restrict у связи с hold обязателен: MySQL запрещает CHECK по колонке,
   // участвующей во внешнем ключе с каскадным действием.
-  // Внешний ключ на позицию заказа появится вместе с таблицами заказов (фаза 3).
+  // То же правило onUpdate: Restrict действует для связи с позицией заказа.
   orderItemId Int?             @unique @map("order_item_id")
   priceCents  Int              @map("price_cents")
   blockReason String?          @map("block_reason")
   version     Int              @default(0)
   updatedAt   DateTime         @updatedAt @map("updated_at")
 
-  session TicketSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
-  seat    TicketSeat    @relation(fields: [seatId], references: [id], onDelete: Restrict)
-  hold    TicketHold?   @relation(fields: [holdId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  session   TicketSession    @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  seat      TicketSeat       @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  hold      TicketHold?      @relation(fields: [holdId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  orderItem TicketOrderItem? @relation(fields: [orderItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
 
   @@id([sessionId, seatId])
   @@index([sessionId, status])
@@ -221,8 +254,120 @@ model TicketHold {
 
   session TicketSession       @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   seats   TicketSessionSeat[]
+  order   TicketOrder?
 
   @@index([status, expiresAt])
   @@index([sessionId])
   @@map("ticket_holds")
+}
+
+// Заказ покупателя. Покупатель хранится здесь, а не в Client/Customer. Пока заказ ждёт оплаты,
+// его места остаются HELD за hold в статусе CONVERTED; SOLD они становятся при подтверждении платежа.
+model TicketOrder {
+  id                Int               @id @default(autoincrement())
+  // Человекочитаемый номер; случайный, чтобы не раскрывать объём продаж.
+  number            String            @unique @db.VarChar(16)
+  // SHA-256 от opaque-токена доступа покупателя; сам токен не хранится.
+  accessTokenHash   String            @unique @map("access_token_hash") @db.Char(64)
+  sessionId         Int               @map("session_id")
+  // Один заказ на hold — идемпотентность создания заказа.
+  holdId            Int               @unique @map("hold_id")
+  buyerName         String            @map("buyer_name")
+  buyerEmail        String            @map("buyer_email")
+  buyerPhone        String?           @map("buyer_phone") @db.VarChar(32)
+  locale            String            @default("nl") @db.VarChar(5)
+  subtotalCents     Int               @map("subtotal_cents")
+  feeCents          Int               @default(0) @map("fee_cents")
+  totalCents        Int               @map("total_cents")
+  currency          String            @default("EUR") @db.Char(3)
+  refundedCents     Int               @default(0) @map("refunded_cents")
+  status            TicketOrderStatus @default(PENDING_PAYMENT)
+  paymentDeadlineAt DateTime          @map("payment_deadline_at")
+  paidAt            DateTime?         @map("paid_at")
+  cancelledAt       DateTime?         @map("cancelled_at")
+  reviewReason      String?           @map("review_reason")
+  // Снимок события на момент покупки: заказ остаётся самодостаточным после правок события.
+  eventSnapshot     Json              @map("event_snapshot")
+  termsAcceptedAt   DateTime          @map("terms_accepted_at")
+  termsVersion      String            @map("terms_version") @db.VarChar(32)
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+
+  session  TicketSession     @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  hold     TicketHold        @relation(fields: [holdId], references: [id], onDelete: Restrict)
+  items    TicketOrderItem[]
+  payments TicketPayment[]
+
+  @@index([buyerEmail])
+  @@index([sessionId, status])
+  @@index([status, paymentDeadlineAt])
+  @@map("ticket_orders")
+}
+
+// Позиция заказа = одно место. Подписи и цена — снимки на момент покупки.
+model TicketOrderItem {
+  id           Int                   @id @default(autoincrement())
+  orderId      Int                   @map("order_id")
+  sessionId    Int                   @map("session_id")
+  seatId       Int                   @map("seat_id")
+  sectionLabel String                @default("") @map("section_label") @db.VarChar(32)
+  rowLabel     String                @map("row_label") @db.VarChar(16)
+  seatLabel    String                @map("seat_label") @db.VarChar(16)
+  categoryName String                @map("category_name")
+  priceCents   Int                   @map("price_cents")
+  status       TicketOrderItemStatus @default(ACTIVE)
+
+  order       TicketOrder        @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  seat        TicketSeat         @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  sessionSeat TicketSessionSeat?
+
+  @@unique([orderId, seatId])
+  @@index([sessionId, seatId])
+  @@index([seatId])
+  @@map("ticket_order_items")
+}
+
+// Платёж Mollie по заказу. Ключ идемпотентности создаётся и сохраняется до вызова Mollie.
+model TicketPayment {
+  id               Int               @id @default(autoincrement())
+  orderId          Int               @map("order_id")
+  molliePaymentId  String?           @unique @map("mollie_payment_id") @db.VarChar(64)
+  idempotencyKey   String            @unique @map("idempotency_key") @db.Char(36)
+  // CREATED — строка есть, платёж в Mollie ещё не создан; далее нормализованный статус Mollie.
+  status           String            @default("CREATED") @db.VarChar(24)
+  amountCents      Int               @map("amount_cents")
+  currency         String            @default("EUR") @db.Char(3)
+  method           String?           @db.VarChar(32)
+  checkoutUrl      String?           @map("checkout_url") @db.Text
+  mollieExpiresAt  DateTime?         @map("mollie_expires_at")
+  paidAt           DateTime?         @map("paid_at")
+  refundedCents    Int               @default(0) @map("refunded_cents")
+  chargedBackCents Int               @default(0) @map("charged_back_cents")
+  lastSyncedAt     DateTime?         @map("last_synced_at")
+  mollieMode       TicketPaymentMode @map("mollie_mode")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  order TicketOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([status, lastSyncedAt])
+  @@map("ticket_payments")
+}
+
+// Журнал сигналов о платеже (webhook, сверка, возврат покупателя). Только журнал: без
+// dedupe-ключа, идемпотентность дают условные переходы под блокировкой заказа.
+model TicketPaymentEvent {
+  id              Int                      @id @default(autoincrement())
+  molliePaymentId String                   @map("mollie_payment_id") @db.VarChar(64)
+  source          TicketPaymentEventSource
+  observedStatus  String?                  @map("observed_status") @db.VarChar(24)
+  payload         Json?
+  outcome         String?                  @db.VarChar(32)
+  errorMessage    String?                  @map("error_message") @db.Text
+  receivedAt      DateTime                 @default(now()) @map("received_at")
+  processedAt     DateTime?                @map("processed_at")
+
+  @@index([molliePaymentId, receivedAt])
+  @@map("ticket_payment_events")
 }

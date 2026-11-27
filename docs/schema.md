@@ -448,16 +448,20 @@ providerUserId — стабильный OIDC subject от провайдера, 
 
 ---
 
-## ticketing.prisma — билеты: залы, сеансы, инвентарь
+## ticketing.prisma — билеты: залы, сеансы, инвентарь, заказы
 
-Фаза 1 модуля Ticketing (`server/src/modules/ticketing/`). Проектные решения и обоснования —
-`docs/ticketing/DATABASE_DESIGN.md`. Заказы, платежи и билеты появятся отдельной миграцией.
+Модуль Ticketing (`server/src/modules/ticketing/`). Проектные решения и обоснования —
+`docs/ticketing/DATABASE_DESIGN.md`. Билеты, доставка, возвраты и аудит появятся отдельными миграциями.
 
 ### Enum TicketSeatMapStatus: DRAFT | PUBLISHED | ARCHIVED
 ### Enum TicketEventStatus: DRAFT | PUBLISHED | ARCHIVED
 ### Enum TicketSessionStatus: DRAFT | ON_SALE | PAUSED | CLOSED | CANCELLED
 ### Enum TicketSeatStatus: AVAILABLE | HELD | SOLD | BLOCKED
 ### Enum TicketHoldStatus: ACTIVE | CONVERTED | RELEASED | EXPIRED
+### Enum TicketOrderStatus: PENDING_PAYMENT | PAID | CANCELLED | EXPIRED | REFUNDED | PARTIALLY_REFUNDED | NEEDS_REVIEW
+### Enum TicketOrderItemStatus: ACTIVE | CANCELLED | REFUNDED
+### Enum TicketPaymentMode: TEST | LIVE
+### Enum TicketPaymentEventSource: WEBHOOK | RECONCILE | RETURN
 
 ### TicketVenue (таблица `ticket_venues`)
 Площадка.
@@ -504,10 +508,36 @@ providerUserId — стабильный OIDC subject от провайдера, 
 - CHECK (вручную в SQL миграции, Prisma их не описывает): `HELD` ⇒ holdId задан и orderItemId пуст;
   `SOLD` ⇒ orderItemId задан; `AVAILABLE`/`BLOCKED` ⇒ оба пусты; priceCents >= 0
 - Связи: session -> TicketSession (Restrict); seat -> TicketSeat (Restrict); hold -> TicketHold? (Restrict,
-  onUpdate Restrict — MySQL не допускает CHECK по колонке внешнего ключа с каскадным действием)
+  onUpdate Restrict — MySQL не допускает CHECK по колонке внешнего ключа с каскадным действием);
+  orderItem -> TicketOrderItem? (Restrict, onUpdate Restrict — по той же причине)
 
 ### TicketHold (таблица `ticket_holds`)
 Временное удержание мест покупателем до оформления заказа.
 - Поля: id; sessionId; tokenHash @unique (SHA-256 opaque-токена, сам токен не хранится); status; expiresAt; seatCount; clientIpHash?; createdAt; releasedAt?
-- Связи: session -> TicketSession (Restrict); seats -> TicketSessionSeat[]
+- Связи: session -> TicketSession (Restrict); seats -> TicketSessionSeat[]; order -> TicketOrder?
+
+### TicketOrder (таблица `ticket_orders`)
+Заказ покупателя. Покупатель хранится в самом заказе, не в `Client`/`Customer`.
+- Поля: id; number @unique (случайный, вида `T-XXXXXXXX`); accessTokenHash @unique (SHA-256 токена доступа покупателя); sessionId; holdId @unique (один заказ на hold); buyerName; buyerEmail; buyerPhone?; locale (nl); subtotalCents; feeCents (0); totalCents; currency (EUR); refundedCents (0); status (PENDING_PAYMENT); paymentDeadlineAt; paidAt?; cancelledAt?; reviewReason?; eventSnapshot Json; termsAcceptedAt; termsVersion; createdAt; updatedAt
+- Индексы: (buyerEmail); (sessionId, status); (status, paymentDeadlineAt)
+- CHECK (вручную в SQL): totalCents = subtotalCents + feeCents; 0 <= refundedCents <= totalCents
+- Связи: session -> TicketSession (Restrict); hold -> TicketHold (Restrict); items; payments
+
+### TicketOrderItem (таблица `ticket_order_items`)
+Позиция заказа — одно место. Подписи места, категория и цена — снимки на момент покупки.
+- Поля: id; orderId; sessionId; seatId; sectionLabel; rowLabel; seatLabel; categoryName; priceCents; status (ACTIVE)
+- Уникальность: (orderId, seatId). CHECK: priceCents >= 0
+- Связи: order -> TicketOrder (Restrict); seat -> TicketSeat (Restrict); sessionSeat -> TicketSessionSeat?
+
+### TicketPayment (таблица `ticket_payments`)
+Платёж Mollie по заказу. Строка и ключ идемпотентности создаются до обращения к Mollie.
+- Поля: id; orderId; molliePaymentId? @unique; idempotencyKey @unique; status (`CREATED`, далее нормализованный статус Mollie); amountCents; currency; method?; checkoutUrl?; mollieExpiresAt?; paidAt?; refundedCents (0); chargedBackCents (0); lastSyncedAt?; mollieMode; createdAt; updatedAt
+- Индексы: (orderId); (status, lastSyncedAt). CHECK: суммы неотрицательны
+- Связи: order -> TicketOrder (Restrict)
+
+### TicketPaymentEvent (таблица `ticket_payment_events`)
+Журнал сигналов о платеже (webhook, сверка, возврат покупателя на сайт). Без dedupe-ключа:
+идемпотентность обеспечивают условные переходы состояния заказа.
+- Поля: id; molliePaymentId; source; observedStatus?; payload Json?; outcome?; errorMessage?; receivedAt; processedAt?
+- Индекс: (molliePaymentId, receivedAt)
 

@@ -22,3 +22,9 @@ export const resolveHoldToken = (secret: string, sessionId: number, requestKey?:
 export const hashClientIp = (secret: string, clientIp?: string): string | null => (
     clientIp ? createHmac('sha256', secret).update(`ip:${clientIp}`).digest('hex') : null
 );
+
+// Токен доступа к заказу выводится из токена hold: повтор checkout возвращает тот же токен,
+// а в БД хранится только его хеш.
+export const deriveOrderAccessToken = (secret: string, holdToken: string): string => (
+    createHmac('sha256', secret).update(`order:${holdToken}`).digest('base64url')
+);

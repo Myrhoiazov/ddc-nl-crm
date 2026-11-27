@@ -3,8 +3,9 @@
 ## Purpose
 
 Sell concert tickets with assigned seats: venues and versioned seat maps, events and sessions,
-per-session seat inventory, and temporary seat holds. Orders, payments, tickets and check-in are
-planned and not implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
+per-session seat inventory, temporary seat holds, and orders awaiting payment. Taking the payment,
+tickets and check-in are planned and not implemented yet — see
+`docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
 
 ## Scope
 
@@ -13,6 +14,9 @@ planned and not implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` 
 - `TicketEvent`, `TicketSession`, `TicketSessionPrice` — what is sold, when, and at what price.
 - `TicketSessionSeat` — the inventory: one row per seat per session.
 - `TicketHold` — a buyer's temporary claim on a set of seats.
+- `TicketOrder`, `TicketOrderItem` — a buyer's order and its seats.
+- `TicketPayment`, `TicketPaymentEvent` — the Mollie payment of an order and the log of signals
+  about it (tables exist; nothing talks to Mollie yet).
 
 ## Out of Scope
 
@@ -54,6 +58,26 @@ planned and not implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` 
 - **States**: `ACTIVE` → `CONVERTED` (became an order) / `RELEASED` (buyer gave up) / `EXPIRED`.
 - **Invariants**: a hold takes every requested seat or none of them, in one transaction
   (`hold.repository.ts` → `holdSeatsInTransaction`). Only `ACTIVE` holds expire.
+
+### TicketOrder
+
+- **Purpose**: what a buyer is paying for — the seats of one hold, with the buyer's contact data.
+- **Identity**: `id`; `number` (random, `T-XXXXXXXX`, so it reveals nothing about sales volume);
+  `accessTokenHash` — only the SHA-256 of the buyer's access token is stored. The token is derived
+  from the hold token, so the order number alone opens nothing.
+- **States**: `PENDING_PAYMENT` → `PAID` / `EXPIRED` / `CANCELLED`; later `REFUNDED`,
+  `PARTIALLY_REFUNDED`, `NEEDS_REVIEW`. Only `PENDING_PAYMENT` is reachable today.
+- **Invariants**:
+  - One order per hold (`holdId` unique). Checkout is the conditional transition
+    `ACTIVE → CONVERTED` of the hold, so a repeated or parallel checkout returns the same order,
+    payment row and access token (`order.repository.ts` → `convertHoldToOrder`).
+  - Seats, prices and totals come from the hold and the inventory; nothing the client sends about
+    amounts or seats is accepted. The database checks `total = subtotal + fee`.
+  - While the order awaits payment its seats stay `HELD` by the converted hold: the hold TTL no
+    longer applies and the expiry job does not release them.
+  - The event, venue and seat labels are snapshotted into the order, so later edits do not change
+    what was bought.
+  - The buyer is stored on the order and never written to `Client` or `Customer`.
 
 ## Domain Concepts
 
