@@ -71,6 +71,26 @@ enum TicketPaymentEventSource {
   RETURN
 }
 
+enum TicketStatus {
+  VALID
+  USED
+  VOID
+}
+
+enum TicketDeliveryType {
+  TICKETS
+  RESEND
+  REFUND_NOTICE
+  RECOVERY_LINK
+}
+
+enum TicketDeliveryStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
 model TicketVenue {
   id        Int      @id @default(autoincrement())
   name      String
@@ -192,6 +212,7 @@ model TicketSession {
   seats   TicketSessionSeat[]
   holds   TicketHold[]
   orders  TicketOrder[]
+  tickets Ticket[]
 
   @@index([eventId, startsAt])
   @@index([seatMapId])
@@ -295,8 +316,9 @@ model TicketOrder {
 
   session  TicketSession     @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   hold     TicketHold        @relation(fields: [holdId], references: [id], onDelete: Restrict)
-  items    TicketOrderItem[]
-  payments TicketPayment[]
+  items      TicketOrderItem[]
+  payments   TicketPayment[]
+  deliveries TicketDelivery[]
 
   @@index([buyerEmail])
   @@index([sessionId, status])
@@ -320,6 +342,7 @@ model TicketOrderItem {
   order       TicketOrder        @relation(fields: [orderId], references: [id], onDelete: Restrict)
   seat        TicketSeat         @relation(fields: [seatId], references: [id], onDelete: Restrict)
   sessionSeat TicketSessionSeat?
+  ticket      Ticket?
 
   @@unique([orderId, seatId])
   @@index([sessionId, seatId])
@@ -370,4 +393,65 @@ model TicketPaymentEvent {
 
   @@index([molliePaymentId, receivedAt])
   @@map("ticket_payment_events")
+}
+
+// Один билет на позицию заказа. Токен не хранится: в БД только хеш, короткий код для ручного
+// ввода и nonce, по которому токен выводится заново из секретного ключа окружения.
+model Ticket {
+  id           Int          @id @default(autoincrement())
+  orderItemId  Int          @unique @map("order_item_id")
+  sessionId    Int          @map("session_id")
+  codeHash     String       @unique @map("code_hash") @db.Char(64)
+  shortCode    String       @unique @map("short_code") @db.VarChar(8)
+  tokenNonce   String       @map("token_nonce") @db.Char(32)
+  tokenVersion Int          @default(1) @map("token_version")
+  status       TicketStatus @default(VALID)
+  issuedAt     DateTime     @map("issued_at")
+  usedAt       DateTime?    @map("used_at")
+  usedById     Int?         @map("used_by_id")
+  voidedAt     DateTime?    @map("voided_at")
+  voidReason   String?      @map("void_reason") @db.VarChar(255)
+  createdAt    DateTime     @default(now()) @map("created_at")
+
+  orderItem TicketOrderItem @relation(fields: [orderItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  session   TicketSession   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+
+  @@index([sessionId, status])
+  @@map("tickets")
+}
+
+// Outbox писем о билетах. Отправка захватывает строку условным UPDATE, сетевой вызов — вне транзакции.
+model TicketDelivery {
+  id             Int                  @id @default(autoincrement())
+  orderId        Int                  @map("order_id")
+  type           TicketDeliveryType
+  status         TicketDeliveryStatus @default(PENDING)
+  recipientEmail String               @map("recipient_email")
+  subject        String?              @db.VarChar(255)
+  attempts       Int                  @default(0)
+  nextAttemptAt  DateTime             @default(now()) @map("next_attempt_at")
+  lastError      String?              @map("last_error") @db.Text
+  sentAt         DateTime?            @map("sent_at")
+  createdById    Int?                 @map("created_by_id")
+  createdAt      DateTime             @default(now()) @map("created_at")
+
+  order TicketOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@index([status, nextAttemptAt])
+  @@index([orderId])
+  @@map("ticket_deliveries")
+}
+
+model TicketAuditLog {
+  id         Int     @id @default(autoincrement())
+  entityType String  @map("entity_type") @db.VarChar(32)
+  entityId   Int     @map("entity_id")
+  action     String  @db.VarChar(64)
+  oldValues  Json?   @map("old_values")
+  newValues  Json?   @map("new_values")
+  actorId    Int?    @map("actor_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId, createdAt])
+  @@map("ticket_audit_logs")
 }

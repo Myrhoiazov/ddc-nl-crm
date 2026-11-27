@@ -6,7 +6,7 @@ import { expireDueHolds } from './hold.service';
 import { expireDueOrders, reconcileTicketPayments } from './payment-jobs.service';
 import { getTicketPaymentGateway } from './payment.mollie-gateway';
 import type { PaymentServiceDeps } from './payment.types';
-import { readPaymentConfig } from './ticketing.config';
+import { readPaymentConfig, readTicketTokenConfig } from './ticketing.config';
 
 type Env = Record<string, string | undefined>;
 type PaymentJob = (deps: PaymentServiceDeps, cursor: number) => Promise<{ nextCursor: number }>;
@@ -52,7 +52,7 @@ const startPaymentJobs = (env: Env) => {
         return;
     }
 
-    const deps = { prisma, config, gateway: getTicketPaymentGateway() };
+    const deps = { prisma, config, gateway: getTicketPaymentGateway(), ticketTokens: readTicketTokenConfig(env) };
     if (expiryEnabled) schedulePaymentJob(deps, 'ticketing-order-expiry', EVERY_MINUTE, expireDueOrders);
     if (reconciliationEnabled) {
         schedulePaymentJob(deps, 'ticketing-payment-reconciliation', EVERY_FIVE_MINUTES, reconcileTicketPayments);

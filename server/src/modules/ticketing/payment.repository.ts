@@ -1,4 +1,12 @@
-import { Prisma, PrismaClient, TicketOrderItemStatus, TicketOrderStatus, TicketSeatStatus } from '@prisma/client';
+import {
+    Prisma,
+    PrismaClient,
+    TicketDeliveryType,
+    TicketOrderItemStatus,
+    TicketOrderStatus,
+    TicketSeatStatus,
+    TicketStatus,
+} from '@prisma/client';
 import { INVENTORY_TX_OPTIONS } from './hold.repository';
 import { decideOrderAction, findPaymentMismatch, isTerminalPaymentFailure } from './payment.policy';
 import type {
@@ -8,6 +16,8 @@ import type {
     PaymentSignalSource,
     RemotePayment,
 } from './payment.types';
+import { buildTicketToken, hashTicketToken, newTicketNonce, shortCodeFromToken } from './ticket.policy';
+import type { TicketTokenConfig } from './ticket.types';
 
 // Хранение платежа и подтверждение заказа. Порядок блокировок: заказ -> места.
 
@@ -54,12 +64,14 @@ interface LockedOrder {
     status: TicketOrderStatus;
     holdId: number;
     paymentDeadlineAt: Date;
+    buyerEmail: string;
 }
 
 // Блокировка строки заказа сериализует webhook, сверку и истечение заказа.
 const lockOrder = async (tx: Prisma.TransactionClient, orderId: number): Promise<LockedOrder | undefined> => {
     const rows = await tx.$queryRaw<LockedOrder[]>`
-        SELECT id, session_id AS sessionId, status, hold_id AS holdId, payment_deadline_at AS paymentDeadlineAt
+        SELECT id, session_id AS sessionId, status, hold_id AS holdId, payment_deadline_at AS paymentDeadlineAt,
+               buyer_email AS buyerEmail
         FROM ticket_orders WHERE id = ${orderId} FOR UPDATE
     `;
     return rows[0];
@@ -94,9 +106,64 @@ const findActiveOrderSeats = async (tx: Prisma.TransactionClient, orderId: numbe
     return items;
 };
 
-const confirmOrder = async (tx: Prisma.TransactionClient, items: OrderSeat[], claim: SeatClaim, orderId: number, paidAt: Date) => {
+// Идентификатор позиции заказа уникален и известен до вставки билета: токен можно вычислить
+// одной записью, не сохраняя сам токен. nonce добавляет энтропию к короткому числовому id.
+const ticketData = (item: OrderSeat, ticketTokens: TicketTokenConfig, issuedAt: Date) => {
+    const nonce = newTicketNonce();
+    const token = buildTicketToken(ticketTokens.secret, {
+        id: item.id, nonce, version: ticketTokens.version,
+    });
+    return {
+        orderItemId: item.id,
+        sessionId: item.sessionId,
+        codeHash: hashTicketToken(token),
+        shortCode: shortCodeFromToken(token),
+        tokenNonce: nonce,
+        tokenVersion: ticketTokens.version,
+        status: TicketStatus.VALID,
+        issuedAt,
+    };
+};
+
+const createDeliveryOutbox = (tx: Prisma.TransactionClient, order: LockedOrder, issuedAt: Date) => (
+    tx.ticketDelivery.create({
+        data: {
+            orderId: order.id,
+            type: TicketDeliveryType.TICKETS,
+            recipientEmail: order.buyerEmail,
+            nextAttemptAt: issuedAt,
+        },
+    })
+);
+
+interface IssueTicketsParams {
+    tx: Prisma.TransactionClient;
+    order: LockedOrder;
+    items: OrderSeat[];
+    ticketTokens: TicketTokenConfig;
+    issuedAt: Date;
+}
+
+const issueTickets = async ({ tx, order, items, ticketTokens, issuedAt }: IssueTicketsParams) => {
+    for (const item of items) {
+        await tx.ticket.create({ data: ticketData(item, ticketTokens, issuedAt) });
+    }
+    await createDeliveryOutbox(tx, order, issuedAt);
+};
+
+interface ConfirmOrderParams {
+    tx: Prisma.TransactionClient;
+    order: LockedOrder;
+    items: OrderSeat[];
+    claim: SeatClaim;
+    ticketTokens: TicketTokenConfig;
+    paidAt: Date;
+}
+
+const confirmOrder = async ({ tx, order, items, claim, ticketTokens, paidAt }: ConfirmOrderParams) => {
     for (const item of items) await sellSeat(tx, item, claim);
-    await tx.ticketOrder.update({ where: { id: orderId }, data: { status: TicketOrderStatus.PAID, paidAt } });
+    await issueTickets({ tx, order, items, ticketTokens, issuedAt: paidAt });
+    await tx.ticketOrder.update({ where: { id: order.id }, data: { status: TicketOrderStatus.PAID, paidAt } });
     return 'CONFIRMED' as const;
 };
 
@@ -126,16 +193,18 @@ const applyOrderAction = async (
     order: LockedOrder,
     action: OrderAction,
     paidAt: Date,
+    ticketTokens: TicketTokenConfig | null,
 ): Promise<PaymentSignalOutcome> => {
     if (action.kind === 'NONE') return 'NO_CHANGE';
     if (action.kind === 'REVIEW') return markOrderForReview(tx, order.id, action.reason);
+    if (!ticketTokens) return markOrderForReview(tx, order.id, 'TICKET_CONFIG_MISSING');
 
     const items = await findActiveOrderSeats(tx, order.id);
     if (action.kind === 'RECLAIM') {
         if (!(await canReclaimSeats(tx, order, items))) return markOrderForReview(tx, order.id, 'LATE_PAYMENT');
-        return confirmOrder(tx, items, { status: TicketSeatStatus.AVAILABLE, holdId: null }, order.id, paidAt);
+        return confirmOrder({ tx, order, items, claim: { status: TicketSeatStatus.AVAILABLE, holdId: null }, ticketTokens, paidAt });
     }
-    return confirmOrder(tx, items, { status: TicketSeatStatus.HELD, holdId: order.holdId }, order.id, paidAt);
+    return confirmOrder({ tx, order, items, claim: { status: TicketSeatStatus.HELD, holdId: order.holdId }, ticketTokens, paidAt });
 };
 
 interface ExpirePendingOrderParams {
@@ -179,6 +248,8 @@ export const expirePendingOrder = (prisma: PrismaClient, params: ExpirePendingOr
 export interface ApplyRemotePaymentContext {
     expectedMode: PaymentMode;
     now: Date;
+    // Без секрета билетов оплаченный заказ уходит на ручной разбор, а не остаётся без билетов.
+    ticketTokens: TicketTokenConfig | null;
 }
 
 const updateObservedPayment = async (
@@ -219,7 +290,7 @@ const applyInTransaction = async (
         ?? (payment.mollieMode === context.expectedMode ? null : 'MODE_MISMATCH');
     if (!mismatch) await updateObservedPayment(tx, payment.id, remote, context.now);
     const action = decideOrderAction(order.status, remote, mismatch);
-    return applyOrderAction(tx, order, action, remote.paidAt ?? context.now);
+    return applyOrderAction(tx, order, action, remote.paidAt ?? context.now, context.ticketTokens);
 };
 
 // Вся обработка сигнала — одна транзакция: либо заказ PAID и все места SOLD, либо ничего.

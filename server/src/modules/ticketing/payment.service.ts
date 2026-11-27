@@ -86,7 +86,7 @@ const applyPaymentSignal = async (
         const now = currentTime(deps);
         const remote = await load();
         if (remote.id !== signal.id) throw new Error('Mollie returned a different payment ID');
-        const context = { expectedMode: deps.config.mode, now };
+        const context = { expectedMode: deps.config.mode, now, ticketTokens: deps.ticketTokens };
         const outcome = await withLockRetry(() => applyRemotePayment(deps.prisma, remote, context), { sleep: deps.sleep });
         await finishPaymentEvent(deps.prisma, eventId, { observedStatus: remote.status, outcome }, currentTime(deps));
         return { remote, outcome };

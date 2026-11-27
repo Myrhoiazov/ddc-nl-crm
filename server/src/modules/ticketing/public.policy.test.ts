@@ -10,7 +10,7 @@ import {
 } from './public.policy';
 import type { OrderSummary } from './order.types';
 import { createHoldSchema } from './public.schema';
-import { isPublicSalesReady, readTicketingConfig } from './ticketing.config';
+import { isPublicSalesReady, readTicketTokenConfig, readTicketingConfig } from './ticketing.config';
 
 const NOW = new Date('2027-03-01T10:00:00.000Z');
 const SECRET = 's'.repeat(32);
@@ -114,4 +114,15 @@ test('readTicketingConfig takes the fee and terms version only when they are val
     });
     assert.deepEqual(readTicketingConfig({ TICKETING_FEE_CENTS: '-5' }).orderSettings, {});
     assert.deepEqual(readTicketingConfig({ TICKETING_FEE_CENTS: '1.5' }).orderSettings, {});
+});
+
+test('ticket tokens use a dedicated secret, fall back to the order secret and carry a valid version', () => {
+    assert.equal(readTicketTokenConfig({}), null);
+    assert.equal(readTicketTokenConfig({ TICKETING_TOKEN_SECRET: 'short' }), null);
+    assert.deepEqual(readTicketTokenConfig({ TICKETING_TOKEN_SECRET: SECRET }), { secret: SECRET, version: 1 });
+    assert.deepEqual(readTicketTokenConfig({ TICKETING_TOKEN_SECRET: SECRET, TICKETING_TICKET_TOKEN_SECRET: 'x'.repeat(32), TICKETING_TICKET_TOKEN_VERSION: '3' }), {
+        secret: 'x'.repeat(32), version: 3,
+    });
+    assert.equal(readTicketTokenConfig({ TICKETING_TOKEN_SECRET: SECRET, TICKETING_TICKET_TOKEN_VERSION: '0' }), null);
+    assert.equal(readTicketTokenConfig({ TICKETING_TOKEN_SECRET: SECRET, TICKETING_TICKET_TOKEN_VERSION: 'two' }), null);
 });

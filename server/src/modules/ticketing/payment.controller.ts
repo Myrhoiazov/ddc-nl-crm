@@ -3,7 +3,7 @@ import prisma from '../../../prisma/prisma-client';
 import { getTicketPaymentGateway } from './payment.mollie-gateway';
 import { isMolliePaymentId } from './payment.policy';
 import { syncPayment } from './payment.service';
-import { readPaymentConfig } from './ticketing.config';
+import { readPaymentConfig, readTicketTokenConfig } from './ticketing.config';
 
 export const mollieWebhookController = async (req: Request, res: Response) => {
     const id: unknown = req.body?.id;
@@ -12,6 +12,8 @@ export const mollieWebhookController = async (req: Request, res: Response) => {
     const config = readPaymentConfig();
     if (!config) return res.status(503).send('Ticket payments are not available');
 
-    await syncPayment({ prisma, gateway: getTicketPaymentGateway(), config }, id, 'WEBHOOK');
+    await syncPayment({
+        prisma, gateway: getTicketPaymentGateway(), config, ticketTokens: readTicketTokenConfig(),
+    }, id, 'WEBHOOK');
     return res.status(200).send('OK');
 };

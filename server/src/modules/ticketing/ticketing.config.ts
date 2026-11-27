@@ -1,5 +1,6 @@
-import type { PaymentConfig } from './payment.types';
 import type { OrderSettings } from './order.types';
+import type { PaymentConfig } from './payment.types';
+import type { TicketTokenConfig } from './ticket.types';
 
 // Настройки публичной продажи из окружения. Продажа выключена, пока явно не задан флаг и
 // секрет токенов: неполная конфигурация не должна открывать публичный API.
@@ -59,3 +60,15 @@ export const readTicketingConfig = (env: Env = process.env): TicketingConfig => 
 export const isPublicSalesReady = (config: TicketingConfig): boolean => (
     config.salesEnabled && config.tokenSecret !== null
 );
+
+// Билеты подписываются отдельным секретом; пока он не задан, используется секрет токенов
+// заказа. Версия хранится в билете и попадает в токен, поэтому ротация ключа не ломает старые
+// подписи, если старый секрет остаётся доступным.
+export const readTicketTokenConfig = (env: Env = process.env): TicketTokenConfig | null => {
+    const dedicated = env.TICKETING_TICKET_TOKEN_SECRET?.trim() ?? '';
+    const fallback = env.TICKETING_TOKEN_SECRET?.trim() ?? '';
+    const secret = dedicated.length >= MIN_TOKEN_SECRET_LENGTH ? dedicated : fallback;
+    const version = Number(env.TICKETING_TICKET_TOKEN_VERSION ?? 1);
+    if (secret.length < MIN_TOKEN_SECRET_LENGTH || !Number.isInteger(version) || version < 1) return null;
+    return { secret, version };
+};

@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import type { TicketTokenConfig } from './ticket.types';
 
 // Контракт платежей Ticketing. Сервис зависит от шлюза, а не от SDK Mollie: проверки суммы,
 // режима и переходы заказа тестируются без сети.
@@ -53,6 +54,7 @@ export interface PaymentServiceDeps {
     prisma: PrismaClient;
     gateway: TicketPaymentGateway;
     config: PaymentConfig;
+    ticketTokens: TicketTokenConfig | null;
     now?: () => Date;
     sleep?: (ms: number) => Promise<void>;
 }
@@ -65,7 +67,7 @@ export type OrderAction =
     | { kind: 'NONE' }
     | { kind: 'CONFIRM' }
     | { kind: 'RECLAIM' }
-    | { kind: 'REVIEW'; reason: PaymentMismatch | 'LATE_PAYMENT' | 'CHARGEBACK' };
+    | { kind: 'REVIEW'; reason: PaymentMismatch | 'LATE_PAYMENT' | 'CHARGEBACK' | 'TICKET_CONFIG_MISSING' };
 
 // Итог обработки сигнала о платеже — пишется в журнал ticket_payment_events.
 export type PaymentSignalOutcome = 'CONFIRMED' | 'NEEDS_REVIEW' | 'NO_CHANGE' | 'UNKNOWN_PAYMENT';

@@ -451,7 +451,8 @@ providerUserId — стабильный OIDC subject от провайдера, 
 ## ticketing.prisma — билеты: залы, сеансы, инвентарь, заказы
 
 Модуль Ticketing (`server/src/modules/ticketing/`). Проектные решения и обоснования —
-`docs/ticketing/DATABASE_DESIGN.md`. Билеты, доставка, возвраты и аудит появятся отдельными миграциями.
+`docs/ticketing/DATABASE_DESIGN.md`. Билеты и outbox доставки добавлены; check-in и возвраты
+появятся отдельными миграциями.
 
 ### Enum TicketSeatMapStatus: DRAFT | PUBLISHED | ARCHIVED
 ### Enum TicketEventStatus: DRAFT | PUBLISHED | ARCHIVED
@@ -462,6 +463,9 @@ providerUserId — стабильный OIDC subject от провайдера, 
 ### Enum TicketOrderItemStatus: ACTIVE | CANCELLED | REFUNDED
 ### Enum TicketPaymentMode: TEST | LIVE
 ### Enum TicketPaymentEventSource: WEBHOOK | RECONCILE | RETURN
+### Enum TicketStatus: VALID | USED | VOID
+### Enum TicketDeliveryType: TICKETS | RESEND | REFUND_NOTICE | RECOVERY_LINK
+### Enum TicketDeliveryStatus: PENDING | SENDING | SENT | FAILED
 
 ### TicketVenue (таблица `ticket_venues`)
 Площадка.
@@ -494,7 +498,7 @@ providerUserId — стабильный OIDC subject от провайдера, 
 ### TicketSession (таблица `ticket_sessions`)
 Сеанс события, привязанный к конкретной версии схемы зала.
 - Поля: id; eventId; seatMapId; startsAt; doorsAt?; salesStartAt?; salesEndAt?; status; holdTtlSeconds (600); maxSeatsPerOrder (8); currency (EUR); inventoryGeneratedAt?; createdAt; updatedAt
-- Связи: event -> TicketEvent (Restrict); seatMap -> TicketSeatMap (Restrict); prices; seats; holds
+- Связи: event -> TicketEvent (Restrict); seatMap -> TicketSeatMap (Restrict); prices; seats; holds; tickets
 
 ### TicketSessionPrice (таблица `ticket_session_prices`)
 Цена категории в сеансе, в центах.
@@ -521,13 +525,13 @@ providerUserId — стабильный OIDC subject от провайдера, 
 - Поля: id; number @unique (случайный, вида `T-XXXXXXXX`); accessTokenHash @unique (SHA-256 токена доступа покупателя); sessionId; holdId @unique (один заказ на hold); buyerName; buyerEmail; buyerPhone?; locale (nl); subtotalCents; feeCents (0); totalCents; currency (EUR); refundedCents (0); status (PENDING_PAYMENT); paymentDeadlineAt; paidAt?; cancelledAt?; reviewReason?; eventSnapshot Json; termsAcceptedAt; termsVersion; createdAt; updatedAt
 - Индексы: (buyerEmail); (sessionId, status); (status, paymentDeadlineAt)
 - CHECK (вручную в SQL): totalCents = subtotalCents + feeCents; 0 <= refundedCents <= totalCents
-- Связи: session -> TicketSession (Restrict); hold -> TicketHold (Restrict); items; payments
+- Связи: session -> TicketSession (Restrict); hold -> TicketHold (Restrict); items; payments; deliveries
 
 ### TicketOrderItem (таблица `ticket_order_items`)
 Позиция заказа — одно место. Подписи места, категория и цена — снимки на момент покупки.
 - Поля: id; orderId; sessionId; seatId; sectionLabel; rowLabel; seatLabel; categoryName; priceCents; status (ACTIVE)
 - Уникальность: (orderId, seatId). CHECK: priceCents >= 0
-- Связи: order -> TicketOrder (Restrict); seat -> TicketSeat (Restrict); sessionSeat -> TicketSessionSeat?
+- Связи: order -> TicketOrder (Restrict); seat -> TicketSeat (Restrict); sessionSeat -> TicketSessionSeat?; ticket?
 
 ### TicketPayment (таблица `ticket_payments`)
 Платёж Mollie по заказу. Строка и ключ идемпотентности создаются до обращения к Mollie.
@@ -540,4 +544,24 @@ providerUserId — стабильный OIDC subject от провайдера, 
 идемпотентность обеспечивают условные переходы состояния заказа.
 - Поля: id; molliePaymentId; source; observedStatus?; payload Json?; outcome?; errorMessage?; receivedAt; processedAt?
 - Индекс: (molliePaymentId, receivedAt)
+
+### Ticket (таблица `tickets`)
+Один билет на позицию заказа. Сам opaque-токен не хранится: в БД только SHA-256 токена,
+короткий код для ручного ввода, nonce и версия ключа. Токен выводится заново из секрета окружения.
+- Поля: id; orderItemId @unique; sessionId; codeHash @unique (SHA-256, CHAR(64)); shortCode @unique (8 символов); tokenNonce (CHAR(32)); tokenVersion (1); status (VALID); issuedAt; usedAt?; usedById?; voidedAt?; voidReason?; createdAt
+- Индекс: (sessionId, status)
+- Связи: orderItem -> TicketOrderItem (Restrict, onUpdate Restrict); session -> TicketSession (Restrict)
+
+### TicketDelivery (таблица `ticket_deliveries`)
+Outbox писем о билетах. Строка создаётся в транзакции подтверждения заказа; отправка захватывает
+`PENDING → SENDING` условным `updateMany`, сетевой вызов идёт вне транзакции.
+- Поля: id; orderId; type; status (PENDING); recipientEmail; subject?; attempts (0); nextAttemptAt; lastError?; sentAt?; createdById?; createdAt
+- Индексы: (status, nextAttemptAt); (orderId)
+- Связи: order -> TicketOrder (Restrict)
+
+### TicketAuditLog (таблица `ticket_audit_logs`)
+Журнал действий персонала с билетами и заказами; PII хранится только в JSON-снимках, если она
+необходима для разбора конкретного действия.
+- Поля: id; entityType; entityId; action; oldValues Json?; newValues Json?; actorId?; createdAt
+- Индекс: (entityType, entityId, createdAt)
 

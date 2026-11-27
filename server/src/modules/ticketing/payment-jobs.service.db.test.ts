@@ -21,6 +21,7 @@ const config: PaymentConfig = {
 };
 const orderDeps = { prisma, tokenSecret: 'payment-job-tests' };
 const holdDeps = { ...orderDeps, repository: createPrismaHoldRepository(prisma) };
+const ticketTokens = { secret: 'payment-job-ticket-tokens', version: 1 } as const;
 
 const createSessionForOrder = async () => {
     const venue = await createVenue(prisma, { name: `Test venue ${randomUUID()}` });
@@ -75,7 +76,7 @@ test('a due order is released after Mollie confirms cancellation', { skip }, asy
             return { ...payment, status: 'canceled' };
         },
     };
-    const deps = { prisma, gateway, config };
+    const deps = { prisma, gateway, config, ticketTokens };
     await startPayment(deps, order.id);
 
     const now = new Date(order.paymentDeadlineAt.getTime() + 1_000);
@@ -97,7 +98,7 @@ test('a provider outage keeps seats until the hard deadline and later reconcilia
             return { ...payment, status: 'paid' };
         },
     };
-    const deps = { prisma, gateway, config };
+    const deps = { prisma, gateway, config, ticketTokens };
     await startPayment(deps, order.id);
 
     const early = new Date(order.paymentDeadlineAt.getTime() + 1_000);
@@ -129,7 +130,7 @@ test('reconciliation recovers a created payment after the checkout response is l
         },
         async getPayment() { return payment; },
     };
-    const deps = { prisma, gateway, config };
+    const deps = { prisma, gateway, config, ticketTokens };
     await assert.rejects(startPayment(deps, order.id), /Response was lost/);
 
     await reconcileTicketPayments(deps, order.id - 1);
@@ -147,7 +148,7 @@ test('the order confirms payment when Mollie rejects cancellation after the buye
             throw new Error('Payment cannot be canceled');
         },
     };
-    const deps = { prisma, gateway, config };
+    const deps = { prisma, gateway, config, ticketTokens };
     await startPayment(deps, order.id);
 
     const now = new Date(order.paymentDeadlineAt.getTime() + 1_000);

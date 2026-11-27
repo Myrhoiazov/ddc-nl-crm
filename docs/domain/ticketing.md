@@ -3,9 +3,10 @@
 ## Purpose
 
 Sell concert tickets with assigned seats: venues and versioned seat maps, events and sessions,
-per-session seat inventory, temporary seat holds, orders awaiting payment, and Mollie checkout with
-background expiry and reconciliation. Ticket issuance, delivery and check-in are planned and not
-implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
+per-session seat inventory, temporary seat holds, orders awaiting payment, Mollie checkout with
+background expiry and reconciliation, and one opaque ticket per paid seat with a delivery outbox.
+Public ticket lookup/PDF, email sending, recovery/resend and check-in are still planned — see
+`docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
 
 ## Scope
 
@@ -17,6 +18,8 @@ implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
 - `TicketOrder`, `TicketOrderItem` — a buyer's order and its seats.
 - `TicketPayment`, `TicketPaymentEvent` — the Mollie payment of an order and the log of webhook,
   return and reconciliation signals about it.
+- `Ticket`, `TicketDelivery`, `TicketAuditLog` — the issued ticket, its delivery outbox row and the
+  staff action log.
 
 ## Out of Scope
 
@@ -85,6 +88,30 @@ implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
   - Expiry and payment signals serialize on a `FOR UPDATE` row lock on the order. A due order is
     released only after a terminal provider failure or the 60-minute hard limit; before that its
     seats stay `HELD` (`payment.repository.ts` → `expirePendingOrder`).
+  - A valid paid payment is not confirmed without a ticket-signing secret. Missing
+    `TICKETING_TICKET_TOKEN_SECRET` and `TICKETING_TOKEN_SECRET` sends the order to `NEEDS_REVIEW`
+    with reason `TICKET_CONFIG_MISSING`; seats are not sold and no ticket is issued.
+
+### Ticket
+
+- **Purpose**: the right of one buyer to one assigned seat of one session.
+- **Identity**: `id`; `orderItemId` unique, so every paid seat gets exactly one ticket. `codeHash`
+  and `shortCode` are unique: the database rejects a repeated issue.
+- **States**: `VALID` → `USED` / `VOID` (both planned for check-in and refunds).
+- **Invariants**:
+  - The opaque token is `v<version>.<base64url HMAC>` over the order-item id and a random 128-bit
+    nonce. Only its SHA-256 hash, nonce and key version are stored; the token carries no buyer or
+    seat data (`ticket.policy.ts`).
+  - The whole order's tickets and one `TICKETS` delivery row are written in the same transaction
+    that marks the order `PAID` and sells its seats (`payment.repository.ts` → `issueTickets`).
+    A repeated webhook sees a non-pending order and issues nothing.
+
+### TicketDelivery
+
+- **Purpose**: durable email outbox for tickets, resends, recovery links and refund notices.
+- **States**: `PENDING` → `SENDING` → `SENT` / `FAILED`.
+- **Invariants**: the outbox row is created with the tickets, before any network call. A worker
+  claims rows with a conditional `PENDING → SENDING` update so two runs never send the same email.
 
 ## Domain Concepts
 
@@ -129,7 +156,9 @@ order status (`GET /orders/current` with the `X-Ticketing-Order-Token` header).
   whenever Turnstile is configured).
 - Tokens travel in the body or a header, never in the URL, because URLs end up in access logs.
 - The whole public API answers `503` until `TICKETING_SALES_ENABLED=true` and a
-  `TICKETING_TOKEN_SECRET` of at least 32 characters are set (`ticketing.config.ts`).
+  `TICKETING_TOKEN_SECRET` of at least 32 characters are set. Tickets are signed with
+  `TICKETING_TICKET_TOKEN_SECRET` when present, otherwise with the order secret
+  (`ticketing.config.ts`).
 - It is same-origin only: no extra CORS origins are opened, the storefront is expected to be
   served from the CRM front-end host.
 - Checkout creates the Mollie payment with a saved idempotency key and returns the checkout URL;
@@ -154,4 +183,7 @@ graph TD
     TicketSession --> TicketSessionSeat
     TicketSeat --> TicketSessionSeat
     TicketHold --> TicketSessionSeat
+    TicketOrder --> TicketOrderItem --> Ticket
+    TicketSession --> Ticket
+    TicketOrder --> TicketDelivery
 ```

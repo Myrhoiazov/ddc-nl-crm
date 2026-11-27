@@ -155,3 +155,14 @@ Students/Verification sections ticked; Mollie sections deliberately left for Pha
 - [ ] PR в `develop` не публикуется до полной готовности всей фичи. Ранее созданный
   https://github.com/Myrhoiazov/ddc-nl-crm/pull/190 закрыт по решению владельца; работа
   продолжается в `feat/ticketing`.
+
+## Ticketing — фаза 4: билеты и доставка
+
+- [x] E1 — схема `Ticket`/`TicketDelivery`/`TicketAuditLog`, миграция, выпуск билета в транзакции оплаты.
+- [ ] E2 — публичные статус билетов и PDF с QR по токену заказа.
+- [ ] E3 — email-outbox, SMTP-отправка с повторами под `TICKETING_EMAIL_ENABLED`.
+- [ ] E4 — восстановление заказа и повторная отправка персоналом.
+- [ ] Checks passed (server build, `test:ticketing`, `test:ticketing:db`, `test:mollie`, root `npm run ci`, Compose, Skylos).
+- [ ] Code review passed.
+- [ ] Browser QA не требуется — изменений клиента в фазе 4 нет.
+- [ ] PR в `develop` — только после полной готовности всего модуля Ticketing.

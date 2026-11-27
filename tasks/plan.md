@@ -1308,3 +1308,110 @@ assuming it's something in this codebase.
 1. **D1 · Переходы заказа и места.** Под блокировкой заказа истечение освобождает только его удержанные места. Поздний платёж для `EXPIRED` возвращает все исходные места или переводит заказ в `NEEDS_REVIEW` без частичной продажи. Оплата отменённого заказа требует ручного разбора. Файлы `payment.repository.ts`, `payment.policy.ts` и DB-тесты.
 2. **D2 · Закрытие и сверка.** После дедлайна запросить Mollie и попытаться отменить доступный к отмене платёж. Терминальный неуспех освобождает места. После жёсткого лимита в 60 минут освобождаются зависшие удержания, а незавершённые платежи продолжают сверяться. Повтор создания использует сохранённый ключ в исходном окне оплаты. Файлы `payment-jobs.*`, `payment.service.ts`, адаптер и типы шлюза.
 3. **D3 · Запуск и проверка.** Три независимых флага выключены по умолчанию. Cron запускает очистку hold и закрытие раз в минуту, сверку раз в пять минут. Проверить серверную сборку, `test:ticketing`, `test:ticketing:db` на выделенной MySQL, `test:mollie`, Skylos и корневой `ci`. Браузерная проверка этого среза не требуется, пользовательского интерфейса в диффе D нет. Файлы `ticketing.cron.service.ts`, точка запуска API, env и Compose.
+
+## Ticketing — фаза 4: билеты и доставка
+
+Продолжение [плана Ticketing](../docs/ticketing/IMPLEMENTATION_PLAN.md) в той же ветке
+`feat/ticketing`. PR в `develop` не открывается до готовности всего модуля.
+
+### E1 · Схема билетов и выпуск при оплате
+
+**Description:** добавить модели `Ticket`, `TicketDelivery`, `TicketAuditLog` и аддитивную
+миграцию; выпускать ровно один билет на позицию заказа в той же транзакции, что переводит
+заказ в `PAID`. Opaque-токен билета выводится как HMAC(секрет, `orderItemId || nonce`); в БД
+хранятся только хеш, nonce и версия ключа. Секреты — только через env.
+
+**Acceptance criteria:**
+- [x] Повторный webhook/сверка не создают второй билет: `UNIQUE(orderItemId)` и условный переход заказа.
+- [x] Билет получает `codeHash`, `shortCode`, `status=VALID`, `issuedAt`; PII нет ни в токене, ни в QR.
+- [x] При `NEEDS_REVIEW` билеты не выпускаются, суммы/места остаются без изменений.
+
+**Verification:**
+- [x] Server: `npm run build`, `npm run test:ticketing`, `TICKETING_TEST_DATABASE_URL=... npm run test:ticketing:db`
+- [x] Prisma: `npm run prisma:generate`; обновить `docs/schema.md` и `docs/domain/ticketing.md`
+- [x] Secret scan: `npm run check:skylos`, точечный `skylos` на новых файлах
+
+**Dependencies:** фаза 3 (D1–D3).
+**Files likely touched:** `server/prisma/schema/ticketing.prisma`, новая миграция,
+`server/src/modules/ticketing/ticket.*`, `payment.repository.ts`, `docs/schema.md`, `docs/domain/ticketing.md`.
+**Estimated scope:** M.
+
+### E2 · Статус заказа и PDF билетов покупателю
+
+**Description:** публичные `GET /orders/current/tickets` и `GET /orders/current/tickets.pdf`
+по тому же opaque-токену заказа; PDF создаётся на лету (`pdfkit` + `qrcode`), QR содержит
+только токен билета.
+
+**Acceptance criteria:**
+- [ ] Ответ со списком билетов не содержит хешей, коротких кодов и внутренних id.
+- [ ] PDF доступен только владельцу токена и только для заказа `PAID`; QR декодируется в tokен без PII.
+- [ ] Несуществующий/чужой токен даёт 404 без утечки существования заказа.
+
+**Verification:**
+- [ ] Server: `npm run build`, `npm run test:ticketing`, DB-тесты на выделенной MySQL
+- [ ] Browser QA: не требуется — клиент в этом срезе не меняется
+
+**Dependencies:** E1.
+**Files likely touched:** `server/src/modules/ticketing/ticket.pdf.service.ts`,
+`ticket.policy.ts`, `public.controller.ts`, `public.routes.ts`, тесты.
+**Estimated scope:** M.
+
+### E3 · Email-outbox и доставка с повторами
+
+**Description:** при выпуске билетов создаётся строка `TicketDelivery` (`TICKETS`); фоновый
+задачём под флагом `TICKETING_EMAIL_ENABLED` (по умолчанию выключен) захватывает `PENDING →
+SENDING` условным `updateMany`, отправляет письмо с PDF через SMTP и пишет `SENT`/`FAILED` с
+`nextAttemptAt`. Письма не попадают в общую CRM-почту (`EmailMessage`).
+
+**Acceptance criteria:**
+- [ ] Не менее трёх автоматических повторов с задержкой; два запуска подряд не отправляют одно письмо дважды.
+- [ ] Ошибка SMTP не откатывает Confirmation заказа и не роняет webhook.
+- [ ] Без SMTP-конфигурации outbox остаётся `PENDING`/`FAILED`, а не теряется.
+
+**Verification:**
+- [ ] Server: `npm run build`, `npm run test:ticketing`, DB-тесты, `test:ticketing` cron-тесты
+- [ ] Config: `.env.example`, `docker-compose.dev.yml`, `docker-compose.prod.yml`
+
+**Dependencies:** E1, E2.
+**Files likely touched:** `ticket-delivery.*`, `ticketing.cron.service.ts`, `ticketing.config.ts`,
+Compose/env, тесты.
+**Estimated scope:** M.
+
+### E4 · Восстановление заказа и повторная отправка
+
+**Description:** `POST /api/v1/ticketing/public/orders/recover` (email + номер заказа +
+Turnstile) всегда отвечает `202` и порождает `RECOVERY_LINK` в outbox; административный
+`POST /api/v1/ticketing/admin/orders/:orderId/resend` (роли `ADMIN`/`MANAGER`) порождает
+`RESEND`. Ссылка на заказ несёт токен во фрагменте URL, не в пути.
+
+**Acceptance criteria:**
+- [ ] Ответ одинаков для существующего и несуществующего заказа; rate-limit по IP.
+- [ ] Повторная отправка доступна только персоналу, факт записан в `TicketAuditLog`.
+- [ ] Письмо восстановления уходит только на email из заказа.
+
+**Verification:**
+- [ ] Server: `npm run build`, `npm run test:ticketing`, DB-тесты
+- [ ] Browser QA: не требуется — клиент в этом срезе не меняется
+
+**Dependencies:** E3.
+**Files likely touched:** `public.controller.ts`, `public.routes.ts`, `public.schema.ts`,
+`public.policy.ts`, `ticketing.routes.ts`, `ticket-delivery.*`, тесты.
+**Estimated scope:** S–M.
+
+### Verification plan
+- [ ] Server: `npm run build`; `npm run test:ticketing`; `npm run test:mollie`; root `npm run ci`.
+- [ ] DB: `TICKETING_TEST_DATABASE_URL=mysql://root@127.0.0.1:43126/ddc_ticketing_slice_d npm run test:ticketing:db`.
+- [ ] Config: оба Compose-файла валидны; `npm run check:skylos`.
+- [ ] Review: `code-review` до завершения фазы; browser QA не нужен (изменений клиента нет).
+
+### Risks and mitigations
+| Risk | Impact | Mitigation |
+|---|---|---|
+| B3: канал почты в проде не подтверждён | High | SMTP-транспорт как у invoice-рассылки, за флагом; смена канала — конфигурация одного адаптера |
+| B5: НДС/возвраты не утверждены | Med | Возвраты и `VOID` остаются в фазе 6; суммы уже разделены (`subtotal`/`fee`) |
+| Ротация секрета билетов инвалидирует старые билеты | Med | `tokenVersion` в строке билета; секрет только в env, ротация — отдельная процедура |
+| Токен в URL попадает в логи | Med | Токен во фрагменте, в API — заголовок; в логах только номер заказа |
+
+### Open questions
+- Подтвердить почтовый канал (`SMTP_*` vs `EmailAccount`) перед включением `TICKETING_EMAIL_ENABLED`.
+- Политика возвратов и automatic void билетов — фаза 6, решение владельца.

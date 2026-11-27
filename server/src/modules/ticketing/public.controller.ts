@@ -17,7 +17,7 @@ import {
     type ReleaseHoldBody,
 } from './public.schema';
 import { getPublicSession } from './public.service';
-import { readPaymentConfig, readTicketingConfig } from './ticketing.config';
+import { readPaymentConfig, readTicketTokenConfig, readTicketingConfig } from './ticketing.config';
 import type { HoldServiceDeps } from './ticketing.types';
 import { parsePositiveId } from './venue.schema';
 
@@ -93,7 +93,9 @@ export const checkoutController = async (req: Request, res: Response) => {
         return res.status(ORDER_REJECTION_STATUS[result.reason]).json({ message: 'Checkout rejected', reason: result.reason });
     }
     const status = result.kind === 'created' ? 201 : 200;
-    const checkoutUrl = await startPayment({ prisma, gateway: getTicketPaymentGateway(), config }, result.order.id);
+    const checkoutUrl = await startPayment({
+        prisma, gateway: getTicketPaymentGateway(), config, ticketTokens: readTicketTokenConfig(),
+    }, result.order.id);
     return res.status(status).json({ order: { ...toPublicOrder(result.order), checkoutUrl }, orderToken: result.accessToken });
 };
 
