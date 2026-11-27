@@ -37,15 +37,15 @@ const SeatShape = memo(({ seat, size, category }: SeatShapeProps) => (
 ));
 
 const SeatMapLegend = memo(({ seatMap }: { seatMap: SeatMapDetail }) => (
-        <ul className={s.legend}>
-            {seatMap.categories.map((category) => (
-                <li key={category.id} className={s.legendItem} style={slotStyle(category.colorSlot)}>
-                    {category.name}
-                    {' · '}
-                    {seatMap.seats.filter((seat) => seat.categoryId === category.id).length}
-                </li>
+    <ul className={s.legend}>
+        {seatMap.categories.map((category) => (
+            <li key={category.id} className={s.legendItem} style={slotStyle(category.colorSlot)}>
+                {category.name}
+                {' · '}
+                {seatMap.seats.filter((seat) => seat.categoryId === category.id).length}
+            </li>
             ))}
-        </ul>
+    </ul>
 ));
 
 interface SeatMapPreviewProps {
