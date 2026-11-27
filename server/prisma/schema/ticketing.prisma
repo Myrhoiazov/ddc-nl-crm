@@ -1,0 +1,228 @@
+// DDC Ticketing — фаза 1: площадки, версионируемые схемы зала, события, сеансы и инвентарь.
+// Контракт и обоснования: docs/ticketing/DATABASE_DESIGN.md.
+//
+// CHECK-ограничения на ticket_session_seats добавлены вручную в SQL миграции
+// (Prisma их не описывает) — при генерации следующих миграций не удалять:
+//   status = 'HELD'                  => hold_id IS NOT NULL AND order_item_id IS NULL
+//   status = 'SOLD'                  => order_item_id IS NOT NULL
+//   status IN ('AVAILABLE','BLOCKED') => hold_id IS NULL AND order_item_id IS NULL
+
+enum TicketSeatMapStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TicketEventStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TicketSessionStatus {
+  DRAFT
+  ON_SALE
+  PAUSED
+  CLOSED
+  CANCELLED
+}
+
+enum TicketSeatStatus {
+  AVAILABLE
+  HELD
+  SOLD
+  BLOCKED
+}
+
+enum TicketHoldStatus {
+  ACTIVE
+  CONVERTED
+  RELEASED
+  EXPIRED
+}
+
+model TicketVenue {
+  id        Int      @id @default(autoincrement())
+  name      String
+  address   String?
+  city      String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  seatMaps TicketSeatMap[]
+
+  @@map("ticket_venues")
+}
+
+// Версия схемы зала. PUBLISHED неизменяема: правка = клон в новую DRAFT-версию.
+model TicketSeatMap {
+  id            Int                 @id @default(autoincrement())
+  venueId       Int                 @map("venue_id")
+  version       Int
+  status        TicketSeatMapStatus @default(DRAFT)
+  name          String
+  canvas        Json?
+  publishedAt   DateTime?           @map("published_at")
+  publishedById Int?                @map("published_by_id")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  venue       TicketVenue          @relation(fields: [venueId], references: [id], onDelete: Restrict)
+  publishedBy User?                @relation("TicketSeatMapPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull)
+  categories  TicketSeatCategory[]
+  seats       TicketSeat[]
+  sessions    TicketSession[]
+
+  @@unique([venueId, version])
+  @@index([publishedById])
+  @@map("ticket_seat_maps")
+}
+
+model TicketSeatCategory {
+  id        Int    @id @default(autoincrement())
+  seatMapId Int    @map("seat_map_id")
+  code      String @db.VarChar(32)
+  name      String
+  // 1..8 -> токены --style-N-*-redesigned; сырой цвет не хранится.
+  colorSlot Int    @default(1) @map("color_slot") @db.TinyInt
+  sortOrder Int    @default(0) @map("sort_order")
+
+  seatMap TicketSeatMap        @relation(fields: [seatMapId], references: [id], onDelete: Cascade)
+  seats   TicketSeat[]
+  prices  TicketSessionPrice[]
+
+  @@unique([seatMapId, code])
+  @@map("ticket_seat_categories")
+}
+
+model TicketSeat {
+  id               Int     @id @default(autoincrement())
+  seatMapId        Int     @map("seat_map_id")
+  categoryId       Int     @map("category_id")
+  sectionLabel     String  @default("") @map("section_label") @db.VarChar(32)
+  rowLabel         String  @map("row_label") @db.VarChar(16)
+  seatLabel        String  @map("seat_label") @db.VarChar(16)
+  x                Int
+  y                Int
+  rotation         Int     @default(0)
+  isAccessible     Boolean @default(false) @map("is_accessible")
+  isDefaultBlocked Boolean @default(false) @map("is_default_blocked")
+
+  seatMap      TicketSeatMap       @relation(fields: [seatMapId], references: [id], onDelete: Cascade)
+  category     TicketSeatCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  sessionSeats TicketSessionSeat[]
+
+  @@unique([seatMapId, sectionLabel, rowLabel, seatLabel])
+  @@index([categoryId])
+  @@map("ticket_seats")
+}
+
+model TicketEvent {
+  id              Int               @id @default(autoincrement())
+  slug            String            @unique @db.VarChar(120)
+  title           String
+  description     String?           @db.Text
+  posterUrl       String?           @map("poster_url") @db.Text
+  businessBrandId Int?              @map("business_brand_id")
+  status          TicketEventStatus @default(DRAFT)
+  createdById     Int?              @map("created_by_id")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  businessBrand BusinessBrand?  @relation(fields: [businessBrandId], references: [id], onDelete: SetNull)
+  createdBy     User?           @relation("TicketEventCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  sessions      TicketSession[]
+
+  @@index([businessBrandId])
+  @@index([createdById])
+  @@map("ticket_events")
+}
+
+model TicketSession {
+  id                   Int                 @id @default(autoincrement())
+  eventId              Int                 @map("event_id")
+  seatMapId            Int                 @map("seat_map_id")
+  startsAt             DateTime            @map("starts_at")
+  doorsAt              DateTime?           @map("doors_at")
+  salesStartAt         DateTime?           @map("sales_start_at")
+  salesEndAt           DateTime?           @map("sales_end_at")
+  status               TicketSessionStatus @default(DRAFT)
+  holdTtlSeconds       Int                 @default(600) @map("hold_ttl_seconds")
+  maxSeatsPerOrder     Int                 @default(8) @map("max_seats_per_order")
+  currency             String              @default("EUR") @db.Char(3)
+  inventoryGeneratedAt DateTime?           @map("inventory_generated_at")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
+
+  event   TicketEvent          @relation(fields: [eventId], references: [id], onDelete: Restrict)
+  seatMap TicketSeatMap        @relation(fields: [seatMapId], references: [id], onDelete: Restrict)
+  prices  TicketSessionPrice[]
+  seats   TicketSessionSeat[]
+  holds   TicketHold[]
+
+  @@index([eventId, startsAt])
+  @@index([seatMapId])
+  @@map("ticket_sessions")
+}
+
+model TicketSessionPrice {
+  sessionId  Int @map("session_id")
+  categoryId Int @map("category_id")
+  priceCents Int @map("price_cents")
+
+  session  TicketSession      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  category TicketSeatCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  @@id([sessionId, categoryId])
+  @@index([categoryId])
+  @@map("ticket_session_prices")
+}
+
+// Инвентарь: ровно одна строка на место сеанса. Первичный ключ (session_id, seat_id) —
+// главный инвариант «одна активная аллокация на сеанс/место».
+model TicketSessionSeat {
+  sessionId   Int              @map("session_id")
+  seatId      Int              @map("seat_id")
+  status      TicketSeatStatus @default(AVAILABLE)
+  holdId      Int?             @map("hold_id")
+  // onUpdate: Restrict у связи с hold обязателен: MySQL запрещает CHECK по колонке,
+  // участвующей во внешнем ключе с каскадным действием.
+  // Внешний ключ на позицию заказа появится вместе с таблицами заказов (фаза 3).
+  orderItemId Int?             @unique @map("order_item_id")
+  priceCents  Int              @map("price_cents")
+  blockReason String?          @map("block_reason")
+  version     Int              @default(0)
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  session TicketSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  seat    TicketSeat    @relation(fields: [seatId], references: [id], onDelete: Restrict)
+  hold    TicketHold?   @relation(fields: [holdId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([sessionId, seatId])
+  @@index([sessionId, status])
+  @@index([seatId])
+  @@index([holdId])
+  @@map("ticket_session_seats")
+}
+
+// Срок удержания живёт только здесь (expires_at); в строке места срока нет намеренно.
+model TicketHold {
+  id           Int              @id @default(autoincrement())
+  sessionId    Int              @map("session_id")
+  // SHA-256 от opaque-токена; сам токен не хранится.
+  tokenHash    String           @unique @map("token_hash") @db.Char(64)
+  status       TicketHoldStatus @default(ACTIVE)
+  expiresAt    DateTime         @map("expires_at")
+  seatCount    Int              @map("seat_count")
+  clientIpHash String?          @map("client_ip_hash") @db.Char(64)
+  createdAt    DateTime         @default(now()) @map("created_at")
+  releasedAt   DateTime?        @map("released_at")
+
+  session TicketSession       @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  seats   TicketSessionSeat[]
+
+  @@index([status, expiresAt])
+  @@index([sessionId])
+  @@map("ticket_holds")
+}

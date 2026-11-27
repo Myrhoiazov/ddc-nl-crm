@@ -57,6 +57,7 @@ model BusinessBrand {
 
   organization LegalOrganization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
   invoices     Invoice[]
+  ticketEvents TicketEvent[]
 
   @@index([organizationId, isActive])
   @@map("business_brands")

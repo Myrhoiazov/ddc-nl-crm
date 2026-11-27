@@ -159,6 +159,7 @@ Identity (User)
 | Scheduling | [scheduling.md](scheduling.md) | `modules/schedule/schedule.controller.ts`, `schedule.prisma` |
 | Billing | [billing.md](billing.md) | `modules/invoices/invoices.controller.ts`, `invoices.*.service.ts`, `invoice.prisma` |
 | Payments | [payments.md](payments.md) | `modules/payments/payments.controller.ts`, `payments.*.service.ts`, `modules/transactions/transactions.controller.ts`, `modules/payment-reminders/payment-reminders.controller.ts`, `mollie.prisma`, `payment-reminder.prisma`, `Transaction` model in `schema.prisma` |
+| Ticketing | [ticketing.md](ticketing.md) | `modules/ticketing/*`, `ticketing.prisma` |
 | Communication | [communication.md](communication.md) | `modules/communication/email/email.controller.ts`, `instagram/instagram.controller.ts`, `email/email-*.service.ts`, `telegram/telegram.service.ts`, `telegram/notification-settings.*`, `telegram/new-record-notifications.service.ts`, `email.prisma`, `telegram-notification.prisma` |
 
 Technical implementation detail (exact function signatures, validation schemas, migration

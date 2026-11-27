@@ -80,7 +80,9 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
   `telegram` is outbound staff notifications plus their ADMIN-controlled per-type switches, a
   different Telegram integration from either `auth/telegram/` or `auth/telegram-miniapp/`), `telegram-admin-bot` (the Mini App's root-menu
   `/start` handler — routes admins into the Mini App via `web_app`/`url` deep links depending on
-  chat type, see Integrations below), `health`, `ai-email-assistant`, `knowledge-ingestion`.
+  chat type, see Integrations below), `health`, `ai-email-assistant`, `knowledge-ingestion`, `ticketing` (concert tickets with
+  assigned seats — so far the seat inventory and hold core only, no HTTP routes yet; see
+  [Ticketing domain](docs/domain/ticketing.md)).
 - `ai-email-assistant` keeps the whole AI workflow in one module boundary: normalize/bounded
   persistence → deterministic spam checks → LLM classification (`classifyEmail`, strict runtime
   schema, one repair retry) → CRM read-only projection (`createPrismaCrmReader`) → RAG context →
@@ -145,7 +147,7 @@ modules/<name>/<name>.routes.ts -> <name>.controller.ts -> <name>.service.ts
 
 ## Data / Prisma
 
-- Schema split across `server/prisma/schema/*.prisma`: client, company, email, invoice, mollie, payment-reminder, schedule, user, ai-email, knowledge.
+- Schema split across `server/prisma/schema/*.prisma`: client, company, email, invoice, mollie, payment-reminder, schedule, user, ai-email, knowledge, ticketing.
 - `schema.prisma` contains datasource/generator and shared models (`Comment`, `Transaction`).
 - MySQL via `DATABASE_URL`.
 - After editing any `.prisma` file: `cd server && npm run prisma:generate` (also runs in `npm run build` via `prebuild`).

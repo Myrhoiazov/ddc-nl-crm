@@ -97,6 +97,8 @@ model User {
   aiRuntimeSettingsUpdates           AiRuntimeSettings[]        @relation("AiRuntimeSettingsUpdatedBy")
   telegramNotificationSettingUpdates TelegramNotificationSetting[] @relation("TelegramNotificationSettingUpdatedBy")
   aiSimulationRuns                   AiSimulationRun[]          @relation("AiSimulationRunCreatedBy")
+  ticketSeatMapsPublished            TicketSeatMap[]            @relation("TicketSeatMapPublishedBy")
+  ticketEventsCreated                TicketEvent[]              @relation("TicketEventCreatedBy")
 
   @@map("users")
 }

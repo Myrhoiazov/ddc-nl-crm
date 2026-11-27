@@ -21,6 +21,7 @@
 | `payment-reminder.prisma` | Напоминания об оплате                           |
 | `schedule.prisma`        | Расписание, группы, хореографы, залы             |
 | `telegram-notification.prisma` | Включатели Telegram-уведомлений            |
+| `ticketing.prisma`      | Ticketing: залы, сеансы, инвентарь мест, hold    |
 | `user.prisma`            | Пользователи, сессии, безопасность, 2FA          |
 
 ---
@@ -444,3 +445,69 @@ providerUserId — стабильный OIDC subject от провайдера, 
 значение по умолчанию.
 - Поля: key String @id (ключ типа, например `MOLLIE_PAYMENT`); enabled Boolean; updatedById Int?; createdAt; updatedAt
 - Связи: updatedBy -> User? (SetNull)
+
+---
+
+## ticketing.prisma — билеты: залы, сеансы, инвентарь
+
+Фаза 1 модуля Ticketing (`server/src/modules/ticketing/`). Проектные решения и обоснования —
+`docs/ticketing/DATABASE_DESIGN.md`. Заказы, платежи и билеты появятся отдельной миграцией.
+
+### Enum TicketSeatMapStatus: DRAFT | PUBLISHED | ARCHIVED
+### Enum TicketEventStatus: DRAFT | PUBLISHED | ARCHIVED
+### Enum TicketSessionStatus: DRAFT | ON_SALE | PAUSED | CLOSED | CANCELLED
+### Enum TicketSeatStatus: AVAILABLE | HELD | SOLD | BLOCKED
+### Enum TicketHoldStatus: ACTIVE | CONVERTED | RELEASED | EXPIRED
+
+### TicketVenue (таблица `ticket_venues`)
+Площадка.
+- Поля: id; name; address?; city?; isActive; createdAt; updatedAt
+- Связи: seatMaps -> TicketSeatMap[]
+
+### TicketSeatMap (таблица `ticket_seat_maps`)
+Версия схемы зала. `PUBLISHED` не редактируется: правка — это новая `DRAFT`-версия.
+- Поля: id; venueId; version; status; name; canvas Json?; publishedAt?; publishedById?; createdAt; updatedAt
+- Уникальность: (venueId, version)
+- Связи: venue -> TicketVenue (Restrict); publishedBy -> User? (SetNull); categories; seats; sessions
+
+### TicketSeatCategory (таблица `ticket_seat_categories`)
+Ценовая категория мест внутри версии схемы.
+- Поля: id; seatMapId; code; name; colorSlot (1–8, слот палитры `--style-N-*-redesigned`); sortOrder
+- Уникальность: (seatMapId, code). CHECK: colorSlot между 1 и 8
+- Связи: seatMap -> TicketSeatMap (Cascade)
+
+### TicketSeat (таблица `ticket_seats`)
+Место на схеме зала.
+- Поля: id; seatMapId; categoryId; sectionLabel; rowLabel; seatLabel; x; y; rotation; isAccessible; isDefaultBlocked
+- Уникальность: (seatMapId, sectionLabel, rowLabel, seatLabel)
+- Связи: seatMap -> TicketSeatMap (Cascade); category -> TicketSeatCategory (Restrict)
+
+### TicketEvent (таблица `ticket_events`)
+Событие (концерт).
+- Поля: id; slug @unique; title; description?; posterUrl?; businessBrandId?; status; createdById?; createdAt; updatedAt
+- Связи: businessBrand -> BusinessBrand? (SetNull); createdBy -> User? (SetNull); sessions
+
+### TicketSession (таблица `ticket_sessions`)
+Сеанс события, привязанный к конкретной версии схемы зала.
+- Поля: id; eventId; seatMapId; startsAt; doorsAt?; salesStartAt?; salesEndAt?; status; holdTtlSeconds (600); maxSeatsPerOrder (8); currency (EUR); inventoryGeneratedAt?; createdAt; updatedAt
+- Связи: event -> TicketEvent (Restrict); seatMap -> TicketSeatMap (Restrict); prices; seats; holds
+
+### TicketSessionPrice (таблица `ticket_session_prices`)
+Цена категории в сеансе, в центах.
+- Ключ: (sessionId, categoryId). CHECK: priceCents >= 0
+- Связи: session -> TicketSession (Cascade); category -> TicketSeatCategory (Restrict)
+
+### TicketSessionSeat (таблица `ticket_session_seats`)
+Инвентарь: ровно одна строка на место сеанса. Первичный ключ `(sessionId, seatId)` — инвариант
+«одна активная аллокация на сеанс/место».
+- Поля: sessionId; seatId; status; holdId?; orderItemId? @unique; priceCents; blockReason?; version; updatedAt
+- CHECK (вручную в SQL миграции, Prisma их не описывает): `HELD` ⇒ holdId задан и orderItemId пуст;
+  `SOLD` ⇒ orderItemId задан; `AVAILABLE`/`BLOCKED` ⇒ оба пусты; priceCents >= 0
+- Связи: session -> TicketSession (Restrict); seat -> TicketSeat (Restrict); hold -> TicketHold? (Restrict,
+  onUpdate Restrict — MySQL не допускает CHECK по колонке внешнего ключа с каскадным действием)
+
+### TicketHold (таблица `ticket_holds`)
+Временное удержание мест покупателем до оформления заказа.
+- Поля: id; sessionId; tokenHash @unique (SHA-256 opaque-токена, сам токен не хранится); status; expiresAt; seatCount; clientIpHash?; createdAt; releasedAt?
+- Связи: session -> TicketSession (Restrict); seats -> TicketSessionSeat[]
+
