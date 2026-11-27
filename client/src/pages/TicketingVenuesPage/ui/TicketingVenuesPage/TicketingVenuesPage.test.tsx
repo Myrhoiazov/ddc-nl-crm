@@ -36,8 +36,8 @@ const seatMap: SeatMapDetail = {
     publishedAt: null,
     categories: [{ id: 1, code: 'C1', name: 'VIP', colorSlot: 1 }],
     seats: [
-        { id: 1, categoryId: 1, rowLabel: '1', seatLabel: '1', x: 40, y: 40, isDefaultBlocked: false },
-        { id: 2, categoryId: 1, rowLabel: '1', seatLabel: '2', x: 80, y: 40, isDefaultBlocked: false },
+        { id: 1, categoryId: 1, rowLabel: '1', seatLabel: '1', x: 40, y: 40 },
+        { id: 2, categoryId: 1, rowLabel: '1', seatLabel: '2', x: 80, y: 40 },
     ],
 };
 

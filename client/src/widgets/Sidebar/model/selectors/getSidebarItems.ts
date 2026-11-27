@@ -17,6 +17,31 @@ import Euro from '@/shared/assets/icons/euro.svg';
 import { SidebarItemType } from "../types/sidebar";
 import { RoleKey } from "@/entities/Role";
 
+// Группы без условий по роли — статичные, поэтому вынесены из селектора.
+const danceSchoolGroup: SidebarItemType = {
+    path: RoutePath.dance_school,
+    Icon: Schedule,
+    text: 'Школа танцев',
+    iconColor: 'stroke',
+    children: [
+        { path: RoutePath.schedule, Icon: Schedule, text: 'Расписание', iconColor: 'stroke' },
+        { path: RoutePath.clients, Icon: Clients, text: 'Ученики' },
+        { path: RoutePath.choreographers, Icon: Choreographers, text: 'Хореографы', iconColor: 'stroke' },
+        { path: RoutePath.dance_groups, Icon: Students, text: 'Группы', iconColor: 'stroke' },
+        { path: RoutePath.dance_styles, Icon: Schedule, text: 'Стили', iconColor: 'stroke' },
+    ],
+};
+
+const ticketingGroup: SidebarItemType = {
+    path: RoutePath.ticketing_events,
+    Icon: Transactions,
+    text: 'Билеты',
+    children: [
+        { path: RoutePath.ticketing_events, Icon: Schedule, text: 'События', iconColor: 'stroke' },
+        { path: RoutePath.ticketing_venues, Icon: Company, text: 'Залы', iconColor: 'stroke' },
+    ],
+};
+
 export const getSidebarItems = createSelector(
     getUserAuthData,
     (userData) => {
@@ -34,19 +59,7 @@ export const getSidebarItems = createSelector(
         }
 
         sidebarItemsList.push(
-            {
-                path: RoutePath.dance_school,
-                Icon: Schedule,
-                text: 'Школа танцев',
-                iconColor: 'stroke',
-                children: [
-                    { path: RoutePath.schedule, Icon: Schedule, text: 'Расписание', iconColor: 'stroke' },
-                    { path: RoutePath.clients, Icon: Clients, text: 'Ученики' },
-                    { path: RoutePath.choreographers, Icon: Choreographers, text: 'Хореографы', iconColor: 'stroke' },
-                    { path: RoutePath.dance_groups, Icon: Students, text: 'Группы', iconColor: 'stroke' },
-                    { path: RoutePath.dance_styles, Icon: Schedule, text: 'Стили', iconColor: 'stroke' },
-                ],
-            },
+            danceSchoolGroup,
             {
                 path: RoutePath.company,
                 Icon: Company,
@@ -62,14 +75,7 @@ export const getSidebarItems = createSelector(
                     ...(isAdmin ? [{ path: RoutePath.notifications, Icon: Bell, text: 'Уведомления', iconColor: 'stroke' as const }] : []),
                 ],
             },
-            {
-                path: RoutePath.ticketing_venues,
-                Icon: Transactions,
-                text: 'Билеты',
-                children: [
-                    { path: RoutePath.ticketing_venues, Icon: Company, text: 'Залы', iconColor: 'stroke' },
-                ],
-            },
+            ticketingGroup,
             { path: RoutePath.content_hub, Icon: ContentHub, text: 'Контент-хаб', iconColor: 'stroke' },
             { path: RoutePath.crm_settings, Icon: CrmSettings, text: 'Настройки CRM', iconColor: 'stroke' },
         );

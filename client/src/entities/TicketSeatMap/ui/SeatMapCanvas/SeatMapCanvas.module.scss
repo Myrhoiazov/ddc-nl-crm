@@ -1,0 +1,73 @@
+.SeatMapCanvas {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+}
+
+.legend {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+    gap: 8px;
+    list-style: none;
+}
+
+.legendItem {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+    border-radius: var(--radius-pill-redesigned);
+}
+
+.scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    gap: 8px;
+    overflow-x: auto;
+}
+
+.stage {
+    width: 60%;
+    padding: 6px 0;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--sidebar-group-label-redesigned);
+    text-align: center;
+    text-transform: uppercase;
+    background: var(--sidebar-hover-bg-redesigned);
+    border-radius: var(--radius-sm-redesigned);
+    letter-spacing: 1.4px;
+}
+
+.svg {
+    max-width: none;
+    flex-shrink: 0;
+}
+
+.seat {
+    stroke-width: 1.5;
+}
+
+.held {
+    fill: var(--style-4-bg-redesigned);
+    stroke: var(--style-4-text-redesigned);
+    stroke-dasharray: 4 3;
+}
+
+.sold {
+    fill: var(--sidebar-group-label-redesigned);
+    stroke: var(--sidebar-text-redesigned);
+}
+
+.blocked {
+    fill: var(--danger-bg-redesigned);
+    stroke: var(--danger-text-redesigned);
+    stroke-dasharray: 2 2;
+}

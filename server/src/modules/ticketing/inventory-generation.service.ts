@@ -1,4 +1,5 @@
 import { PrismaClient, TicketSeatMapStatus, TicketSeatStatus } from '@prisma/client';
+import { withLockRetry } from './db-retry';
 
 // Генерация инвентаря сеанса: по одной строке на каждое место опубликованной схемы зала.
 // Повторный запуск безопасен — существующие строки не трогаются (skipDuplicates по PK).
@@ -80,6 +81,9 @@ export const generateSessionInventory = async (
     const categoryIds = findCategoriesWithoutPrice(seats, priceByCategory);
     if (categoryIds.length > 0) return { kind: 'rejected', reason: 'MISSING_PRICES', categoryIds };
 
-    const created = await persistInventory(prisma, sessionId, buildInventoryRows(sessionId, seats, priceByCategory));
+    // Две одновременные публикации вставляют одни и те же строки и могут взаимно
+    // заблокироваться; повтор безопасен, потому что вставка идемпотентна.
+    const rows = buildInventoryRows(sessionId, seats, priceByCategory);
+    const created = await withLockRetry(() => persistInventory(prisma, sessionId, rows));
     return { kind: 'generated', created, total: seats.length };
 };

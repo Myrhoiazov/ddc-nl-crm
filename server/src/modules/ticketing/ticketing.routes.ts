@@ -8,6 +8,14 @@ import {
     listVenuesController,
     publishSeatMapController,
 } from './venue.controller';
+import {
+    changeSessionStatusController,
+    createEventController,
+    createSessionController,
+    getSessionController,
+    listEventsController,
+    publishSessionController,
+} from './event.controller';
 
 // Административный API Ticketing: сессия + CSRF (общая middleware) + явная роль на каждом маршруте.
 const router = express.Router();
@@ -18,5 +26,12 @@ router.post('/admin/venues', ...staff, asyncHandler(createVenueController));
 router.post('/admin/venues/:venueId/seat-maps', ...staff, asyncHandler(createSeatMapController));
 router.get('/admin/seat-maps/:seatMapId', ...staff, asyncHandler(getSeatMapController));
 router.post('/admin/seat-maps/:seatMapId/publish', ...staff, asyncHandler(publishSeatMapController));
+
+router.get('/admin/events', ...staff, asyncHandler(listEventsController));
+router.post('/admin/events', ...staff, asyncHandler(createEventController));
+router.post('/admin/events/:eventId/sessions', ...staff, asyncHandler(createSessionController));
+router.get('/admin/sessions/:sessionId', ...staff, asyncHandler(getSessionController));
+router.post('/admin/sessions/:sessionId/publish', ...staff, asyncHandler(publishSessionController));
+router.post('/admin/sessions/:sessionId/status', ...staff, asyncHandler(changeSessionStatusController));
 
 export default router;

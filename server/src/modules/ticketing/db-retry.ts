@@ -22,8 +22,10 @@ export const isRetryableLockError = (error: unknown): boolean => {
 
 export const withLockRetry = async <T>(
     operation: () => Promise<T>,
-    { attempts = 3, sleep = defaultSleep, random = Math.random }: LockRetryOptions = {},
+    options: LockRetryOptions = {},
 ): Promise<T> => {
+    const { attempts = 3, random = Math.random } = options;
+    const sleep = options.sleep ?? defaultSleep;
     for (let attempt = 1; ; attempt += 1) {
         try {
             return await operation();

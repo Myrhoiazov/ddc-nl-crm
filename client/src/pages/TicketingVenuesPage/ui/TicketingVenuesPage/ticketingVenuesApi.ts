@@ -1,3 +1,4 @@
+import type { SeatCanvasSize, SeatCategory, SeatPosition } from '@/entities/TicketSeatMap';
 import { $apiPrivate } from '@/shared/api/api';
 
 export type SeatMapStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -20,33 +21,16 @@ export interface Venue {
     seatMaps: SeatMapSummary[];
 }
 
-export interface SeatCategory {
-    id: number;
-    code: string;
-    name: string;
-    colorSlot: number;
-}
-
-export interface Seat {
-    id: number;
-    categoryId: number;
-    rowLabel: string;
-    seatLabel: string;
-    x: number;
-    y: number;
-    isDefaultBlocked: boolean;
-}
-
 export interface SeatMapDetail {
     id: number;
     venueId: number;
     version: number;
     status: SeatMapStatus;
     name: string;
-    canvas: { width: number; height: number; seatSize: number } | null;
+    canvas: SeatCanvasSize | null;
     publishedAt: string | null;
     categories: SeatCategory[];
-    seats: Seat[];
+    seats: SeatPosition[];
 }
 
 export interface SeatBlock {
