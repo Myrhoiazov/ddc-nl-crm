@@ -152,4 +152,6 @@ Students/Verification sections ticked; Mollie sections deliberately left for Pha
   `feat/ticketing` (Phase A, informational).
 - [x] Code review passed (1 blocking finding fixed: `MOLLIE_API_KEY_LIVE` не пробрасывался в контейнеры).
 - [x] Browser QA не требуется — в срезе D нет изменений клиента.
-- [x] PR published: https://github.com/Myrhoiazov/ddc-nl-crm/pull/190.
+- [ ] PR в `develop` не публикуется до полной готовности всей фичи. Ранее созданный
+  https://github.com/Myrhoiazov/ddc-nl-crm/pull/190 закрыт по решению владельца; работа
+  продолжается в `feat/ticketing`.
