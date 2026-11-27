@@ -23,6 +23,15 @@ export const createSeatMapSchema = z.object({
     path: ['blocks'],
 });
 
+// Правка мест черновика: смена категории и/или блокировка по умолчанию для набора мест.
+export const updateSeatsSchema = z.object({
+    seatIds: z.array(z.number().int().positive()).min(1).max(MAX_SEATS_PER_MAP),
+    categoryId: z.number().int().positive().optional(),
+    isDefaultBlocked: z.boolean().optional(),
+}).strict().refine((value) => value.categoryId !== undefined || value.isDefaultBlocked !== undefined, {
+    message: 'Nothing to change: pass categoryId or isDefaultBlocked',
+});
+
 // Типы объявлены явно: серверный tsconfig без strictNullChecks, и z.infer делает все поля
 // необязательными. Схемы выше гарантируют эти формы после safeParse.
 export interface CreateVenueInput {
@@ -34,6 +43,12 @@ export interface CreateVenueInput {
 export interface CreateSeatMapInput {
     name: string;
     blocks: SeatBlockInput[];
+}
+
+export interface UpdateSeatsInput {
+    seatIds: number[];
+    categoryId?: number;
+    isDefaultBlocked?: boolean;
 }
 
 export const parsePositiveId = (raw: unknown): number | null => {

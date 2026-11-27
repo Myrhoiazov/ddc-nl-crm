@@ -55,6 +55,15 @@
     stroke-width: 1.5;
 }
 
+.interactive {
+    cursor: pointer;
+
+    &:focus-visible {
+        outline: 2px solid var(--primary-redesigned);
+        outline-offset: 2px;
+    }
+}
+
 .held {
     fill: var(--style-4-bg-redesigned);
     stroke: var(--style-4-text-redesigned);

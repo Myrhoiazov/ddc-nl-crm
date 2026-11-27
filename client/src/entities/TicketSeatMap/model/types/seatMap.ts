@@ -12,6 +12,8 @@ export interface SeatPosition {
     seatLabel: string;
     x: number;
     y: number;
+    // Место закрыто для продажи в самой схеме: в инвентаре сеанса оно сразу BLOCKED.
+    isDefaultBlocked?: boolean;
 }
 
 export interface SeatCanvasSize {

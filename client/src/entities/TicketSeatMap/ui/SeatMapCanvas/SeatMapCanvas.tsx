@@ -1,4 +1,4 @@
-import { CSSProperties, memo, useMemo } from 'react';
+import { CSSProperties, KeyboardEvent, memo, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { classNames } from '@/shared/lib/classNames/classNames';
 import cls from './SeatMapCanvas.module.scss';
@@ -22,28 +22,61 @@ const STATE_CLASS: Record<SeatState, string | undefined> = {
     BLOCKED: cls.blocked,
 };
 
+// Выделение рисуется поверх цвета категории или состояния.
+const SELECTED_STYLE: CSSProperties = { stroke: 'var(--primary-redesigned)', strokeWidth: 3.5 };
+
+const seatStyle = (state: SeatState, isSelected: boolean, colorSlot = 1): CSSProperties => ({
+    // Состояние задаёт цвет классом; цвет категории нужен только свободному месту.
+    ...(state === 'AVAILABLE' ? categoryStyle(colorSlot) : {}),
+    ...(isSelected ? SELECTED_STYLE : {}),
+});
+
+// Кликабельное место — флажок: доступно с клавиатуры и читается скринридером.
+const toggleProps = (seatId: number, isSelected: boolean, onToggle?: (seatId: number) => void) => {
+    if (!onToggle) return {};
+    return {
+        role: 'checkbox',
+        tabIndex: 0,
+        'aria-checked': isSelected,
+        onClick: () => onToggle(seatId),
+        onKeyDown: (event: KeyboardEvent) => {
+            if (event.key !== ' ' && event.key !== 'Enter') return;
+            event.preventDefault();
+            onToggle(seatId);
+        },
+    };
+};
+
 interface SeatShapeProps {
     seat: SeatPosition;
     size: number;
     category?: SeatCategory;
     state?: SeatState;
     stateLabel?: string;
+    isSelected?: boolean;
+    onToggle?: (seatId: number) => void;
 }
 
-const SeatShape = memo(({ seat, size, category, state = 'AVAILABLE', stateLabel }: SeatShapeProps) => (
-    <rect
-        className={classNames(cls.seat, {}, [STATE_CLASS[state]])}
-        x={seat.x}
-        y={seat.y}
-        width={size}
-        height={size}
-        rx={6}
-        // Состояние задаёт цвет классом; цвет категории нужен только свободному месту.
-        style={state === 'AVAILABLE' ? categoryStyle(category?.colorSlot ?? 1) : undefined}
-    >
-        <title>{[category?.name, `${seat.rowLabel}-${seat.seatLabel}`, stateLabel].filter(Boolean).join(' · ')}</title>
-    </rect>
-));
+const SeatShape = memo((props: SeatShapeProps) => {
+    const { seat, size, category, state = 'AVAILABLE', stateLabel, isSelected = false, onToggle } = props;
+    const label = [category?.name, `${seat.rowLabel}-${seat.seatLabel}`, stateLabel].filter(Boolean).join(' · ');
+
+    return (
+        <rect
+            className={classNames(cls.seat, { [cls.interactive]: Boolean(onToggle) }, [STATE_CLASS[state]])}
+            x={seat.x}
+            y={seat.y}
+            width={size}
+            height={size}
+            rx={6}
+            style={seatStyle(state, isSelected, category?.colorSlot)}
+            aria-label={label}
+            {...toggleProps(seat.id, isSelected, onToggle)}
+        >
+            <title>{label}</title>
+        </rect>
+    );
+});
 
 interface SeatMapLegendProps {
     categories: SeatCategory[];
@@ -69,9 +102,13 @@ interface SeatMapCanvasProps {
     seats: SeatPosition[];
     // Состояния мест сеанса; без них все места рисуются свободными (просмотр схемы).
     seatStates?: Record<number, SeatState>;
+    // Режим выбора мест: клик по месту переключает его в выделении.
+    selectedSeatIds?: ReadonlySet<number>;
+    onSeatToggle?: (seatId: number) => void;
 }
 
-export const SeatMapCanvas = memo(({ className, canvas, categories, seats, seatStates }: SeatMapCanvasProps) => {
+export const SeatMapCanvas = memo((props: SeatMapCanvasProps) => {
+    const { className, canvas, categories, seats, seatStates, selectedSeatIds, onSeatToggle } = props;
     const { t } = useTranslation();
     const size = canvas ?? DEFAULT_CANVAS;
     const categoryById = useMemo(() => new Map(categories.map((category) => [category.id, category])), [categories]);
@@ -95,7 +132,9 @@ export const SeatMapCanvas = memo(({ className, canvas, categories, seats, seatS
                             size={size.seatSize}
                             category={categoryById.get(seat.categoryId)}
                             state={seatStates?.[seat.id]}
-                            stateLabel={seatStates ? stateLabels[seatStates[seat.id] ?? 'AVAILABLE'] : undefined}
+                            stateLabel={seatStates?.[seat.id] && stateLabels[seatStates[seat.id]]}
+                            isSelected={selectedSeatIds?.has(seat.id)}
+                            onToggle={onSeatToggle}
                         />
                     ))}
                 </svg>

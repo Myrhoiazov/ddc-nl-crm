@@ -2,14 +2,36 @@ import { useCallback, useEffect, useState } from 'react';
 import {
     fetchSeatMap,
     fetchVenues,
+    postCloneSeatMap,
     postPublishSeatMap,
+    postSeatChange,
     postSeatMap,
     postVenue,
     type NewSeatMap,
     type NewVenue,
+    type SeatChange,
     type SeatMapDetail,
     type Venue,
 } from './ticketingVenuesApi';
+
+type RunAction = (action: () => Promise<SeatMapDetail | void>) => Promise<boolean>;
+
+const useVenueActions = (runAction: RunAction) => {
+    const addVenue = useCallback((venue: NewVenue) => runAction(() => postVenue(venue)), [runAction]);
+    const addSeatMap = useCallback(
+        (venueId: number, input: NewSeatMap) => runAction(() => postSeatMap(venueId, input)),
+        [runAction],
+    );
+    const openSeatMap = useCallback((seatMapId: number) => runAction(() => fetchSeatMap(seatMapId)), [runAction]);
+    const publish = useCallback((seatMapId: number) => runAction(() => postPublishSeatMap(seatMapId)), [runAction]);
+    const changeSeats = useCallback(
+        (seatMapId: number, seatIds: number[], change: SeatChange) => runAction(() => postSeatChange(seatMapId, seatIds, change)),
+        [runAction],
+    );
+    const clone = useCallback((seatMapId: number) => runAction(() => postCloneSeatMap(seatMapId)), [runAction]);
+
+    return { addVenue, addSeatMap, openSeatMap, publish, changeSeats, clone };
+};
 
 export const useTicketingVenues = () => {
     const [venues, setVenues] = useState<Venue[]>([]);
@@ -42,13 +64,7 @@ export const useTicketingVenues = () => {
         }
     }, [reload]);
 
-    const addVenue = useCallback((venue: NewVenue) => runAction(() => postVenue(venue)), [runAction]);
-    const addSeatMap = useCallback(
-        (venueId: number, input: NewSeatMap) => runAction(() => postSeatMap(venueId, input)),
-        [runAction],
-    );
-    const openSeatMap = useCallback((seatMapId: number) => runAction(() => fetchSeatMap(seatMapId)), [runAction]);
-    const publish = useCallback((seatMapId: number) => runAction(() => postPublishSeatMap(seatMapId)), [runAction]);
+    const actions = useVenueActions(runAction);
 
-    return { venues, seatMap, isLoading, loadError, actionError, addVenue, addSeatMap, openSeatMap, publish };
+    return { venues, seatMap, isLoading, loadError, actionError, ...actions };
 };

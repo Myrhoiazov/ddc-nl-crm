@@ -142,3 +142,26 @@
     background: var(--success-bg-redesigned);
     border-color: var(--success-text-redesigned);
 }
+
+.seatToolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    padding: 12px;
+    border: 1px solid var(--card-border-redesigned);
+    border-radius: var(--radius-md-redesigned);
+    gap: 12px;
+}
+
+.seatToolbarActions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.categorySelect {
+    width: 280px;
+    max-width: 100%;
+}

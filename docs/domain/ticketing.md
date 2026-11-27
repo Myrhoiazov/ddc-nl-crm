@@ -72,12 +72,20 @@ planned and not implemented yet — see `docs/ticketing/IMPLEMENTATION_PLAN.md` 
 - **Row generator**: a seat map is created from blocks — category name, number of rows, seats
   per row. Rows are numbered continuously across blocks, shorter rows are centred, and each block
   becomes a category with its own palette slot (`seat-map.generator.ts`).
+- **Draft editing**: on a `DRAFT` seat map a set of seats can be moved to another category of the
+  same map and/or marked blocked by default. The change is all-or-nothing — a seat or category of
+  another map rejects it — and runs under a row lock on the seat map, so it cannot land after a
+  concurrent publish (`seat-map-edit.service.ts`).
+- **Version clone**: any version can be cloned into the next `DRAFT` version of the same venue,
+  with its own categories, seats and blocked marks. This is the only way to change a published
+  map; sessions keep pointing at the version they were created on.
 
 ## API
 
 Staff-only, under `/api/v1/ticketing/admin`, session + CSRF, roles `ADMIN` and `MANAGER`
 (`ticketing.routes.ts`): list and create venues, create a seat map for a venue, read a seat map,
-publish a draft. Publishing is a conditional `DRAFT → PUBLISHED` transition, so a repeated call
+publish a draft, change seats of a draft (`POST /seat-maps/:id/seats`), clone a version
+(`POST /seat-maps/:id/clone`). Publishing is a conditional `DRAFT → PUBLISHED` transition, so a repeated call
 changes nothing. There is no public (buyer) API yet. CRM page: `client/src/pages/TicketingVenuesPage/`.
 
 ## Relationships

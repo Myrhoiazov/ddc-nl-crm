@@ -50,6 +50,12 @@ export interface NewSeatMap {
     blocks: SeatBlock[];
 }
 
+// Правка выбранных мест черновика: хотя бы одно из двух изменений.
+export interface SeatChange {
+    categoryId?: number;
+    isDefaultBlocked?: boolean;
+}
+
 const BASE = '/ticketing/admin';
 
 export const fetchVenues = async () => {
@@ -73,5 +79,15 @@ export const fetchSeatMap = async (seatMapId: number) => {
 
 export const postPublishSeatMap = async (seatMapId: number) => {
     const { data } = await $apiPrivate.post<SeatMapDetail>(`${BASE}/seat-maps/${seatMapId}/publish`);
+    return data;
+};
+
+export const postSeatChange = async (seatMapId: number, seatIds: number[], change: SeatChange) => {
+    const { data } = await $apiPrivate.post<SeatMapDetail>(`${BASE}/seat-maps/${seatMapId}/seats`, { seatIds, ...change });
+    return data;
+};
+
+export const postCloneSeatMap = async (seatMapId: number) => {
+    const { data } = await $apiPrivate.post<SeatMapDetail>(`${BASE}/seat-maps/${seatMapId}/clone`);
     return data;
 };

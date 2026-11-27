@@ -13,7 +13,7 @@ import { useTicketingVenues } from './useTicketingVenues';
 
 const VenuesContent = () => {
     const { t } = useTranslation();
-    const { venues, seatMap, isLoading, loadError, actionError, addVenue, addSeatMap, openSeatMap, publish } = useTicketingVenues();
+    const { venues, seatMap, isLoading, loadError, actionError, addVenue, addSeatMap, openSeatMap, ...seatMapActions } = useTicketingVenues();
 
     if (isLoading) return <Skeleton width="100%" height={240} border="14px" />;
     if (loadError) {
@@ -33,7 +33,16 @@ const VenuesContent = () => {
                     onCreateSeatMap={addSeatMap}
                 />
             ))}
-            {seatMap && <SeatMapPreview seatMap={seatMap} onPublish={publish} />}
+            {seatMap && (
+                // key: выделение мест не переносится на другую схему.
+                <SeatMapPreview
+                    key={seatMap.id}
+                    seatMap={seatMap}
+                    onPublish={seatMapActions.publish}
+                    onClone={seatMapActions.clone}
+                    onChangeSeats={seatMapActions.changeSeats}
+                />
+            )}
             <CreateVenueForm onSubmit={addVenue} />
         </>
     );

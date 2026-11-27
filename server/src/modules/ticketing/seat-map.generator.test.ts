@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { countSeats, generateSeatMap, SEAT_PITCH } from './seat-map.generator';
-import { createSeatMapSchema, createVenueSchema, parsePositiveId } from './venue.schema';
+import { createSeatMapSchema, createVenueSchema, parsePositiveId, updateSeatsSchema } from './venue.schema';
 
 const HALL_260 = [
     { categoryName: 'VIP', rows: 3, seatsPerRow: 20 },
@@ -61,4 +61,13 @@ test('createVenueSchema trims the name and parsePositiveId rejects bad ids', () 
     assert.equal(parsePositiveId('12'), 12);
     assert.equal(parsePositiveId('0'), null);
     assert.equal(parsePositiveId('abc'), null);
+});
+
+test('updateSeatsSchema requires seats and at least one change', () => {
+    assert.equal(updateSeatsSchema.safeParse({ seatIds: [1, 2], isDefaultBlocked: true }).success, true);
+    assert.equal(updateSeatsSchema.safeParse({ seatIds: [1], categoryId: 3 }).success, true);
+    assert.equal(updateSeatsSchema.safeParse({ seatIds: [1] }).success, false);
+    assert.equal(updateSeatsSchema.safeParse({ seatIds: [], isDefaultBlocked: true }).success, false);
+    assert.equal(updateSeatsSchema.safeParse({ seatIds: [0], isDefaultBlocked: true }).success, false);
+    assert.equal(updateSeatsSchema.safeParse({ seatIds: [1], isDefaultBlocked: true, x: 10 }).success, false);
 });

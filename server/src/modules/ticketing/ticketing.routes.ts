@@ -2,11 +2,13 @@ import express from 'express';
 import { UserRole } from '@prisma/client';
 import { asyncHandler, isToken, requireRole } from '../auth/auth.middleware';
 import {
+    cloneSeatMapController,
     createSeatMapController,
     createVenueController,
     getSeatMapController,
     listVenuesController,
     publishSeatMapController,
+    updateSeatsController,
 } from './venue.controller';
 import {
     changeSessionStatusController,
@@ -26,6 +28,8 @@ router.post('/admin/venues', ...staff, asyncHandler(createVenueController));
 router.post('/admin/venues/:venueId/seat-maps', ...staff, asyncHandler(createSeatMapController));
 router.get('/admin/seat-maps/:seatMapId', ...staff, asyncHandler(getSeatMapController));
 router.post('/admin/seat-maps/:seatMapId/publish', ...staff, asyncHandler(publishSeatMapController));
+router.post('/admin/seat-maps/:seatMapId/seats', ...staff, asyncHandler(updateSeatsController));
+router.post('/admin/seat-maps/:seatMapId/clone', ...staff, asyncHandler(cloneSeatMapController));
 
 router.get('/admin/events', ...staff, asyncHandler(listEventsController));
 router.post('/admin/events', ...staff, asyncHandler(createEventController));

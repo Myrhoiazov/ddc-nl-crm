@@ -36,10 +36,17 @@ const nextSeatMapVersion = async (tx: Prisma.TransactionClient, venueId: number)
     return (latest._max.version ?? 0) + 1;
 };
 
-const persistSeatMap = async (
+// Содержимое версии схемы: результат генератора рядов или копия существующей версии.
+export interface SeatMapContent {
+    canvas: Prisma.InputJsonValue;
+    categories: GeneratedSeatMap['categories'];
+    seats: (GeneratedSeatMap['seats'][number] & Partial<Pick<Prisma.TicketSeatCreateManyInput, 'sectionLabel' | 'rotation' | 'isAccessible' | 'isDefaultBlocked'>>)[];
+}
+
+export const persistSeatMap = async (
     tx: Prisma.TransactionClient,
     target: { venueId: number; name: string },
-    generated: GeneratedSeatMap,
+    generated: SeatMapContent,
 ) => {
     const seatMap = await tx.ticketSeatMap.create({
         data: {

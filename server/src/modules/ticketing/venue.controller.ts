@@ -4,12 +4,15 @@ import {
     createSeatMapSchema,
     createVenueSchema,
     parsePositiveId,
+    updateSeatsSchema,
     type CreateSeatMapInput,
     type CreateVenueInput,
+    type UpdateSeatsInput,
 } from './venue.schema';
+import { cloneSeatMap, updateSeats } from './seat-map-edit.service';
 import { createSeatMap, createVenue, getSeatMap, listVenues, publishSeatMap } from './venue.service';
 
-const invalidBody = (res: Response, details: unknown) => (
+const invalidBody = (res: Response, details?: unknown) => (
     res.status(400).json({ message: 'Invalid request', details })
 );
 
@@ -51,4 +54,25 @@ export const publishSeatMapController = async (req: Request, res: Response) => {
     if (!published) return res.status(409).json({ message: 'Seat map is not a draft or has no seats' });
 
     return res.json(await getSeatMap(prisma, seatMapId));
+};
+
+export const updateSeatsController = async (req: Request, res: Response) => {
+    const seatMapId = parsePositiveId(req.params.seatMapId);
+    const parsed = updateSeatsSchema.safeParse(req.body);
+    if (!seatMapId || !parsed.success) return invalidBody(res, parsed.success ? undefined : parsed.error.flatten());
+
+    const result = await updateSeats(prisma, seatMapId, parsed.data as UpdateSeatsInput);
+    if (result.kind === 'rejected') {
+        const status = result.reason === 'SEAT_MAP_NOT_FOUND' ? 404 : 409;
+        return res.status(status).json({ message: 'Seats cannot be changed', reason: result.reason });
+    }
+    return res.json(await getSeatMap(prisma, seatMapId));
+};
+
+export const cloneSeatMapController = async (req: Request, res: Response) => {
+    const seatMapId = parsePositiveId(req.params.seatMapId);
+    const cloneId = seatMapId ? await cloneSeatMap(prisma, seatMapId) : null;
+    if (!cloneId) return res.status(404).json({ message: 'Seat map not found' });
+
+    return res.status(201).json(await getSeatMap(prisma, cloneId));
 };
