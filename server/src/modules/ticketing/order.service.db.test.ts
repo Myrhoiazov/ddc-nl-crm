@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { changeSessionStatus, createEvent, createSession, publishSession } from './event.service';
@@ -21,7 +22,7 @@ const BUYER: OrderBuyer = { name: 'Anna de Vries', email: 'anna@example.com', lo
 const HOUR_MS = 3_600_000;
 
 const createOnSaleSession = async () => {
-    const venue = await createVenue(prisma, { name: `Venue ${Date.now()}-${Math.random()}`, city: 'Amsterdam' });
+    const venue = await createVenue(prisma, { name: `Venue ${randomUUID()}`, city: 'Amsterdam' });
     const created = await createSeatMap(prisma, venue.id, {
         name: 'Small hall',
         blocks: [{ categoryName: 'VIP', rows: 1, seatsPerRow: 4 }, { categoryName: 'Standard', rows: 2, seatsPerRow: 4 }],

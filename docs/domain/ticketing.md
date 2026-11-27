@@ -110,7 +110,22 @@ Staff-only, under `/api/v1/ticketing/admin`, session + CSRF, roles `ADMIN` and `
 (`ticketing.routes.ts`): list and create venues, create a seat map for a venue, read a seat map,
 publish a draft, change seats of a draft (`POST /seat-maps/:id/seats`), clone a version
 (`POST /seat-maps/:id/clone`). Publishing is a conditional `DRAFT → PUBLISHED` transition, so a repeated call
-changes nothing. There is no public (buyer) API yet. CRM page: `client/src/pages/TicketingVenuesPage/`.
+changes nothing. CRM pages: `client/src/pages/TicketingVenuesPage/`, `TicketingEventsPage/`.
+
+Public (buyer), under `/api/v1/ticketing/public` (`public.routes.ts`): seat map of a session
+(`GET /sessions/:id` — a seat is only `AVAILABLE` or `TAKEN`), hold seats
+(`POST /sessions/:id/holds`), give a hold up (`POST /holds/release`), checkout (`POST /orders`),
+order status (`GET /orders/current` with the `X-Ticketing-Order-Token` header).
+
+- No staff session and no CSRF token: the buyer has no account, so the path is CSRF-exempt and is
+  protected by opaque hold / order tokens, per-IP rate limits and Turnstile on checkout (required
+  whenever Turnstile is configured).
+- Tokens travel in the body or a header, never in the URL, because URLs end up in access logs.
+- The whole public API answers `503` until `TICKETING_SALES_ENABLED=true` and a
+  `TICKETING_TOKEN_SECRET` of at least 32 characters are set (`ticketing.config.ts`).
+- It is same-origin only: no extra CORS origins are opened, the storefront is expected to be
+  served from the CRM front-end host.
+- Checkout does not take a payment yet: the order is created `PENDING_PAYMENT` with no checkout URL.
 
 ## Relationships
 

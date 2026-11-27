@@ -18,6 +18,7 @@ import {
     listEventsController,
     publishSessionController,
 } from './event.controller';
+import publicRouter from './public.routes';
 
 // Административный API Ticketing: сессия + CSRF (общая middleware) + явная роль на каждом маршруте.
 const router = express.Router();
@@ -37,5 +38,8 @@ router.post('/admin/events/:eventId/sessions', ...staff, asyncHandler(createSess
 router.get('/admin/sessions/:sessionId', ...staff, asyncHandler(getSessionController));
 router.post('/admin/sessions/:sessionId/publish', ...staff, asyncHandler(publishSessionController));
 router.post('/admin/sessions/:sessionId/status', ...staff, asyncHandler(changeSessionStatusController));
+
+// Публичный API витрины — без роли персонала, см. public.routes.ts.
+router.use('/public', publicRouter);
 
 export default router;

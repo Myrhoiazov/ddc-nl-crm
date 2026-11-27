@@ -37,7 +37,7 @@
 
 - [x] Миграция `20261128090000_add_ticketing_orders`: заказы, позиции, платежи, журнал сигналов о платеже; внешний ключ места на позицию заказа.
 - [x] Ядро checkout: hold → заказ `PENDING_PAYMENT` одной транзакцией, идемпотентный повтор, случайный номер заказа, токен доступа покупателя, снимок события.
-- [ ] Публичный API (карта сеанса, hold, отказ, checkout, статус заказа): CSRF-exempt, CORS, rate-limit, Turnstile.
+- [x] Публичный API `/api/v1/ticketing/public` (карта сеанса, hold, отказ, checkout, статус заказа): CSRF-exempt, лимиты по IP, Turnstile на checkout, флаг `TICKETING_SALES_ENABLED` + `TICKETING_TOKEN_SECRET`. CORS для чужих доменов не открыт — витрина рассчитана на раздачу с хоста CRM (iframe на WordPress).
 - [ ] Платёж Mollie с idempotency, собственный webhook, проверки суммы / валюты / режима, подтверждение заказа.
 - [ ] Фоновые задачи: истечение hold, закрытие заказов, сверка платежей; поздняя оплата и `NEEDS_REVIEW`.
 - [ ] Пропуск платежей `source='ticketing'` в существующем sync Mollie.

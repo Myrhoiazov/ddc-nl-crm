@@ -73,3 +73,14 @@ for (const value of ['', '   ']) {
         assert.equal(calls.status, 403);
     });
 }
+
+test('the public ticketing API is exempt, the staff ticketing API is not', () => {
+    const publicCall = fakeRes();
+    let nextCalled = false;
+    csrfProtection(fakeReq({ path: '/ticketing/public/orders' }), publicCall.res, () => { nextCalled = true; });
+    assert.equal(nextCalled, true);
+
+    const staffCall = fakeRes();
+    csrfProtection(fakeReq({ path: '/ticketing/admin/venues' }), staffCall.res, () => { throw new Error('must not pass'); });
+    assert.equal(staffCall.calls.status, 403);
+});

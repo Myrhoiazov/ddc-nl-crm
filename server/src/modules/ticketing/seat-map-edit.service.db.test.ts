@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import test from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { cloneSeatMap, updateSeats } from './seat-map-edit.service';
@@ -19,7 +20,7 @@ const SMALL_HALL = {
 };
 
 const createDraft = async () => {
-    const venue = await createVenue(prisma, { name: `Venue ${Date.now()}-${Math.random()}` });
+    const venue = await createVenue(prisma, { name: `Venue ${randomUUID()}` });
     const created = await createSeatMap(prisma, venue.id, SMALL_HALL);
     assert.equal(created.kind, 'created');
     const seatMap = await getSeatMap(prisma, created.kind === 'created' ? created.seatMapId : 0);

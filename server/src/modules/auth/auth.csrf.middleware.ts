@@ -29,6 +29,9 @@ const csrfExempt = (req: Request) => {
         // (both the pre-existing email-draft-approval bot and the new admin bot) was silently
         // 403'd by this middleware before ever reaching the controller.
         || path === '/telegram/webhook'
+        // Публичный API билетов вызывает покупатель без учётной записи: cookie сессии нет, красть
+        // нечего. Его защита — opaque-токены в теле/заголовке, лимиты по IP и Turnstile.
+        || path.startsWith('/ticketing/public/')
         // Header requests authenticate exclusively through initData in isAuthenticated;
         // even an invalid header never falls back to a cookie session.
         || Boolean(req.header('x-telegram-init-data')?.trim())
