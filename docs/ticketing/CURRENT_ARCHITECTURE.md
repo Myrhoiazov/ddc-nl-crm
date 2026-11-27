@@ -49,7 +49,7 @@ graph LR
 | Тема | Факт | Доказательство |
 |---|---|---|
 | Сессии персонала | opaque-токен в cookie, 2FA по email, Argon2id | `server/src/modules/auth/auth.middleware.ts:11-44`, `CONTEXT.md:135-140` |
-| Роли | enum из трёх значений: `ADMIN`, `MANAGER`, `DOCTOR` | `server/prisma/schema/user.prisma:1-5` |
+| Роли | enum из двух значений: `ADMIN`, `MANAGER` | `server/prisma/schema/user.prisma:1-4` |
 | Проверка ролей | `requireRole(...)` существует, но применяется точечно (knowledge, AI, payment-reminders, users, security-events) | `auth.middleware.ts:53-63`; поиск `requireRole` по `server/src` |
 | Mollie и счета | **все** маршруты только `isAuthenticated`, без роли — любой включённый пользователь может всё | `payments.routes.ts:8-60`, `invoices.routes.ts:24-39` |
 | Гранулярных прав нет | нет таблицы permissions; на клиенте только флаг `isAdmin` для пунктов меню | `client/src/widgets/Sidebar/model/selectors/getSidebarItems.ts:23`, `PrivatRoute.tsx` (роль не проверяет) |

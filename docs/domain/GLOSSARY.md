@@ -8,7 +8,7 @@ couldn't be confirmed in code, it's marked **Needs clarification** rather than g
 |---|---|---|---|
 | Client | A person enrolled at the school (student), or their parent/guardian who pays. Never authenticates — no login path exists for `Client`. | Branch, Comment, ClientDanceGroup, Customer | [crm.md](crm.md) |
 | Student | Same entity as **Client** — the code and UI use "student" and "client" interchangeably; there is no separate Student model. | Client | — |
-| User | A staff member (role `ADMIN`/`MANAGER`/`DOCTOR`). Distinct from Client — Users are the only entities that authenticate. | Session, AuthSecurityEvent | `DOCTOR` role exists but gates nothing in code — **Needs clarification** (no rationale found for the name or intended use). |
+| User | A staff member (role `ADMIN`/`MANAGER`). Distinct from Client — Users are the only entities that authenticate. | Session, AuthSecurityEvent | Every CRM data route requires one of these two roles (`requireStaff`). |
 | Group / Dance group | A scheduled class: style (free text) + level (`START`/`FAN`/`PRO`) + choreographer + hall + branch + price. Modeled as `DanceGroup`. | Choreographer, Hall, ScheduleSlot, Branch | `maxParticipants` is stored but not enforced anywhere in code — informational only. [scheduling.md](scheduling.md) |
 | Choreographer | An instructor who teaches one or more groups. | DanceGroup | [scheduling.md](scheduling.md) |
 | Branch / Filiya | A physical location/studio. | Client, DanceGroup, LegalOrganization (indirectly, via billing brand) | Hard-deletable (no soft-delete gate), despite having an `isActive` field. [organization.md](organization.md) |

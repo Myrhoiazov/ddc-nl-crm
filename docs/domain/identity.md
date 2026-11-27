@@ -7,7 +7,7 @@ logging.
 
 ## Scope
 
-- `User` — staff accounts (role `ADMIN`/`MANAGER`/`DOCTOR`).
+- `User` — staff accounts (role `ADMIN`/`MANAGER`).
 - `Session` — login sessions.
 - `TwoFactorChallenge`, `TrustedDevice` — 2FA flow.
 - `AuthSecurityEvent` — security audit log.
@@ -30,7 +30,7 @@ logging.
 
 - **Purpose**: a staff account.
 - **Identity**: `id`.
-- **Important fields**: `email` (unique), `role` (`ADMIN`/`MANAGER`/`DOCTOR`), `isEnabled`
+- **Important fields**: `email` (unique), `role` (`ADMIN`/`MANAGER`), `isEnabled`
   (real access gate, default `true`), `isActive` (default `false`, see note below), `authVersion`.
 - **Relationships**: owns `Session[]`, `TwoFactorChallenge[]`, `TrustedDevice[]`,
   `AuthIdentity[]`, `TelegramAuthTransaction[]`; referenced by staff-attribution FKs across
@@ -43,9 +43,12 @@ logging.
     projected field or writes it via the Prisma default; nothing sets it explicitly and no
     permission check reads it. **Needs clarification** whether this is a planned "pending
     approval" flag that was never wired up.
-  - Only `ADMIN` and `MANAGER` are checked anywhere in route guards. `DOCTOR` is a selectable role
-    that currently gates nothing — no route, controller, or middleware references it. Documented
-    as-is; no rationale for the name exists in code.
+  - Every route that exposes CRM data is role-gated. `requireStaff` (`ADMIN` or `MANAGER`,
+    `auth.middleware.ts`) guards clients, schedule, company, invoices, transactions, comments,
+    search and Mollie; stricter routers (email, users, knowledge base, AI settings) name their
+    roles explicitly. Only webhooks, the Mollie OAuth callback, public invoice links, `auth` and
+    `health` are open by design. A role added to the enum later gets none of these routes until
+    it is listed in a guard.
 
 ### Session
 

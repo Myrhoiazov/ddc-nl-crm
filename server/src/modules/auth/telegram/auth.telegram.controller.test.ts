@@ -45,7 +45,6 @@ const fakeRes = () => {
 test('isTelegramRoleAllowed is true only for ADMIN — the product decision is Telegram auth is ADMIN-only', () => {
     assert.equal(isTelegramRoleAllowed(UserRole.ADMIN), true);
     assert.equal(isTelegramRoleAllowed(UserRole.MANAGER), false);
-    assert.equal(isTelegramRoleAllowed(UserRole.DOCTOR), false);
 });
 
 test('mapTransactionFailureToErrorCode distinguishes EXPIRED from every other failure reason', () => {

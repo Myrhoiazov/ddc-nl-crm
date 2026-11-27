@@ -1,7 +1,6 @@
 enum UserRole {
   ADMIN
   MANAGER
-  DOCTOR
 }
 
 enum AuthProvider {

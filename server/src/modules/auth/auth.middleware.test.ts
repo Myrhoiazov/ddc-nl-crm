@@ -3,7 +3,7 @@ import test from 'node:test';
 import { NextFunction, Request, Response } from 'express';
 import { UserRole } from '@prisma/client';
 import { fromPartial } from '@total-typescript/shoehorn';
-import { requireRole } from './auth.middleware';
+import { requireRole, requireStaff } from './auth.middleware';
 
 const createReq = (role?: UserRole): Request => fromPartial({
     user: role ? { role } : undefined,
@@ -126,4 +126,18 @@ test('keeps cookie authentication when Telegram header is absent', async (t) => 
     await isAuthenticated(req, createRes(), () => { next = true; });
     assert.equal(next, true);
     assert.equal(req.user?.id, 99);
+});
+
+const passesStaffGuard = (role: UserRole | undefined) => {
+    let nextCalled = false;
+    requireStaff(createReq(role), createRes(), (() => { nextCalled = true; }) as NextFunction);
+    return nextCalled;
+};
+
+test('requireStaff lets ADMIN and MANAGER through and blocks everyone else', () => {
+    assert.equal(passesStaffGuard(UserRole.ADMIN), true);
+    assert.equal(passesStaffGuard(UserRole.MANAGER), true);
+    assert.equal(passesStaffGuard(undefined), false);
+    // Роль, которой ещё нет в enum (будущий check-in), не должна получить доступ по умолчанию.
+    assert.equal(passesStaffGuard('CHECKIN' as UserRole), false);
 });

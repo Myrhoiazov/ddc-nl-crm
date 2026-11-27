@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
-import { asyncHandler, isToken } from '../auth/auth.middleware';
+import { asyncHandler, isToken, requireStaff } from '../auth/auth.middleware';
 import {
     getGroups, getGroupById, createGroup, updateGroup, deleteGroup,
     getGroupManagementStats,
@@ -51,23 +51,23 @@ const styleUpload = multer({
 const router = express.Router();
 
 // Groups
-router.get('/groups-management/stats', asyncHandler(isToken), asyncHandler(getGroupManagementStats));
-router.get('/groups', asyncHandler(isToken), asyncHandler(getGroups));
-router.get('/groups/:id', asyncHandler(isToken), asyncHandler(getGroupById));
-router.post('/groups', asyncHandler(isToken), asyncHandler(createGroup));
-router.put('/groups/:id', asyncHandler(isToken), asyncHandler(updateGroup));
-router.delete('/groups/:id', asyncHandler(isToken), asyncHandler(deleteGroup));
+router.get('/groups-management/stats', asyncHandler(isToken), requireStaff, asyncHandler(getGroupManagementStats));
+router.get('/groups', asyncHandler(isToken), requireStaff, asyncHandler(getGroups));
+router.get('/groups/:id', asyncHandler(isToken), requireStaff, asyncHandler(getGroupById));
+router.post('/groups', asyncHandler(isToken), requireStaff, asyncHandler(createGroup));
+router.put('/groups/:id', asyncHandler(isToken), requireStaff, asyncHandler(updateGroup));
+router.delete('/groups/:id', asyncHandler(isToken), requireStaff, asyncHandler(deleteGroup));
 
 // Halls
-router.get('/halls', asyncHandler(isToken), asyncHandler(getHalls));
-router.post('/halls', asyncHandler(isToken), asyncHandler(createHall));
-router.delete('/halls/:id', asyncHandler(isToken), asyncHandler(deleteHall));
+router.get('/halls', asyncHandler(isToken), requireStaff, asyncHandler(getHalls));
+router.post('/halls', asyncHandler(isToken), requireStaff, asyncHandler(createHall));
+router.delete('/halls/:id', asyncHandler(isToken), requireStaff, asyncHandler(deleteHall));
 
 // Choreographers
-router.get('/choreographers', asyncHandler(isToken), asyncHandler(getChoreographers));
-router.post('/choreographers', asyncHandler(isToken), asyncHandler(createChoreographer));
-router.put('/choreographers/:id', asyncHandler(isToken), asyncHandler(updateChoreographer));
-router.delete('/choreographers/:id', asyncHandler(isToken), asyncHandler(deleteChoreographer));
+router.get('/choreographers', asyncHandler(isToken), requireStaff, asyncHandler(getChoreographers));
+router.post('/choreographers', asyncHandler(isToken), requireStaff, asyncHandler(createChoreographer));
+router.put('/choreographers/:id', asyncHandler(isToken), requireStaff, asyncHandler(updateChoreographer));
+router.delete('/choreographers/:id', asyncHandler(isToken), requireStaff, asyncHandler(deleteChoreographer));
 
 // Photo upload for choreographers
 const uploadChoreographerPhoto = asyncHandler(async (req: express.Request, res: express.Response) => {
@@ -76,15 +76,15 @@ const uploadChoreographerPhoto = asyncHandler(async (req: express.Request, res: 
     res.json({ url });
 });
 
-router.post('/choreographers/upload', asyncHandler(isToken), upload.single('file'), uploadChoreographerPhoto);
+router.post('/choreographers/upload', asyncHandler(isToken), requireStaff, upload.single('file'), uploadChoreographerPhoto);
 
 // Styles
-router.get('/styles', asyncHandler(isToken), asyncHandler(getStyles));
-router.get('/style-cards', asyncHandler(isToken), asyncHandler(getStyleCards));
-router.post('/style-cards', asyncHandler(isToken), asyncHandler(createStyleCard));
-router.put('/style-cards/:id', asyncHandler(isToken), asyncHandler(updateStyleCard));
-router.delete('/style-cards/:id', asyncHandler(isToken), asyncHandler(deleteStyleCard));
-router.post('/style-cards/upload', asyncHandler(isToken), styleUpload.single('file'), asyncHandler(async (req: express.Request, res: express.Response) => {
+router.get('/styles', asyncHandler(isToken), requireStaff, asyncHandler(getStyles));
+router.get('/style-cards', asyncHandler(isToken), requireStaff, asyncHandler(getStyleCards));
+router.post('/style-cards', asyncHandler(isToken), requireStaff, asyncHandler(createStyleCard));
+router.put('/style-cards/:id', asyncHandler(isToken), requireStaff, asyncHandler(updateStyleCard));
+router.delete('/style-cards/:id', asyncHandler(isToken), requireStaff, asyncHandler(deleteStyleCard));
+router.post('/style-cards/upload', asyncHandler(isToken), requireStaff, styleUpload.single('file'), asyncHandler(async (req: express.Request, res: express.Response) => {
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
     return res.json({ url: `/upload/styles/${req.file.filename}` });
 }));

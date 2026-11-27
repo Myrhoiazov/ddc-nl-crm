@@ -34,7 +34,7 @@ endpoint, and outbound Telegram notifications for staff with admin-controlled on
 - **Important fields**: `imapHost`/`imapPort`/`smtpHost`/`smtpPort`, `username`,
   `passwordEncrypted`, `lastSyncedUid`/`lastSyncedAt` (sync cursor).
 - **Invariants**: the entire `/email` API is `ADMIN`-only (Identity-domain rule enforced at the
-  router level) — `MANAGER`/`DOCTOR` staff cannot access email at all.
+  router level) — `MANAGER` staff cannot access email at all.
 
 ### EmailMessage
 

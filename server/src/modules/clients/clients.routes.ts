@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { getClientCountController, createClientsController, deleteClientByIdController, fetchAllClientsController, getClientByIdController, getClientPaymentSummaryController, updateClientByIdController } from "./clients.controller";
-import { asyncHandler, isToken } from "../auth/auth.middleware";
+import { asyncHandler, isToken, requireStaff } from "../auth/auth.middleware";
 import { ROOT_DIR } from "../../common/utils/paths";
 
 const publicPath = path.resolve(ROOT_DIR, 'public/upload');
@@ -27,12 +27,12 @@ const upload = multer({
     },
 });
 
-router.get("/", asyncHandler(isToken), asyncHandler(fetchAllClientsController));
-router.get("/:id/payment-summary", asyncHandler(isToken), asyncHandler(getClientPaymentSummaryController));
-router.get("/count", asyncHandler(isToken), asyncHandler(getClientCountController));
-router.get("/:id", asyncHandler(isToken), asyncHandler(getClientByIdController));
-router.delete("/:id", asyncHandler(isToken), asyncHandler(deleteClientByIdController));
-router.put("/:id", asyncHandler(isToken), upload.single('image'), asyncHandler(updateClientByIdController));
-router.post("/", asyncHandler(isToken), upload.single('image'), asyncHandler(createClientsController));
+router.get("/", asyncHandler(isToken), requireStaff, asyncHandler(fetchAllClientsController));
+router.get("/:id/payment-summary", asyncHandler(isToken), requireStaff, asyncHandler(getClientPaymentSummaryController));
+router.get("/count", asyncHandler(isToken), requireStaff, asyncHandler(getClientCountController));
+router.get("/:id", asyncHandler(isToken), requireStaff, asyncHandler(getClientByIdController));
+router.delete("/:id", asyncHandler(isToken), requireStaff, asyncHandler(deleteClientByIdController));
+router.put("/:id", asyncHandler(isToken), requireStaff, upload.single('image'), asyncHandler(updateClientByIdController));
+router.post("/", asyncHandler(isToken), requireStaff, upload.single('image'), asyncHandler(createClientsController));
 
 export default router;

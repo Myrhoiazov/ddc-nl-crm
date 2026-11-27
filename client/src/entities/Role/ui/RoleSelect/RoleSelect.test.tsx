@@ -9,7 +9,7 @@ describe('RoleSelect', () => {
         expect(screen.getByRole('option', { name: RoleLabels.ADMIN })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: RoleLabels.MANAGER })).toBeInTheDocument();
         expect(screen.getByRole('option', { name: RoleLabels.GUEST })).toBeInTheDocument();
-        expect(screen.getByRole('option', { name: RoleLabels.DOCTOR })).toBeInTheDocument();
+        expect(screen.getAllByRole('option')).toHaveLength(3);
     });
 
     test('calls onChange with the selected role', () => {

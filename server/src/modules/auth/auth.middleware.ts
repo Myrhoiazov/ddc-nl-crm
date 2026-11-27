@@ -62,6 +62,10 @@ export const requireRole = (...roles: UserRole[]) => (
     next();
 };
 
+// Доступ к данным CRM — только сотрудникам с рабочей ролью. Новая роль (например, check-in)
+// не получает эти маршруты, пока её явно сюда не добавят.
+export const requireStaff = requireRole(UserRole.ADMIN, UserRole.MANAGER);
+
 export const requireOwnerOrRole = (...roles: UserRole[]) => (
     req: Request,
     res: Response,

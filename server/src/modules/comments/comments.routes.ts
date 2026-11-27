@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-import { asyncHandler, isToken } from "../auth/auth.middleware";
+import { asyncHandler, isToken, requireStaff } from "../auth/auth.middleware";
 import { createCommentController, fetchByClientIdController } from "./comments.controller";
 import { ROOT_DIR } from "../../common/utils/paths";
 
@@ -28,9 +28,9 @@ const upload = multer({
     },
 });
 
-router.get("/", asyncHandler(isToken), asyncHandler(fetchByClientIdController));
-router.get("/:id", asyncHandler(isToken), asyncHandler(fetchByClientIdController));
+router.get("/", asyncHandler(isToken), requireStaff, asyncHandler(fetchByClientIdController));
+router.get("/:id", asyncHandler(isToken), requireStaff, asyncHandler(fetchByClientIdController));
 // router.delete("/:id", asyncHandler(isToken), asyncHandler(deleteClientByIdController));
-router.post("/", asyncHandler(isToken), upload.single('image'), asyncHandler(createCommentController));
+router.post("/", asyncHandler(isToken), requireStaff, upload.single('image'), asyncHandler(createCommentController));
 
 export default router;

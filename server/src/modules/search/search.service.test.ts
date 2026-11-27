@@ -65,5 +65,4 @@ test('paymentCustomerName prefers payerName, then given+family name, then email'
 test('shouldIncludeTransactions is true only for ADMIN role', () => {
     assert.equal(shouldIncludeTransactions(UserRole.ADMIN), true);
     assert.equal(shouldIncludeTransactions(UserRole.MANAGER), false);
-    assert.equal(shouldIncludeTransactions(UserRole.DOCTOR), false);
 });
