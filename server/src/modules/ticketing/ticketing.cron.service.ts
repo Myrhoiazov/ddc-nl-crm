@@ -6,7 +6,9 @@ import { expireDueHolds } from './hold.service';
 import { expireDueOrders, reconcileTicketPayments } from './payment-jobs.service';
 import { getTicketPaymentGateway } from './payment.mollie-gateway';
 import type { PaymentServiceDeps } from './payment.types';
-import { readPaymentConfig, readTicketTokenConfig } from './ticketing.config';
+import { processTicketDeliveries } from './ticket-delivery.service';
+import { createTicketSmtpMailer } from './ticket-smtp.mailer';
+import { isTicketEmailEnabled, readPaymentConfig, readTicketSmtpConfig, readTicketTokenConfig } from './ticketing.config';
 
 type Env = Record<string, string | undefined>;
 type PaymentJob = (deps: PaymentServiceDeps, cursor: number) => Promise<{ nextCursor: number }>;
@@ -59,7 +61,20 @@ const startPaymentJobs = (env: Env) => {
     }
 };
 
+const startTicketDelivery = (env: Env) => {
+    if (!isTicketEmailEnabled(env)) return;
+
+    const smtp = readTicketSmtpConfig(env);
+    const mailer = smtp ? createTicketSmtpMailer(smtp) : null;
+    scheduleJob('ticketing-ticket-delivery', EVERY_MINUTE, async () => {
+        await processTicketDeliveries({
+            prisma, mailer, enabled: isTicketEmailEnabled(env), tokens: readTicketTokenConfig(env),
+        });
+    });
+};
+
 export const startTicketingCron = (env: Env = process.env) => {
     if (env.TICKETING_HOLD_EXPIRY_ENABLED === 'true') startHoldExpiry();
     startPaymentJobs(env);
+    startTicketDelivery(env);
 };

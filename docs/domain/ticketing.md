@@ -5,9 +5,9 @@
 Sell concert tickets with assigned seats: venues and versioned seat maps, events and sessions,
 per-session seat inventory, temporary seat holds, orders awaiting payment, Mollie checkout with
 background expiry and reconciliation, and one opaque ticket per paid seat with a delivery outbox.
-The buyer can list tickets and download a PDF with QR codes using the order token. Email sending,
-recovery/resend and check-in are still planned — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for
-the phases.
+The buyer can list tickets and download a PDF with QR codes using the order token. A separate
+SMTP-backed worker delivers the PDF from the outbox with retries, strictly behind a flag; recovery,
+staff resend and check-in are still planned — see `docs/ticketing/IMPLEMENTATION_PLAN.md`.
 
 ## Scope
 
@@ -117,6 +117,9 @@ the phases.
 - **States**: `PENDING` → `SENDING` → `SENT` / `FAILED`.
 - **Invariants**: the outbox row is created with the tickets, before any network call. A worker
   claims rows with a conditional `PENDING → SENDING` update so two runs never send the same email.
+  Failed sends return to `PENDING` with exponential backoff (60s, 2m, 4m); after four attempts the
+  row becomes `FAILED` but is never deleted. Without `TICKETING_EMAIL_ENABLED` or SMTP settings the
+  worker leaves the row untouched. Delivery uses SMTP directly and never writes an `EmailMessage`.
 
 ## Domain Concepts
 

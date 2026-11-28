@@ -76,12 +76,31 @@ const restoreTickets = (secret: string, stored: StoredTicket[]): PublicTicket[] 
     return tickets;
 };
 
-export const getPaidTicketBundle = async (deps: TicketServiceDeps, accessToken: string): Promise<TicketBundle | null> => {
-    const tokens = deps.tokens;
-    if (!tokens) return null;
+interface PaidOrderForBundle {
+    number: string;
+    status: TicketOrderStatus;
+    eventSnapshot: Prisma.JsonValue;
+    items: { ticket: StoredTicket | null }[];
+}
 
+const toPaidTicketBundle = (order: PaidOrderForBundle | null, secret: string): TicketBundle | null => {
+    if (!order || order.status !== TicketOrderStatus.PAID) return null;
+
+    const event = toTicketEvent(order.eventSnapshot);
+    if (!event) return null;
+
+    const stored = order.items.flatMap((item) => (item.ticket ? [item.ticket] : []));
+    const tickets = restoreTickets(secret, stored);
+    return tickets ? { orderNumber: order.number, event, tickets } : null;
+};
+
+const loadPaidTicketBundle = async (
+    deps: TicketServiceDeps,
+    where: Prisma.TicketOrderWhereUniqueInput,
+): Promise<TicketBundle | null> => {
+    if (!deps.tokens) return null;
     const order = await deps.prisma.ticketOrder.findUnique({
-        where: { accessTokenHash: hashTicketingToken(accessToken) },
+        where,
         select: {
             number: true,
             status: true,
@@ -93,12 +112,15 @@ export const getPaidTicketBundle = async (deps: TicketServiceDeps, accessToken: 
             },
         },
     });
-    if (!order || order.status !== TicketOrderStatus.PAID) return null;
-
-    const event = toTicketEvent(order.eventSnapshot);
-    if (!event) return null;
-
-    const stored = order.items.flatMap((item) => (item.ticket ? [item.ticket] : []));
-    const tickets = restoreTickets(tokens.secret, stored);
-    return tickets ? { orderNumber: order.number, event, tickets } : null;
+    return toPaidTicketBundle(order as PaidOrderForBundle | null, deps.tokens.secret);
 };
+
+export const getPaidTicketBundle = (deps: TicketServiceDeps, accessToken: string): Promise<TicketBundle | null> => (
+    loadPaidTicketBundle(deps, { accessTokenHash: hashTicketingToken(accessToken) })
+);
+
+// Внутренний путь для воркера доставки: заказ уже известен по id, токен покупателя не нужен.
+export const getPaidTicketBundleByOrderId = (
+    deps: TicketServiceDeps,
+    orderId: number,
+): Promise<TicketBundle | null> => loadPaidTicketBundle(deps, { id: orderId });

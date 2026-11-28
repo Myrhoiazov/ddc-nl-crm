@@ -76,3 +76,15 @@ export const createTicketPdf = async (bundle: TicketBundle): Promise<PDFKit.PDFD
     }
     return doc;
 };
+
+// Тот же PDF в виде буфера — для вложения в письмо.
+export const ticketPdfBuffer = async (bundle: TicketBundle): Promise<Buffer> => {
+    const document = await createTicketPdf(bundle);
+    return new Promise<Buffer>((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        document.on('data', (chunk: Buffer) => chunks.push(Buffer.from(chunk)));
+        document.on('end', () => resolve(Buffer.concat(chunks)));
+        document.on('error', reject);
+        document.end();
+    });
+};

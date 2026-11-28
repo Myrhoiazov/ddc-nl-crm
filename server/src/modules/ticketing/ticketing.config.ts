@@ -1,5 +1,6 @@
 import type { OrderSettings } from './order.types';
 import type { PaymentConfig } from './payment.types';
+import type { TicketSmtpConfig } from './ticket-delivery.types';
 import type { TicketTokenConfig } from './ticket.types';
 
 // Настройки публичной продажи из окружения. Продажа выключена, пока явно не задан флаг и
@@ -71,4 +72,28 @@ export const readTicketTokenConfig = (env: Env = process.env): TicketTokenConfig
     const version = Number(env.TICKETING_TICKET_TOKEN_VERSION ?? 1);
     if (secret.length < MIN_TOKEN_SECRET_LENGTH || !Number.isInteger(version) || version < 1) return null;
     return { secret, version };
+};
+
+// Отправка билетов включается отдельно от продажи: outbox накапливается и без SMTP,
+// а фоновый worker не должен отправлять письма до явного разрешения оператора.
+export const isTicketEmailEnabled = (env: Env = process.env): boolean => env.TICKETING_EMAIL_ENABLED === 'true';
+
+export const readTicketSmtpConfig = (env: Env = process.env): TicketSmtpConfig | null => {
+    const host = env.SMTP_HOST?.trim() ?? '';
+    const user = env.SMTP_USER?.trim() ?? '';
+    const password = env.SMTP_PASSWORD ?? '';
+    if (!host || !user || !password) return null;
+
+    const configuredPort = Number(env.SMTP_PORT ?? 587);
+    const port = Number.isInteger(configuredPort) && configuredPort > 0 && configuredPort <= 65_535
+        ? configuredPort
+        : 587;
+    return {
+        host,
+        port,
+        secure: env.SMTP_SECURE === 'true' || port === 465,
+        user,
+        password,
+        from: env.SMTP_FROM?.trim() || user,
+    };
 };

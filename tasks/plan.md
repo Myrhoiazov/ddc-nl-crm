@@ -1364,13 +1364,13 @@ SENDING` условным `updateMany`, отправляет письмо с PDF
 `nextAttemptAt`. Письма не попадают в общую CRM-почту (`EmailMessage`).
 
 **Acceptance criteria:**
-- [ ] Не менее трёх автоматических повторов с задержкой; два запуска подряд не отправляют одно письмо дважды.
-- [ ] Ошибка SMTP не откатывает Confirmation заказа и не роняет webhook.
-- [ ] Без SMTP-конфигурации outbox остаётся `PENDING`/`FAILED`, а не теряется.
+- [x] Не менее трёх автоматических повторов с задержкой; два запуска подряд не отправляют одно письмо дважды.
+- [x] Ошибка SMTP не откатывает Confirmation заказа и не роняет webhook.
+- [x] Без SMTP-конфигурации outbox остаётся `PENDING`/`FAILED`, а не теряется.
 
 **Verification:**
-- [ ] Server: `npm run build`, `npm run test:ticketing`, DB-тесты, `test:ticketing` cron-тесты
-- [ ] Config: `.env.example`, `docker-compose.dev.yml`, `docker-compose.prod.yml`
+- [x] Server: `npm run build`, `npm run test:ticketing`, DB-тесты, `test:ticketing` cron-тесты
+- [x] Config: `.env.example`, `docker-compose.dev.yml`, `docker-compose.prod.yml`
 
 **Dependencies:** E1, E2.
 **Files likely touched:** `ticket-delivery.*`, `ticketing.cron.service.ts`, `ticketing.config.ts`,
