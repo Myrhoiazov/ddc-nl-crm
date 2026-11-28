@@ -5,6 +5,7 @@ import test from 'node:test';
 import { PrismaClient } from '@prisma/client';
 import { overrideTicketPaymentGateway } from './payment.mollie-gateway';
 import type { RemotePayment } from './payment.types';
+import { hashTicketToken } from './ticket.policy';
 import { createEvent, createSession, publishSession } from './event.service';
 import { createSeatMap, createVenue, getSeatMap, publishSeatMap } from './venue.service';
 
@@ -32,6 +33,11 @@ const notifyPayment = (id = payment.id) => fetch(base.replace(/\/public$/, '/web
 });
 
 const post = (path: string, body: unknown) => fetch(`${base}${path}`, { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify(body) });
+// Новые сценарии билетов не должны расходовать лимит checkout, проверяемый другими тестами.
+const TICKET_IP_HEADERS = { ...JSON_HEADERS, 'x-forwarded-for': '127.0.0.42' };
+const postTickets = (path: string, body: unknown) => fetch(`${base}${path}`, {
+    method: 'POST', headers: TICKET_IP_HEADERS, body: JSON.stringify(body),
+});
 
 const createOnSaleSession = async () => {
     const venue = await createVenue(prisma, { name: `Venue ${randomUUID()}` });
@@ -48,6 +54,15 @@ const createOnSaleSession = async () => {
     const sessionId = session.kind === 'created' ? session.sessionId : 0;
     await publishSession(prisma, sessionId);
     return { sessionId, seatIds: seatMap?.seats.map((seat) => seat.id) ?? [] };
+};
+
+const paidOrder = async () => {
+    const { sessionId, seatIds } = await createOnSaleSession();
+    const { holdToken } = await (await post(`/sessions/${sessionId}/holds`, { seatIds: [seatIds[0], seatIds[1]] })).json();
+    const created = await (await postTickets('/orders', { holdToken, buyer: BUYER, acceptTerms: true })).json();
+    payment = { ...payment, status: 'paid', paidAt: new Date() };
+    assert.equal((await notifyPayment()).status, 200);
+    return { orderToken: created.orderToken as string, orderNumber: created.order.number as string };
 };
 
 test.before(async () => {
@@ -146,6 +161,78 @@ test('checkout creates one payment and concurrent webhooks sell its seats once',
     const synced = await prisma.ticketPayment.findUniqueOrThrow({ where: { molliePaymentId: payment.id } });
     assert.equal(synced.status, 'paid');
     assert.equal(await prisma.ticketSessionSeat.count({ where: { sessionId, status: 'SOLD' } }), 2);
+});
+
+test('a paid buyer lists tickets without hashes, short codes or internal ids', { skip }, async () => {
+    const { orderToken, orderNumber } = await paidOrder();
+
+    const response = await fetch(`${base}/orders/current/tickets`, {
+        headers: { 'x-ticketing-order-token': orderToken },
+    });
+    assert.equal(response.status, 200);
+    const text = await response.text();
+    const body = JSON.parse(text);
+    assert.equal(body.orderNumber, orderNumber);
+    assert.equal(body.tickets.length, 2);
+    for (const ticket of body.tickets) {
+        assert.match(ticket.token, /^v1\.[A-Za-z0-9_-]+$/);
+        assert.ok(ticket.issuedAt);
+        assert.equal(ticket.seat.rowLabel, '1');
+    }
+    assert.equal(text.includes('codeHash'), false);
+    assert.equal(text.includes('shortCode'), false);
+    assert.equal(text.includes('"id"'), false);
+    assert.equal(text.includes('anna@example.com'), false);
+
+    // Независимая проверка: токен из ответа должен восстановить ровно тот хеш, что лежит в БД.
+    const stored = await prisma.ticket.findMany({
+        where: { orderItem: { order: { number: orderNumber } } },
+        select: { codeHash: true },
+    });
+    assert.deepEqual(
+        stored.map((ticket) => ticket.codeHash).sort(),
+        body.tickets.map((ticket: { token: string }) => hashTicketToken(ticket.token)).sort(),
+    );
+});
+
+test('tickets are hidden from unknown, unpaid and wrongly signed orders', { skip }, async () => {
+    const { sessionId, seatIds } = await createOnSaleSession();
+    const { holdToken } = await (await post(`/sessions/${sessionId}/holds`, { seatIds: [seatIds[0]] })).json();
+    const created = await (await postTickets('/orders', { holdToken, buyer: BUYER, acceptTerms: true })).json();
+    const orderToken = created.orderToken as string;
+    const url = `${base}/orders/current/tickets`;
+    const withToken = (token: string | null) => fetch(url, token ? { headers: { 'x-ticketing-order-token': token } } : {});
+
+    assert.equal((await withToken(null)).status, 404);
+    assert.equal((await withToken('x'.repeat(43))).status, 404);
+    assert.equal((await withToken(orderToken)).status, 404);
+
+    payment = { ...payment, status: 'paid', paidAt: new Date() };
+    assert.equal((await notifyPayment()).status, 200);
+
+    process.env.TICKETING_TICKET_TOKEN_SECRET = 'z'.repeat(32);
+    try {
+        assert.equal((await withToken(orderToken)).status, 404);
+    } finally {
+        delete process.env.TICKETING_TICKET_TOKEN_SECRET;
+    }
+    assert.equal((await withToken(orderToken)).status, 200);
+});
+
+test('a paid buyer downloads a PDF that only their token can unlock', { skip }, async () => {
+    const { orderToken } = await paidOrder();
+    const url = `${base}/orders/current/tickets.pdf`;
+
+    assert.equal((await fetch(url)).status, 404);
+    assert.equal((await fetch(url, { headers: { 'x-ticketing-order-token': 'x'.repeat(43) } })).status, 404);
+
+    const response = await fetch(url, { headers: { 'x-ticketing-order-token': orderToken } });
+    assert.equal(response.status, 200);
+    assert.match(response.headers.get('content-type') ?? '', /application\/pdf/);
+    assert.match(response.headers.get('content-disposition') ?? '', /tickets-.*\.pdf/);
+    const pdf = Buffer.from(await response.arrayBuffer());
+    assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+    assert.equal(pdf.includes(Buffer.from('anna@example.com')), false);
 });
 
 test('conflicts, bad input and unknown tokens get precise client errors', { skip }, async () => {

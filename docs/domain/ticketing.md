@@ -5,8 +5,9 @@
 Sell concert tickets with assigned seats: venues and versioned seat maps, events and sessions,
 per-session seat inventory, temporary seat holds, orders awaiting payment, Mollie checkout with
 background expiry and reconciliation, and one opaque ticket per paid seat with a delivery outbox.
-Public ticket lookup/PDF, email sending, recovery/resend and check-in are still planned — see
-`docs/ticketing/IMPLEMENTATION_PLAN.md` for the phases.
+The buyer can list tickets and download a PDF with QR codes using the order token. Email sending,
+recovery/resend and check-in are still planned — see `docs/ticketing/IMPLEMENTATION_PLAN.md` for
+the phases.
 
 ## Scope
 
@@ -105,6 +106,10 @@ Public ticket lookup/PDF, email sending, recovery/resend and check-in are still 
   - The whole order's tickets and one `TICKETS` delivery row are written in the same transaction
     that marks the order `PAID` and sells its seats (`payment.repository.ts` → `issueTickets`).
     A repeated webhook sees a non-pending order and issues nothing.
+  - `GET /orders/current/tickets` and `/tickets.pdf` work only for a `PAID` order addressed by its
+    opaque access token. Tokens are rebuilt from the stored nonce/version and accepted only when
+    their hash matches `codeHash` (`ticket.service.ts`). The JSON omits hashes, short codes and
+    internal ids; the QR in the PDF encodes the opaque token alone (`ticket.pdf.service.ts`).
 
 ### TicketDelivery
 

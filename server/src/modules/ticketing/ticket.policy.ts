@@ -28,3 +28,14 @@ export const hashTicketToken = (token: string): string => (
 export const shortCodeFromToken = (token: string): string => (
     crypto.createHash('sha256').update(`short:${token}`).digest('hex').slice(0, 8).toUpperCase()
 );
+
+export interface StoredTicketToken extends TicketTokenSource {
+    codeHash: string;
+}
+
+// Токен не хранится: выводим его из nonce и текущего секрета, но отдаём только если
+// получился тот же хеш. После ротации секрета или при повреждении строки билет недоступен.
+export const restoreTicketToken = (secret: string, stored: StoredTicketToken): string | null => {
+    const token = buildTicketToken(secret, stored);
+    return hashTicketToken(token) === stored.codeHash ? token : null;
+};

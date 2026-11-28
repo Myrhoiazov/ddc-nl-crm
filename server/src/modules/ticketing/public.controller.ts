@@ -17,6 +17,8 @@ import {
     type ReleaseHoldBody,
 } from './public.schema';
 import { getPublicSession } from './public.service';
+import { createTicketPdf } from './ticket.pdf.service';
+import { getPaidTicketBundle } from './ticket.service';
 import { readPaymentConfig, readTicketTokenConfig, readTicketingConfig } from './ticketing.config';
 import type { HoldServiceDeps } from './ticketing.types';
 import { parsePositiveId } from './venue.schema';
@@ -103,4 +105,27 @@ export const getOrderController = async (req: Request, res: Response) => {
     const token = req.header(ORDER_TOKEN_HEADER)?.trim();
     const order = token ? await getOrderByAccessToken(orderDeps(), token) : null;
     return order ? res.json({ order: toPublicOrder(order) }) : res.status(404).json({ message: 'Order not found' });
+};
+
+const ticketBundleForRequest = (req: Request) => {
+    const token = req.header(ORDER_TOKEN_HEADER)?.trim();
+    return token ? getPaidTicketBundle({ prisma, tokens: readTicketTokenConfig() }, token) : null;
+};
+
+// Один ответ на все случаи отсутствия билетов: неизвестный токен, другой заказ, статус не PAID
+// и несовпадение секрета не различаются для наружного наблюдателя.
+export const getOrderTicketsController = async (req: Request, res: Response) => {
+    const bundle = await ticketBundleForRequest(req);
+    return bundle ? res.json(bundle) : res.status(404).json({ message: 'Order not found' });
+};
+
+export const getOrderTicketsPdfController = async (req: Request, res: Response) => {
+    const bundle = await ticketBundleForRequest(req);
+    if (!bundle) return res.status(404).json({ message: 'Order not found' });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="tickets-${bundle.orderNumber}.pdf"`);
+    const document = await createTicketPdf(bundle);
+    document.pipe(res);
+    document.end();
 };

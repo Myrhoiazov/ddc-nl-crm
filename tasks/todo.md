@@ -159,7 +159,7 @@ Students/Verification sections ticked; Mollie sections deliberately left for Pha
 ## Ticketing — фаза 4: билеты и доставка
 
 - [x] E1 — схема `Ticket`/`TicketDelivery`/`TicketAuditLog`, миграция, выпуск билета в транзакции оплаты.
-- [ ] E2 — публичные статус билетов и PDF с QR по токену заказа.
+- [x] E2 — публичные статус билетов и PDF с QR по токену заказа.
 - [ ] E3 — email-outbox, SMTP-отправка с повторами под `TICKETING_EMAIL_ENABLED`.
 - [ ] E4 — восстановление заказа и повторная отправка персоналом.
 - [ ] Checks passed (server build, `test:ticketing`, `test:ticketing:db`, `test:mollie`, root `npm run ci`, Compose, Skylos).

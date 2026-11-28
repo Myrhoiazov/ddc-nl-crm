@@ -4,6 +4,8 @@ import {
     checkoutController,
     createHoldController,
     getOrderController,
+    getOrderTicketsController,
+    getOrderTicketsPdfController,
     getPublicSessionController,
     releaseHoldController,
 } from './public.controller';
@@ -20,5 +22,7 @@ router.post('/sessions/:sessionId/holds', asyncHandler(ticketingRateLimit('hold'
 router.post('/holds/release', asyncHandler(ticketingRateLimit('release', 30)), asyncHandler(releaseHoldController));
 router.post('/orders', asyncHandler(ticketingRateLimit('checkout', 10)), asyncHandler(checkoutController));
 router.get('/orders/current', asyncHandler(ticketingRateLimit('order', 60)), asyncHandler(getOrderController));
+router.get('/orders/current/tickets', asyncHandler(ticketingRateLimit('tickets', 60)), asyncHandler(getOrderTicketsController));
+router.get('/orders/current/tickets.pdf', asyncHandler(ticketingRateLimit('ticket-pdf', 20)), asyncHandler(getOrderTicketsPdfController));
 
 export default router;
