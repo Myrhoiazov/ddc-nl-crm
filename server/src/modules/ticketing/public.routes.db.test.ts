@@ -287,3 +287,59 @@ test('checkout retry recovers after Mollie accepted the payment but the response
     assert.equal(lostResponseKey, null);
     assert.equal(await prisma.ticketOrder.count({ where: { sessionId } }), 1);
 });
+
+const RECOVER_LIMIT = 5;
+const recover = (ip: string, body: unknown) => fetch(`${base}/orders/recover`, {
+    method: 'POST', headers: { ...JSON_HEADERS, 'x-forwarded-for': ip }, body: JSON.stringify(body),
+});
+const recoveryRows = (orderNumber: string) => prisma.ticketDelivery.count({
+    where: { type: 'RECOVERY_LINK', order: { number: orderNumber } },
+});
+
+test('order recovery answers 202 identically whether or not the order exists', { skip }, async () => {
+    const { orderToken, orderNumber } = await paidOrder();
+    const ip = '127.0.0.43';
+
+    const unknown = await recover(ip, { orderNumber: 'T-NOSUCH00', email: BUYER.email });
+    const wrongEmail = await recover(ip, { orderNumber, email: 'someone-else@example.com' });
+    assert.equal(await recoveryRows(orderNumber), 0);
+    const known = await recover(ip, { orderNumber: orderNumber.toLowerCase(), email: BUYER.email.toUpperCase() });
+
+    assert.deepEqual([unknown.status, wrongEmail.status, known.status], [202, 202, 202]);
+    const bodies = await Promise.all([unknown.text(), wrongEmail.text(), known.text()]);
+    assert.equal(new Set(bodies).size, 1);
+    assert.equal(bodies[0].includes(orderNumber), false);
+    assert.equal(await recoveryRows(orderNumber), 1);
+
+    const current = await fetch(`${base}/orders/current`, { headers: { 'x-ticketing-order-token': orderToken } });
+    assert.equal(current.status, 404);
+});
+
+test('order recovery rejects malformed input and is rate limited per IP', { skip }, async () => {
+    const ip = '127.0.0.44';
+    assert.equal((await recover(ip, { orderNumber: 'T-NOSUCH00' })).status, 400);
+    assert.equal((await recover(ip, { orderNumber: 'T-NOSUCH00', email: 'not-an-email' })).status, 400);
+    assert.equal((await recover(ip, { orderNumber: 'T-NOSUCH00', email: BUYER.email, extra: 1 })).status, 400);
+
+    const statuses: number[] = [];
+    for (let attempt = 0; attempt < RECOVER_LIMIT; attempt += 1) {
+        statuses.push((await recover(ip, { orderNumber: 'T-NOSUCH00', email: BUYER.email })).status);
+    }
+    assert.equal(statuses[statuses.length - 1], 429);
+    assert.equal((await recover('127.0.0.45', { orderNumber: 'T-NOSUCH00', email: BUYER.email })).status, 202);
+});
+
+test('ticket resend is a staff-only route', { skip }, async () => {
+    const { orderNumber } = await paidOrder();
+    const order = await prisma.ticketOrder.findUniqueOrThrow({ where: { number: orderNumber } });
+    const url = base.replace(/\/public$/, `/admin/orders/${order.id}/resend`);
+
+    // Без сессии запрос останавливает общий CSRF-слой; с заголовком Mini App, который CSRF
+    // пропускает, его отклоняет уже проверка роли на самом маршруте.
+    const anonymous = await fetch(url, { method: 'POST', headers: JSON_HEADERS });
+    const unsigned = await fetch(url, {
+        method: 'POST', headers: { ...JSON_HEADERS, 'x-telegram-init-data': 'not-a-signed-payload' },
+    });
+    assert.deepEqual([anonymous.status, unsigned.status], [403, 401]);
+    assert.equal(await prisma.ticketDelivery.count({ where: { orderId: order.id, type: 'RESEND' } }), 0);
+});

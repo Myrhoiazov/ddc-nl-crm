@@ -7,6 +7,7 @@ import {
     getOrderTicketsController,
     getOrderTicketsPdfController,
     getPublicSessionController,
+    recoverOrderController,
     releaseHoldController,
 } from './public.controller';
 import { requirePublicSales, ticketingRateLimit } from './public.middleware';
@@ -21,6 +22,7 @@ router.get('/sessions/:sessionId', asyncHandler(ticketingRateLimit('map', 120)),
 router.post('/sessions/:sessionId/holds', asyncHandler(ticketingRateLimit('hold', 20)), asyncHandler(createHoldController));
 router.post('/holds/release', asyncHandler(ticketingRateLimit('release', 30)), asyncHandler(releaseHoldController));
 router.post('/orders', asyncHandler(ticketingRateLimit('checkout', 10)), asyncHandler(checkoutController));
+router.post('/orders/recover', asyncHandler(ticketingRateLimit('recover', 5)), asyncHandler(recoverOrderController));
 router.get('/orders/current', asyncHandler(ticketingRateLimit('order', 60)), asyncHandler(getOrderController));
 router.get('/orders/current/tickets', asyncHandler(ticketingRateLimit('tickets', 60)), asyncHandler(getOrderTicketsController));
 router.get('/orders/current/tickets.pdf', asyncHandler(ticketingRateLimit('ticket-pdf', 20)), asyncHandler(getOrderTicketsPdfController));

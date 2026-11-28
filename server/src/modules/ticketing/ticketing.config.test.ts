@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isTicketEmailEnabled, readTicketSmtpConfig } from './ticketing.config';
+import { isTicketEmailEnabled, readTicketOrderUrl, readTicketSmtpConfig } from './ticketing.config';
 
 test('ticket email is opt-in', () => {
     assert.equal(isTicketEmailEnabled({}), false);
@@ -45,4 +45,15 @@ test('SMTP config is all-or-nothing and falls back to the configured sender', ()
         password: 'not-a-real-password',
         from: 'tickets@example.test',
     });
+});
+
+test('recovery links use the order page, falling back to the payment return URL', () => {
+    const returnUrl = 'https://tickets.example.test/payment/result';
+    assert.equal(readTicketOrderUrl({}), null);
+    assert.equal(readTicketOrderUrl({ TICKETING_PAYMENT_RETURN_URL: returnUrl }), returnUrl);
+    assert.equal(
+        readTicketOrderUrl({ TICKETING_PAYMENT_RETURN_URL: returnUrl, TICKETING_ORDER_URL: 'https://tickets.example.test/order' }),
+        'https://tickets.example.test/order',
+    );
+    assert.equal(readTicketOrderUrl({ TICKETING_ORDER_URL: 'http://insecure.test/order' }), null);
 });

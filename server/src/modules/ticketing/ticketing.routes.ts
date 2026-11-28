@@ -19,6 +19,7 @@ import {
     publishSessionController,
 } from './event.controller';
 import { mollieWebhookController } from './payment.controller';
+import { resendTicketsController } from './ticket-delivery.controller';
 import publicRouter from './public.routes';
 
 // Административный API Ticketing: сессия + CSRF (общая middleware) + явная роль на каждом маршруте.
@@ -39,6 +40,8 @@ router.post('/admin/events/:eventId/sessions', ...staff, asyncHandler(createSess
 router.get('/admin/sessions/:sessionId', ...staff, asyncHandler(getSessionController));
 router.post('/admin/sessions/:sessionId/publish', ...staff, asyncHandler(publishSessionController));
 router.post('/admin/sessions/:sessionId/status', ...staff, asyncHandler(changeSessionStatusController));
+
+router.post('/admin/orders/:orderId/resend', ...staff, asyncHandler(resendTicketsController));
 
 // Публичный API витрины — без роли персонала, см. public.routes.ts.
 router.use('/public', publicRouter);

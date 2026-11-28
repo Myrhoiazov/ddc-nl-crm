@@ -28,3 +28,9 @@ export const hashClientIp = (secret: string, clientIp?: string): string | null =
 export const deriveOrderAccessToken = (secret: string, holdToken: string): string => (
     createHmac('sha256', secret).update(`order:${holdToken}`).digest('base64url')
 );
+
+// Токен восстановления выводится из id заказа, поэтому worker может вставить его в ссылку,
+// не храня секрет в outbox. В БД по-прежнему лежит только хеш токена доступа.
+export const deriveRecoveryToken = (secret: string, orderId: number): string => (
+    createHmac('sha256', secret).update(`recovery:${orderId}`).digest('base64url')
+);

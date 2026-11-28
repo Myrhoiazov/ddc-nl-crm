@@ -152,7 +152,9 @@
 - **Зависит от:** фазы 3; B3.
 - **Статус (ветка `feat/ticketing`):** E1 — схема билетов и выпуск при оплате; E2 — публичные
   `GET /orders/current/tickets` и `/tickets.pdf` по токену заказа; E3 — SMTP-воркер outbox с
-  тремя повторами и задержками под `TICKETING_EMAIL_ENABLED` (по умолчанию выключен). E4 в работе.
+  тремя повторами и задержками под `TICKETING_EMAIL_ENABLED` (по умолчанию выключен); E4 —
+  `POST /public/orders/recover` (всегда `202`, ссылка с токеном во фрагменте `TICKETING_ORDER_URL`)
+  и `POST /admin/orders/:orderId/resend` с записью в `TicketAuditLog`.
   При отсутствии секрета подписи оплаченный заказ уходит в `NEEDS_REVIEW` (`TICKET_CONFIG_MISSING`).
 
 ### Фаза 5 — витрина и WordPress (9–12 дн.)

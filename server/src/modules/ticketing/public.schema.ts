@@ -12,6 +12,12 @@ export const releaseHoldSchema = z.object({ holdToken }).strict();
 // Тело checkout проверяется checkoutSchema; captchaToken снимается до неё.
 export const captchaTokenSchema = z.string().min(1).max(4096);
 
+// Номер заказа приводится к виду из письма (T-XXXXXXXX), email — к нижнему регистру.
+export const recoverOrderSchema = z.object({
+    orderNumber: z.string().trim().toUpperCase().min(3).max(16),
+    email: z.string().trim().toLowerCase().email().max(190),
+}).strict();
+
 // Типы объявлены явно: без strictNullChecks z.infer делает все поля необязательными.
 export interface CreateHoldBody {
     seatIds: number[];
@@ -20,4 +26,9 @@ export interface CreateHoldBody {
 
 export interface ReleaseHoldBody {
     holdToken: string;
+}
+
+export interface RecoverOrderBody {
+    orderNumber: string;
+    email: string;
 }

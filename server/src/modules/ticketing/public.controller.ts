@@ -12,11 +12,14 @@ import { HOLD_REJECTION_STATUS, ORDER_REJECTION_STATUS, toPublicOrder } from './
 import {
     captchaTokenSchema,
     createHoldSchema,
+    recoverOrderSchema,
     releaseHoldSchema,
     type CreateHoldBody,
+    type RecoverOrderBody,
     type ReleaseHoldBody,
 } from './public.schema';
 import { getPublicSession } from './public.service';
+import { requestRecoveryDelivery } from './ticket-delivery.commands';
 import { createTicketPdf } from './ticket.pdf.service';
 import { getPaidTicketBundle } from './ticket.service';
 import { readPaymentConfig, readTicketTokenConfig, readTicketingConfig } from './ticketing.config';
@@ -105,6 +108,18 @@ export const getOrderController = async (req: Request, res: Response) => {
     const token = req.header(ORDER_TOKEN_HEADER)?.trim();
     const order = token ? await getOrderByAccessToken(orderDeps(), token) : null;
     return order ? res.json({ order: toPublicOrder(order) }) : res.status(404).json({ message: 'Order not found' });
+};
+
+// Ответ не зависит от того, найден ли заказ: по нему нельзя перебирать номера и email.
+// Ссылка уходит только письмом на адрес из заказа.
+export const recoverOrderController = async (req: Request, res: Response) => {
+    const { captchaToken, ...body } = (req.body ?? {}) as Record<string, unknown>;
+    const parsed = recoverOrderSchema.safeParse(body);
+    if (!parsed.success) return invalidBody(res);
+    if (!(await passesCaptcha(req, captchaToken))) return res.status(403).json({ message: 'Captcha check failed' });
+
+    await requestRecoveryDelivery({ prisma, tokenSecret: tokenSecret() }, parsed.data as RecoverOrderBody);
+    return res.status(202).json({ message: 'If the order exists, a link has been sent to its email address' });
 };
 
 const ticketBundleForRequest = (req: Request) => {

@@ -37,6 +37,28 @@ export interface TicketDeliveryDeps {
     enabled: boolean;
     // null означает отсутствие SMTP-конфигурации: воркер не захватывает строки outbox.
     mailer: TicketMailer | null;
+    // Секрет токенов заказа и адрес страницы заказа нужны только письмам восстановления;
+    // без них строки RECOVERY_LINK остаются в outbox нетронутыми.
+    recoveryTokenSecret?: string | null;
+    orderUrl?: string | null;
+}
+
+export interface TicketDeliveryCommandDeps {
+    prisma: PrismaClient;
+    tokenSecret: string;
+}
+
+// Повторной отправке секрет не нужен: она не меняет токен доступа к заказу.
+export type TicketResendDeps = Pick<TicketDeliveryCommandDeps, 'prisma'>;
+
+export interface RecoveryDeliveryInput {
+    orderNumber: string;
+    email: string;
+}
+
+export interface ResendDeliveryInput {
+    orderId: number;
+    actorId: number;
 }
 
 export interface TicketDeliveryResult {
@@ -55,5 +77,6 @@ export interface TicketDeliveryEmail {
     subject: string;
     text: string;
     html: string;
-    attachmentName: string;
+    // У восстановления нет вложения: токен живёт только во фрагменте ссылки.
+    attachmentName?: string;
 }

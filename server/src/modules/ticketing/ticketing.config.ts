@@ -78,6 +78,12 @@ export const readTicketTokenConfig = (env: Env = process.env): TicketTokenConfig
 // а фоновый worker не должен отправлять письма до явного разрешения оператора.
 export const isTicketEmailEnabled = (env: Env = process.env): boolean => env.TICKETING_EMAIL_ENABLED === 'true';
 
+// Адрес страницы заказа в витрине. Без отдельной настройки используется страница результата
+// платежа: ссылка восстановления ведёт туда же, куда покупателя после оплаты.
+export const readTicketOrderUrl = (env: Env = process.env): string | null => (
+    readHttpsUrl(env.TICKETING_ORDER_URL) ?? readHttpsUrl(env.TICKETING_PAYMENT_RETURN_URL)
+);
+
 export const readTicketSmtpConfig = (env: Env = process.env): TicketSmtpConfig | null => {
     const host = env.SMTP_HOST?.trim() ?? '';
     const user = env.SMTP_USER?.trim() ?? '';

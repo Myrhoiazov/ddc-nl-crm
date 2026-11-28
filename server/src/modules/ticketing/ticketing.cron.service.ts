@@ -8,7 +8,14 @@ import { getTicketPaymentGateway } from './payment.mollie-gateway';
 import type { PaymentServiceDeps } from './payment.types';
 import { processTicketDeliveries } from './ticket-delivery.service';
 import { createTicketSmtpMailer } from './ticket-smtp.mailer';
-import { isTicketEmailEnabled, readPaymentConfig, readTicketSmtpConfig, readTicketTokenConfig } from './ticketing.config';
+import {
+    isTicketEmailEnabled,
+    readPaymentConfig,
+    readTicketOrderUrl,
+    readTicketSmtpConfig,
+    readTicketTokenConfig,
+    readTicketingConfig,
+} from './ticketing.config';
 
 type Env = Record<string, string | undefined>;
 type PaymentJob = (deps: PaymentServiceDeps, cursor: number) => Promise<{ nextCursor: number }>;
@@ -68,7 +75,12 @@ const startTicketDelivery = (env: Env) => {
     const mailer = smtp ? createTicketSmtpMailer(smtp) : null;
     scheduleJob('ticketing-ticket-delivery', EVERY_MINUTE, async () => {
         await processTicketDeliveries({
-            prisma, mailer, enabled: isTicketEmailEnabled(env), tokens: readTicketTokenConfig(env),
+            prisma,
+            mailer,
+            enabled: isTicketEmailEnabled(env),
+            tokens: readTicketTokenConfig(env),
+            recoveryTokenSecret: readTicketingConfig(env).tokenSecret,
+            orderUrl: readTicketOrderUrl(env),
         });
     });
 };

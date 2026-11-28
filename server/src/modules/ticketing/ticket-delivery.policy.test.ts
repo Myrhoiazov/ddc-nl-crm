@@ -3,10 +3,13 @@ import test from 'node:test';
 import { TicketDeliveryStatus } from '@prisma/client';
 import {
     MAX_TICKET_DELIVERY_ATTEMPTS,
+    recoveryUrl,
     ticketDeliveryEmail,
     ticketDeliveryRetry,
     ticketDeliveryRetryDelayMs,
+    ticketRecoveryEmail,
 } from './ticket-delivery.policy';
+import { deriveRecoveryToken, hashTicketingToken } from './hold-token';
 import type { TicketBundle } from './ticket.types';
 
 const bundle: TicketBundle = {
@@ -58,4 +61,33 @@ test('ticket email contains event details but never exposes the opaque token in 
     assert.equal(email.html.includes('&lt;Amsterdam&gt;'), true);
     assert.equal(email.html.includes('<script'), false);
     assert.equal(email.attachmentName, 'tickets-T-ABCDEF12.pdf');
+});
+
+test('a recovery link puts the opaque token in the URL fragment, never in the path', () => {
+    const token = deriveRecoveryToken('s'.repeat(32), 42);
+    const url = recoveryUrl('https://tickets.example.test/order?from=email', token);
+    const parsed = new URL(url);
+
+    assert.equal(parsed.origin, 'https://tickets.example.test');
+    assert.equal(parsed.pathname, '/order');
+    assert.equal(parsed.search, '?from=email');
+    assert.equal(parsed.hash, `#order=${token}`);
+    assert.equal(parsed.href.includes(token), true);
+    assert.notEqual(deriveRecoveryToken('s'.repeat(32), 43), token);
+    assert.match(hashTicketingToken(token), /^[a-f0-9]{64}$/);
+});
+
+test('a recovery email names the order but carries no attachment or extra ticket secrets', () => {
+    const token = deriveRecoveryToken('s'.repeat(32), 42);
+    const email = ticketRecoveryEmail({
+        orderNumber: 'T-ABCDEF12',
+        recoveryUrl: recoveryUrl('https://tickets.example.test/order?from=email&ref=mail', token),
+    });
+
+    assert.match(email.subject, /T-ABCDEF12/);
+    assert.match(email.text, /T-ABCDEF12/);
+    assert.equal(email.text.split(token).length - 1, 1);
+    assert.match(email.html, /&amp;ref=mail/);
+    assert.doesNotMatch(email.html, /<script/);
+    assert.equal(email.attachmentName, undefined);
 });

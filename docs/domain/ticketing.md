@@ -120,6 +120,17 @@ staff resend and check-in are still planned — see `docs/ticketing/IMPLEMENTATI
   Failed sends return to `PENDING` with exponential backoff (60s, 2m, 4m); after four attempts the
   row becomes `FAILED` but is never deleted. Without `TICKETING_EMAIL_ENABLED` or SMTP settings the
   worker leaves the row untouched. Delivery uses SMTP directly and never writes an `EmailMessage`.
+- **Recovery** (`POST /public/orders/recover`, order number + email + Turnstile, 5 requests a
+  minute per IP): always answers `202`, whether or not the order exists. On a match it rotates
+  the order's `accessTokenHash` to `HMAC(TICKETING_TOKEN_SECRET, "recovery:" + orderId)` and queues
+  one `RECOVERY_LINK` row addressed to the email stored on the order; the previous access token
+  stops working. The worker rebuilds the token from the order id and puts it in the URL fragment
+  of `TICKETING_ORDER_URL` (fallback `TICKETING_PAYMENT_RETURN_URL`), so the outbox never stores
+  it. Without that URL or the token secret, `RECOVERY_LINK` rows stay `PENDING`. The token is
+  deterministic per order: it has no expiry and a repeated recovery yields the same link.
+- **Staff resend** (`POST /admin/orders/:orderId/resend`, `ADMIN`/`MANAGER`): for a `PAID` order
+  only, queues a `RESEND` row with the PDF to the buyer email and writes a `TicketAuditLog` entry
+  (`TICKET_ORDER` / `TICKETS_RESEND`) in the same transaction. The recipient cannot be changed.
 
 ## Domain Concepts
 

@@ -67,3 +67,33 @@ export const ticketDeliveryEmail = (bundle: TicketBundle): TicketDeliveryEmail =
 `;
     return { subject, text, html, attachmentName: `tickets-${bundle.orderNumber}.pdf` };
 };
+
+// Токен заказа уходит во фрагменте: браузер не отправляет фрагмент на сервер, поэтому он не
+// попадает в журналы запросов. Путь и query остаются обычными адресами витрины.
+export const recoveryUrl = (baseUrl: string, token: string): string => {
+    const url = new URL(baseUrl);
+    url.hash = `order=${token}`;
+    return url.toString();
+};
+
+export const ticketRecoveryEmail = (input: { orderNumber: string; recoveryUrl: string }): TicketDeliveryEmail => {
+    const subject = `Your ticket order ${input.orderNumber}`;
+    const text = [
+        'Hello,',
+        '',
+        `You asked for a link to your ticket order ${input.orderNumber}.`,
+        '',
+        `Open this link to view your order: ${input.recoveryUrl}`,
+        '',
+        'If you did not ask for this, you can ignore this email.',
+    ].join('\n');
+    const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;color:#1d1d33">
+        <h2>${escapeHtml(subject)}</h2>
+        <p>You asked for a link to your ticket order <strong>${escapeHtml(input.orderNumber)}</strong>.</p>
+        <p><a href="${escapeHtml(input.recoveryUrl)}">Open your order</a></p>
+        <p style="color:#6b7280;font-size:12px">If you did not ask for this, you can ignore this email.</p>
+    </div>
+`;
+    return { subject, text, html };
+};
